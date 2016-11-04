@@ -1,0 +1,10 @@
+.vagrant
+bin
+*.test
+flymake*
+*tar
+*gz
+*tar.gz
+*tgz
+*.swp
+gravity.log
