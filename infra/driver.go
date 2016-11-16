@@ -2,8 +2,8 @@ package infra
 
 type TestDriver interface {
 	Install(cluster Infra, installerURL string) error
-	Expand(Node) error
-	Shrink(Node) error
+	Expand(Infra) error
+	Shrink(Infra) error
 	// AppUpdate() error
 	// Update() error
 }

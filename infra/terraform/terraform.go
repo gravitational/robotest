@@ -27,19 +27,19 @@ func New(stateDir string, config Config) (*terraform, error) {
 		return nil, trace.Wrap(err)
 	}
 	return &terraform{
-		config:   config,
+		Config:   config,
 		stateDir: stateDir,
 	}, nil
 }
 
 func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
-	file := filepath.Base(r.config.ScriptPath)
-	err := system.CopyFile(r.config.ScriptPath, filepath.Join(r.stateDir, file))
+	file := filepath.Base(r.ScriptPath)
+	err := system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	args := append([]string{"apply"}, getVars(r.config)...)
+	args := append([]string{"apply"}, getVars(r.Config)...)
 	cmd := exec.Command("terraform", args...)
 	cmd.Dir = r.stateDir
 	cmd.Env = os.Environ()
@@ -76,16 +76,17 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 	}
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
-	return &infra.ProvisionerOutput{
+	r.ProvisionerOutput = infra.ProvisionerOutput{
 		InstallerIP: installerIP,
 		PrivateIPs:  privateIPs,
 		PublicIPs:   publicIPs,
-	}, nil
+	}
+	return &r.ProvisionerOutput, nil
 }
 
 func (r *terraform) Destroy() error {
 	log.Infof("destroying infrastructure: %v", r.stateDir)
-	args := append([]string{"destroy", "-force"}, getVars(r.config)...)
+	args := append([]string{"destroy", "-force"}, getVars(r.Config)...)
 	cmd := exec.Command("terraform", args...)
 	cmd.Dir = r.stateDir
 	return trace.Wrap(system.Exec(cmd, os.Stdout))
@@ -98,7 +99,7 @@ func (r *terraform) SelectInterface(output infra.ProvisionerOutput, addrs []stri
 
 // Connect establishes an SSH connection to the specified address
 func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
-	keyFile, err := os.Open(r.config.SSHKeyPath)
+	keyFile, err := os.Open(r.SSHKeyPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -112,6 +113,10 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 func (r *terraform) Nodes() []infra.Node {
 	// TODO
 	return nil
+}
+
+func (r *terraform) NumNodes() int {
+	return len(r.PublicIPs)
 }
 
 func (r *terraform) Allocate() (infra.Node, error) {
@@ -149,7 +154,9 @@ func getVars(config Config) []string {
 }
 
 type terraform struct {
-	config   Config
+	Config
+	infra.ProvisionerOutput
+
 	stateDir string
 }
 

@@ -107,6 +107,10 @@ func runTests(config fileConfig, cluster infra.Infra, output infra.ProvisionerOu
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	err = driver.Expand(cluster)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	return nil
 }
 

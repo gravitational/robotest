@@ -10,11 +10,12 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/trace"
 )
 
 func New(conf Config) (Infra, error) {
-	return &staticCluster{
+	return &autoCluster{
 		nodes:        conf.InitialCluster,
 		opsCenterURL: conf.OpsCenterURL,
 	}, nil
@@ -38,6 +39,7 @@ type Provisioner interface {
 	SelectInterface(output ProvisionerOutput, addrs []string) (int, error)
 	StartInstall(session *ssh.Session) error
 	Nodes() []Node
+	NumNodes() int
 	// Allocate allocates a new node (from the pool of available nodes)
 	// and returns a reference to it
 	Allocate() (Node, error)
@@ -46,19 +48,16 @@ type Provisioner interface {
 }
 
 type Infra interface {
-	Nodes() []Node
-	NumNodes() int
 	OpsCenterURL() string
 	// Close closes the cluster resources
 	Close() error
 	// Run runs the specified command on all active nodes in the cluster
-	Run(command string) error
-	// Allocate(addr, user, key string) error
-	// Deallocate(addr string) error
+	// Run(command string) error
+	// Provisioner returns the provisioner used to manage nodes in the cluster
+	Provisioner() Provisioner
 }
 
 type Node interface {
-	Run(command string, output io.Writer) error
 	Connect() (*ssh.Session, error)
 }
 
@@ -74,7 +73,7 @@ func (r ProvisionerOutput) String() string {
 		r.InstallerIP, r.PrivateIPs, r.PublicIPs)
 }
 
-func RunOnNodes(command string, nodes []Node) error {
+func Distribute(command string, nodes []Node) error {
 	log.Infof("running %q on %v", command, nodes)
 	errCh := make(chan error, len(nodes))
 	wg := sync.WaitGroup{}
@@ -82,7 +81,7 @@ func RunOnNodes(command string, nodes []Node) error {
 	for _, node := range nodes {
 		go func(errCh chan<- error) {
 			log.Infof("running on %v", node)
-			errCh <- node.Run(command, os.Stderr)
+			errCh <- Run(node, command, os.Stderr)
 			wg.Done()
 		}(errCh)
 	}
@@ -95,4 +94,12 @@ func RunOnNodes(command string, nodes []Node) error {
 		}
 	}
 	return trace.NewAggregate(errors...)
+}
+
+func Run(node Node, command string, w io.Writer) error {
+	session, err := node.Connect()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return sshutils.RunCommandWithOutput(session, command, w)
 }

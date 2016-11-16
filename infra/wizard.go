@@ -241,14 +241,10 @@ func (r *wizardCluster) NumNodes() int {
 	return len(r.ProvisionerOutput.PublicIPs)
 }
 
-func (r *wizardCluster) Nodes() []Node {
-	return r.provisioner.Nodes()
-}
-
-func (r *wizardCluster) Run(command string) error {
-	return RunOnNodes(command, r.provisioner.Nodes())
-}
-
 func (r *wizardCluster) OpsCenterURL() string {
 	return fmt.Sprintf("%v://%v", r.InstallerURL.Scheme, r.InstallerURL.Host)
+}
+
+func (r *wizardCluster) Provisioner() Provisioner {
+	return r.provisioner
 }

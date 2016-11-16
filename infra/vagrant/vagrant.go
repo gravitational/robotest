@@ -111,6 +111,11 @@ func (r *vagrant) Nodes() (nodes []infra.Node) {
 	return nodes
 }
 
+func (r *vagrant) NumNodes() int {
+	// FIXME: return number of active nodes (not the total cluster capacity)
+	return len(r.nodes)
+}
+
 func (r *vagrant) Allocate() (infra.Node, error) {
 	// TODO
 	return nil, nil
@@ -195,14 +200,6 @@ func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]
 func (r *vagrant) Write(p []byte) (int, error) {
 	fmt.Fprint(os.Stderr, string(p))
 	return len(p), nil
-}
-
-func (r *node) Run(command string, w io.Writer) error {
-	session, err := r.Connect()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	return sshutils.RunCommandWithOutput(session, command, w)
 }
 
 func (r *node) Connect() (*ssh.Session, error) {
