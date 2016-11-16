@@ -74,6 +74,8 @@ func (r ProvisionerOutput) String() string {
 		r.InstallerIP, r.PrivateIPs, r.PublicIPs)
 }
 
+// Distribute executes the specified command on given nodes
+// and waits for execution to complete before returning
 func Distribute(command string, nodes []Node) error {
 	log.Infof("running %q on %v", command, nodes)
 	errCh := make(chan error, len(nodes))
@@ -97,6 +99,8 @@ func Distribute(command string, nodes []Node) error {
 	return trace.NewAggregate(errors...)
 }
 
+// Run executes the specified command on node and streams
+// session's Stdout/Stderr to the specified w
 func Run(node Node, command string, w io.Writer) error {
 	session, err := node.Connect()
 	if err != nil {

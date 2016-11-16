@@ -79,6 +79,6 @@ Vagrant.configure(2) do |config|
   SHELL
 
   create_node(config.vm, "master", 1, 2100)
-  create_node(config.vm, "master-2", 1, 2100)
+  # create_node(config.vm, "master-2", 1, 2100)
   # create_node(config.vm, "master-3", 1, 2100)
 end

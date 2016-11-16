@@ -80,11 +80,7 @@ func run() error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	defer func() {
-		cluster.Close()
-		// Remove to leave the OpsCenter running
-		cluster.Destroy()
-	}()
+	defer cluster.Close()
 
 	driver, err := driverFromConfig(*config)
 	if err != nil {
@@ -97,6 +93,8 @@ func run() error {
 	}
 
 	if err == nil {
+		// Comment out to leave OpsCenter running
+		cluster.Destroy()
 		errDelete := system.RemoveContents(dir)
 		if errDelete != nil {
 			log.Errorf("failed to delete %q: %v", dir, err)

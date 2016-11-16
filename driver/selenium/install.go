@@ -218,7 +218,6 @@ L:
 			if err != nil {
 				return trace.Wrap(err)
 			}
-			// FIXME: Cluster.NumNodes should return the number of active nodes
 			if len(elems) == cluster.Provisioner().NumNodes() {
 				break L
 			}
