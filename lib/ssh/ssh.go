@@ -59,7 +59,6 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 			}
 		}
 	}()
-	log.Infof("running %q in session %v", command, session)
 	var stderr io.Reader
 	stderr, err = session.StderrPipe()
 	if err != nil {
@@ -77,22 +76,18 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 	sink := make(chan string)
 
 	go func() {
-		log.Info("streaming stdout")
 		err := stream(stdout, sink)
 		if err != nil {
 			log.Error(err.Error())
 		}
 		wg.Done()
-		log.Info("done streaming stdout")
 	}()
 	go func() {
-		log.Info("streaming stderr")
 		err := stream(stderr, sink)
 		if err != nil {
 			log.Error(err.Error())
 		}
 		wg.Done()
-		log.Info("done streaming stderr")
 	}()
 	go func() {
 		w := bufio.NewWriter(w)
@@ -105,15 +100,12 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 		w.Flush()
 	}()
 
-	log.Infof("starting %q", command)
 	err = session.Start(command)
 	if err != nil {
 		return trace.Wrap(err, "failed to start %q", command)
 	}
 
-	log.Info("waiting for completion")
 	err = session.Wait()
-	log.Info("command done")
 	session.Close()
 	wg.Wait()
 	close(sink)

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"sync"
 
 	"golang.org/x/crypto/ssh"
 
@@ -76,14 +77,18 @@ func (r ProvisionerOutput) String() string {
 func RunOnNodes(command string, nodes []Node) error {
 	log.Infof("running %q on %v", command, nodes)
 	errCh := make(chan error, len(nodes))
+	wg := sync.WaitGroup{}
+	wg.Add(len(nodes))
 	for _, node := range nodes {
 		go func(errCh chan<- error) {
 			log.Infof("running on %v", node)
 			errCh <- node.Run(command, os.Stderr)
+			wg.Done()
 		}(errCh)
 	}
+	wg.Wait()
+	close(errCh)
 	var errors []error
-	log.Infof("waiting for completion")
 	for err := range errCh {
 		if err != nil {
 			errors = append(errors, err)

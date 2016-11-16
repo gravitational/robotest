@@ -258,7 +258,10 @@ L:
 	for i := 0; i < defaults.RetryAttempts; i++ {
 		select {
 		case err := <-errCh:
-			return trace.Wrap(err)
+			if err != nil {
+				return trace.Wrap(err)
+			}
+			errCh = nil
 		case <-ticker.C:
 			elems, err = wd.FindElements(selenium.ByCSSSelector, ".grv-provision-req-server-inputs")
 			if err != nil {
@@ -271,10 +274,9 @@ L:
 		}
 	}
 	ticker.Stop()
-	<-errCh
 
 	if len(elems) != cluster.NumNodes() {
-		return trace.NotFound("timed out waiting for agents")
+		return trace.NotFound("timed out waiting for agents: got %d, want %d", len(elems), cluster.NumNodes())
 	}
 	log.Infof("all agents have joined")
 	time.Sleep(actionDelay)

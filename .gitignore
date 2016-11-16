@@ -8,3 +8,4 @@ flymake*
 *tgz
 *.swp
 gravity.log
+assets/**/config.json
