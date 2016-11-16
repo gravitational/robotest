@@ -14,17 +14,36 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func New(config Config) (Infra, error) {
+// New creates a new cluster from the specified config and an optional
+// provisioner.
+// With no provisioner, existing cluster is assumed (config.InitialCluster
+// must be provided).
+// Provisioner should not have its Create method called - this is done
+// automatically
+func New(config Config, provisioner Provisioner) (Infra, error) {
+	_, err := provisioner.Create()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	return &autoCluster{
-		config: config,
+		config:      config,
+		provisioner: provisioner,
 	}, nil
 }
 
+// NewWizard creates a new cluster using an installer tarball (which
+// is assumed to be part of the configuration).
+// It provisions a cluster, picks a node as installer node and starts
+// a local wizard process.
+// Provisioner should not have its Create method called - this is done
+// automatically
 func NewWizard(config Config, provisioner Provisioner) (Infra, *ProvisionerOutput, error) {
 	cluster, err := startWizard(provisioner)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+
 	cluster.config = config
 	return cluster, &cluster.ProvisionerOutput, nil
 }
