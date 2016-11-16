@@ -46,13 +46,28 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 	return session, nil
 }
 
-func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) error {
-	stderr, err := session.StderrPipe()
+// RunCommandWithOutput executes the specified command in given session and
+// streams session's Stderr/Stdout into w.
+// The function takes ownership of session and will destroy it upon completion of
+// the command
+func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (err error) {
+	defer func() {
+		if err != nil {
+			errClose := session.Close()
+			if errClose != nil {
+				log.Errorf("failed to close SSH session: %v", errClose)
+			}
+		}
+	}()
+	log.Infof("running %q in session %v", command, session)
+	var stderr io.Reader
+	stderr, err = session.StderrPipe()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	stdout, err := session.StdoutPipe()
+	var stdout io.Reader
+	stdout, err = session.StdoutPipe()
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -62,12 +77,22 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) err
 	sink := make(chan string)
 
 	go func() {
-		stream(stdout, sink)
+		log.Info("streaming stdout")
+		err := stream(stdout, sink)
+		if err != nil {
+			log.Error(err.Error())
+		}
 		wg.Done()
+		log.Info("done streaming stdout")
 	}()
 	go func() {
-		stream(stderr, sink)
+		log.Info("streaming stderr")
+		err := stream(stderr, sink)
+		if err != nil {
+			log.Error(err.Error())
+		}
 		wg.Done()
+		log.Info("done streaming stderr")
 	}()
 	go func() {
 		w := bufio.NewWriter(w)
@@ -80,27 +105,32 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) err
 		w.Flush()
 	}()
 
+	log.Infof("starting %q", command)
+	err = session.Start(command)
+	if err != nil {
+		return trace.Wrap(err, "failed to start %q", command)
+	}
+
+	log.Info("waiting for completion")
 	err = session.Wait()
+	log.Info("command done")
+	session.Close()
 	wg.Wait()
+	close(sink)
 
 	return trace.Wrap(err)
 }
 
-func stream(r io.Reader, sink chan<- string) {
-	reader := bufio.NewReader(r)
-	var err error
-	for err == nil {
-		var line string
-		line, err = reader.ReadString('\n')
-		if err == io.EOF {
-			err = nil
-			break
-		}
+func stream(r io.Reader, sink chan<- string) error {
+	s := bufio.NewScanner(r)
+	for s.Scan() {
+		line := s.Text()
 		sink <- line
 	}
-	if err != nil {
-		log.Errorf("failed to stream: %v", err)
+	if err := s.Err(); err != nil && err != io.EOF {
+		return trace.Wrap(err, "failed to stream")
 	}
+	return nil
 }
 
 const sshConnectTimeout = 20 * time.Second

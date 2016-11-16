@@ -251,7 +251,6 @@ func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, cluster in
 		close(errCh)
 	}()
 
-	// wait for agents to register
 	log.Infof("waiting for agents to register")
 	ticker := time.NewTicker(defaults.RetryDelay)
 	var elems []selenium.WebElement

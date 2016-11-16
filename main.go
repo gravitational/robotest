@@ -11,6 +11,7 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
+	debugutils "github.com/gravitational/robotest/lib/debug"
 	"github.com/gravitational/robotest/lib/system"
 
 	"github.com/gravitational/configure/cstrings"
@@ -46,6 +47,7 @@ func run() error {
 
 	if *debug {
 		initLogger(log.DebugLevel)
+		go debugutils.DumpLoop()
 	}
 
 	var configReader io.ReadCloser

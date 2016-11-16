@@ -89,7 +89,7 @@ func (r *vagrant) Connect(addrIP string) (*ssh.Session, error) {
 	if !ok {
 		return nil, trace.NotFound("no node with IP %q", addrIP)
 	}
-	return node.connect()
+	return node.Connect()
 }
 
 func (r *vagrant) StartInstall(session *ssh.Session) error {
@@ -151,26 +151,18 @@ func (r *vagrant) discoverNodes() error {
 			host = strings.TrimSpace(strings.TrimPrefix(line, "Host"))
 		case strings.HasPrefix(line, "  IdentityFile"):
 			path, _ := strconv.Unquote(strings.TrimSpace(strings.TrimPrefix(line, "  IdentityFile")))
-			node := nodes[host]
+			addrIP, err := r.getIP(host)
+			if err != nil {
+				return trace.Wrap(err, "failed to determine IP address of the host %q", host)
+			}
+			node := nodes[addrIP]
 			node.identityFile = path
-			nodes[host] = node
+			node.addrIP = addrIP
+			nodes[addrIP] = node
 		}
 	}
 
-	for host, node := range nodes {
-		addrIP, err := r.getIP(host)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-		node.addrIP = addrIP
-		nodes[host] = node
-	}
-
-	for _, node := range nodes {
-		r.nodes[node.addrIP] = node
-	}
-
-	// r.nodes = nodes
+	r.nodes = nodes
 	log.Infof("discovered nodes: %#v", nodes)
 	return nil
 }
@@ -206,16 +198,20 @@ func (r *vagrant) Write(p []byte) (int, error) {
 }
 
 func (r *node) Run(command string, w io.Writer) error {
-	session, err := r.connect()
+	session, err := r.Connect()
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	defer session.Close()
 	return sshutils.RunCommandWithOutput(session, command, w)
 }
 
 func (r *node) Connect() (*ssh.Session, error) {
-	return r.connect()
+	keyFile, err := os.Open(r.identityFile)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	defer keyFile.Close()
+	return sshutils.Connect(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
 }
 
 func args(opts ...string) (result []string) {
@@ -241,15 +237,6 @@ type vagrant struct {
 	config   Config
 	// nodes maps node address to a node
 	nodes map[string]node
-}
-
-func (r *node) connect() (*ssh.Session, error) {
-	keyFile, err := os.Open(r.identityFile)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	defer keyFile.Close()
-	return sshutils.Connect(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
 }
 
 type node struct {

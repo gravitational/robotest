@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -19,7 +20,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func startWizard(provisioner Provisioner) (output *ProvisionerOutput, err error) {
+func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
+	var output *ProvisionerOutput
 	output, err = provisioner.Create()
 
 	// destroy (partially) created infrastructure
@@ -55,13 +57,22 @@ func startWizard(provisioner Provisioner) (output *ProvisionerOutput, err error)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	defer session.Close()
+	defer func() {
+		if err == nil {
+			return
+		}
+		errClose := session.Close()
+		if errClose != nil {
+			log.Errorf("failed to close wizard SSH session: %v", errClose)
+		}
+	}()
 
 	var stdin io.WriteCloser
 	stdin, err = session.StdinPipe()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	defer stdin.Close()
 
 	var stdout io.Reader
 	stdout, err = session.StdoutPipe()
@@ -77,8 +88,10 @@ func startWizard(provisioner Provisioner) (output *ProvisionerOutput, err error)
 		}
 	}()
 	defer func() {
-		reader.Close()
-		writer.Close()
+		if err != nil {
+			reader.Close()
+			writer.Close()
+		}
 	}()
 
 	var stderr io.Reader
@@ -105,8 +118,17 @@ func startWizard(provisioner Provisioner) (output *ProvisionerOutput, err error)
 		return nil, trace.Wrap(err)
 	}
 	output.InstallerURL = *url
+	// Discard all stdout content after the necessary wizard details have been obtained
+	go func() {
+		io.Copy(ioutil.Discard, reader)
+	}()
 
-	return output, nil
+	// TODO: make sure that all io.Copy goroutines shutdown in Close
+	return &wizardCluster{
+		ProvisionerOutput: *output,
+		provisioner:       provisioner,
+		session:           session,
+	}, nil
 }
 
 func configureWizard(stdout io.Reader, stdin io.Writer, provisioner Provisioner, output ProvisionerOutput) (installerURL *url.URL, err error) {
@@ -202,10 +224,15 @@ var (
 type wizardCluster struct {
 	ProvisionerOutput
 	provisioner Provisioner
+	session     *ssh.Session
 }
 
 func (r *wizardCluster) Close() error {
-	// FIXME: is this a Destroy?
+	errClose := r.session.Close()
+	if errClose != nil {
+		log.Errorf("failed to close wizard SSH session: %v", errClose)
+	}
+	// FIXME: Destroy?
 	return r.provisioner.Destroy()
 }
 
@@ -215,8 +242,7 @@ func (r *wizardCluster) NumNodes() int {
 }
 
 func (r *wizardCluster) Nodes() []Node {
-	// FIXME
-	return nil
+	return r.provisioner.Nodes()
 }
 
 func (r *wizardCluster) Run(command string) error {
