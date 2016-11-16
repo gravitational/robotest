@@ -1,90 +1,126 @@
-package robotest
+package selenium
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/gravitational/robotest/lib/utils"
+	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/tebeka/selenium"
 )
 
-func runSelenium(url string, conf config, tf terraformOutput) error {
-	caps := selenium.Capabilities{"browserName": "chrome"}
-	wd, err := selenium.NewRemote(caps, "")
+func New(config Config) (*driver, error) {
+	err := config.Validate()
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer wd.Close()
-
-	wd.SetImplicitWaitTimeout(5 * time.Second)
-
-	log.Infof("opening %v", url)
-	err = wd.Get(url)
-	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
-
-	err = processLicenseScreen(wd, conf.LicensePath)
+	caps := selenium.Capabilities{"browserName": config.BrowserName}
+	remote, err := selenium.NewRemote(caps, "")
 	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	remote.SetImplicitWaitTimeout(driverWaitTimeout)
 
-	err = processNewSiteScreen(wd, conf.ClusterName)
-	if err != nil {
-		return trace.Wrap(err)
-	}
+	return &driver{
+		WebDriver: remote,
+		Config:    config,
+	}, nil
+}
 
-	time.Sleep(seleniumDelay)
-
-	err = processCapacityScreen(wd, conf.FlavorLabel, tf.publicIPs, conf.SSHKeyPath)
+func (r *driver) Install(cluster infra.Infra, installerURL string) error {
+	log.Infof("opening %v", installerURL)
+	err := r.Get(installerURL)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
-	err = processInstallResult(wd)
+	err = processLicenseScreen(r.WebDriver, r.License)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
-	err = processBandwagonScreen(wd)
+	err = processNewSiteScreen(r.WebDriver, r.ClusterName)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
+
+	err = processCapacityScreen(r.WebDriver, r.FlavorLabel, cluster)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	time.Sleep(actionDelay)
+
+	err = processInstallResult(r.WebDriver)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	time.Sleep(actionDelay)
+
+	err = processBandwagonScreen(r.WebDriver)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	time.Sleep(actionDelay)
 
 	return nil
 }
 
+func (r *driver) Expand(infra.Node) error {
+	// TODO
+	return nil
+}
+
+func (r *driver) Shrink(infra.Node) error {
+	// TODO
+	return nil
+}
+
+func (r *driver) Close() error {
+	return r.WebDriver.Close()
+}
+
+func (r *Config) Validate() error {
+	err := r.Config.Validate()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	if r.FlavorLabel == "" {
+		return trace.BadParameter("install flavor label is required")
+	}
+	if r.BrowserName == "" {
+		r.BrowserName = "chrome"
+	}
+	return nil
+}
+
 // processLicenseScreen enters a license if it needs to be entered and proceeds to the next screen
-func processLicenseScreen(wd selenium.WebDriver, licensePath string) error {
+func processLicenseScreen(wd selenium.WebDriver, license string) error {
 	// see if license is required
 	elem, _ := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-license")
 	if elem == nil {
-		log.Infof("app does not need a license")
+		// log.Infof("%v does not need a license", r.conf.Application)
 		return nil
-	}
-
-	license, err := ioutil.ReadFile(licensePath)
-	if err != nil {
-		return trace.Wrap(err)
 	}
 
 	// enter a license
 	log.Infof("entering license")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		textarea, err := elem.FindElement(selenium.ByTagName, "textarea")
 		if err != nil {
 			return trace.Wrap(err)
@@ -97,7 +133,7 @@ func processLicenseScreen(wd selenium.WebDriver, licensePath string) error {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		time.Sleep(seleniumDelay)
+		time.Sleep(actionDelay)
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-btn-new-site")
 		if err != nil {
 			return trace.Wrap(err)
@@ -112,7 +148,7 @@ func processLicenseScreen(wd selenium.WebDriver, licensePath string) error {
 func processNewSiteScreen(wd selenium.WebDriver, clusterName string) error {
 	// enter domain name
 	log.Infof("entering domain name")
-	err := utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByName, "domainName")
 		if err != nil {
 			return trace.Wrap(err)
@@ -127,11 +163,11 @@ func processNewSiteScreen(wd selenium.WebDriver, clusterName string) error {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// select onprem install type
 	log.Infof("selecting onprem installation type")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".--metal")
 		if err != nil {
 			return trace.Wrap(err)
@@ -142,11 +178,11 @@ func processNewSiteScreen(wd selenium.WebDriver, clusterName string) error {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// click "next"
 	log.Infof("creating a site")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-btn-new-site")
 		if err != nil {
 			return trace.Wrap(err)
@@ -158,10 +194,10 @@ func processNewSiteScreen(wd selenium.WebDriver, clusterName string) error {
 
 // processCapacityScreen selects a requested flavor, runs agent command, waits for all agents to connect
 // and launches the installation
-func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, ips []string, keyPath string) error {
+func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, cluster infra.Infra) error {
 	// select flavor
-	log.Infof("selecting flavor with label '%v'", flavorLabel)
-	err := utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	log.Infof("selecting flavor with label %q", flavorLabel)
+	err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elems, err := wd.FindElements(selenium.ByCSSSelector, ".grv-slider-value-desc")
 		if err != nil {
 			return trace.Wrap(err)
@@ -185,12 +221,12 @@ func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, ips []stri
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// find curl command for gravity agent
 	log.Infof("extracting agent command")
 	var command string
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".m-t-sm")
 		if err != nil {
 			return trace.Wrap(err)
@@ -206,35 +242,47 @@ func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, ips []stri
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
-	log.Infof("running agent command on servers: %v", command)
-	for _, ip := range ips {
-		go startAgent(ip, command, keyPath)
-	}
+	log.Infof("running agent command %q on %v", command, cluster)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- cluster.Run(command)
+		close(errCh)
+	}()
 
 	// wait for agents to register
 	log.Infof("waiting for agents to register")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
-		elems, err := wd.FindElements(selenium.ByCSSSelector, ".grv-provision-req-server-inputs")
-		if err != nil {
+	ticker := time.NewTicker(defaults.RetryDelay)
+	var elems []selenium.WebElement
+L:
+	for i := 0; i < defaults.RetryAttempts; i++ {
+		select {
+		case err := <-errCh:
 			return trace.Wrap(err)
+		case <-ticker.C:
+			elems, err = wd.FindElements(selenium.ByCSSSelector, ".grv-provision-req-server-inputs")
+			if err != nil {
+				return trace.Wrap(err)
+			}
+			// FIXME: Cluster.NumNodes should return the number of active nodes
+			if len(elems) == cluster.NumNodes() {
+				break L
+			}
 		}
-		if len(elems) != len(ips) {
-			return trace.BadParameter("not all agents have joined yet")
-		}
-		return nil
-	})
-	if err != nil {
-		return trace.Wrap(err)
 	}
+	ticker.Stop()
+	<-errCh
 
+	if len(elems) != cluster.NumNodes() {
+		return trace.NotFound("timed out waiting for agents")
+	}
 	log.Infof("all agents have joined")
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// click "start installation"
 	log.Infof("starting installation")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-btn-new-site")
 		if err != nil {
 			return trace.Wrap(err)
@@ -248,7 +296,7 @@ func processCapacityScreen(wd selenium.WebDriver, flavorLabel string, ips []stri
 // successful
 func processInstallResult(wd selenium.WebDriver) error {
 	log.Infof("waiting for the installation to complete")
-	err := utils.Retry(installRetryDelay, installRetryAttempts, func() error {
+	err := wait.Retry(installRetryDelay, installRetryAttempts, func() error {
 		page, err := wd.PageSource()
 		if err != nil {
 			return trace.Wrap(err)
@@ -257,20 +305,20 @@ func processInstallResult(wd selenium.WebDriver) error {
 			return nil
 		}
 		if strings.Contains(page, "Install failure") {
-			return utils.Abort(trace.Errorf("install failure"))
+			return wait.Abort(trace.Errorf("install failure"))
 		}
-		return utils.Continue("waiting for the installation to complete...")
+		return wait.Continue("waiting for the installation to complete...")
 	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	log.Infof("installation success!")
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// click "continue" button
 	log.Infof("proceed to final install step")
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-progress-result")
 		if err != nil {
 			return trace.Wrap(err)
@@ -287,7 +335,7 @@ func processInstallResult(wd selenium.WebDriver) error {
 // processBandwagonScreen fills out all bandwagon fields and proceeds to the next screen
 func processBandwagonScreen(wd selenium.WebDriver) error {
 	log.Infof("filling out bandwagon fields")
-	err := utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByName, "email")
 		if err != nil {
 			return trace.Wrap(err)
@@ -300,7 +348,7 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		time.Sleep(seleniumDelay)
+		time.Sleep(actionDelay)
 		elem, err = wd.FindElement(selenium.ByName, "password")
 		if err != nil {
 			return trace.Wrap(err)
@@ -313,7 +361,7 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		time.Sleep(seleniumDelay)
+		time.Sleep(actionDelay)
 		elem, err = wd.FindElement(selenium.ByName, "passwordConfirmed")
 		if err != nil {
 			return trace.Wrap(err)
@@ -326,7 +374,7 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		time.Sleep(seleniumDelay)
+		time.Sleep(actionDelay)
 		// the following elements are optional
 		elem, _ = wd.FindElement(selenium.ByName, "org")
 		if elem != nil {
@@ -339,7 +387,7 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 				return trace.Wrap(err)
 			}
 		}
-		time.Sleep(seleniumDelay)
+		time.Sleep(actionDelay)
 		elem, _ = wd.FindElement(selenium.ByName, "name")
 		if elem != nil {
 			err = elem.Clear()
@@ -357,10 +405,10 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 		return trace.Wrap(err)
 	}
 
-	time.Sleep(seleniumDelay)
+	time.Sleep(actionDelay)
 
 	// click "finish"
-	err = utils.Retry(defaultRetryDelay, defaultRetryAttempts, func() error {
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		elem, err := wd.FindElement(selenium.ByCSSSelector, ".my-page-btn-submit")
 		if err != nil {
 			return trace.Wrap(err)
@@ -370,15 +418,27 @@ func processBandwagonScreen(wd selenium.WebDriver) error {
 	return trace.Wrap(err)
 }
 
+type driver struct {
+	selenium.WebDriver
+	Config
+}
+
+type Config struct {
+	infra.Config
+	// FlavorLabel defines the flavor to install using the flavor label
+	FlavorLabel string `json:"install_flavor_label" env:"ROBO_FLAVOR_LABEL"`
+	// BrowserName defines the browser to use
+	BrowserName string `json:"browser_name" env:"ROBO_BROWSER_NAME"`
+}
+
 const (
-	// seleniumDelay is the delay between selenium actions
-	seleniumDelay = 2 * time.Second
+	// actionDelay is the delay between selenium actions
+	actionDelay = 2 * time.Second
 
-	// defaultRetry(Delay|Attempts) control delay/attempts for non-install actions
-	defaultRetryDelay    = 5 * time.Second
-	defaultRetryAttempts = 100
-
-	// installRetry(Delay|Attempts) control delay/attempts for the installation
-	installRetryDelay    = 10 * time.Second
+	// installRetryDelay defines the interval between retry attempts during installation
+	installRetryDelay = 10 * time.Second
+	// installRetryAttempts defines the maximum number of retry attempts for installation
 	installRetryAttempts = 200
+
+	driverWaitTimeout = 1 * time.Second
 )

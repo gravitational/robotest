@@ -1,4 +1,4 @@
-package utils
+package wait
 
 import (
 	"fmt"
