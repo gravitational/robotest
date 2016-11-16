@@ -6,4 +6,10 @@ const (
 
 	// FieldCommandError defines a logging field that determines if the command has failed
 	FieldCommandError = "cmderr"
+
+	// FieldProvisioner defines a logging field to specify the name of the used provisioner
+	FieldProvisioner = "provisioner"
+
+	// FieldCluster defines a logging field to specify the name of the cluster
+	FieldCluster = "cluster"
 )

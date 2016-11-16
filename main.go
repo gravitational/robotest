@@ -80,7 +80,11 @@ func run() error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	defer cluster.Close()
+	defer func() {
+		cluster.Close()
+		// Remove to leave the OpsCenter running
+		cluster.Destroy()
+	}()
 
 	driver, err := driverFromConfig(*config)
 	if err != nil {
@@ -104,10 +108,6 @@ func run() error {
 
 func runTests(config fileConfig, cluster infra.Infra, output infra.ProvisionerOutput, driver infra.TestDriver) error {
 	err := driver.Install(cluster, output.InstallerURL.String())
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	err = driver.Expand(cluster)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -157,6 +157,6 @@ func stateDir(clusterName string) (dir string, err error) {
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
-	log.Infof("state dir: %v", dir)
+	log.Infof("state directory: %v", dir)
 	return dir, nil
 }

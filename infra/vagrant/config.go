@@ -23,4 +23,8 @@ type Config struct {
 	ScriptPath string `json:"script_path" env:"ROBO_SCRIPT_PATH"`
 	// InstallerURL is a path to the installer
 	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL"`
+	// Nodes is the number of initially active nodes.
+	// This can be less than the number of provisioned nodes (e.g. from Vagrantfile).
+	// The unallocated nodes can then be used for expand/shrink tests.
+	Nodes int `json:"nodes" env:"ROBO_NODES"`
 }

@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
@@ -28,16 +29,19 @@ func New(stateDir string, config Config) (*vagrant, error) {
 	}
 
 	return &vagrant{
-		Entry: log.WithFields(log.Fields{"provisioner": "vagrant", "cluster": config.ClusterName}),
+		Entry: log.WithFields(log.Fields{
+			constants.FieldProvisioner: "vagrant",
+			constants.FieldCluster:     config.ClusterName,
+		}),
 
 		stateDir: stateDir,
-		config:   config,
+		Config:   config,
 	}, nil
 }
 
 func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
-	file := filepath.Base(r.config.ScriptPath)
-	err := system.CopyFile(r.config.ScriptPath, filepath.Join(r.stateDir, file))
+	file := filepath.Base(r.ScriptPath)
+	err := system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -52,12 +56,24 @@ func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
 		return nil, trace.Wrap(err)
 	}
 	if len(r.nodes) == 0 {
-		return nil, trace.NotFound("failed to discover any node")
+		return nil, trace.NotFound("failed to discover any nodes")
+	}
+	if r.Config.Nodes > len(r.nodes) {
+		return nil, trace.BadParameter("number of requested nodes %d larger than the cluster capacity %v", r.Config.Nodes, len(r.nodes))
+	}
+
+	activeNodes := r.Config.Nodes
+	if r.Config.Nodes == 0 {
+		activeNodes = len(r.nodes)
 	}
 
 	publicIPs := make([]string, 0, len(r.nodes))
 	for _, node := range r.nodes {
 		publicIPs = append(publicIPs, node.addrIP)
+	}
+	r.active = make(map[string]struct{})
+	for _, addr := range publicIPs[:activeNodes] {
+		r.active[addr] = struct{}{}
 	}
 
 	return &infra.ProvisionerOutput{
@@ -93,41 +109,45 @@ func (r *vagrant) Connect(addrIP string) (*ssh.Session, error) {
 }
 
 func (r *vagrant) StartInstall(session *ssh.Session) error {
-	file := filepath.Base(r.config.InstallerURL)
+	file := filepath.Base(r.InstallerURL)
 	target := filepath.Join(r.stateDir, file)
-	err := system.CopyFile(r.config.InstallerURL, target)
+	err := system.CopyFile(r.InstallerURL, target)
 	if err != nil {
-		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.config.InstallerURL, target)
+		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
 	}
 	return session.Start(installerCommand)
 }
 
 func (r *vagrant) Nodes() (nodes []infra.Node) {
 	nodes = make([]infra.Node, 0, len(r.nodes))
-	// TODO: return only allocated nodes
-	for _, node := range r.nodes {
+	for addr := range r.active {
+		node := r.nodes[addr]
 		nodes = append(nodes, &node)
 	}
 	return nodes
 }
 
 func (r *vagrant) NumNodes() int {
-	// FIXME: return number of active nodes (not the total cluster capacity)
-	return len(r.nodes)
+	return len(r.active)
 }
 
 func (r *vagrant) Allocate() (infra.Node, error) {
-	// TODO
-	return nil, nil
+	for _, node := range r.nodes {
+		if _, active := r.active[node.addrIP]; !active {
+			r.active[node.addrIP] = struct{}{}
+			return &node, nil
+		}
+	}
+	return nil, trace.NotFound("cannot allocate node")
 }
 
-func (r *vagrant) Deallocate(infra.Node) error {
-	// TODO: put node back to node pool
+func (r *vagrant) Deallocate(n infra.Node) error {
+	delete(r.active, n.(*node).addrIP)
 	return nil
 }
 
 func (r *vagrant) boot() error {
-	out, err := r.command(args("up"), setEnv(fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.config.ScriptPath)))
+	out, err := r.command(args("up"), setEnv(fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.ScriptPath)))
 	if err != nil {
 		return trace.Wrap(err, "failed to provision vagrant cluster: %s", out)
 	}
@@ -149,7 +169,6 @@ func (r *vagrant) discoverNodes() error {
 	nodes := make(map[string]node)
 	for s.Scan() {
 		line := s.Text()
-		log.Infof("parsing %q", line)
 		switch {
 		case strings.HasPrefix(line, "Host"):
 			// Start a new node
@@ -228,12 +247,17 @@ func setEnv(envs ...string) system.CommandOptionSetter {
 
 type vagrant struct {
 	*log.Entry
+	Config
 
 	stateDir string
 	keyPath  string
-	config   Config
-	// nodes maps node address to a node
+	// nodes maps node address to a node.
+	// nodes represents the total cluster capacity as defined
+	// by the Vagrantfile
 	nodes map[string]node
+	// active defines the subset of nodes forming the current cluster
+	// which maybe less than the total capacity (len(nodes))
+	active map[string]struct{}
 }
 
 type node struct {

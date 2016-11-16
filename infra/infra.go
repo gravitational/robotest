@@ -14,18 +14,18 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func New(conf Config) (Infra, error) {
+func New(config Config) (Infra, error) {
 	return &autoCluster{
-		nodes:        conf.InitialCluster,
-		opsCenterURL: conf.OpsCenterURL,
+		config: config,
 	}, nil
 }
 
-func NewWizard(conf Config, provisioner Provisioner) (Infra, *ProvisionerOutput, error) {
+func NewWizard(config Config, provisioner Provisioner) (Infra, *ProvisionerOutput, error) {
 	cluster, err := startWizard(provisioner)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+	cluster.config = config
 	return cluster, &cluster.ProvisionerOutput, nil
 }
 
@@ -49,12 +49,13 @@ type Provisioner interface {
 
 type Infra interface {
 	OpsCenterURL() string
-	// Close closes the cluster resources
+	// Close releases resources
 	Close() error
-	// Run runs the specified command on all active nodes in the cluster
-	// Run(command string) error
+	// Destroy destroys the cluster (e.g. deprovisions nodes, etc.)
+	Destroy() error
 	// Provisioner returns the provisioner used to manage nodes in the cluster
 	Provisioner() Provisioner
+	Config() Config
 }
 
 type Node interface {

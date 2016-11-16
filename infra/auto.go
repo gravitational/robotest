@@ -10,14 +10,14 @@ import (
 
 // autoCluster represents a cluster managed by an active OpsCenter
 type autoCluster struct {
-	nodes        []string
-	user         string
-	key          string
-	opsCenterURL string
+	config Config
+	user   string
+	key    string
 }
 
 func (r *autoCluster) Installer() Node      { return nil }
-func (r *autoCluster) OpsCenterURL() string { return r.opsCenterURL }
+func (r *autoCluster) OpsCenterURL() string { return r.config.OpsCenterURL }
+func (r *autoCluster) Config() Config       { return r.config }
 
 func (r *autoCluster) Provisioner() Provisioner {
 	// TODO: implement
@@ -25,6 +25,10 @@ func (r *autoCluster) Provisioner() Provisioner {
 }
 
 func (r *autoCluster) Close() error {
+	return nil
+}
+
+func (r *autoCluster) Destroy() error {
 	return nil
 }
 

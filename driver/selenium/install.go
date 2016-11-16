@@ -66,7 +66,6 @@ func processLicenseScreen(wd selenium.WebDriver, license string) error {
 	// see if license is required
 	elem, _ := wd.FindElement(selenium.ByCSSSelector, ".grv-installer-license")
 	if elem == nil {
-		// log.Infof("%v does not need a license", r.conf.Application)
 		return nil
 	}
 

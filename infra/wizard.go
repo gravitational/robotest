@@ -24,7 +24,7 @@ func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
 	var output *ProvisionerOutput
 	output, err = provisioner.Create()
 
-	// destroy (partially) created infrastructure
+	// destroy (even partially created) infrastructure in case of errors
 	defer func() {
 		if err == nil {
 			return
@@ -215,36 +215,38 @@ const (
 	readingInterfacesState = iota
 )
 
-var (
-	reInstallerURL = regexp.MustCompile("(?m:^OPEN THIS IN BROWSER: (.+)$)")
-	reInstallerIP  = regexp.MustCompile(`(\d+).\s+(\d+.\d+.\d+.\d+)`)
-)
-
-// wizardCluster implements Infra
-type wizardCluster struct {
-	ProvisionerOutput
-	provisioner Provisioner
-	session     *ssh.Session
+func (r *wizardCluster) Close() error {
+	return r.session.Close()
 }
 
-func (r *wizardCluster) Close() error {
-	errClose := r.session.Close()
-	if errClose != nil {
-		log.Errorf("failed to close wizard SSH session: %v", errClose)
-	}
-	// FIXME: Destroy?
+func (r *wizardCluster) Destroy() error {
 	return r.provisioner.Destroy()
 }
 
-func (r *wizardCluster) NumNodes() int {
-	// TODO: provisioner-specific?
-	return len(r.ProvisionerOutput.PublicIPs)
-}
-
 func (r *wizardCluster) OpsCenterURL() string {
-	return fmt.Sprintf("%v://%v", r.InstallerURL.Scheme, r.InstallerURL.Host)
+	url := r.InstallerURL
+	url.Path = ""
+	return url.String()
 }
 
 func (r *wizardCluster) Provisioner() Provisioner {
 	return r.provisioner
 }
+
+func (r *wizardCluster) Config() Config {
+	return r.config
+}
+
+// wizardCluster implements Infra
+type wizardCluster struct {
+	ProvisionerOutput
+
+	config      Config
+	provisioner Provisioner
+	session     *ssh.Session
+}
+
+var (
+	reInstallerURL = regexp.MustCompile("(?m:^OPEN THIS IN BROWSER: (.+)$)")
+	reInstallerIP  = regexp.MustCompile(`(\d+).\s+(\d+.\d+.\d+.\d+)`)
+)
