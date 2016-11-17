@@ -162,30 +162,12 @@ func (r *vagrant) discoverNodes() error {
 	}
 	out, err := r.command(args("ssh-config"))
 	if err != nil {
-		return trace.Wrap(err, "failed to discover SSH key path: %s", out)
+		return trace.Wrap(err, "failed to query SSH config: %s", out)
 	}
 
-	s := bufio.NewScanner(bytes.NewReader(out))
-	var host string
-	// nodes maps hostname to node
-	nodes := make(map[string]node)
-	for s.Scan() {
-		line := s.Text()
-		switch {
-		case strings.HasPrefix(line, "Host"):
-			// Start a new node
-			host = strings.TrimSpace(strings.TrimPrefix(line, "Host"))
-		case strings.HasPrefix(line, "  IdentityFile"):
-			path, _ := strconv.Unquote(strings.TrimSpace(strings.TrimPrefix(line, "  IdentityFile")))
-			addrIP, err := r.getIP(host)
-			if err != nil {
-				return trace.Wrap(err, "failed to determine IP address of the host %q", host)
-			}
-			node := nodes[addrIP]
-			node.identityFile = path
-			node.addrIP = addrIP
-			nodes[addrIP] = node
-		}
+	nodes, err := parseSSHConfig(out, r.getIP)
+	if err != nil {
+		return trace.Wrap(err, "failed to parse SSH config")
 	}
 
 	r.nodes = nodes
@@ -246,6 +228,36 @@ func setEnv(envs ...string) system.CommandOptionSetter {
 		cmd.Env = os.Environ()
 		cmd.Env = append(cmd.Env, envs...)
 	}
+}
+
+func parseSSHConfig(config []byte, getIP func(string) (string, error)) (nodes map[string]node, err error) {
+	s := bufio.NewScanner(bytes.NewReader(config))
+	var host string
+	// nodes maps node IP address to node
+	nodes = make(map[string]node)
+	for s.Scan() {
+		line := s.Text()
+		switch {
+		case strings.HasPrefix(line, "Host"):
+			// Start a new node
+			host = strings.TrimSpace(strings.TrimPrefix(line, "Host"))
+		case strings.HasPrefix(line, "  IdentityFile"):
+			path := strings.TrimSpace(strings.TrimPrefix(line, "  IdentityFile"))
+			identityFile, err := strconv.Unquote(path)
+			if err != nil {
+				identityFile = path
+			}
+			addrIP, err := getIP(host)
+			if err != nil {
+				return nil, trace.Wrap(err, "failed to determine IP address of the host %q", host)
+			}
+			node := nodes[addrIP]
+			node.identityFile = identityFile
+			node.addrIP = addrIP
+			nodes[addrIP] = node
+		}
+	}
+	return nodes, nil
 }
 
 type vagrant struct {
