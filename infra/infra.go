@@ -78,6 +78,7 @@ type Infra interface {
 }
 
 type Node interface {
+	Addr() string
 	Connect() (*ssh.Session, error)
 }
 
@@ -101,11 +102,11 @@ func Distribute(command string, nodes []Node) error {
 	wg := sync.WaitGroup{}
 	wg.Add(len(nodes))
 	for _, node := range nodes {
-		go func(errCh chan<- error) {
+		go func(node Node) {
 			log.Infof("running on %v", node)
 			errCh <- Run(node, command, os.Stderr)
 			wg.Done()
-		}(errCh)
+		}(node)
 	}
 	wg.Wait()
 	close(errCh)

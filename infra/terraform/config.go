@@ -51,8 +51,10 @@ type Config struct {
 	ScriptPath string `json:"script_path" env:"ROBO_SCRIPT_PATH"`
 	// Nodes defines the capacity of the cluster to provision
 	Nodes int `json:"nodes" env:"ROBO_NODES"`
-	// InstallNodes defines the number of nodes to use for installation (must be <= Nodes)
-	InstallNodes int `json:"nodes" env:"ROBO_INSTALL_NODES"`
+	// InstallNodes defines the number of nodes to use for installation (must be <= Nodes).
+	// For expand/shrink operations, InstallNodes can be Nodes-1 to allow the cluster to grow
+	// TODO: replace Nodes/InstallNodes with dynamic expansion
+	InstallNodes int `json:"install_nodes" env:"ROBO_INSTALL_NODES"`
 	// InstallerURL is AWS S3 URL with the installer
 	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL"`
 }

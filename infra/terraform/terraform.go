@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
@@ -26,7 +27,12 @@ func New(stateDir string, config Config) (*terraform, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
 	return &terraform{
+		Entry: log.WithFields(log.Fields{
+			constants.FieldProvisioner: "terraform",
+			constants.FieldCluster:     config.ClusterName,
+		}),
 		Config:   config,
 		stateDir: stateDir,
 	}, nil
@@ -73,9 +79,11 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs))
 	}
 
-	activeNodes := r.InstallNodes
 	if r.Config.Nodes == 0 {
-		activeNodes = len(publicIPs)
+		r.Config.Nodes = len(publicIPs)
+	}
+	if r.Config.InstallNodes == 0 {
+		r.Config.InstallNodes = r.Config.Nodes
 	}
 
 	r.nodes = make(map[string]node)
@@ -83,10 +91,14 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 		r.nodes[addr] = node{privateIP: privateIPs[i], publicIP: addr, owner: r}
 	}
 
+	activeNodes := r.InstallNodes
 	r.active = make(map[string]struct{})
 	for _, addr := range publicIPs[:activeNodes] {
 		r.active[addr] = struct{}{}
 	}
+
+	r.Infof("cluster: %#v", r.nodes)
+	r.Infof("install subset: %#v", r.active)
 
 	r.ProvisionerOutput = infra.ProvisionerOutput{
 		InstallerIP: installerIP,
@@ -97,11 +109,10 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 }
 
 func (r *terraform) Destroy() error {
-	log.Infof("destroying infrastructure: %v", r.stateDir)
+	log.Infof("destroying terraform cluster: %v", r.stateDir)
 	args := append([]string{"destroy", "-force"}, getVars(r.Config)...)
-	cmd := exec.Command("terraform", args...)
-	cmd.Dir = r.stateDir
-	return trace.Wrap(system.Exec(cmd, os.Stdout))
+	_, err := r.command(args)
+	return trace.Wrap(err)
 }
 
 func (r *terraform) SelectInterface(output infra.ProvisionerOutput, addrs []string) (int, error) {
@@ -128,6 +139,7 @@ func (r *terraform) Nodes() (nodes []infra.Node) {
 		node := r.nodes[addr]
 		nodes = append(nodes, &node)
 	}
+	r.Infof("active nodes: %#v", nodes)
 	return nodes
 }
 
@@ -150,24 +162,39 @@ func (r *terraform) Deallocate(n infra.Node) error {
 	return nil
 }
 
+// Write implements io.Writer
+func (r *terraform) Write(p []byte) (int, error) {
+	fmt.Fprint(os.Stderr, string(p))
+	return len(p), nil
+}
+
+func (r *node) Addr() string {
+	return r.publicIP
+}
+
 func (r *node) Connect() (*ssh.Session, error) {
 	return r.owner.Connect(r.publicIP)
 }
 
 func (r *terraform) boot() (output string, err error) {
 	args := append([]string{"apply"}, getVars(r.Config)...)
-	cmd := exec.Command("terraform", args...)
-	cmd.Dir = r.stateDir
-	cmd.Env = os.Environ()
-
-	var out bytes.Buffer
-	w := io.MultiWriter(os.Stdout, &out)
-
-	err = system.Exec(cmd, w)
+	out, err := r.command(args)
 	if err != nil {
-		return "", trace.Wrap(err)
+		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
-	return out.String(), nil
+
+	return string(out), nil
+}
+
+func (r *terraform) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
+	cmd := exec.Command("terraform", args...)
+	var out bytes.Buffer
+	opts = append(opts, system.Dir(r.stateDir))
+	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry, opts...)
+	if err != nil {
+		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
+	}
+	return out.Bytes(), nil
 }
 
 // getVars returns a list of variables to provide to terraform apply/destroy commands
@@ -195,6 +222,7 @@ func getVars(config Config) []string {
 }
 
 type terraform struct {
+	*log.Entry
 	Config
 	infra.ProvisionerOutput
 

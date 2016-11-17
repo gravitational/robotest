@@ -33,7 +33,6 @@ func New(stateDir string, config Config) (*vagrant, error) {
 			constants.FieldProvisioner: "vagrant",
 			constants.FieldCluster:     config.ClusterName,
 		}),
-
 		stateDir: stateDir,
 		Config:   config,
 	}, nil
@@ -75,6 +74,9 @@ func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
 	for _, addr := range publicIPs[:activeNodes] {
 		r.active[addr] = struct{}{}
 	}
+
+	r.Infof("cluster: %#v", r.nodes)
+	r.Infof("install subset: %#v", r.active)
 
 	return &infra.ProvisionerOutput{
 		InstallerIP: publicIPs[0],
@@ -187,7 +189,7 @@ func (r *vagrant) discoverNodes() error {
 	}
 
 	r.nodes = nodes
-	log.Infof("discovered nodes: %#v", nodes)
+
 	return nil
 }
 
@@ -216,9 +218,14 @@ func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]
 	return out.Bytes(), nil
 }
 
+// Write implements io.Writer
 func (r *vagrant) Write(p []byte) (int, error) {
 	fmt.Fprint(os.Stderr, string(p))
 	return len(p), nil
+}
+
+func (r *node) Addr() string {
+	return r.addrIP
 }
 
 func (r *node) Connect() (*ssh.Session, error) {
@@ -231,11 +238,7 @@ func (r *node) Connect() (*ssh.Session, error) {
 }
 
 func args(opts ...string) (result []string) {
-	result = make([]string, 0, len(opts))
-	for _, opt := range opts {
-		result = append(result, opt)
-	}
-	return result
+	return opts
 }
 
 func setEnv(envs ...string) system.CommandOptionSetter {
