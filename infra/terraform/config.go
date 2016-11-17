@@ -23,6 +23,13 @@ func (r *Config) Validate() error {
 	if r.ScriptPath == "" {
 		errors = append(errors, trace.BadParameter("script path is required"))
 	}
+	if r.InstallNodes > r.Nodes {
+		errors = append(errors, trace.BadParameter("cannot use more nodes than the capacity for installation (%v > %v)",
+			r.InstallNodes, r.Nodes))
+	}
+	if r.InstallNodes == 0 {
+		r.InstallNodes = r.Nodes
+	}
 	return trace.NewAggregate(errors...)
 }
 
@@ -42,8 +49,10 @@ type Config struct {
 	InstanceType string `json:"instance_type" env:"ROBO_INSTANCE_TYPE"`
 	// ScriptPath is the path to the terraform script for provisioning
 	ScriptPath string `json:"script_path" env:"ROBO_SCRIPT_PATH"`
-	// Nodes is the number of nodes to provision
+	// Nodes defines the capacity of the cluster to provision
 	Nodes int `json:"nodes" env:"ROBO_NODES"`
+	// InstallNodes defines the number of nodes to use for installation (must be <= Nodes)
+	InstallNodes int `json:"nodes" env:"ROBO_INSTALL_NODES"`
 	// InstallerURL is AWS S3 URL with the installer
 	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL"`
 }

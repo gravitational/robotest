@@ -39,21 +39,13 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	args := append([]string{"apply"}, getVars(r.Config)...)
-	cmd := exec.Command("terraform", args...)
-	cmd.Dir = r.stateDir
-	cmd.Env = os.Environ()
-
-	var out bytes.Buffer
-	w := io.MultiWriter(os.Stdout, &out)
-
-	err = system.Exec(cmd, w)
+	output, err := r.boot()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	// find installer public IP
-	match := reInstallerIP.FindStringSubmatch(out.String())
+	match := reInstallerIP.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return nil, trace.NotFound(
 			"failed to extract installer IP from terraform output: %v", match)
@@ -61,7 +53,7 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 	installerIP := strings.TrimSpace(match[1])
 
 	// find all nodes' private IPs
-	match = rePrivateIPs.FindStringSubmatch(out.String())
+	match = rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return nil, trace.NotFound(
 			"failed to extract private IPs from terraform output: %v", match)
@@ -69,12 +61,32 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 	privateIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
 	// find all nodes' public IPs
-	match = rePublicIPs.FindStringSubmatch(out.String())
+	match = rePublicIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return nil, trace.NotFound(
 			"failed to extract public IPs from terraform output: %v", match)
 	}
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
+
+	if len(privateIPs) != len(publicIPs) {
+		return nil, trace.BadParameter(
+			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs))
+	}
+
+	activeNodes := r.InstallNodes
+	if r.Config.Nodes == 0 {
+		activeNodes = len(publicIPs)
+	}
+
+	r.nodes = make(map[string]node)
+	for i, addr := range publicIPs {
+		r.nodes[addr] = node{privateIP: privateIPs[i], publicIP: addr, owner: r}
+	}
+
+	r.active = make(map[string]struct{})
+	for _, addr := range publicIPs[:activeNodes] {
+		r.active[addr] = struct{}{}
+	}
 
 	r.ProvisionerOutput = infra.ProvisionerOutput{
 		InstallerIP: installerIP,
@@ -93,7 +105,7 @@ func (r *terraform) Destroy() error {
 }
 
 func (r *terraform) SelectInterface(output infra.ProvisionerOutput, addrs []string) (int, error) {
-	// TODO: fallback to the first available address
+	// Fallback to the first available address
 	return 0, nil
 }
 
@@ -110,23 +122,52 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
-func (r *terraform) Nodes() []infra.Node {
-	// TODO
-	return nil
+func (r *terraform) Nodes() (nodes []infra.Node) {
+	nodes = make([]infra.Node, 0, len(r.active))
+	for addr := range r.active {
+		node := r.nodes[addr]
+		nodes = append(nodes, &node)
+	}
+	return nodes
 }
 
 func (r *terraform) NumNodes() int {
-	return len(r.PublicIPs)
+	return len(r.active)
 }
 
 func (r *terraform) Allocate() (infra.Node, error) {
-	// TODO
-	return nil, nil
+	for _, node := range r.nodes {
+		if _, active := r.active[node.publicIP]; !active {
+			r.active[node.publicIP] = struct{}{}
+			return &node, nil
+		}
+	}
+	return nil, trace.NotFound("cannot allocate node")
 }
 
-func (r *terraform) Deallocate(infra.Node) error {
-	// TODO: put node back to node pool
+func (r *terraform) Deallocate(n infra.Node) error {
+	delete(r.active, n.(*node).publicIP)
 	return nil
+}
+
+func (r *node) Connect() (*ssh.Session, error) {
+	return r.owner.Connect(r.publicIP)
+}
+
+func (r *terraform) boot() (output string, err error) {
+	args := append([]string{"apply"}, getVars(r.Config)...)
+	cmd := exec.Command("terraform", args...)
+	cmd.Dir = r.stateDir
+	cmd.Env = os.Environ()
+
+	var out bytes.Buffer
+	w := io.MultiWriter(os.Stdout, &out)
+
+	err = system.Exec(cmd, w)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	return out.String(), nil
 }
 
 // getVars returns a list of variables to provide to terraform apply/destroy commands
@@ -158,6 +199,14 @@ type terraform struct {
 	infra.ProvisionerOutput
 
 	stateDir string
+	nodes    map[string]node
+	active   map[string]struct{}
+}
+
+type node struct {
+	owner     *terraform
+	publicIP  string
+	privateIP string
 }
 
 var (

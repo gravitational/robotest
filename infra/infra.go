@@ -20,15 +20,15 @@ import (
 // must be provided).
 // Provisioner should not have its Create method called - this is done
 // automatically
-func New(config Config, provisioner Provisioner) (Infra, error) {
+func New(config Config, opsCenterURL string, provisioner Provisioner) (Infra, error) {
 	_, err := provisioner.Create()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	return &autoCluster{
-		config:      config,
-		provisioner: provisioner,
+		opsCenterURL: opsCenterURL,
+		provisioner:  provisioner,
 	}, nil
 }
 

@@ -59,7 +59,7 @@ func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
 		return nil, trace.NotFound("failed to discover any nodes")
 	}
 	if r.Config.Nodes > len(r.nodes) {
-		return nil, trace.BadParameter("number of requested nodes %d larger than the cluster capacity %v", r.Config.Nodes, len(r.nodes))
+		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.Nodes, len(r.nodes))
 	}
 
 	activeNodes := r.Config.Nodes
@@ -119,7 +119,7 @@ func (r *vagrant) StartInstall(session *ssh.Session) error {
 }
 
 func (r *vagrant) Nodes() (nodes []infra.Node) {
-	nodes = make([]infra.Node, 0, len(r.nodes))
+	nodes = make([]infra.Node, 0, len(r.active))
 	for addr := range r.active {
 		node := r.nodes[addr]
 		nodes = append(nodes, &node)
