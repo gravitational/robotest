@@ -27,7 +27,7 @@ var _ = Describe("Login", func() {
 		user := ui.CreateUser(page, userName, password)
 		user.LoginWithGoogle()
 
-		Eventually(page.URL, defaultTimeout).Should(HaveSuffix("/portalfdfd"), "Waiting for portal page to load")
+		Eventually(page.URL, defaultTimeout).Should(HaveSuffix("/portal"), "Waiting for portal page to load")
 
 		By("loging out")
 		Eventually(page.FindByClass("fa-sign-out"), defaultTimeout).Should(am.BeFound())

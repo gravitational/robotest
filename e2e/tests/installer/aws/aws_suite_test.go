@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -21,15 +22,15 @@ var (
 )
 
 var (
-	deploymentName = "alexeyk-11-111122"
-	awsAccessKey   = "AKIAJ4FJNKWG3I5M3POQ"
-	awsSecretKey   = "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"
-	awsRegion      = "us-west-1"
-	awsKeyPair     = "ops"
-	awsVpc         = "vpc-6fbb610a"
-	userName       = "alex@kontsevoy.com"
-	password       = "test123"
-	startURL       = "https://localhost:8080/web/installer/new/gravitational.io/k8s-aws/0.45.14-138"
+	deploymentName = os.Getenv("ROBO_DEPLOYMANT_NAME")
+	awsAccessKey   = os.Getenv("ROBO_ACCESS_KEY")
+	awsSecretKey   = os.Getenv("ROBO_SECRET_KEY")
+	userName       = os.Getenv("ROBO_USER_NAME")
+	password       = os.Getenv("ROBO_USER_PASSWORD")
+	startURL       = os.Getenv("ROBO_ENTRY_URL")
+	awsRegion      = os.Getenv("ROBO_REGION")
+	awsKeyPair     = os.Getenv("ROBO_KEY_PAIRE")
+	awsVpc         = os.Getenv("ROBO_VPS")
 )
 
 var _ = BeforeSuite(func() {

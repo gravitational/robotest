@@ -73,6 +73,17 @@ func (u *User) LoginWithGoogle() {
 
 	Expect(page.FindByID("Passwd").Fill(u.password)).To(Succeed())
 	Expect(page.FindByID("signIn").Click()).To(Succeed())
+
+	time.Sleep(1 * time.Second)
+
+	allowBtn := page.FindByID("submit_approve_access")
+
+	count, _ := allowBtn.Count()
+
+	if count > 0 {
+		Expect(allowBtn.Click()).To(Succeed())
+	}
+
 }
 
 func (u *User) Signout() {

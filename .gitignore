@@ -8,4 +8,6 @@ flymake*
 *tgz
 *.swp
 gravity.log
+vendor
+.vscode
 assets/**/config.json

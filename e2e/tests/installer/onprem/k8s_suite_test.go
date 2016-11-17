@@ -1,6 +1,7 @@
 package onprem
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -25,10 +26,10 @@ var (
 )
 
 var (
-	userName   = "alex@kontsevoy.com"
-	password   = "test123"
-	domainName = "alexeyk-11-11"
-	startURL   = "https://localhost:8080/web/installer/new/gravitational.io/k8s-onprem/0.45.14-138"
+	userName   = os.Getenv("ROBO_USER_NAME")
+	password   = os.Getenv("ROBO_USER_PASSWORD")
+	domainName = os.Getenv("ROBO_DEPLOYMANT_NAME")
+	startURL   = os.Getenv("ROBO_ENTRY_URL")
 )
 
 var _ = BeforeSuite(func() {

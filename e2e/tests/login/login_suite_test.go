@@ -1,6 +1,7 @@
 package login_test
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -14,11 +15,12 @@ func TestLogin(t *testing.T) {
 }
 
 var (
-	page     *agouti.Page
-	driver   *agouti.WebDriver
-	baseURL  = "https://portal.gravitational.io/web/"
-	userName = "alexey@gravitational.com"
-	password = ""
+	page   *agouti.Page
+	driver *agouti.WebDriver
+
+	userName = os.Getenv("ROBO_USER_NAME")
+	password = os.Getenv("ROBO_USER_PASSWORD")
+	baseURL  = os.Getenv("ROBO_ENTRY_URL")
 )
 
 var _ = BeforeSuite(func() {
