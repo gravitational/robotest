@@ -3,8 +3,8 @@ package aws
 import (
 	"time"
 
-	"github.com/gravitational/gravity/e2e/ui"
 	installAsserts "github.com/gravitational/robotest/e2e/asserts/installer"
+	"github.com/gravitational/robotest/e2e/ui"
 	uiInstaller "github.com/gravitational/robotest/e2e/ui/installer"
 
 	. "github.com/onsi/ginkgo"
