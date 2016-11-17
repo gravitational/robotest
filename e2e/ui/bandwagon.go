@@ -32,9 +32,10 @@ func OpenBandWagon(page *agouti.Page, domainName string, email string, password 
 func (b *Bandwagon) SubmitForm() {
 	page := b.page
 	Expect(page.FindByName("email").Fill(b.email)).To(Succeed())
-	Expect(page.FindByName("password").Fill(b.password)).To(Succeed())
-	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(Succeed())
-	//	Expect(page.FindByClass("my-page-btn-submit").Click()).To(Succeed())
+	Expect(page.FindByName("password").Fill(b.password)).To(Succeed(), "should type password")
+	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(Succeed(), "should type password confirm")
+	Expect(page.FindByClass("my-page-btn-submit").Click()).To(Succeed(), "should click submit btn")
+	Eventually(page.FindByClass("my-page-section-endpoints"), defaultTimeout).Should(am.BeFound())
 }
 
 func (b *Bandwagon) GetEndPoints() []string {

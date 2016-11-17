@@ -13,7 +13,7 @@ import (
 
 func TestK8s(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "k8s-onprem")
+	RunSpecs(t, "aws-installation")
 }
 
 var (
@@ -40,7 +40,7 @@ var _ = BeforeSuite(func() {
 
 	page, err = driver.NewPage()
 	Expect(err).NotTo(HaveOccurred())
-	ui.EnsureUser(page, startURL, userName, password, ui.WithEmail)
+	ui.EnsureUser(page, startURL, userName, password, ui.WithGoogle)
 })
 
 var _ = AfterSuite(func() {

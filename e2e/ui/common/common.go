@@ -24,9 +24,6 @@ func SetDropDownValue(page *agouti.Page, classPath string, value string) {
 
 	page.RunScript(js, nil, &result)
 
-	fmt.Println(classPath)
-	fmt.Println(js)
-
 	for index, optionValue := range result {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v .Select-option:nth-child(%v)", classPath, index+1)

@@ -6,6 +6,7 @@ import (
 	installAsserts "github.com/gravitational/robotest/e2e/asserts/installer"
 	"github.com/gravitational/robotest/e2e/ui"
 	uiInstaller "github.com/gravitational/robotest/e2e/ui/installer"
+	uiSite "github.com/gravitational/robotest/e2e/ui/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,10 +21,17 @@ var _ = Describe("Installation", func() {
 	It("should handle installation", func() {
 		shouldHandleNewDeploymentScreen()
 		shouldHandleRequirementScreen()
-		//shouldHandleInProgressScreen()
+		shouldHandleInProgressScreen()
+		shouldHandleBandWagonScreen()
+		shouldNavigateToSite()
 	})
 
 })
+
+func shouldNavigateToSite() {
+	By("opening a site page")
+	uiSite.OpenSite(page, deploymentName)
+}
 
 func shouldHandleNewDeploymentScreen() {
 	inst := uiInstaller.OpenInstaller(page, startURL)
@@ -53,7 +61,7 @@ func shouldHandleRequirementScreen() {
 	profiles[0].SetInstanceType("m3.large")
 
 	By("starting an installation")
-	//	inst.StartInstallation()
+	inst.StartInstallation()
 }
 
 func shouldHandleInProgressScreen() {
@@ -61,6 +69,8 @@ func shouldHandleInProgressScreen() {
 }
 
 func shouldHandleBandWagonScreen() {
+	By("opening bandwagon page")
 	bandwagon := ui.OpenBandWagon(page, deploymentName, userName, password)
+	By("submitting bandwagon form")
 	bandwagon.SubmitForm()
 }

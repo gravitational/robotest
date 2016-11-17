@@ -30,8 +30,12 @@ func OpenInstallerWithSite(page *agouti.Page, domainName string) *Installer {
 }
 
 func OpenInstaller(page *agouti.Page, URL string) *Installer {
+	By("Navigating to installer screen")
 	Expect(page.Navigate(URL)).To(Succeed())
 	Eventually(page.FindByClass("grv-installer"), defaultTimeout).Should(am.BeFound())
+
+	time.Sleep(1000 * time.Millisecond)
+
 	return &Installer{page: page}
 }
 
@@ -48,10 +52,15 @@ func (i *Installer) CreateAwsSite(
 	Expect(page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(page.FindByClass("grv-installer-aws-region"), defaultTimeout).Should(am.BeFound())
 
+	pause()
 	By("Setting region")
 	common.SetDropDownValue(page, "grv-installer-aws-region", region)
+
+	pause()
 	By("Setting key pair")
 	common.SetDropDownValue(page, "grv-installer-aws-key-pair", keyPair)
+
+	pause()
 	By("Setting Vpc")
 	common.SetDropDownValue(page, "grv-installer-aws-vpc", vpc)
 
@@ -123,4 +132,8 @@ func specifyDomainName(page *agouti.Page, domainName string) {
 func (i *Installer) proceedToReqs() {
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(i.page.FindByClass("grv-installer-provision-reqs"), defaultTimeout).Should(am.BeFound())
+}
+
+func pause() {
+	time.Sleep(100 * time.Millisecond)
 }
