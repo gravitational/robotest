@@ -8,27 +8,57 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/gravitational/robotest/e2e/ui/common"
 	"github.com/sclevine/agouti"
 	am "github.com/sclevine/agouti/matchers"
 )
 
-var defaultTimeout = 20 * time.Second
+var (
+	waitForServersToLoad = 20 * time.Second
+	waitForElement       = 20 * time.Second
+	waitForOperation     = 5 * time.Minute
+)
 
 type Site struct {
-	page *agouti.Page
+	domainName string
+	page       *agouti.Page
 }
 
 func OpenSite(page *agouti.Page, domainName string) *Site {
-	urlPrefix := fmt.Sprintf("/web/site/%v", domainName)
-	r, _ := regexp.Compile("/web/.*")
-	url, _ := page.URL()
-	url = r.ReplaceAllString(url, urlPrefix)
-
+	site := Site{page: page, domainName: domainName}
 	By("Navigating to installer screen")
-	Expect(page.Navigate(url)).To(Succeed())
-	Eventually(page.FindByClass("grv-site"), defaultTimeout).Should(am.BeFound())
+	newUrl := site.formatUrl("")
+	site.assertSiteNavigation(newUrl)
+	return &site
+}
 
+func (s *Site) GetSiteServerProvisioner() *ServerProvisioner {
+	return &ServerProvisioner{page: s.page}
+}
+
+func (s *Site) NavigateToServers() {
+	newUrl := s.formatUrl("servers")
+	s.assertSiteNavigation(newUrl)
+
+	Eventually(func() bool {
+		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
+		return count > 0
+	}, waitForServersToLoad).Should(
+		BeTrue(),
+		"waiting for servers to load")
+
+	common.Pause()
+}
+
+func (s *Site) assertSiteNavigation(URL string) {
+	Expect(s.page.Navigate(URL)).To(Succeed())
+	Eventually(s.page.FindByClass("grv-site"), waitForElement).Should(am.BeFound(), "waiting for site to be ready")
 	time.Sleep(100 * time.Millisecond)
+}
 
-	return &Site{page: page}
+func (s *Site) formatUrl(newPrefix string) string {
+	urlPrefix := fmt.Sprintf("/web/site/%v/%v", s.domainName, newPrefix)
+	r, _ := regexp.Compile("/web/.*")
+	url, _ := s.page.URL()
+	return r.ReplaceAllString(url, urlPrefix)
 }

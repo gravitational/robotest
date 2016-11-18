@@ -60,8 +60,7 @@ func InitProvisioner() {
 	var err error
 
 	config := infra.Config{
-		OpsCenterURL: "",
-		ClusterName:  "test",
+		ClusterName: "test",
 	}
 
 	provisioner, err = vagrant.New("/home/akontsevoy/onprem/test", vagrant.Config{
@@ -73,7 +72,7 @@ func InitProvisioner() {
 
 	Expect(err).ShouldNot(HaveOccurred())
 
-	_, err = infra.New(config, provisioner)
+	_, err = infra.New(config, "", provisioner)
 
 	Expect(err).ShouldNot(HaveOccurred())
 }

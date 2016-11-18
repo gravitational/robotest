@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -35,4 +36,26 @@ func SetDropDownValue(page *agouti.Page, classPath string, value string) {
 
 	failText := fmt.Sprintf("Unable to make dropdown selection for value - %v", value)
 	Fail(failText)
+}
+
+func FillOutAwsKeys(page *agouti.Page, accessKey string, secretKey string) {
+	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(
+		Succeed(),
+		"should enter access key")
+
+	Expect(page.FindByName("aws_secret_key").Fill(secretKey)).To(
+		Succeed(),
+		"should enter secret key")
+
+}
+
+func Pause(params ...time.Duration) {
+	// default value
+	timeInterval := 100 * time.Millisecond
+
+	if len(params) != 0 {
+		timeInterval = params[0]
+	}
+
+	time.Sleep(timeInterval)
 }
