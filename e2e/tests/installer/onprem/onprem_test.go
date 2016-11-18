@@ -3,32 +3,31 @@ package onprem
 import (
 	"time"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/ui/installer"
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/defaults"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-)
-
-var (
-	defaultTimeout = 20 * time.Second
 )
 
 var _ = Describe("OnPrem Installation", func() {
 	It("should install an application", func() {
 		shouldHandleNewDeploymentScreen()
-		shouldHandleRequirementScreen()
+		shouldHandleRequirementsScreen()
 	})
 })
 
 func shouldHandleNewDeploymentScreen() {
-	inst := installer.OpenInstaller(page, startURL)
+	inst := installer.OpenInstaller(page, framework.TestContext.StartURL)
 	By("entering domain name")
-	Eventually(inst.IsCreateSiteStep, defaultTimeout).Should(BeTrue())
-	inst.CreateOnPremNewSite(domainName)
+	Eventually(inst.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
+	inst.CreateOnPremNewSite(framework.TestContext.ClusterName)
 }
 
-func shouldHandleRequirementScreen() {
-	inst := installer.OpenInstallerWithSite(page, domainName)
+func shouldHandleRequirementsScreen() {
+	inst := installer.OpenInstallerWithSite(page, framework.TestContext.ClusterName)
 	Expect(inst.IsRequirementsReviewStep()).To(BeTrue())
 
 	By("selecting a flavor")
@@ -39,7 +38,7 @@ func shouldHandleRequirementScreen() {
 	Expect(len(profiles)).To(Equal(1))
 
 	By("executing the command on servers")
-	err := infra.Distribute(profiles[0].Command, provisioner.Nodes())
+	err := infra.Distribute(profiles[0].Command, cluster.Provisioner().Nodes())
 	Expect(err).ShouldNot(HaveOccurred())
 
 	By("waiting for agent report with the servers")

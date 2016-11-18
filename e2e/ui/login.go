@@ -4,11 +4,11 @@ import (
 	"regexp"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	"github.com/sclevine/agouti"
-	am "github.com/sclevine/agouti/matchers"
+	. "github.com/sclevine/agouti/matchers"
 )
 
 const (
@@ -22,12 +22,12 @@ type User struct {
 	password string
 }
 
-func EnsureUser(page *agouti.Page, URL string, userName string, password string, authType string) {
+func EnsureUser(page *agouti.Page, URL string, username string, password string, authType string) {
 	Expect(page.Navigate(URL)).To(Succeed())
 	count, _ := page.FindByClass("grv-user-login").Count()
 
 	if count != 0 {
-		user := CreateUser(page, userName, password)
+		user := CreateUser(page, username, password)
 		switch authType {
 		case WithEmail:
 			user.LoginWithEmail()
@@ -51,7 +51,7 @@ func (u *User) NavigateToLogin() {
 	url = r.ReplaceAllString(url, "/web/login")
 
 	Expect(u.page.Navigate(url)).To(Succeed())
-	Eventually(u.page.FindByClass("grv-user-login"), defaultTimeout).Should(am.BeFound())
+	Eventually(u.page.FindByClass("grv-user-login"), defaultTimeout).Should(BeFound())
 }
 
 func (u *User) LoginWithEmail() {
@@ -67,7 +67,7 @@ func (u *User) LoginWithGoogle() {
 	Expect(page.FindByClass("btn-google").Click()).To(Succeed())
 	Expect(page.FindByID("Email").Fill(u.email)).To(Succeed())
 	Expect(page.FindByID("next").Click()).To(Succeed())
-	Eventually(page.FindByID("Passwd"), defaultTimeout).Should(am.BeFound())
+	Eventually(page.FindByID("Passwd"), defaultTimeout).Should(BeFound())
 
 	time.Sleep(1 * time.Second)
 
@@ -88,7 +88,7 @@ func (u *User) LoginWithGoogle() {
 
 func (u *User) Signout() {
 	page := u.page
-	Eventually(page.FindByClass("fa-sign-out"), defaultTimeout).Should(am.BeFound())
+	Eventually(page.FindByClass("fa-sign-out"), defaultTimeout).Should(BeFound())
 	Expect(page.FindByClass("fa-sign-out").Click()).To(Succeed())
-	Eventually(page.FindByClass("grv-user-login")).Should(am.BeFound())
+	Eventually(page.FindByClass("grv-user-login")).Should(BeFound())
 }

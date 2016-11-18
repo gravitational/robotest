@@ -1,18 +1,27 @@
 package onprem
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/ui"
-	"github.com/sclevine/agouti"
-
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/vagrant"
+	"github.com/gravitational/robotest/lib/system"
+	"github.com/gravitational/trace"
+
+	log "github.com/Sirupsen/logrus"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/sclevine/agouti"
 )
+
+func init() {
+	initLogger(log.DebugLevel)
+}
 
 func TestK8s(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -20,34 +29,38 @@ func TestK8s(t *testing.T) {
 }
 
 var (
-	driver      *agouti.WebDriver
-	page        *agouti.Page
-	provisioner infra.Provisioner
-)
-
-var (
-	userName   = os.Getenv("ROBO_USER_NAME")
-	password   = os.Getenv("ROBO_USER_PASSWORD")
-	domainName = os.Getenv("ROBO_DEPLOYMANT_NAME")
-	startURL   = os.Getenv("ROBO_ENTRY_URL")
+	driver   *agouti.WebDriver
+	page     *agouti.Page
+	cluster  infra.Infra
+	stateDir string
 )
 
 var _ = BeforeSuite(func() {
-	InitProvisioner()
-	InitDriver()
-	// opens a page and if login is required attemps to sign-in
-	ui.EnsureUser(page, startURL, userName, password, ui.WithEmail)
+	var err error
+	stateDir, err = newStateDir(framework.TestContext.ClusterName)
+	Expect(err).NotTo(HaveOccurred())
+
+	initCluster()
+	initDriver()
+	// Navigate to the starting URL and login if necessary
+	ui.EnsureUser(page, framework.TestContext.StartURL,
+		framework.TestContext.Login.Username,
+		framework.TestContext.Login.Password, ui.WithEmail)
 })
 
 var _ = AfterSuite(func() {
-	Expect(driver.Stop()).To(Succeed())
+	if driver != nil {
+		Expect(driver.Stop()).To(Succeed())
+	}
 
-	if provisioner != nil {
-		Expect(provisioner.Destroy()).To(Succeed())
+	if cluster != nil {
+		Expect(cluster.Close()).To(Succeed())
+		Expect(cluster.Destroy()).To(Succeed())
+		Expect(system.RemoveContents(stateDir)).To(Succeed())
 	}
 })
 
-func InitDriver() {
+func initDriver() {
 	var err error
 	driver = agouti.ChromeDriver()
 	Expect(driver.Start()).To(Succeed())
@@ -56,24 +69,33 @@ func InitDriver() {
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func InitProvisioner() {
+func initCluster() {
 	var err error
-
-	config := infra.Config{
-		OpsCenterURL: "",
-		ClusterName:  "test",
-	}
-
-	provisioner, err = vagrant.New("/home/akontsevoy/onprem/test", vagrant.Config{
-		Nodes:        1,
+	var provisioner infra.Provisioner
+	config := infra.Config{ClusterName: framework.TestContext.ClusterName}
+	provisioner, err = vagrant.New(stateDir, vagrant.Config{
 		Config:       config,
-		ScriptPath:   "/home/akontsevoy/go/src/github.com/gravitational/robotest/e2e/tests/tmp/Vagrantfile",
-		InstallerURL: "path/to/installer.tar.gz",
+		ScriptPath:   framework.TestContext.Onprem.ScriptPath,
+		InstallerURL: framework.TestContext.Onprem.InstallerURL,
 	})
-
 	Expect(err).ShouldNot(HaveOccurred())
 
-	_, err = infra.New(config, provisioner)
-
+	cluster, err = infra.New(config, framework.TestContext.OpsCenterURL, provisioner)
 	Expect(err).ShouldNot(HaveOccurred())
+}
+
+func newStateDir(clusterName string) (dir string, err error) {
+	dir, err = ioutil.TempDir("", fmt.Sprintf("robotest-%v-", clusterName))
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	log.Infof("state directory: %v", dir)
+	return dir, nil
+}
+
+func initLogger(level log.Level) {
+	log.StandardLogger().Hooks = make(log.LevelHooks)
+	log.SetFormatter(&trace.TextFormatter{TextFormatter: log.TextFormatter{FullTimestamp: true}})
+	log.SetOutput(os.Stderr)
+	log.SetLevel(level)
 }
