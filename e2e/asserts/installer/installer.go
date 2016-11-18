@@ -10,7 +10,7 @@ import (
 )
 
 func WaitForComplete(page *agouti.Page, domainName string) {
-	inst := installer.OpenInstallerWithSite(page, domainName)
+	inst := installer.OpenWithSite(page, domainName)
 
 	By("checking if on in progress screen")
 	Expect(inst.IsInProgressStep()).To(BeTrue())
