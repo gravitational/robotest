@@ -1,9 +1,9 @@
 package aws
 
 import (
+	bandwagon "github.com/gravitational/robotest/e2e/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/asserts/installer"
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/ui"
 	installer "github.com/gravitational/robotest/e2e/ui/installer"
 	"github.com/gravitational/robotest/e2e/ui/site"
 	"github.com/gravitational/robotest/lib/defaults"
@@ -12,7 +12,26 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var (
+	startURL           = ""
+	deploymentName     = ""
+	userName           = ""
+	password           = ""
+	awsConfig          framework.AWSConfig
+	flavorIndex        = 2
+	serverInstanceType = "m3.large"
+)
+
 var _ = Describe("Installation", func() {
+
+	BeforeEach(func() {
+		deploymentName = framework.TestContext.ClusterName
+		startURL = framework.TestContext.StartURL
+		userName = framework.TestContext.Login.Username
+		password = framework.TestContext.Login.Password
+		awsConfig = framework.TestContext.AWS
+	})
+
 	It("should handle installation", func() {
 		shouldHandleNewDeploymentScreen()
 		shouldHandleRequirementsScreen()
@@ -20,49 +39,42 @@ var _ = Describe("Installation", func() {
 		shouldHandleBandwagonScreen()
 		shouldNavigateToSite()
 	})
+
 })
 
 func shouldNavigateToSite() {
 	By("opening a site page")
-	site.Open(page, framework.TestContext.ClusterName)
+	site.Open(page, deploymentName)
 }
 
 func shouldHandleNewDeploymentScreen() {
-	inst := installer.Open(page, framework.TestContext.StartURL)
+	inst := installer.Open(page, startURL)
 	Eventually(inst.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
-	inst.CreateAwsSite(
-		framework.TestContext.ClusterName,
-		framework.TestContext.AWS,
-	)
+	inst.CreateAwsSite(deploymentName, awsConfig)
 }
 
 func shouldHandleRequirementsScreen() {
-	inst := installer.OpenWithSite(page, framework.TestContext.ClusterName)
+	inst := installer.OpenWithSite(page, deploymentName)
 	Expect(inst.IsRequirementsReviewStep()).To(BeTrue())
 
 	By("selecting a flavor")
-	inst.SelectFlavor(2)
+	inst.SelectFlavor(flavorIndex)
 
 	By("veryfing requirements")
 	profiles := installer.FindAwsProfiles(page)
 	Expect(len(profiles)).To(Equal(1))
 
 	By("setting instance type")
-	profiles[0].SetInstanceType("m3.large")
+	profiles[0].SetInstanceType(serverInstanceType)
 
 	By("starting an installation")
 	inst.StartInstallation()
 }
 
 func shouldHandleInProgressScreen() {
-	validation.WaitForComplete(page, framework.TestContext.ClusterName)
+	validation.WaitForComplete(page, deploymentName)
 }
 
 func shouldHandleBandwagonScreen() {
-	By("opening bandwagon page")
-	bandwagon := ui.OpenBandwagon(page, framework.TestContext.ClusterName,
-		framework.TestContext.Login.Username,
-		framework.TestContext.Login.Password)
-	By("submitting bandwagon form")
-	bandwagon.SubmitForm()
+	bandwagon.Complete(page, deploymentName, userName, password)
 }

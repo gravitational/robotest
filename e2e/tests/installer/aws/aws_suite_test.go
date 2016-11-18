@@ -11,7 +11,7 @@ import (
 	"github.com/sclevine/agouti"
 )
 
-func TestK8s(t *testing.T) {
+func TestAws(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "aws-installation")
 }
@@ -31,7 +31,7 @@ var _ = BeforeSuite(func() {
 	ui.EnsureUser(page, framework.TestContext.StartURL,
 		framework.TestContext.Login.Username,
 		framework.TestContext.Login.Password,
-		ui.WithEmail)
+		ui.WithGoogle)
 })
 
 var _ = AfterSuite(func() {

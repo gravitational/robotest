@@ -3,8 +3,11 @@ package onprem
 import (
 	"time"
 
+	bandwagon "github.com/gravitational/robotest/e2e/asserts/bandwagon"
+	validation "github.com/gravitational/robotest/e2e/asserts/installer"
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/ui/installer"
+	"github.com/gravitational/robotest/e2e/ui/site"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/defaults"
 
@@ -16,22 +19,25 @@ var _ = Describe("OnPrem Installation", func() {
 	It("should install an application", func() {
 		shouldHandleNewDeploymentScreen()
 		shouldHandleRequirementsScreen()
+		shouldHandleInProgressScreen()
+		shouldHandleBandwagonScreen()
+		shouldNavigateToSite()
 	})
 })
 
 func shouldHandleNewDeploymentScreen() {
-	inst := installer.OpenInstaller(page, framework.TestContext.StartURL)
+	inst := installer.Open(page, framework.TestContext.StartURL)
 	By("entering domain name")
 	Eventually(inst.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
 	inst.CreateOnPremNewSite(framework.TestContext.ClusterName)
 }
 
 func shouldHandleRequirementsScreen() {
-	inst := installer.OpenInstallerWithSite(page, framework.TestContext.ClusterName)
+	inst := installer.OpenWithSite(page, framework.TestContext.ClusterName)
 	Expect(inst.IsRequirementsReviewStep()).To(BeTrue())
 
 	By("selecting a flavor")
-	inst.SelectFlavor(2)
+	inst.SelectFlavor(1)
 
 	By("veryfing requirements")
 	profiles := installer.FindOnPremProfiles(page)
@@ -53,4 +59,19 @@ func shouldHandleRequirementsScreen() {
 	inst.StartInstallation()
 
 	time.Sleep(10 * time.Second)
+}
+
+func shouldHandleInProgressScreen() {
+	validation.WaitForComplete(page, framework.TestContext.ClusterName)
+}
+
+func shouldHandleBandwagonScreen() {
+	bandwagon.Complete(page, framework.TestContext.ClusterName,
+		framework.TestContext.Login.Username,
+		framework.TestContext.Login.Password)
+}
+
+func shouldNavigateToSite() {
+	By("opening a site page")
+	site.Open(page, framework.TestContext.ClusterName)
 }

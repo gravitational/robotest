@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"

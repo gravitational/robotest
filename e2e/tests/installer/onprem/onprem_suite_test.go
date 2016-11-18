@@ -23,7 +23,7 @@ func init() {
 	initLogger(log.DebugLevel)
 }
 
-func TestK8s(t *testing.T) {
+func TestOnPrem(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "onprem")
 }

@@ -1,12 +1,12 @@
 package site
 
 import (
-	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/ui"
 	"github.com/sclevine/agouti"
 )
@@ -22,12 +22,11 @@ var (
 )
 
 var (
-	deploymentName = os.Getenv("ROBO_DEPLOYMANT_NAME")
-	awsAccessKey   = os.Getenv("ROBO_ACCESS_KEY")
-	awsSecretKey   = os.Getenv("ROBO_SECRET_KEY")
-	userName       = os.Getenv("ROBO_USER_NAME")
-	password       = os.Getenv("ROBO_USER_PASSWORD")
-	startURL       = os.Getenv("ROBO_ENTRY_URL")
+	deploymentName = framework.TestContext.ClusterName
+	userName       = framework.TestContext.Login.Username
+	password       = framework.TestContext.Login.Password
+	startURL       = framework.TestContext.StartURL
+	awsConfig      = framework.TestContext.AWS
 	profileLabel   = "worker node"
 	instanceType   = "m3.large"
 )
@@ -39,6 +38,7 @@ var _ = BeforeSuite(func() {
 	page, err = driver.NewPage()
 
 	Expect(err).NotTo(HaveOccurred())
+
 	ui.EnsureUser(page, startURL, userName, password, ui.WithEmail)
 })
 

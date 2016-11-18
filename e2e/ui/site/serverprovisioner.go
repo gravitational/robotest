@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/ui/common"
 
 	. "github.com/onsi/gomega"
@@ -50,7 +51,7 @@ func (self *ServerProvisioner) GetServerItems() []ServerProvisionerItem {
 }
 
 func (self *ServerProvisioner) AddAwsServer(
-	accessKey string, secretKey string, profileLable string, instanceType string) *ServerProvisionerItem {
+	awsConfig framework.AWSConfig, profileLable string, instanceType string) *ServerProvisionerItem {
 	page := self.page
 
 	currentServerItems := self.GetServerItems()
@@ -59,7 +60,7 @@ func (self *ServerProvisioner) AddAwsServer(
 		Succeed(),
 		"should click on Provision new button")
 
-	common.FillOutAwsKeys(page, accessKey, secretKey)
+	common.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
 
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
 		Succeed(),
@@ -102,10 +103,10 @@ func (self *ServerProvisioner) AddAwsServer(
 	return newItem
 }
 
-func (self *ServerProvisioner) DeleteAwsServer(accessKey string, secretKey string, itemToDelete *ServerProvisionerItem) {
+func (self *ServerProvisioner) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *ServerProvisionerItem) {
 	itemBeforeDelete := self.GetServerItems()
 	self.clickDeleteServer(itemToDelete.Hostname)
-	self.confirmAwsDelete(accessKey, secretKey)
+	self.confirmAwsDelete(awsConfig.AccessKey, awsConfig.SecretKey)
 	self.expectProgressIndicator()
 	itemsAfterDelete := self.GetServerItems()
 	Expect(len(itemsAfterDelete) < len(itemBeforeDelete)).To(

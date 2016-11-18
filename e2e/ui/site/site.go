@@ -24,7 +24,7 @@ type Site struct {
 	page       *agouti.Page
 }
 
-func OpenSite(page *agouti.Page, domainName string) *Site {
+func Open(page *agouti.Page, domainName string) *Site {
 	site := Site{page: page, domainName: domainName}
 	By("Navigating to installer screen")
 	newUrl := site.formatUrl("")

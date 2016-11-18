@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/sclevine/agouti"
-	am "github.com/sclevine/agouti/matchers"
+	. "github.com/sclevine/agouti/matchers"
 )
 
 func SetDropDownValue(page *agouti.Page, classPath string, value string) {
@@ -28,7 +28,7 @@ func SetDropDownValue(page *agouti.Page, classPath string, value string) {
 	for index, optionValue := range result {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v .Select-option:nth-child(%v)", classPath, index+1)
-			Expect(page.Find(optionClass)).To(am.BeFound())
+			Expect(page.Find(optionClass)).To(BeFound())
 			Expect(page.Find(optionClass).Click()).To(Succeed())
 			return
 		}

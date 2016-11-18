@@ -22,19 +22,39 @@ func OpenBandwagon(page *agouti.Page, domainName string, email string, password 
 	url, _ := page.URL()
 	url = r.ReplaceAllString(url, urlPrefix)
 
-	Expect(page.Navigate(url)).To(Succeed())
-	Eventually(page.FindByClass("my-page-btn-submit"), defaultTimeout).Should(BeFound())
+	Expect(page.Navigate(url)).To(
+		Succeed(),
+		"should open bandwagon")
+
+	Eventually(page.FindByClass("my-page-btn-submit"), defaultTimeout).Should(
+		BeFound(),
+		"should wait for bandwagon to load")
 
 	return &Bandwagon{page: page, email: email, password: password, domainName: domainName}
 }
 
 func (b *Bandwagon) SubmitForm() {
 	page := b.page
-	Expect(page.FindByName("email").Fill(b.email)).To(Succeed())
-	Expect(page.FindByName("password").Fill(b.password)).To(Succeed(), "should type password")
-	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(Succeed(), "should type password confirm")
-	Expect(page.FindByClass("my-page-btn-submit").Click()).To(Succeed(), "should click submit btn")
-	Eventually(page.FindByClass("my-page-section-endpoints"), defaultTimeout).Should(BeFound())
+
+	Expect(page.FindByName("email").Fill(b.email)).To(
+		Succeed(),
+		"should enter email")
+
+	Expect(page.FindByName("password").Fill(b.password)).To(
+		Succeed(),
+		"should enter password")
+
+	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(
+		Succeed(),
+		"should re-enter password")
+
+	Expect(page.FindByClass("my-page-btn-submit").Click()).To(
+		Succeed(),
+		"should click submit btn")
+
+	Eventually(page.FindByClass("my-page-section-endpoints"), defaultTimeout).Should(
+		BeFound(),
+		"should find endpoints")
 }
 
 func (b *Bandwagon) GetEndPoints() []string {
