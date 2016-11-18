@@ -1,6 +1,8 @@
 package infra
 
 // autoCluster represents a cluster managed by an active OpsCenter
+// An auto cluster may or may not have a provisioner. When no provisioner
+// is specified, the cluster is automatically provisioned
 type autoCluster struct {
 	config       Config
 	provisioner  Provisioner
@@ -19,5 +21,8 @@ func (r *autoCluster) Close() error {
 }
 
 func (r *autoCluster) Destroy() error {
-	return r.provisioner.Destroy()
+	if r.provisioner != nil {
+		return r.provisioner.Destroy()
+	}
+	return nil
 }

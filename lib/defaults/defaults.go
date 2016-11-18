@@ -10,4 +10,7 @@ const (
 
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 20 * time.Second
+
+	// SharedDirMask is a mask for shared directories
+	SharedDirMask = 0755
 )

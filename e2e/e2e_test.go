@@ -1,25 +1,15 @@
 package e2e
 
 import (
+	"testing"
+
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/specs"
-	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("integration tests", func() {
+func init() {
+	framework.ConfigureFlags()
+}
 
-	/*
-		if some_aws_flag {
-			specs.VerifyAwsInstall(getPage, framework.TestContext)
-			specs.VerifyAwsSite(getPage, framework.TestContext)
-		}
-
-		if some_onrem_flag {
-			specs.VerifyOnpremInstall(getPage, framework.TestContext, cluster)
-		}
-
-	*/
-
-	specs.VerifyAwsInstall(getPage, framework.TestContext)
-	specs.VerifyAwsSite(getPage, framework.TestContext)
-})
+func TestE2E(t *testing.T) {
+	RunE2ETests(t)
+}

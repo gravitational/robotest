@@ -1,31 +1,24 @@
 package infra
 
 import (
-	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/trace"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // New creates a new cluster from the specified config and an optional
 // provisioner.
 // With no provisioner, existing cluster is assumed (config.InitialCluster
 // must be provided).
-// Provisioner should not have its Create method called - this is done
-// automatically
 func New(config Config, opsCenterURL string, provisioner Provisioner) (Infra, error) {
-	_, err := provisioner.Create()
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	return &autoCluster{
 		opsCenterURL: opsCenterURL,
 		provisioner:  provisioner,
@@ -38,24 +31,40 @@ func New(config Config, opsCenterURL string, provisioner Provisioner) (Infra, er
 // a local wizard process.
 // Provisioner should not have its Create method called - this is done
 // automatically
-func NewWizard(config Config, provisioner Provisioner) (Infra, *ProvisionerOutput, error) {
-	cluster, err := startWizard(provisioner)
+func NewWizard(config Config, provisioner Provisioner, installer Node) (Infra, *loc.Locator, error) {
+	cluster, err := startWizard(provisioner, installer)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
 	cluster.config = config
-	return cluster, &cluster.ProvisionerOutput, nil
+	return cluster, &cluster.application, nil
+}
+
+type Infra interface {
+	OpsCenterURL() string
+	// Close releases resources
+	Close() error
+	// Destroy destroys the cluster (e.g. deprovisions nodes, etc.)
+	Destroy() error
+	// Provisioner returns the provisioner used to manage nodes in the cluster.
+	// If the provisioner is nil, the cluster is assumed to use automatic
+	// provisioning
+	Provisioner() Provisioner
+	Config() Config
 }
 
 type Provisioner interface {
-	Create() (*ProvisionerOutput, error)
+	// Create provisions a new cluster and returns a reference
+	// to the node that can be used to run installation
+	Create() (installer Node, err error)
 	Destroy() error
 	Connect(addr string) (*ssh.Session, error)
 	// SelectInterface returns the index (in addrs) of network address to use for
 	// installation.
+	// installerNode should be the result of calling Provisioner.Create
 	// addrs is guaranteed to have at least one element
-	SelectInterface(output ProvisionerOutput, addrs []string) (int, error)
+	SelectInterface(installer Node, addrs []string) (int, error)
 	StartInstall(session *ssh.Session) error
 	Nodes() []Node
 	NumNodes() int
@@ -66,32 +75,9 @@ type Provisioner interface {
 	Deallocate(Node) error
 }
 
-type Infra interface {
-	OpsCenterURL() string
-	// Close releases resources
-	Close() error
-	// Destroy destroys the cluster (e.g. deprovisions nodes, etc.)
-	Destroy() error
-	// Provisioner returns the provisioner used to manage nodes in the cluster
-	Provisioner() Provisioner
-	Config() Config
-}
-
 type Node interface {
 	Addr() string
 	Connect() (*ssh.Session, error)
-}
-
-type ProvisionerOutput struct {
-	InstallerIP  string
-	PrivateIPs   []string
-	PublicIPs    []string
-	InstallerURL url.URL
-}
-
-func (r ProvisionerOutput) String() string {
-	return fmt.Sprintf("ProvisionerOutput(installer IP=%v, private IPs=%v, public IPs=%v)",
-		r.InstallerIP, r.PrivateIPs, r.PublicIPs)
 }
 
 // Distribute executes the specified command on given nodes

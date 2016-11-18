@@ -3,6 +3,7 @@ package vagrant
 import (
 	"bufio"
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
@@ -38,9 +39,9 @@ func New(stateDir string, config Config) (*vagrant, error) {
 	}, nil
 }
 
-func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
+func (r *vagrant) Create() (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
-	err := system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
+	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -57,13 +58,8 @@ func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
 	if len(r.nodes) == 0 {
 		return nil, trace.NotFound("failed to discover any nodes")
 	}
-	if r.Config.Nodes > len(r.nodes) {
-		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.Nodes, len(r.nodes))
-	}
-
-	activeNodes := r.Config.Nodes
-	if r.Config.Nodes == 0 {
-		activeNodes = len(r.nodes)
+	if r.Config.NumNodes > len(r.nodes) {
+		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.NumNodes, len(r.nodes))
 	}
 
 	publicIPs := make([]string, 0, len(r.nodes))
@@ -71,17 +67,15 @@ func (r *vagrant) Create() (*infra.ProvisionerOutput, error) {
 		publicIPs = append(publicIPs, node.addrIP)
 	}
 	r.active = make(map[string]struct{})
-	for _, addr := range publicIPs[:activeNodes] {
+	for _, addr := range publicIPs[:r.NumInstallNodes] {
 		r.active[addr] = struct{}{}
 	}
 
 	r.Infof("cluster: %#v", r.nodes)
 	r.Infof("install subset: %#v", r.active)
 
-	return &infra.ProvisionerOutput{
-		InstallerIP: publicIPs[0],
-		PublicIPs:   publicIPs,
-	}, nil
+	node := r.nodes[publicIPs[0]]
+	return &node, nil
 }
 
 func (r *vagrant) Destroy() error {
@@ -92,9 +86,9 @@ func (r *vagrant) Destroy() error {
 	return nil
 }
 
-func (r *vagrant) SelectInterface(output infra.ProvisionerOutput, addrs []string) (int, error) {
+func (r *vagrant) SelectInterface(installer infra.Node, addrs []string) (int, error) {
 	for i, addr := range addrs {
-		if addr == output.InstallerIP {
+		if addr == installer.(*node).addrIP {
 			return i, nil
 		}
 	}
@@ -111,12 +105,6 @@ func (r *vagrant) Connect(addrIP string) (*ssh.Session, error) {
 }
 
 func (r *vagrant) StartInstall(session *ssh.Session) error {
-	file := filepath.Base(r.InstallerURL)
-	target := filepath.Join(r.stateDir, file)
-	err := system.CopyFile(r.InstallerURL, target)
-	if err != nil {
-		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
-	}
 	return session.Start(installerCommand)
 }
 
@@ -149,9 +137,29 @@ func (r *vagrant) Deallocate(n infra.Node) error {
 }
 
 func (r *vagrant) boot() error {
-	out, err := r.command(args("up"), setEnv(fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.ScriptPath)))
+	err := r.syncInstallerTarball()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	out, err := r.command(args("up"), setEnv(
+		fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.ScriptPath),
+		"ROBO_USE_SCRIPTS=true",
+	))
 	if err != nil {
 		return trace.Wrap(err, "failed to provision vagrant cluster: %s", out)
+	}
+	return nil
+}
+
+func (r *vagrant) syncInstallerTarball() error {
+	if r.InstallerURL == "" {
+		return nil
+	}
+	file := filepath.Base(r.InstallerURL)
+	target := filepath.Join(r.stateDir, file)
+	err := system.CopyFile(r.InstallerURL, target)
+	if err != nil {
+		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
 	}
 	return nil
 }
@@ -165,7 +173,7 @@ func (r *vagrant) discoverNodes() error {
 		return trace.Wrap(err, "failed to query SSH config: %s", out)
 	}
 
-	nodes, err := parseSSHConfig(out, r.getIP)
+	nodes, err := parseSSHConfig(out, r.getIPLibvirt)
 	if err != nil {
 		return trace.Wrap(err, "failed to parse SSH config")
 	}
@@ -175,7 +183,78 @@ func (r *vagrant) discoverNodes() error {
 	return nil
 }
 
-func (r *vagrant) getIP(nodename string) (string, error) {
+func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
+	var out bytes.Buffer
+	cmd := exec.Command("virsh", "list", "--name")
+	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry)
+	if err != nil {
+		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out)
+	}
+	var domainName string
+	for _, name := range strings.Split(out.String(), "\n") {
+		if strings.Contains(name, nodename) {
+			domainName = name
+			break
+		}
+	}
+	if domainName == "" {
+		return "", trace.NotFound("failed to find libvirt domain for node %q: %s", nodename)
+	}
+
+	out.Reset()
+	cmd = exec.Command("virsh", "dumpxml", domainName)
+	err = system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry)
+	if err != nil {
+		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out.Bytes())
+	}
+
+	var domain domain
+	err = xml.Unmarshal(out.Bytes(), &domain)
+	if err != nil {
+		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out.Bytes())
+	}
+
+	var macAddr string
+	for _, iface := range domain.Devices.Interfaces {
+		if iface.Type == "network" && iface.Source.Network == "vagrant-libvirt" {
+			macAddr = iface.Mac.Addr
+			break
+		}
+	}
+	if macAddr == "" {
+		return "", trace.NotFound("failed to find MAC address for node %q: %s", nodename)
+	}
+
+	arpFile, err := os.Open("/proc/net/arp")
+	if err != nil {
+		return "", trace.Wrap(err, "failed to read arp table")
+	}
+	defer arpFile.Close()
+
+	s := bufio.NewScanner(arpFile)
+	// Skip the header
+	if !s.Scan() {
+		return "", trace.Wrap(err, "failed to read arp table")
+	}
+	for s.Scan() {
+		line := s.Text()
+		fields := strings.Fields(line)
+		if len(fields) != 6 {
+			log.Warningf("skipping invalid arp entry %q", line)
+			continue
+		}
+		if macAddr == fields[3] {
+			return fields[0], nil
+		}
+	}
+	if err := s.Err(); err != nil {
+		return "", trace.Wrap(err, "failed to read arp table")
+	}
+
+	return "", trace.NotFound("failed to find IP address for node %q", nodename)
+}
+
+func (r *vagrant) getIPVirtualbox(nodename string) (string, error) {
 	out, err := r.command(args("ssh", nodename, "-c", "ip r|tail -n 1|cut -d' ' -f12", "--", "-q"))
 	if err != nil {
 		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out)
@@ -192,7 +271,7 @@ func (r *vagrant) getIP(nodename string) (string, error) {
 func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
 	cmd := exec.Command("vagrant", args...)
 	var out bytes.Buffer
-	opts = append(opts, system.Dir(r.stateDir))
+	opts = append(opts, system.Dir(r.stateDir), setEnv(fmt.Sprintf("ROBO_NUM_NODES=%v", r.Config.NumNodes)))
 	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry, opts...)
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
@@ -225,7 +304,9 @@ func args(opts ...string) (result []string) {
 
 func setEnv(envs ...string) system.CommandOptionSetter {
 	return func(cmd *exec.Cmd) {
-		cmd.Env = os.Environ()
+		if len(cmd.Env) == 0 {
+			cmd.Env = os.Environ()
+		}
 		cmd.Env = append(cmd.Env, envs...)
 	}
 }
@@ -264,8 +345,9 @@ type vagrant struct {
 	*log.Entry
 	Config
 
-	stateDir string
-	keyPath  string
+	stateDir    string
+	keyPath     string
+	installerIP string
 	// nodes maps node address to a node.
 	// nodes represents the total cluster capacity as defined
 	// by the Vagrantfile
@@ -278,6 +360,20 @@ type vagrant struct {
 type node struct {
 	identityFile string
 	addrIP       string
+}
+
+type domain struct {
+	Devices struct {
+		Interfaces []struct {
+			Type string `xml:"type,attr"`
+			Mac  struct {
+				Addr string `xml:"address,attr"`
+			} `xml:"mac"`
+			Source struct {
+				Network string `xml:"network,attr"`
+			} `xml:"source"`
+		} `xml:"interface"`
+	} `xml:"devices"`
 }
 
 const installerCommand = `

@@ -88,19 +88,3 @@ func initCluster() {
 	cluster, err = infra.New(config, framework.TestContext.OpsCenterURL, provisioner)
 	Expect(err).ShouldNot(HaveOccurred())
 }
-
-func newStateDir(clusterName string) (dir string, err error) {
-	dir, err = ioutil.TempDir("", fmt.Sprintf("robotest-%v-", clusterName))
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
-	log.Infof("state directory: %v", dir)
-	return dir, nil
-}
-
-func initLogger(level log.Level) {
-	log.StandardLogger().Hooks = make(log.LevelHooks)
-	log.SetFormatter(&trace.TextFormatter{TextFormatter: log.TextFormatter{FullTimestamp: true}})
-	log.SetOutput(os.Stderr)
-	log.SetLevel(level)
-}
