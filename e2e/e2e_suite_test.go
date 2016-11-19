@@ -1,4 +1,4 @@
-package onprem
+package e2e
 
 import (
 	"fmt"
@@ -23,9 +23,9 @@ func init() {
 	initLogger(log.DebugLevel)
 }
 
-func TestOnPrem(t *testing.T) {
+func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "onprem")
+	RunSpecs(t, "e2e")
 }
 
 var (
@@ -40,12 +40,12 @@ var _ = BeforeSuite(func() {
 	stateDir, err = newStateDir(framework.TestContext.ClusterName)
 	Expect(err).NotTo(HaveOccurred())
 
-	initCluster()
+	//initCluster()
 	initDriver()
 	// Navigate to the starting URL and login if necessary
 	ui.EnsureUser(page, framework.TestContext.StartURL,
 		framework.TestContext.Login.Username,
-		framework.TestContext.Login.Password, ui.WithEmail)
+		framework.TestContext.Login.Password, ui.WithGoogle)
 })
 
 var _ = AfterSuite(func() {
@@ -59,6 +59,10 @@ var _ = AfterSuite(func() {
 		Expect(system.RemoveContents(stateDir)).To(Succeed())
 	}
 })
+
+func getPage() *agouti.Page {
+	return page
+}
 
 func initDriver() {
 	var err error
