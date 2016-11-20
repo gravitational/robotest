@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/ui/common"
+	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
+	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
 type Installer struct {
-	page *agouti.Page
+	page *web.Page
 }
 
-func OpenWithSite(page *agouti.Page, domainName string) *Installer {
+func OpenWithSite(page *web.Page, domainName string) *Installer {
 	urlPrefix := fmt.Sprintf("/web/installer/site/%v", domainName)
 	r, _ := regexp.Compile("/web/.*")
 	url, _ := page.URL()
@@ -28,18 +28,18 @@ func OpenWithSite(page *agouti.Page, domainName string) *Installer {
 	return Open(page, url)
 }
 
-func Open(page *agouti.Page, URL string) *Installer {
+func Open(page *web.Page, URL string) *Installer {
 	By("Navigating to installer screen")
 	Expect(page.Navigate(URL)).To(Succeed())
 	Eventually(page.FindByClass("grv-installer"), defaults.FindTimeout).Should(BeFound())
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(defaults.ShortTimeout)
 
 	return &Installer{page: page}
 }
 
 func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig) string {
-	By("Setting deployment name")
+	By("Setting domain name")
 	page := i.page
 	specifyDomainName(page, domainName)
 
@@ -50,17 +50,17 @@ func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig)
 	Expect(page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(page.FindByClass("grv-installer-aws-region"), defaults.FindTimeout).Should(BeFound())
 
-	common.Pause()
+	ui.Pause()
 	By("Setting region")
-	common.SetDropDownValue(page, "grv-installer-aws-region", config.Region)
+	ui.SetDropdownValue(page, "grv-installer-aws-region", config.Region)
 
-	common.Pause()
+	ui.Pause()
 	By("Setting key pair")
-	common.SetDropDownValue(page, "grv-installer-aws-key-pair", config.KeyPair)
+	ui.SetDropdownValue(page, "grv-installer-aws-key-pair", config.KeyPair)
 
-	common.Pause()
+	ui.Pause()
 	By("Setting VPC")
-	common.SetDropDownValue(page, "grv-installer-aws-vpc", config.VPC)
+	ui.SetDropdownValue(page, "grv-installer-aws-vpc", config.VPC)
 
 	i.proceedToReqs()
 
@@ -103,9 +103,9 @@ func (i *Installer) IsRequirementsReviewStep() bool {
 }
 
 func (i *Installer) StartInstallation() {
-	btn := i.page.Find(".grv-installer-footer .btn-primary")
-	Expect(btn).To(BeFound())
-	Expect(btn.Click()).To(Succeed())
+	button := i.page.Find(".grv-installer-footer .btn-primary")
+	Expect(button).To(BeFound())
+	Expect(button.Click()).To(Succeed())
 	Eventually(i.IsInProgressStep, defaults.FindTimeout).Should(BeTrue())
 }
 
@@ -121,7 +121,7 @@ func (i *Installer) SelectFlavor(index int) {
 	Expect(elem.Click()).To(Succeed())
 }
 
-func specifyDomainName(page *agouti.Page, domainName string) {
+func specifyDomainName(page *web.Page, domainName string) {
 	Eventually(page.FindByName("domainName"), defaults.FindTimeout).Should(BeFound())
 	Expect(page.FindByName("domainName").Fill(domainName)).To(Succeed())
 	Eventually(page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())

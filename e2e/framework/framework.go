@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/infra/terraform"
-	"github.com/gravitational/robotest/infra/vagrant"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
@@ -18,22 +16,74 @@ import (
 	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	web "github.com/sclevine/agouti"
 )
+
+var driver *web.WebDriver
+
+func New() *T {
+	f := &T{}
+
+	BeforeEach(f.BeforeEach)
+	AfterEach(f.AfterEach)
+
+	return f
+}
+
+type T struct {
+	Page *web.Page
+}
+
+func (r *T) BeforeEach() {
+	if r.Page == nil {
+		var err error
+		r.Page, err = driver.NewPage()
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+func (r *T) InstallerPage(authType AuthType) *web.Page {
+	url, err := InstallerURL()
+	Expect(err).NotTo(HaveOccurred())
+	EnsureUser(r.Page, url,
+		TestContext.Login.Username,
+		TestContext.Login.Password, authType)
+	return r.Page
+}
+
+func (r *T) AfterEach() {
+}
+
+func CreateDriver() {
+	driver = web.ChromeDriver()
+	Expect(driver).NotTo(BeNil())
+	Expect(driver.Start()).To(Succeed())
+}
+
+func CloseDriver() {
+	Expect(driver.Stop()).To(Succeed())
+}
 
 // Cluster is the global instance of the cluster the tests are executed on
 var Cluster infra.Infra
 
 func SetupCluster() {
-	stateDir, err := newStateDir(TestContext.ClusterName)
-	Expect(err).NotTo(HaveOccurred())
-
 	config := infra.Config{ClusterName: TestContext.ClusterName}
-	provisioner, err := provisionerFromConfig(config, stateDir)
-	Expect(err).NotTo(HaveOccurred())
 
-	installerNode, err := provisioner.Create()
-	Expect(err).NotTo(HaveOccurred())
+	var provisioner infra.Provisioner
+	var installerNode infra.Node
+	if TestContext.Provisioner != "" {
+		stateDir, err := newStateDir(TestContext.ClusterName)
+		Expect(err).NotTo(HaveOccurred())
 
+		provisioner, err = provisionerFromConfig(config, stateDir, TestContext.Provisioner)
+		Expect(err).NotTo(HaveOccurred())
+
+		installerNode, err = provisioner.Create()
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	var err error
 	var application *loc.Locator
 	if TestContext.Wizard {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
@@ -68,27 +118,6 @@ func CoreDump() {
 // TODO: eventually benefit from safe test tags: https://github.com/kubernetes/kubernetes/pull/22401.
 func RoboDescribe(text string, body func()) bool {
 	return Describe("[robotest] "+text, body)
-}
-
-func provisionerFromConfig(infraConfig infra.Config, stateDir string) (provisioner infra.Provisioner, err error) {
-	switch TestContext.Onprem.Provisioner {
-	case "terraform":
-		config := terraform.Config{
-			Config: infraConfig,
-		}
-		provisioner, err = terraform.New(stateDir, config)
-	case "vagrant":
-		config := vagrant.Config{
-			Config: infraConfig,
-		}
-		provisioner, err = vagrant.New(stateDir, config)
-	default:
-		return nil, trace.BadParameter("no provisioner enabled in configuration")
-	}
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return provisioner, nil
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

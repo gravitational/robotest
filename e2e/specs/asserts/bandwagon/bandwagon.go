@@ -1,16 +1,16 @@
 package bandwagon
 
 import (
-	"github.com/gravitational/robotest/e2e/ui"
-	. "github.com/onsi/ginkgo"
+	"github.com/gravitational/robotest/e2e/model/ui"
 
-	"github.com/sclevine/agouti"
+	. "github.com/onsi/ginkgo"
+	web "github.com/sclevine/agouti"
 )
 
-func Complete(page *agouti.Page, domainName string, userName string, psw string) {
-	band := ui.OpenBandwagon(page, domainName, userName, psw)
+func Complete(page *web.Page, domainName string, username string, password string) {
+	bandwagon := ui.OpenBandwagon(page, domainName, username, password)
 	By("submitting bandwagon form")
-	band.SubmitForm()
+	bandwagon.SubmitForm()
 
 	/*By("verying endpoints")
 	endpoints := band.GetEndPoints()

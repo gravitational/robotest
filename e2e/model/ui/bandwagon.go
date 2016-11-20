@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/gravitational/robotest/lib/defaults"
+
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
+	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
 type Bandwagon struct {
-	page       *agouti.Page
+	page       *web.Page
 	domainName string
 	email      string
 	password   string
 }
 
-func OpenBandwagon(page *agouti.Page, domainName string, email string, password string) *Bandwagon {
+func OpenBandwagon(page *web.Page, domainName string, email string, password string) *Bandwagon {
 	urlPrefix := fmt.Sprintf("/web/site/%v", domainName)
 	r, _ := regexp.Compile("/web/.*")
 	url, _ := page.URL()
@@ -26,7 +28,7 @@ func OpenBandwagon(page *agouti.Page, domainName string, email string, password 
 		Succeed(),
 		"should open bandwagon")
 
-	Eventually(page.FindByClass("my-page-btn-submit"), defaultTimeout).Should(
+	Eventually(page.FindByClass("my-page-btn-submit"), defaults.FindTimeout).Should(
 		BeFound(),
 		"should wait for bandwagon to load")
 
@@ -52,14 +54,20 @@ func (b *Bandwagon) SubmitForm() {
 		Succeed(),
 		"should click submit btn")
 
-	Eventually(page.FindByClass("my-page-section-endpoints"), defaultTimeout).Should(
+	Eventually(page.FindByClass("my-page-section-endpoints"), defaults.FindTimeout).Should(
 		BeFound(),
 		"should find endpoints")
 }
 
 func (b *Bandwagon) GetEndPoints() []string {
+	const scriptTemplate = `
+		var result = [];
+		var cssSelector = ".my-page-section-endpoints-item a";
+		var children = document.querySelectorAll(cssSelector);
+		children.forEach( z => result.push(z.text) );
+		return result; `
 	var result []string
-	js := ` var result = []; var cssSelector = ".my-page-section-endpoints-item a"; var children = document.querySelectorAll(cssSelector); children.forEach( z => result.push(z.text) ); return result; `
-	b.page.RunScript(js, nil, &result)
+
+	b.page.RunScript(scriptTemplate, nil, &result)
 	return result
 }

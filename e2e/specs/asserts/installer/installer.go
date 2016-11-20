@@ -1,23 +1,23 @@
 package installer
 
 import (
-	"time"
+	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
+	"github.com/gravitational/robotest/lib/defaults"
 
-	"github.com/gravitational/robotest/e2e/ui/installer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
+	web "github.com/sclevine/agouti"
 )
 
-func WaitForComplete(page *agouti.Page, domainName string) {
-	inst := installer.OpenWithSite(page, domainName)
+func WaitForComplete(page *web.Page, domainName string) {
+	installer := installermodel.OpenWithSite(page, domainName)
 
 	By("checking if on in progress screen")
-	Expect(inst.IsInProgressStep()).To(BeTrue())
+	Expect(installer.IsInProgressStep()).To(BeTrue())
 
-	Eventually(inst.IsInstallCompleted, 20*time.Minute).Should(
+	Eventually(installer.IsInstallCompleted, defaults.InstallTimeout).Should(
 		BeTrue(), "wait until timeout or install success message")
 
 	By("clicking on continue")
-	inst.ProceedToSite()
+	installer.ProceedToSite()
 }
