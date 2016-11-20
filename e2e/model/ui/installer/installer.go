@@ -2,13 +2,13 @@ package installer
 
 import (
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/lib/defaults"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -20,16 +20,17 @@ type Installer struct {
 }
 
 func OpenWithSite(page *web.Page, domainName string) *Installer {
-	urlPrefix := fmt.Sprintf("/web/installer/site/%v", domainName)
-	r, _ := regexp.Compile("/web/.*")
-	url, _ := page.URL()
-	url = r.ReplaceAllString(url, urlPrefix)
+	installerPath := fmt.Sprintf("/web/installer/site/%v", domainName)
+	url, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	url = ui.URLPath(url, installerPath)
+	log.Infof("OpenWithSite: %q", url)
 
 	return Open(page, url)
 }
 
 func Open(page *web.Page, URL string) *Installer {
-	By("Navigating to installer screen")
+	By(fmt.Sprintf("navigating to %q", URL))
 	Expect(page.Navigate(URL)).To(Succeed())
 	Eventually(page.FindByClass("grv-installer"), defaults.FindTimeout).Should(BeFound())
 
@@ -39,11 +40,11 @@ func Open(page *web.Page, URL string) *Installer {
 }
 
 func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig) string {
-	By("Setting domain name")
+	By("setting domain name")
 	page := i.page
 	specifyDomainName(page, domainName)
 
-	By("Setting provisioner")
+	By("setting provisioner")
 	Expect(page.FindByClass("--aws").Click()).To(Succeed())
 	Expect(page.FindByName("aws_access_key").Fill(config.AccessKey)).To(Succeed())
 	Expect(page.FindByName("aws_secret_key").Fill(config.SecretKey)).To(Succeed())
@@ -51,15 +52,15 @@ func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig)
 	Eventually(page.FindByClass("grv-installer-aws-region"), defaults.FindTimeout).Should(BeFound())
 
 	ui.Pause()
-	By("Setting region")
+	By("setting region")
 	ui.SetDropdownValue(page, "grv-installer-aws-region", config.Region)
 
 	ui.Pause()
-	By("Setting key pair")
+	By("setting key pair")
 	ui.SetDropdownValue(page, "grv-installer-aws-key-pair", config.KeyPair)
 
 	ui.Pause()
-	By("Setting VPC")
+	By("setting VPC")
 	ui.SetDropdownValue(page, "grv-installer-aws-vpc", config.VPC)
 
 	i.proceedToReqs()
@@ -70,10 +71,10 @@ func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig)
 
 func (i *Installer) CreateOnPremNewSite(domainName string) string {
 	page := i.page
-	By("Setting deployment name")
+	By("setting domain name")
 	specifyDomainName(page, domainName)
 
-	By("Setting provisioner")
+	By("setting provisioner")
 	Eventually(page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())
 	Expect(page.FindByClass("--metal").Click()).To(Succeed())
 

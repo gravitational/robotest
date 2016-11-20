@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -52,6 +53,14 @@ func FillOutAwsKeys(page *web.Page, accessKey string, secretKey string) {
 	Expect(page.FindByName("aws_secret_key").Fill(secretKey)).To(
 		Succeed(),
 		"should enter secret key")
+}
+
+func URLPath(urlS string, path string) string {
+	newURL, err := url.Parse(urlS)
+	Expect(err).NotTo(HaveOccurred())
+	newURL.RawQuery = ""
+	newURL.Path = path
+	return newURL.String()
 }
 
 func Pause(params ...time.Duration) {

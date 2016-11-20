@@ -58,6 +58,12 @@ func (r *TestContextType) Validate() error {
 		errors = append(errors, trace.BadParameter("cannot install on more nodes than the cluster capacity: %v > %v",
 			r.NumInstallNodes, r.Onprem.NumNodes))
 	}
+	if r.Onprem != nil {
+		r.NumInstallNodes = r.Onprem.NumNodes
+	}
+	if r.NumInstallNodes == 0 {
+		errors = append(errors, trace.BadParameter("num install nodes is required"))
+	}
 	return trace.NewAggregate(errors...)
 }
 
@@ -68,7 +74,7 @@ func Failf(format string, args ...interface{}) {
 }
 
 // TestContext defines the global test configuration for the test run
-var TestContext TestContextType
+var TestContext = &TestContextType{}
 
 type TestContextType struct {
 	Wizard      bool   `json:"wizard" env:"ROBO_WIZARD"`

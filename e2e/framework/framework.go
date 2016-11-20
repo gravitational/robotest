@@ -45,6 +45,7 @@ func (r *T) BeforeEach() {
 func (r *T) InstallerPage(authType AuthType) *web.Page {
 	url, err := InstallerURL()
 	Expect(err).NotTo(HaveOccurred())
+	log.Infof("navigating to installer URL %v", url)
 	EnsureUser(r.Page, url,
 		TestContext.Login.Username,
 		TestContext.Login.Password, authType)
@@ -62,6 +63,12 @@ func CreateDriver() {
 
 func CloseDriver() {
 	Expect(driver.Stop()).To(Succeed())
+}
+
+func Distribute(command string) {
+	Expect(Cluster).NotTo(BeNil(), "requires a cluster")
+	Expect(Cluster.Provisioner()).NotTo(BeNil(), "requires a provisioner")
+	Expect(infra.Distribute(command, Cluster.Provisioner().Nodes())).To(Succeed())
 }
 
 // Cluster is the global instance of the cluster the tests are executed on
@@ -118,6 +125,12 @@ func CoreDump() {
 // TODO: eventually benefit from safe test tags: https://github.com/kubernetes/kubernetes/pull/22401.
 func RoboDescribe(text string, body func()) bool {
 	return Describe("[robotest] "+text, body)
+}
+
+func RunAgentCommand(command string) {
+	command, err := infra.ConfigureAgentCommandRunDetached(command)
+	Expect(err).NotTo(HaveOccurred())
+	Distribute(command)
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

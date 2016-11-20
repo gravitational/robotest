@@ -59,7 +59,7 @@ func (b *Bandwagon) SubmitForm() {
 		"should find endpoints")
 }
 
-func (b *Bandwagon) GetEndPoints() []string {
+func (b *Bandwagon) GetEndpoints() []string {
 	const scriptTemplate = `
 		var result = [];
 		var cssSelector = ".my-page-section-endpoints-item a";

@@ -2,10 +2,10 @@ package specs
 
 import (
 	"github.com/gravitational/robotest/e2e/framework"
+	installer "github.com/gravitational/robotest/e2e/model/ui/installer"
+	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
-	installer "github.com/gravitational/robotest/e2e/ui/installer"
-	"github.com/gravitational/robotest/e2e/ui/site"
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/sclevine/agouti"
 

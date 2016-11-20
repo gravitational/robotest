@@ -1,11 +1,11 @@
 package e2e
 
 import (
-	"github.com/gravitational/robotest/e2e/asserts/bandwagon"
-	validation "github.com/gravitational/robotest/e2e/asserts/installer"
 	"github.com/gravitational/robotest/e2e/framework"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
+	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
+	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
@@ -30,20 +30,23 @@ var _ = framework.RoboDescribe("AWS installation", func() {
 
 		installer := installermodel.Open(page, url)
 		config := *ctx.AWS
-		Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
+		Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue(),
+			"should navigate to installer screen")
 		installer.CreateAwsSite(ctx.ClusterName, config)
 	})
 
 	It("should fill out requirements screen", func() {
 		installer := installermodel.OpenWithSite(page, ctx.ClusterName)
-		Expect(installer.IsRequirementsReviewStep()).To(BeTrue())
+		Expect(installer.IsRequirementsReviewStep()).To(BeTrue(),
+			"should be on requirements screen")
 
 		By("selecting a flavor")
 		installer.SelectFlavor(ctx.NumInstallNodes)
 
 		By("veryfing requirements")
 		profiles := installermodel.FindAwsProfiles(page)
-		Expect(len(profiles)).To(Equal(1))
+		Expect(len(profiles)).To(Equal(1),
+			"expected to find a single profile")
 
 		By("setting instance type")
 		profiles[0].SetInstanceType(defaults.InstanceType)
