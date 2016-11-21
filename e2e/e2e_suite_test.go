@@ -45,7 +45,7 @@ var _ = BeforeSuite(func() {
 	// Navigate to the starting URL and login if necessary
 	ui.EnsureUser(page, framework.TestContext.StartURL,
 		framework.TestContext.Login.Username,
-		framework.TestContext.Login.Password, ui.WithGoogle)
+		framework.TestContext.Login.Password, ui.WithEmail)
 })
 
 var _ = AfterSuite(func() {
@@ -62,6 +62,10 @@ var _ = AfterSuite(func() {
 
 func getPage() *agouti.Page {
 	return page
+}
+
+func getCluster() infra.Infra {
+	return cluster
 }
 
 func initDriver() {

@@ -32,8 +32,8 @@ func Open(page *agouti.Page, domainName string) *Site {
 	return &site
 }
 
-func (s *Site) GetSiteServerProvisioner() *ServerProvisioner {
-	return &ServerProvisioner{page: s.page}
+func (s *Site) GetSiteServerProvisioner() *SiteServers {
+	return &SiteServers{page: s.page}
 }
 
 func (s *Site) NavigateToServers() {

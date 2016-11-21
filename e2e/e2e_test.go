@@ -20,6 +20,12 @@ var _ = Describe("integration tests", func() {
 
 	*/
 
-	specs.VerifyAwsInstall(getPage, framework.TestContext)
-	specs.VerifyAwsSite(getPage, framework.TestContext)
+	//specs.VerifyAwsInstall(getPage, framework.TestContext)
+	//specs.VerifyAwsSite(getPage, framework.TestContext)
+
+	//	specs.VerifyOnpremInstall(getPage, framework.TestContext, getCluster)
+
+	specs.VerifyOnpremSite(getPage, framework.TestContext, getCluster)
+
+	//specs.VerifyOnpremSite(getPage, framework.TestContext)
 })

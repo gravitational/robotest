@@ -11,14 +11,14 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"
-	am "github.com/sclevine/agouti/matchers"
+	. "github.com/sclevine/agouti/matchers"
 )
 
-type ServerProvisioner struct {
+type SiteServers struct {
 	page *agouti.Page
 }
 
-type ServerProvisionerItem struct {
+type SiteServerItem struct {
 	PrivateIP   string `json:"PrivateIP"`
 	PublicIP    string `json:"PublicIP"`
 	Profile     string `json:"Profile"`
@@ -26,8 +26,8 @@ type ServerProvisionerItem struct {
 	InstaceType string
 }
 
-func (self *ServerProvisioner) GetServerItems() []ServerProvisionerItem {
-	var items []ServerProvisionerItem
+func (self *SiteServers) GetServerItems() []SiteServerItem {
+	var items []SiteServerItem
 	var result string
 	js := ` 			
         var getter = [ ["site_servers"], serverList => {
@@ -50,40 +50,20 @@ func (self *ServerProvisioner) GetServerItems() []ServerProvisionerItem {
 	return items
 }
 
-func (self *ServerProvisioner) AddAwsServer(
-	awsConfig framework.AWSConfig, profileLable string, instanceType string) *ServerProvisionerItem {
-	page := self.page
-
+func (self *SiteServers) StartOnPremOperation() *SiteServerItem {
 	currentServerItems := self.GetServerItems()
 
-	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).To(
+	Expect(self.page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
-		"should click on Provision new button")
-
-	common.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
-
-	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
-		Succeed(),
-		"click on continue")
-
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), waitForElement).Should(
-		am.BeFound(),
-		"should display profile and instance type")
-
-	setDropDownValue(page, "grv-site-servers-provisioner-new-profile", profileLable)
-	setDropDownValue(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
-
-	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
-		Succeed(),
-		"should click on start button")
-
-	self.expectProgressIndicator()
+		"should start expand operation")
 
 	common.Pause(10 * time.Second)
 
+	self.expectProgressIndicator()
+
 	updatedItems := self.GetServerItems()
 
-	var newItem *ServerProvisionerItem
+	var newItem *SiteServerItem
 
 	for _, item := range updatedItems {
 		for _, existedItem := range currentServerItems {
@@ -103,7 +83,90 @@ func (self *ServerProvisioner) AddAwsServer(
 	return newItem
 }
 
-func (self *ServerProvisioner) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *ServerProvisionerItem) {
+func (self *SiteServers) InitOnPremOperation() string {
+	page := self.page
+
+	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(
+		Succeed(),
+		"should click on Add Existing button")
+
+	Expect(page.FindByClass("grv-control-radio-indicator").Click()).To(
+		Succeed(),
+		"should select first available profile")
+
+	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
+		Succeed(),
+		"should click on continue button")
+
+	element := page.Find(".grv-installer-server-instruction span")
+
+	Expect(element).To(
+		BeFound(),
+		"should find a command")
+
+	command, _ := element.Text()
+
+	Expect(command).NotTo(
+		BeEmpty(),
+		"command must be defined")
+
+	return command
+}
+
+func (self *SiteServers) AddAwsServer(
+	awsConfig framework.AWSConfig, profileLable string, instanceType string) *SiteServerItem {
+	page := self.page
+
+	currentServerItems := self.GetServerItems()
+
+	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).To(
+		Succeed(),
+		"should click on Provision new button")
+
+	common.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
+
+	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
+		Succeed(),
+		"click on continue")
+
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), waitForElement).Should(
+		BeFound(),
+		"should display profile and instance type")
+
+	setDropDownValue(page, "grv-site-servers-provisioner-new-profile", profileLable)
+	setDropDownValue(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
+
+	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
+		Succeed(),
+		"should click on start button")
+
+	self.expectProgressIndicator()
+
+	common.Pause(10 * time.Second)
+
+	updatedItems := self.GetServerItems()
+
+	var newItem *SiteServerItem
+
+	for _, item := range updatedItems {
+		for _, existedItem := range currentServerItems {
+			if item.PrivateIP == existedItem.PrivateIP {
+				break
+			}
+
+			newItem = &item
+		}
+
+	}
+
+	Expect(newItem).ToNot(
+		BeNil(),
+		"Should find a new server in the server list")
+
+	return newItem
+}
+
+func (self *SiteServers) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServerItem) {
 	itemBeforeDelete := self.GetServerItems()
 	self.clickDeleteServer(itemToDelete.Hostname)
 	self.confirmAwsDelete(awsConfig.AccessKey, awsConfig.SecretKey)
@@ -114,7 +177,7 @@ func (self *ServerProvisioner) DeleteAwsServer(awsConfig framework.AWSConfig, it
 		"very that server disappeared from the list")
 }
 
-func (self *ServerProvisioner) confirmAwsDelete(accessKey string, secretKey string) {
+func (self *SiteServers) confirmAwsDelete(accessKey string, secretKey string) {
 	common.FillOutAwsKeys(self.page, accessKey, secretKey)
 	Expect(self.page.Find(".modal-dialog .btn-danger").Click()).To(
 		Succeed(),
@@ -123,18 +186,18 @@ func (self *ServerProvisioner) confirmAwsDelete(accessKey string, secretKey stri
 
 }
 
-func (self *ServerProvisioner) expectProgressIndicator() {
+func (self *SiteServers) expectProgressIndicator() {
 	page := self.page
 	Eventually(page.FindByClass("grv-site-servers-operation-progress"), waitForElement).Should(
-		am.BeFound(),
+		BeFound(),
 		"should find progress indicator")
 
 	Eventually(page.FindByClass("grv-site-servers-operation-progress"), waitForOperation).ShouldNot(
-		am.BeFound(),
+		BeFound(),
 		"should wait for progress indicator to disappear")
 }
 
-func (self *ServerProvisioner) clickDeleteServer(hostname string) {
+func (self *SiteServers) clickDeleteServer(hostname string) {
 	var result int
 	page := self.page
 

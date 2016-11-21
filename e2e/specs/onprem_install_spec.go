@@ -16,9 +16,10 @@ import (
 	"github.com/sclevine/agouti"
 )
 
-func VerifyOnpremInstall(getPage pageFunc, ctx framework.TestContextType, cluster infra.Infra) {
+func VerifyOnpremInstall(getPage pageFunc, ctx framework.TestContextType, getCluster clusterFunc) {
 
 	var (
+		cluster        infra.Infra
 		page           *agouti.Page
 		startURL       = ctx.StartURL
 		deploymentName = ctx.ClusterName
@@ -30,6 +31,7 @@ func VerifyOnpremInstall(getPage pageFunc, ctx framework.TestContextType, cluste
 
 		BeforeEach(func() {
 			page = getPage()
+			cluster = getCluster()
 		})
 
 		shouldHandleNewDeploymentScreen := func() {
