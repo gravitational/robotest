@@ -58,7 +58,8 @@ func (r *TestContextType) Validate() error {
 		errors = append(errors, trace.BadParameter("cannot install on more nodes than the cluster capacity: %v > %v",
 			r.NumInstallNodes, r.Onprem.NumNodes))
 	}
-	if !r.Onprem.IsEmpty() {
+	if !r.Onprem.IsEmpty() && r.NumInstallNodes == 0 {
+  		// TODO: maybe set install nodes = node-1 by default if nodes > 1
 		r.NumInstallNodes = r.Onprem.NumNodes
 	}
 	if r.NumInstallNodes == 0 {
