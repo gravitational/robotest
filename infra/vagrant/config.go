@@ -8,9 +8,6 @@ import (
 // Validate validates the configuration
 func (r *Config) Validate() error {
 	var errors []error
-	if r.InstallerURL == "" {
-		errors = append(errors, trace.BadParameter("installer URL is required"))
-	}
 	if r.ScriptPath == "" {
 		errors = append(errors, trace.BadParameter("script path is required"))
 	}
