@@ -136,6 +136,10 @@ func (r *vagrant) Deallocate(n infra.Node) error {
 	return nil
 }
 
+func (r *vagrant) InstallerLogPath() string {
+	return installerLogPath
+}
+
 func (r *vagrant) boot() error {
 	err := r.syncInstallerTarball()
 	if err != nil {
@@ -380,3 +384,5 @@ const installerCommand = `
 mkdir -p /home/vagrant/installer; \
 tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
 /home/vagrant/installer/install`
+
+const installerLogPath = "/home/vagrant/installer/gravity.log"

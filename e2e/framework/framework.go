@@ -55,20 +55,26 @@ func CloseDriver() {
 	Expect(driver.Stop()).To(Succeed())
 }
 
-func Distribute(command string) {
+func Distribute(command string, nodes ...infra.Node) {
 	Expect(Cluster).NotTo(BeNil(), "requires a cluster")
 	Expect(Cluster.Provisioner()).NotTo(BeNil(), "requires a provisioner")
-	Expect(infra.Distribute(command, Cluster.Provisioner().Nodes())).To(Succeed())
+	if len(nodes) == 0 {
+		nodes = Cluster.Provisioner().Nodes()
+	}
+	Expect(infra.Distribute(command, nodes...)).To(Succeed())
 }
 
 // Cluster is the global instance of the cluster the tests are executed on
 var Cluster infra.Infra
 
+// installerNode is the node with installer running on it in case the tests
+// are running in wizard mode
+var installerNode infra.Node
+
 func SetupCluster() {
 	config := infra.Config{ClusterName: TestContext.ClusterName}
 
 	var provisioner infra.Provisioner
-	var installerNode infra.Node
 	if TestContext.Provisioner != "" {
 		stateDir, err := newStateDir(TestContext.ClusterName)
 		Expect(err).NotTo(HaveOccurred())
@@ -105,14 +111,37 @@ func CoreDump() {
 		log.Infof("cluster inactive: skip CoreDump")
 		return
 	}
-	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
-	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
 	cmd := exec.Command("gravity", "ops", "connect", Cluster.OpsCenterURL(),
 		TestContext.Login.Username, TestContext.Login.Password)
 	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
 
+	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
+	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
 	cmd = exec.Command("gravity", "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
 	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
+
+	// TODO: this implies a test run (incl. infra setup) per invocation
+	// Since this is headed in the direction of shared state, installer node should also
+	// be persisted as state attribute
+	if installerNode != nil {
+		// Collect installer log
+		installerLog, err := os.Create(filepath.Join(TestContext.ReportDir, "installer.log"))
+		Expect(err).NotTo(HaveOccurred())
+		defer installerLog.Close()
+
+		Expect(infra.ScpText(installerNode,
+			Cluster.Provisioner().InstallerLogPath(), installerLog)).To(Succeed())
+	}
+
+	for _, node := range Cluster.Provisioner().Nodes() {
+		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
+			fmt.Sprintf("agent_%v.log", node.Addr())))
+		Expect(err).NotTo(HaveOccurred())
+		defer agentLog.Close()
+		Expect(infra.ScpText(node,
+			"/var/log/gravity.agent.log", agentLog)).To(Succeed())
+		// TODO: collect other operations agent logs from nodes
+	}
 }
 
 // RoboDescribe is local wrapper function for ginkgo.Describe.
@@ -122,10 +151,10 @@ func RoboDescribe(text string, body func()) bool {
 	return Describe("[robotest] "+text, body)
 }
 
-func RunAgentCommand(command string) {
+func RunAgentCommand(command string, nodes ...infra.Node) {
 	command, err := infra.ConfigureAgentCommandRunDetached(command)
 	Expect(err).NotTo(HaveOccurred())
-	Distribute(command)
+	Distribute(command, nodes...)
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

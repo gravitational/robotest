@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -41,7 +42,15 @@ func NewWizard(config Config, provisioner Provisioner, installer Node) (Infra, *
 	return cluster, &cluster.application, nil
 }
 
+// Infra describes the infrastructure as used in tests.
+//
+// Infrastructure can be a new cluster that is provisioned as part of the test run
+// using one of the built-in provisioners, or an active cluster and OpsCenter
+// to run tests that require existing infrastructure
 type Infra interface {
+	// OpsCenterURL returns the address of the OpsCenter this infrastructure describes.
+	// This can be an existing OpsCenter or the one created using the provided provisioner
+	// running the wizard
 	OpsCenterURL() string
 	// Close releases resources
 	Close() error
@@ -51,20 +60,33 @@ type Infra interface {
 	// If the provisioner is nil, the cluster is assumed to use automatic
 	// provisioning
 	Provisioner() Provisioner
+	// Config returns a configuration this infrastructure object was created with
 	Config() Config
 }
 
+// Provisioner defines a means of creating a cluster from scratch and managing the nodes.
+//
+// Cluster can be created with a pool of nodes only a subset of which is active at any
+// given time. When the cluster is created with capacity bigger than the
+// subset of nodes used for installation, then the initially unused nodes can be
+// Allocated (and Deallocated) on demand to enable expand/shrink test workflows.
 type Provisioner interface {
 	// Create provisions a new cluster and returns a reference
 	// to the node that can be used to run installation
 	Create() (installer Node, err error)
+	// Destroy the infrastructures created by Create.
+	// After the call to Destroy the provisioner is invalid and no
+	// other methods can be used
 	Destroy() error
+	// Connect connects to the node identified with addr and returns
+	// a new session object that can be used to execute remote commands
 	Connect(addr string) (*ssh.Session, error)
 	// SelectInterface returns the index (in addrs) of network address to use for
 	// installation.
 	// installerNode should be the result of calling Provisioner.Create
 	// addrs is guaranteed to have at least one element
 	SelectInterface(installer Node, addrs []string) (int, error)
+	// StartInstall initiates installation in the specified session
 	StartInstall(session *ssh.Session) error
 	Nodes() []Node
 	NumNodes() int
@@ -73,16 +95,22 @@ type Provisioner interface {
 	Allocate() (Node, error)
 	// Deallocate places specified node back to the node pool
 	Deallocate(Node) error
+	// InstallerLogPath returns remote path to the installer log file
+	InstallerLogPath() string
 }
 
+// Node defines an interface to a remote node
 type Node interface {
+	// Addr returns the address of the node
 	Addr() string
+	// Connect connects to this node and returns a new session object
+	// that can be used to execute remote commands
 	Connect() (*ssh.Session, error)
 }
 
 // Distribute executes the specified command on given nodes
 // and waits for execution to complete before returning
-func Distribute(command string, nodes []Node) error {
+func Distribute(command string, nodes ...Node) error {
 	log.Infof("running %q on %v", command, nodes)
 	errCh := make(chan error, len(nodes))
 	wg := sync.WaitGroup{}
@@ -113,4 +141,9 @@ func Run(node Node, command string, w io.Writer) error {
 		return trace.Wrap(err)
 	}
 	return sshutils.RunCommandWithOutput(session, command, w)
+}
+
+// ScpText copies remoteFile from specified node into localFile
+func ScpText(node Node, remoteFile string, localFile io.Writer) error {
+	return Run(node, fmt.Sprintf("cat %v", remoteFile), localFile)
 }

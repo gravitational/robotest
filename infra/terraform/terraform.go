@@ -150,6 +150,10 @@ func (r *terraform) Deallocate(n infra.Node) error {
 	return nil
 }
 
+func (r *terraform) InstallerLogPath() string {
+	return installerLogPath
+}
+
 // Write implements io.Writer
 func (r *terraform) Write(p []byte) (int, error) {
 	fmt.Fprint(os.Stderr, string(p))
@@ -232,3 +236,5 @@ var (
 const installerCommand = `while [ ! -f /home/centos/installer.tar.gz ]; do sleep 5; done; \
 tar -xvf /home/centos/installer.tar.gz -C /home/centos/installer; \
 /home/centos/installer/install`
+
+const installerLogPath = "/home/centos/installer/gravity.log"
