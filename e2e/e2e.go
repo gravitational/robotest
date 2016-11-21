@@ -29,8 +29,6 @@ func RunE2ETests(t *testing.T) {
 // Run the tasks that are meant to be run once per invocation
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	// Run only on ginkgo node 1
-	log.Infof("In SynchronizedBeforeSuite")
-
 	framework.CreateDriver()
 	framework.SetupCluster()
 	return nil
@@ -41,8 +39,6 @@ var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// Run on all ginkgo nodes
 }, func() {
 	// Run only on ginkgo node 1
-	log.Infof("In SynchronizedAfterSuite")
-
 	framework.CloseDriver()
 	framework.DestroyCluster()
 	if framework.TestContext.ReportDir != "" {

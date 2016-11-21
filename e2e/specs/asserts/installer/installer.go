@@ -12,10 +12,10 @@ import (
 func WaitForComplete(page *web.Page, domainName string) {
 	installer := installermodel.OpenWithSite(page, domainName)
 
-	By("checking if on in progress screen")
+	By("verifying that the progress screen is active")
 	Expect(installer.IsInProgressStep()).To(BeTrue())
 
-	Eventually(installer.IsInstallCompleted, defaults.InstallTimeout).Should(
+	Eventually(installer.IsInstallCompleted, defaults.InstallTimeout, defaults.PollInterval).Should(
 		BeTrue(), "wait until timeout or install success message")
 
 	By("clicking on continue")

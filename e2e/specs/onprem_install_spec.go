@@ -56,7 +56,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			By("starting an installation")
 			installer.StartInstallation()
 
-			time.Sleep(defaults.OperationTimeout)
+			time.Sleep(defaults.ShortTimeout)
 		}
 
 		shouldHandleInProgressScreen := func() {

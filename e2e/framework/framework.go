@@ -101,13 +101,18 @@ func DestroyCluster() {
 // CoreDump collects diagnostic information into the specified report directory
 // after the tests
 func CoreDump() {
+	if Cluster == nil {
+		log.Infof("cluster inactive: skip CoreDump")
+		return
+	}
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
 	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
-	cmd := exec.Command("gravity", "site", "report", opsURL, TestContext.ClusterName, output)
-	err := system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
-	if err != nil {
-		Failf("failed to collect diagnostics: %v", err)
-	}
+	cmd := exec.Command("gravity", "ops", "connect", Cluster.OpsCenterURL(),
+		TestContext.Login.Username, TestContext.Login.Password)
+	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
+
+	cmd = exec.Command("gravity", "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
+	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
 }
 
 // RoboDescribe is local wrapper function for ginkgo.Describe.
