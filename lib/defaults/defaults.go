@@ -12,7 +12,7 @@ const (
 	FindTimeout = 20 * time.Second
 
 	// AgentTimeout defines the amount of time to wait for agents to connect
-	AgentTimeout = 2 * time.Minute
+	AgentServerTimeout = 5 * time.Minute
 
 	// InstallTimeout defines the amount of time to wait for installation to complete
 	InstallTimeout = 20 * time.Minute
@@ -24,6 +24,7 @@ const (
 
 	ShortTimeout = 1 * time.Second
 
+	AjaxCallTimeout   = 20 * time.Second
 	ServerLoadTimeout = 20 * time.Second
 	ElementTimeout    = 20 * time.Second
 	OperationTimeout  = 5 * time.Minute

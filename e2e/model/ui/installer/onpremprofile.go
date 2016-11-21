@@ -3,8 +3,8 @@ package installer
 import (
 	"fmt"
 
+	"github.com/gravitational/robotest/e2e/model/ui/agent"
 	. "github.com/onsi/gomega"
-
 	"github.com/sclevine/agouti"
 	am "github.com/sclevine/agouti/matchers"
 )
@@ -31,18 +31,17 @@ func FindOnPremProfiles(page *agouti.Page) []OnPremProfile {
 	return profiles
 }
 
-func (p *OnPremProfile) GetServers() []OnPremServer {
-	var servers = []OnPremServer{}
-
-	s := p.page.All(".grv-provision-req-server")
+func (self *OnPremProfile) GetAgentServers() []agent.AgentServer {
+	var agentServers = []agent.AgentServer{}
+	s := self.page.All(".grv-provision-req-server")
 
 	elements, _ := s.Elements()
 
 	for index, _ := range elements {
-		servers = append(servers, createServer(p.page, index))
+		agentServers = append(agentServers, agent.CreateAgentServer(self.page, index))
 	}
 
-	return servers
+	return agentServers
 }
 
 func getProfileCssSelector(index int) string {

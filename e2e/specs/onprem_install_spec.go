@@ -46,10 +46,10 @@ func VerifyOnpremInstall(f *framework.T) {
 			framework.RunAgentCommand(profiles[0].Command)
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetServers, defaults.AgentTimeout).Should(HaveLen(1))
+			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(HaveLen(1))
 
 			By("veryfing that server has IP")
-			server := profiles[0].GetServers()[0]
+			server := profiles[0].GetAgentServers()[0]
 			ips := server.GetIPs()
 			Expect(len(ips)).To(BeNumerically(">", 0))
 			// FIXME: make sure there're ctx.NumInstallNodes agent entries
@@ -79,7 +79,6 @@ func VerifyOnpremInstall(f *framework.T) {
 
 		It("should install an application", func() {
 			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
-
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()

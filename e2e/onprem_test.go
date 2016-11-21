@@ -8,5 +8,6 @@ import (
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	f := framework.New()
 
+	specs.VerifyOnpremInstall(f)
 	specs.VerifyOnpremSite(f)
 })

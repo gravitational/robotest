@@ -8,7 +8,6 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/lib/defaults"
 
-	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -21,14 +20,13 @@ type Site struct {
 
 func Open(page *web.Page, domainName string) Site {
 	site := Site{page: page, domainName: domainName}
-	By("Navigating to installer screen")
 	newUrl := site.formatUrl("")
 	site.assertSiteNavigation(newUrl)
 	return site
 }
 
-func (s *Site) GetSiteServerProvisioner() SiteServers {
-	return SiteServers{page: s.page}
+func (s *Site) GetSiteServerProvisioner() SiteServerProvisioner {
+	return SiteServerProvisioner{page: s.page}
 }
 
 func (s *Site) NavigateToServers() {

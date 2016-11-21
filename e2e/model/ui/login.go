@@ -14,8 +14,9 @@ import (
 type AuthType string
 
 const (
-	WithEmail  = "email"
-	WithGoogle = "google"
+	WithEmail        = "email"
+	WithGoogle       = "google"
+	googlePageTimout = 1 * time.Second
 )
 
 func EnsureUser(page *web.Page, URL string, login framework.Login) {
@@ -69,12 +70,12 @@ func (u *User) LoginWithGoogle() {
 	Expect(u.page.FindByID("next").Click()).To(Succeed())
 	Eventually(u.page.FindByID("Passwd"), defaults.FindTimeout).Should(BeFound())
 
-	time.Sleep(defaults.PauseTimeout)
+	time.Sleep(googlePageTimout)
 
 	Expect(u.page.FindByID("Passwd").Fill(u.password)).To(Succeed())
 	Expect(u.page.FindByID("signIn").Click()).To(Succeed())
 
-	time.Sleep(defaults.PauseTimeout)
+	time.Sleep(googlePageTimout)
 
 	allowButton := u.page.FindByID("submit_approve_access")
 	count, _ := allowButton.Count()

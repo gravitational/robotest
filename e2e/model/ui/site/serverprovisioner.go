@@ -16,11 +16,11 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
-type SiteServers struct {
+type SiteServerProvisioner struct {
 	page *agouti.Page
 }
 
-type SiteServerItem struct {
+type SiteServer struct {
 	PrivateIP   string `json:"PrivateIP"`
 	PublicIP    string `json:"PublicIP"`
 	Profile     string `json:"Profile"`
@@ -28,8 +28,8 @@ type SiteServerItem struct {
 	InstaceType string
 }
 
-func (self *SiteServers) GetServerItems() []SiteServerItem {
-	var items []SiteServerItem
+func (self *SiteServerProvisioner) GetSiteServers() []SiteServer {
+	var items []SiteServer
 	var result string
 	js := ` 			
         var getter = [ ["site_servers"], serverList => {
@@ -52,7 +52,7 @@ func (self *SiteServers) GetServerItems() []SiteServerItem {
 	return items
 }
 
-func (self *SiteServers) GetAgentServers() []agent.AgentServer {
+func (self *SiteServerProvisioner) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
 	s := self.page.All(".grv-provision-req-server")
 
@@ -65,20 +65,21 @@ func (self *SiteServers) GetAgentServers() []agent.AgentServer {
 	return agentServers
 }
 
-func (self *SiteServers) StartOnPremOperation() *SiteServerItem {
-	currentServerItems := self.GetServerItems()
+func (self *SiteServerProvisioner) StartOnPremOperation() *SiteServer {
+	currentServerItems := self.GetSiteServers()
 
 	Expect(self.page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
 		"should start expand operation")
 
+	//give it some time to appear on UI
 	utils.Pause(10 * time.Second)
 
 	self.expectProgressIndicator()
 
-	updatedItems := self.GetServerItems()
+	updatedItems := self.GetSiteServers()
 
-	var newItem *SiteServerItem
+	var newItem *SiteServer
 
 	for _, item := range updatedItems {
 		for _, existedItem := range currentServerItems {
@@ -98,7 +99,7 @@ func (self *SiteServers) StartOnPremOperation() *SiteServerItem {
 	return newItem
 }
 
-func (self *SiteServers) InitOnPremOperation() string {
+func (self *SiteServerProvisioner) InitOnPremOperation() string {
 	page := self.page
 
 	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(
@@ -109,13 +110,17 @@ func (self *SiteServers) InitOnPremOperation() string {
 		Succeed(),
 		"should select first available profile")
 
+	utils.Pause()
+
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
 		Succeed(),
 		"should click on continue button")
 
+	utils.Pause()
+
 	element := page.Find(".grv-installer-server-instruction span")
 
-	Expect(element).To(
+	Eventually(element, defaults.AjaxCallTimeout).Should(
 		BeFound(),
 		"should find a command")
 
@@ -128,15 +133,17 @@ func (self *SiteServers) InitOnPremOperation() string {
 	return command
 }
 
-func (self *SiteServers) AddAwsServer(
-	awsConfig framework.AWSConfig, profileLable string, instanceType string) *SiteServerItem {
+func (self *SiteServerProvisioner) AddAwsServer(
+	awsConfig framework.AWSConfig, profileLable string, instanceType string) *SiteServer {
 	page := self.page
 
-	currentServerItems := self.GetServerItems()
+	currentServerItems := self.GetSiteServers()
 
 	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).To(
 		Succeed(),
 		"should click on Provision new button")
+
+	utils.Pause()
 
 	utils.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
 
@@ -157,11 +164,9 @@ func (self *SiteServers) AddAwsServer(
 
 	self.expectProgressIndicator()
 
-	utils.Pause(10 * time.Second)
+	updatedItems := self.GetSiteServers()
 
-	updatedItems := self.GetServerItems()
-
-	var newItem *SiteServerItem
+	var newItem *SiteServer
 
 	for _, item := range updatedItems {
 		for _, existedItem := range currentServerItems {
@@ -181,27 +186,35 @@ func (self *SiteServers) AddAwsServer(
 	return newItem
 }
 
-func (self *SiteServers) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServerItem) {
-	itemBeforeDelete := self.GetServerItems()
-	self.clickDeleteServer(itemToDelete.Hostname)
-	self.confirmAwsDelete(awsConfig.AccessKey, awsConfig.SecretKey)
-	self.expectProgressIndicator()
-	itemsAfterDelete := self.GetServerItems()
-	Expect(len(itemsAfterDelete) < len(itemBeforeDelete)).To(
-		BeTrue(),
-		"very that server disappeared from the list")
+func (self *SiteServerProvisioner) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
+	self.deleteServer(itemToDelete, &awsConfig)
 }
 
-func (self *SiteServers) confirmAwsDelete(accessKey string, secretKey string) {
-	utils.FillOutAwsKeys(self.page, accessKey, secretKey)
+func (self *SiteServerProvisioner) DeleteOnPremServer(itemToDelete *SiteServer) {
+	self.deleteServer(itemToDelete, nil)
+}
+
+func (self *SiteServerProvisioner) deleteServer(itemToDelete *SiteServer, awsConfig *framework.AWSConfig) {
+	itemBeforeDelete := self.GetSiteServers()
+	self.clickDeleteServer(itemToDelete.Hostname)
+
+	if awsConfig != nil {
+		utils.FillOutAwsKeys(self.page, awsConfig.AccessKey, awsConfig.SecretKey)
+	}
+
 	Expect(self.page.Find(".modal-dialog .btn-danger").Click()).To(
 		Succeed(),
 		"should click on confirmation button",
 	)
 
+	self.expectProgressIndicator()
+	itemsAfterDelete := self.GetSiteServers()
+	Expect(len(itemsAfterDelete) < len(itemBeforeDelete)).To(
+		BeTrue(),
+		"very that server disappeared from the list")
 }
 
-func (self *SiteServers) expectProgressIndicator() {
+func (self *SiteServerProvisioner) expectProgressIndicator() {
 	page := self.page
 	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.ElementTimeout).Should(
 		BeFound(),
@@ -210,9 +223,12 @@ func (self *SiteServers) expectProgressIndicator() {
 	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.OperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
+
+	// give some time to let all UI components to update
+	utils.Pause(10 * time.Second)
 }
 
-func (self *SiteServers) clickDeleteServer(hostname string) {
+func (self *SiteServerProvisioner) clickDeleteServer(hostname string) {
 	var result int
 	page := self.page
 
