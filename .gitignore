@@ -10,4 +10,4 @@ flymake*
 gravity.log
 vendor
 .vscode
-assets/**/config.json
+config.json

@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/ui/common"
+	utils "github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/agent"
+	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"
@@ -50,6 +52,19 @@ func (self *SiteServers) GetServerItems() []SiteServerItem {
 	return items
 }
 
+func (self *SiteServers) GetAgentServers() []agent.AgentServer {
+	var agentServers = []agent.AgentServer{}
+	s := self.page.All(".grv-provision-req-server")
+
+	elements, _ := s.Elements()
+
+	for index, _ := range elements {
+		agentServers = append(agentServers, agent.CreateAgentServer(self.page, index))
+	}
+
+	return agentServers
+}
+
 func (self *SiteServers) StartOnPremOperation() *SiteServerItem {
 	currentServerItems := self.GetServerItems()
 
@@ -57,7 +72,7 @@ func (self *SiteServers) StartOnPremOperation() *SiteServerItem {
 		Succeed(),
 		"should start expand operation")
 
-	common.Pause(10 * time.Second)
+	utils.Pause(10 * time.Second)
 
 	self.expectProgressIndicator()
 
@@ -123,17 +138,17 @@ func (self *SiteServers) AddAwsServer(
 		Succeed(),
 		"should click on Provision new button")
 
-	common.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
+	utils.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
 
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
 		Succeed(),
 		"click on continue")
 
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), waitForElement).Should(
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should display profile and instance type")
 
-	setDropDownValue(page, "grv-site-servers-provisioner-new-profile", profileLable)
+	setDropDownValue(page, "grv-site-servers-provisioner-new-profile", defaults.ProfileLabel)
 	setDropDownValue(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
 
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
@@ -142,7 +157,7 @@ func (self *SiteServers) AddAwsServer(
 
 	self.expectProgressIndicator()
 
-	common.Pause(10 * time.Second)
+	utils.Pause(10 * time.Second)
 
 	updatedItems := self.GetServerItems()
 
@@ -178,7 +193,7 @@ func (self *SiteServers) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDe
 }
 
 func (self *SiteServers) confirmAwsDelete(accessKey string, secretKey string) {
-	common.FillOutAwsKeys(self.page, accessKey, secretKey)
+	utils.FillOutAwsKeys(self.page, accessKey, secretKey)
 	Expect(self.page.Find(".modal-dialog .btn-danger").Click()).To(
 		Succeed(),
 		"should click on confirmation button",
@@ -188,11 +203,11 @@ func (self *SiteServers) confirmAwsDelete(accessKey string, secretKey string) {
 
 func (self *SiteServers) expectProgressIndicator() {
 	page := self.page
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), waitForElement).Should(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), waitForOperation).ShouldNot(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.OperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 }

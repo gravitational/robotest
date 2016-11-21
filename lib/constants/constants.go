@@ -12,4 +12,7 @@ const (
 
 	// FieldCluster defines a logging field to specify the name of the cluster
 	FieldCluster = "cluster"
+
+	// SharedDirMask is a mask for shared directories
+	SharedDirMask = 0755
 )

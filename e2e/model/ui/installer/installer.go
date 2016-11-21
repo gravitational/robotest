@@ -2,65 +2,66 @@ package installer
 
 import (
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/ui/common"
+	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/lib/defaults"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
+	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
 type Installer struct {
-	page *agouti.Page
+	page *web.Page
 }
 
-func OpenWithSite(page *agouti.Page, domainName string) *Installer {
-	urlPrefix := fmt.Sprintf("/web/installer/site/%v", domainName)
-	r, _ := regexp.Compile("/web/.*")
-	url, _ := page.URL()
-	url = r.ReplaceAllString(url, urlPrefix)
+func OpenWithSite(page *web.Page, domainName string) *Installer {
+	installerPath := fmt.Sprintf("/web/installer/site/%v", domainName)
+	url, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	url = ui.URLPath(url, installerPath)
+	log.Infof("OpenWithSite: %q", url)
 
 	return Open(page, url)
 }
 
-func Open(page *agouti.Page, URL string) *Installer {
-	By("Navigating to installer screen")
+func Open(page *web.Page, URL string) *Installer {
+	By(fmt.Sprintf("navigating to %q", URL))
 	Expect(page.Navigate(URL)).To(Succeed())
 	Eventually(page.FindByClass("grv-installer"), defaults.FindTimeout).Should(BeFound())
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(defaults.ShortTimeout)
 
 	return &Installer{page: page}
 }
 
 func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig) string {
-	By("Setting deployment name")
+	By("setting domain name")
 	page := i.page
 	specifyDomainName(page, domainName)
 
-	By("Setting provisioner")
+	By("setting provisioner")
 	Expect(page.FindByClass("--aws").Click()).To(Succeed())
 	Expect(page.FindByName("aws_access_key").Fill(config.AccessKey)).To(Succeed())
 	Expect(page.FindByName("aws_secret_key").Fill(config.SecretKey)).To(Succeed())
 	Expect(page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(page.FindByClass("grv-installer-aws-region"), defaults.FindTimeout).Should(BeFound())
 
-	common.Pause()
-	By("Setting region")
-	common.SetDropDownValue(page, "grv-installer-aws-region", config.Region)
+	ui.Pause()
+	By("setting region")
+	ui.SetDropdownValue(page, "grv-installer-aws-region", config.Region)
 
-	common.Pause()
-	By("Setting key pair")
-	common.SetDropDownValue(page, "grv-installer-aws-key-pair", config.KeyPair)
+	ui.Pause()
+	By("setting key pair")
+	ui.SetDropdownValue(page, "grv-installer-aws-key-pair", config.KeyPair)
 
-	common.Pause()
-	By("Setting VPC")
-	common.SetDropDownValue(page, "grv-installer-aws-vpc", config.VPC)
+	ui.Pause()
+	By("setting VPC")
+	ui.SetDropdownValue(page, "grv-installer-aws-vpc", config.VPC)
 
 	i.proceedToReqs()
 
@@ -70,10 +71,10 @@ func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig)
 
 func (i *Installer) CreateOnPremNewSite(domainName string) string {
 	page := i.page
-	By("Setting deployment name")
+	By("setting domain name")
 	specifyDomainName(page, domainName)
 
-	By("Setting provisioner")
+	By("setting provisioner")
 	Eventually(page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())
 	Expect(page.FindByClass("--metal").Click()).To(Succeed())
 
@@ -103,9 +104,9 @@ func (i *Installer) IsRequirementsReviewStep() bool {
 }
 
 func (i *Installer) StartInstallation() {
-	btn := i.page.Find(".grv-installer-footer .btn-primary")
-	Expect(btn).To(BeFound())
-	Expect(btn.Click()).To(Succeed())
+	button := i.page.Find(".grv-installer-footer .btn-primary")
+	Expect(button).To(BeFound())
+	Expect(button.Click()).To(Succeed())
 	Eventually(i.IsInProgressStep, defaults.FindTimeout).Should(BeTrue())
 }
 
@@ -121,7 +122,7 @@ func (i *Installer) SelectFlavor(index int) {
 	Expect(elem.Click()).To(Succeed())
 }
 
-func specifyDomainName(page *agouti.Page, domainName string) {
+func specifyDomainName(page *web.Page, domainName string) {
 	Eventually(page.FindByName("domainName"), defaults.FindTimeout).Should(BeFound())
 	Expect(page.FindByName("domainName").Fill(domainName)).To(Succeed())
 	Eventually(page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())

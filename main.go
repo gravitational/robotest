@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"github.com/gravitational/robotest/driver/selenium"
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
 	debugutils "github.com/gravitational/robotest/lib/debug"
+	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/system"
 
 	"github.com/gravitational/configure/cstrings"
@@ -40,7 +42,9 @@ func run() error {
 		crun = app.Command("run", "Execute tests")
 	)
 
-	cmd, err := app.Parse(args[1:])
+	var err error
+	var cmd string
+	cmd, err = app.Parse(args[1:])
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -61,35 +65,62 @@ func run() error {
 	}
 	defer configReader.Close()
 
-	config, err := newFileConfig(configReader)
+	var config *fileConfig
+	config, err = newFileConfig(configReader)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	dir, err := stateDir(config.ClusterName)
+	var dir string
+	dir, err = stateDir(config.ClusterName)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	provisioner, err := provisionerFromConfig(*config, dir)
+	var provisioner infra.Provisioner
+	provisioner, err = provisionerFromConfig(*config, dir)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	cluster, output, err := infra.NewWizard(config.Config, provisioner)
+	var installer infra.Node
+	installer, err = provisioner.Create()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		err = provisioner.Destroy()
+		if err != nil {
+			log.Errorf("failed to destroy infrastructure: %v", trace.DebugReport(err))
+		}
+	}()
+
+	var cluster infra.Infra
+	var application *loc.Locator
+	cluster, application, err = infra.NewWizard(config.Config, provisioner, installer)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	defer cluster.Close()
 
-	driver, err := driverFromConfig(*config)
+	var driver infra.TestDriver
+	driver, err = driverFromConfig(*config)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	switch cmd {
 	case crun.FullCommand():
-		err = runTests(*config, cluster, *output, driver)
+		var installerURL string
+		installerURL, err = framework.InstallerURL(cluster.OpsCenterURL(), *application)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		err = runTests(*config, cluster, installerURL, driver)
 	}
 
 	if err == nil {
@@ -104,8 +135,8 @@ func run() error {
 	return trace.Wrap(err)
 }
 
-func runTests(config fileConfig, cluster infra.Infra, output infra.ProvisionerOutput, driver infra.TestDriver) error {
-	err := driver.Install(cluster, output.InstallerURL.String())
+func runTests(config fileConfig, cluster infra.Infra, installerURL string, driver infra.TestDriver) error {
+	err := driver.Install(cluster, installerURL)
 	if err != nil {
 		return trace.Wrap(err)
 	}

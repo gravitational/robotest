@@ -4,90 +4,82 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
+	"github.com/gravitational/robotest/e2e/model/ui"
+	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
+	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
-	"github.com/gravitational/robotest/e2e/ui/installer"
-	"github.com/gravitational/robotest/e2e/ui/site"
-	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
 )
 
-func VerifyOnpremInstall(getPage pageFunc, ctx framework.TestContextType, getCluster clusterFunc) {
-
-	var (
-		cluster        infra.Infra
-		page           *agouti.Page
-		startURL       = ctx.StartURL
-		deploymentName = ctx.ClusterName
-		userName       = ctx.Login.Username
-		password       = ctx.Login.Password
-	)
-
-	Describe("OnPrem Installation", func() {
+func VerifyOnpremInstall(f *framework.T) {
+	var _ = framework.RoboDescribe("Onprem Installation", func() {
+		ctx := framework.TestContext
+		var domainName string
 
 		BeforeEach(func() {
-			page = getPage()
-			cluster = getCluster()
+			domainName = ctx.ClusterName
 		})
 
 		shouldHandleNewDeploymentScreen := func() {
-			inst := installer.Open(page, startURL)
+			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("entering domain name")
-			Eventually(inst.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
-			inst.CreateOnPremNewSite(deploymentName)
+			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
+			installer.CreateOnPremNewSite(domainName)
 		}
 
 		shouldHandleRequirementsScreen := func() {
-			inst := installer.OpenWithSite(page, deploymentName)
-			Expect(inst.IsRequirementsReviewStep()).To(BeTrue())
+			installer := installermodel.OpenWithSite(f.Page, domainName)
+			Expect(installer.IsRequirementsReviewStep()).To(BeTrue())
 
 			By("selecting a flavor")
-			inst.SelectFlavor(1)
+			installer.SelectFlavor(ctx.NumInstallNodes)
 
 			By("veryfing requirements")
-			profiles := installer.FindOnPremProfiles(page)
+			profiles := installermodel.FindOnPremProfiles(f.Page)
 			Expect(len(profiles)).To(Equal(1))
 
 			By("executing the command on servers")
-			err := infra.Distribute(profiles[0].Command, cluster.Provisioner().Nodes())
-			Expect(err).ShouldNot(HaveOccurred())
+			framework.RunAgentCommand(profiles[0].Command)
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetServers, 10*time.Minute).Should(HaveLen(1))
+			Eventually(profiles[0].GetServers, defaults.AgentTimeout).Should(HaveLen(1))
 
 			By("veryfing that server has IP")
 			server := profiles[0].GetServers()[0]
 			ips := server.GetIPs()
-			Expect(len(ips) == 2).To(BeTrue())
+			Expect(len(ips)).To(BeNumerically(">", 0))
+			// FIXME: make sure there're ctx.NumInstallNodes agent entries
 
 			By("starting an installation")
-			inst.StartInstallation()
+			installer.StartInstallation()
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(defaults.OperationTimeout)
 		}
 
 		shouldHandleInProgressScreen := func() {
-			validation.WaitForComplete(page, deploymentName)
+			validation.WaitForComplete(f.Page, domainName)
 		}
 
 		shouldHandleBandwagonScreen := func() {
 			bandwagon.Complete(
-				page,
-				deploymentName,
-				userName,
-				password)
+				f.Page,
+				domainName,
+				ctx.Login.Username,
+				ctx.Login.Password)
 		}
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
-			site.Open(page, deploymentName)
+			site.Open(f.Page, domainName)
 		}
 
 		It("should install an application", func() {
+			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
+
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()
@@ -95,5 +87,4 @@ func VerifyOnpremInstall(getPage pageFunc, ctx framework.TestContextType, getClu
 			shouldNavigateToSite()
 		})
 	})
-
 }

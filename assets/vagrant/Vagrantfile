@@ -1,3 +1,52 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Parts of this file are taken from https://github.com/kubernetes/kubernetes/blob/master/Vagrantfile
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+# Require a recent version of vagrant otherwise some have reported errors setting host names on boxes
+Vagrant.require_version ">= 1.7.4"
+
+if ARGV.first == "up" && ENV['ROBO_USE_SCRIPTS'] != 'true'
+  raise Vagrant::Errors::VagrantError.new, <<END
+Calling 'vagrant up' directly is not supported.  Instead, please run the following:
+
+  export ROBO_PROVISIONER=vagrant
+  export ROBO_SCRIPT_PATH=/path/to/this/Vagrantfile
+  ./e2e.test
+END
+end
+
+# The number of nodes to provision
+$vm_num_nodes = (ENV['ROBO_NUM_NODES'] || 1).to_i
+
+# Give access to all physical cpu cores
+# Rewritten to actually determine the number of hardware cores instead of assuming
+# that the host has hyperthreading enabled.
+host = RbConfig::CONFIG['host_os']
+$vm_cpus = 1
+if host =~ /linux/
+  $vm_cpus = `cat /proc/cpuinfo | grep 'core id' | sort -u | wc -l`.to_i
+  if $vm_cpus < 1
+      $vm_cpus = `nproc`.to_i
+  end
+end
+
+# RAM to use for nodes in MB
+$vm_node_mem = 2000
+
+# Box to boot
+$vm_box = ENV['ROBO_VAGRANT_BOX'] || 'centos/7'
+
+# Size of automatically attache disk devices (10Gb by default)
+$vm_device_size = (ENV['ROBO_VAGRANT_DEVICE_SIZE'] || 10).to_i
+
+# IP address configuration
+$vm_node_ip_base = ENV['ROBO_NODE_IP_BASE'] || "172.28.128.1"
+$vm_node_ips = $vm_num_nodes.times.collect { |n| $vm_node_ip_base + "#{n+3}" }
+
 Vagrant.configure(2) do |config|
   # create a new volume (vdi file)
   def attach_media(vb, controller_name, device, sizeMB, port)
@@ -26,23 +75,28 @@ Vagrant.configure(2) do |config|
   SHELL
   end
 
-  def create_node(vm, node_name, cpus, ramMB)
+  def create_node(vm, node_name, cpus, ram_mb, node_ip)
     vm.define node_name do |node|
       node.vm.hostname = node_name
+      node.vm.network "private_network", ip: "#{node_ip}"
+      node.vm.provider :libvirt do |vb|
+        vb.cpus = cpus
+        vb.memory = ram_mb
+      end
       node.vm.provider "virtualbox" do |vb|
         vb.name = node.vm.hostname
         vb.cpus = cpus
-        vb.memory = ramMB
-        attach_media(vb, "SATA Controller", "sdb", 10, 1) # 10Gb, /var/lib/gravity
-        attach_media(vb, "SATA Controller", "sdc", 10, 2) # 10Gb, direct-lvm partition, no fs
+        vb.memory = ram_mb
+        attach_media(vb, "SATA Controller", "sdb", $vm_device_size, 1) # 10Gb, /var/lib/gravity
+        attach_media(vb, "SATA Controller", "sdc", $vm_device_size, 2) # 10Gb, direct-lvm partition, no fs
       end
-      # mount_volume(node.vm, "xfs", "/var/lib/gravity", "sdb")
     end
   end
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
-  config.vm.box = "boxcutter/centos72"
+  # config.vm.box = "boxcutter/centos72"
+  config.vm.box = $vm_box
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -55,7 +109,7 @@ Vagrant.configure(2) do |config|
   # config.vm.network "forwarded_port", guest: 80, host: 8080
 
   # Create a private network
-  config.vm.network "private_network", type: "dhcp"
+  #config.vm.network "private_network", type: "dhcp"
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -67,18 +121,23 @@ Vagrant.configure(2) do |config|
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
 
-
-  # fix grub to turn on memory cgroup
   config.vm.provision "shell", inline: <<-SHELL
-    #echo $(netstat -rn | grep UG | awk '{print $2}') opscenter.localhost.localdomain >> /etc/hosts
-    echo 172.17.0.1 opscenter.localhost.localdomain >> /etc/hosts
-    echo "[SITE] Set up /etc/hosts "
-    sudo systemd-machine-id-setup
-    sudo systemctl restart systemd-journald
-    sudo /usr/sbin/ip route add 10.100.0.0/16 dev enp0s8
+    # yum -y install net-tools
+    /usr/sbin/ip route add 10.100.0.0/16 dev eth0 || true
+    /usr/sbin/ip route add 10.100.0.0/16 dev enp0s8 || true
+    echo 192.168.122.1 opscenter.localhost.localdomain >> /etc/hosts
   SHELL
 
-  create_node(config.vm, "master", 1, 2100)
-  # create_node(config.vm, "master-2", 1, 2100)
-  # create_node(config.vm, "master-3", 1, 2100)
+  # Don't attempt to update Virtualbox Guest Additions (requires gcc)
+  if Vagrant.has_plugin?("vagrant-vbguest") then
+    config.vbguest.auto_update = false
+  end
+
+  config.vm.synced_folder ".", "/vagrant", type: "rsync"
+
+  $vm_num_nodes.times do |n|
+    node_ip = $vm_node_ips[n]
+    node_vm_name = "node-#{n+1}"
+    create_node(config.vm, node_vm_name, $vm_cpus, $vm_node_mem, node_ip)
+  end
 end

@@ -2,32 +2,32 @@ package specs
 
 import (
 	"github.com/gravitational/robotest/e2e/framework"
-	uisite "github.com/gravitational/robotest/e2e/ui/site"
-	"github.com/gravitational/robotest/infra"
-	"github.com/sclevine/agouti"
+	"github.com/gravitational/robotest/e2e/model/ui"
+	uisite "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func VerifyOnpremSite(getPage pageFunc, ctx framework.TestContextType, getCluster clusterFunc) {
+func VerifyOnpremSite(f *framework.T) {
 
-	var (
-		cluster        infra.Infra
-		page           *agouti.Page
-		deploymentName = ctx.ClusterName
-	)
+	var _ = framework.RoboDescribe("Onprem Site Servers", func() {
 
-	Describe("Onprem Site Servers", func() {
+		ctx := framework.TestContext
+		var domainName string
+		var siteURL string
 
 		BeforeEach(func() {
-			page = getPage()
-			cluster = getCluster()
+			domainName = ctx.ClusterName
+			siteURL = framework.SiteURL()
 		})
 
 		It("should be able to add and remove a server", func() {
+
+			ui.EnsureUser(f.Page, siteURL, ctx.Login)
+
 			By("opening a site page")
-			site := uisite.Open(page, deploymentName)
+			site := uisite.Open(f.Page, domainName)
 			site.NavigateToServers()
 			siteProvisioner := site.GetSiteServerProvisioner()
 

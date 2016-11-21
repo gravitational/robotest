@@ -2,41 +2,37 @@ package specs
 
 import (
 	"github.com/gravitational/robotest/e2e/framework"
-	uisite "github.com/gravitational/robotest/e2e/ui/site"
-	"github.com/sclevine/agouti"
+	"github.com/gravitational/robotest/e2e/model/ui"
+	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
+	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 )
 
-func VerifyAwsSite(getPage pageFunc, ctx framework.TestContextType) {
-
-	var (
-		page           *agouti.Page
-		deploymentName = ctx.ClusterName
-		awsConfig      = ctx.AWS
-		profileLabel   = "worker node"
-		instanceType   = "m3.large"
-	)
-
-	Describe("Aws Site Servers", func() {
+func VerifyAwsSite(f *framework.T) {
+	Describe("AWS Site Servers", func() {
+		ctx := framework.TestContext
+		var domainName string
+		var siteURL string
 
 		BeforeEach(func() {
-			page = getPage()
+			domainName = ctx.ClusterName
+			siteURL = framework.SiteURL()
 		})
 
 		It("should be able to add and remove a server", func() {
+			ui.EnsureUser(f.Page, siteURL, ctx.Login)
+
 			By("opening a site page")
-			site := uisite.Open(page, deploymentName)
+			site := sitemodel.Open(f.Page, domainName)
 			site.NavigateToServers()
 			siteProvisioner := site.GetSiteServerProvisioner()
 
 			By("trying to add a new server")
-			newItem := siteProvisioner.AddAwsServer(awsConfig, profileLabel, instanceType)
+			newItem := siteProvisioner.AddAwsServer(*ctx.AWS, defaults.ProfileLabel, defaults.InstanceType)
 
 			By("trying remove a server")
-			siteProvisioner.DeleteAwsServer(awsConfig, newItem)
-
+			siteProvisioner.DeleteAwsServer(*ctx.AWS, newItem)
 		})
 	})
-
 }

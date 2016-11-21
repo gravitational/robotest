@@ -14,41 +14,17 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
-	var output *ProvisionerOutput
-	output, err = provisioner.Create()
-
-	// destroy (even partially created) infrastructure in case of errors
-	defer func() {
-		if err == nil {
-			return
-		}
-
-		errDestroy := provisioner.Destroy()
-		if errDestroy != nil {
-			log.Errorf("failed to destroy infrastructure: %v", trace.DebugReport(errDestroy))
-		}
-		if err == nil {
-			err = trace.Wrap(errDestroy)
-		}
-	}()
-
-	// handle provisioning errors
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	log.Infof("provisioned machines: %s", output)
-
+func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluster, err error) {
 	var session *ssh.Session
 	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
-		session, err = provisioner.Connect(output.InstallerIP)
+		session, err = installer.Connect()
 		if err != nil {
 			log.Warning(trace.DebugReport(err))
 		}
@@ -86,6 +62,8 @@ func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
 		if err != nil {
 			log.Errorf("failed to read from remote stdout: %v", err)
 		}
+		reader.Close()
+		writer.Close()
 	}()
 	defer func() {
 		if err != nil {
@@ -112,12 +90,18 @@ func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
 		return nil, trace.Wrap(err)
 	}
 
-	var url *url.URL
-	url, err = configureWizard(reader, stdin, provisioner, *output)
+	var installerURL *url.URL
+	installerURL, err = configureWizard(reader, stdin, provisioner, installer)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	output.InstallerURL = *url
+
+	var application *loc.Locator
+	application, err = extractPackage(*installerURL)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	// Discard all stdout content after the necessary wizard details have been obtained
 	go func() {
 		io.Copy(ioutil.Discard, reader)
@@ -125,13 +109,14 @@ func startWizard(provisioner Provisioner) (cluster *wizardCluster, err error) {
 
 	// TODO: make sure that all io.Copy goroutines shutdown in Close
 	return &wizardCluster{
-		ProvisionerOutput: *output,
-		provisioner:       provisioner,
-		session:           session,
+		provisioner:  provisioner,
+		application:  *application,
+		installerURL: *installerURL,
+		session:      session,
 	}, nil
 }
 
-func configureWizard(stdout io.Reader, stdin io.Writer, provisioner Provisioner, output ProvisionerOutput) (installerURL *url.URL, err error) {
+func configureWizard(stdout io.Reader, stdin io.Writer, provisioner Provisioner, installerNode Node) (installerURL *url.URL, err error) {
 	s := bufio.NewScanner(stdout)
 	var state scannerState = emptyState
 	var addrs []string
@@ -157,7 +142,7 @@ L:
 				if len(addrs) == 0 {
 					return nil, trace.NotFound("no network interfaces reported by the installer")
 				}
-				index, err := provisioner.SelectInterface(output, addrs)
+				index, err := provisioner.SelectInterface(installerNode, addrs)
 				if err != nil {
 					return nil, trace.Wrap(err)
 				}
@@ -171,7 +156,7 @@ L:
 					return nil, trace.Wrap(err, "failed to confirm network interface")
 				}
 			case strings.HasPrefix(line, "OPEN THIS IN BROWSER"):
-				installerURL, err = extractInstallerURL(line, output.InstallerIP)
+				installerURL, err = extractInstallerURL(line, installerNode.Addr())
 				if err != nil {
 					return nil, trace.Wrap(err)
 				}
@@ -182,6 +167,18 @@ L:
 		}
 	}
 	return installerURL, nil
+}
+
+func extractPackage(installerURL url.URL) (application *loc.Locator, err error) {
+	packageSuffix := strings.TrimPrefix(installerURL.Path, "/web/installer/new/")
+	fields := strings.Split(packageSuffix, "/")
+	if len(fields) != 3 {
+		return nil, trace.Wrap(err, "invalid application package suffix %q, expected repository/name/version",
+			packageSuffix)
+	}
+	repository, name, version := fields[0], fields[1], fields[2]
+
+	return loc.NewLocator(repository, name, version), nil
 }
 
 func extractInstallerURL(input, installerIP string) (installerURL *url.URL, err error) {
@@ -197,8 +194,8 @@ func extractInstallerURL(input, installerIP string) (installerURL *url.URL, err 
 	}
 	log.Infof("found installer URL: %v", addrURL.Path)
 
-	// generated installer URL has private IP in it. replace it with the public IP of the
-	// installer machine so we can connect to it
+	// generated installer URL has private IP in it - replace it with the public IP of the
+	// installer machine to be able to connect
 	_, port, err := net.SplitHostPort(addrURL.Host)
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to split host:port in %q", addrURL.Host)
@@ -224,7 +221,7 @@ func (r *wizardCluster) Destroy() error {
 }
 
 func (r *wizardCluster) OpsCenterURL() string {
-	url := r.InstallerURL
+	url := r.installerURL
 	url.Path = ""
 	return url.String()
 }
@@ -239,11 +236,11 @@ func (r *wizardCluster) Config() Config {
 
 // wizardCluster implements Infra
 type wizardCluster struct {
-	ProvisionerOutput
-
-	config      Config
-	provisioner Provisioner
-	session     *ssh.Session
+	config       Config
+	provisioner  Provisioner
+	session      *ssh.Session
+	installerURL url.URL
+	application  loc.Locator
 }
 
 var (

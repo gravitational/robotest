@@ -38,9 +38,9 @@ func New(stateDir string, config Config) (*terraform, error) {
 	}, nil
 }
 
-func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
+func (r *terraform) Create() (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
-	err := system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
+	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -79,33 +79,21 @@ func (r *terraform) Create() (*infra.ProvisionerOutput, error) {
 			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs))
 	}
 
-	if r.Config.Nodes == 0 {
-		r.Config.Nodes = len(publicIPs)
-	}
-	if r.Config.InstallNodes == 0 {
-		r.Config.InstallNodes = r.Config.Nodes
-	}
-
 	r.nodes = make(map[string]node)
 	for i, addr := range publicIPs {
 		r.nodes[addr] = node{privateIP: privateIPs[i], publicIP: addr, owner: r}
 	}
 
-	activeNodes := r.InstallNodes
 	r.active = make(map[string]struct{})
-	for _, addr := range publicIPs[:activeNodes] {
+	for _, addr := range publicIPs[:r.NumInstallNodes] {
 		r.active[addr] = struct{}{}
 	}
 
 	r.Infof("cluster: %#v", r.nodes)
 	r.Infof("install subset: %#v", r.active)
 
-	r.ProvisionerOutput = infra.ProvisionerOutput{
-		InstallerIP: installerIP,
-		PrivateIPs:  privateIPs,
-		PublicIPs:   publicIPs,
-	}
-	return &r.ProvisionerOutput, nil
+	node := r.nodes[installerIP]
+	return &node, nil
 }
 
 func (r *terraform) Destroy() error {
@@ -115,7 +103,7 @@ func (r *terraform) Destroy() error {
 	return trace.Wrap(err)
 }
 
-func (r *terraform) SelectInterface(output infra.ProvisionerOutput, addrs []string) (int, error) {
+func (r *terraform) SelectInterface(installer infra.Node, addrs []string) (int, error) {
 	// Fallback to the first available address
 	return 0, nil
 }
@@ -209,9 +197,7 @@ func getVars(config Config) []string {
 		"cluster_name":  config.ClusterName,
 		"installer_url": config.InstallerURL,
 	}
-	if config.Nodes != 0 {
-		variables["nodes"] = strconv.Itoa(config.Nodes)
-	}
+	variables["nodes"] = strconv.Itoa(config.NumNodes)
 	var args []string
 	for k, v := range variables {
 		if strings.TrimSpace(v) != "" {
@@ -224,7 +210,6 @@ func getVars(config Config) []string {
 type terraform struct {
 	*log.Entry
 	Config
-	infra.ProvisionerOutput
 
 	stateDir string
 	nodes    map[string]node
