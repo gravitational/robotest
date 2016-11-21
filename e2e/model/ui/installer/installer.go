@@ -8,7 +8,6 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/lib/defaults"
 
-	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -24,7 +23,6 @@ func OpenWithSite(page *web.Page, domainName string) *Installer {
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
 	url = ui.URLPath(url, installerPath)
-	log.Infof("OpenWithSite: %q", url)
 
 	return Open(page, url)
 }

@@ -36,7 +36,7 @@ func VerifyAwsInstall(f *framework.T) {
 				BeTrue(),
 				"should navigate to installer screen")
 
-			installer.CreateAwsSite(domainName, *ctx.AWS)
+			installer.CreateAwsSite(domainName, ctx.AWS)
 		}
 
 		shouldHandleRequirementsScreen := func() {

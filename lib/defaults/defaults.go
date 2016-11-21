@@ -17,6 +17,9 @@ const (
 	// InstallTimeout defines the amount of time to wait for installation to complete
 	InstallTimeout = 20 * time.Minute
 
+	// PollInterval defines the frequency of polling attempts
+	PollInterval = 10 * time.Second
+
 	PauseTimeout = 100 * time.Millisecond
 
 	ShortTimeout = 1 * time.Second

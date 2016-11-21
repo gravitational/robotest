@@ -29,10 +29,10 @@ func VerifyAwsSite(f *framework.T) {
 			siteProvisioner := site.GetSiteServerProvisioner()
 
 			By("trying to add a new server")
-			newItem := siteProvisioner.AddAwsServer(*ctx.AWS, defaults.ProfileLabel, defaults.InstanceType)
+			newItem := siteProvisioner.AddAwsServer(ctx.AWS, defaults.ProfileLabel, defaults.InstanceType)
 
 			By("trying remove a server")
-			siteProvisioner.DeleteAwsServer(*ctx.AWS, newItem)
+			siteProvisioner.DeleteAwsServer(ctx.AWS, newItem)
 		})
 	})
 }

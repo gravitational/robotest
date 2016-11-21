@@ -222,6 +222,7 @@ func (r *wizardCluster) Destroy() error {
 
 func (r *wizardCluster) OpsCenterURL() string {
 	url := r.installerURL
+	url.RawQuery = ""
 	url.Path = ""
 	return url.String()
 }

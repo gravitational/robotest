@@ -51,18 +51,18 @@ func (r *TestContextType) Validate() error {
 	if TestContext.Wizard && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
-	if TestContext.AWS == nil && TestContext.Onprem == nil {
+	if TestContext.AWS.IsEmpty() && TestContext.Onprem.IsEmpty() {
 		errors = append(errors, trace.BadParameter("either AWS or Onprem is required"))
 	}
-	if r.Onprem != nil && r.NumInstallNodes > r.Onprem.NumNodes {
+	if !r.Onprem.IsEmpty() && r.NumInstallNodes > r.Onprem.NumNodes {
 		errors = append(errors, trace.BadParameter("cannot install on more nodes than the cluster capacity: %v > %v",
 			r.NumInstallNodes, r.Onprem.NumNodes))
 	}
-	if r.Onprem != nil {
+	if !r.Onprem.IsEmpty() {
 		r.NumInstallNodes = r.Onprem.NumNodes
 	}
 	if r.NumInstallNodes == 0 {
-		errors = append(errors, trace.BadParameter("num install nodes is required"))
+		errors = append(errors, trace.BadParameter("number of install nodes is required"))
 	}
 	return trace.NewAggregate(errors...)
 }
@@ -93,9 +93,9 @@ type TestContextType struct {
 	// NumInstallNodes defines the subset of nodes to use for installation.
 	NumInstallNodes int `json:"install_nodes" env:"ROBO_NUM_INSTALL_NODES"`
 	// AWS defines the AWS-specific test configuration
-	AWS *AWSConfig `json:"aws"`
+	AWS AWSConfig `json:"aws"`
 	// Onprem defines the test configuration for bare metal tests
-	Onprem *OnpremConfig `json:"onprem"`
+	Onprem OnpremConfig `json:"onprem"`
 }
 
 type Login struct {
@@ -112,6 +112,10 @@ type AWSConfig struct {
 	VPC       string `json:"vpc" env:"ROBO_AWS_VPC"`
 }
 
+func (r AWSConfig) IsEmpty() bool {
+	return r.AccessKey == "" && r.SecretKey == ""
+}
+
 type OnpremConfig struct {
 	// NumNodes defines the total cluster capacity.
 	// This is a total number of nodes to provision
@@ -122,6 +126,10 @@ type OnpremConfig struct {
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
 	ScriptPath string `json:"script_path"  env:"ROBO_SCRIPT_PATH"`
+}
+
+func (r OnpremConfig) IsEmpty() bool {
+	return r.NumNodes == 0 && r.InstallerURL == "" && r.ScriptPath == ""
 }
 
 func registerCommonFlags() {
@@ -143,7 +151,7 @@ func newFileConfig(input io.Reader) error {
 		return trace.Wrap(err)
 	}
 
-	err = configure.ParseEnv(&TestContext)
+	err = configure.ParseEnv(TestContext)
 	if err != nil {
 		return trace.Wrap(err)
 	}
