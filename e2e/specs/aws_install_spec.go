@@ -2,79 +2,69 @@ package specs
 
 import (
 	"github.com/gravitational/robotest/e2e/framework"
-	installer "github.com/gravitational/robotest/e2e/model/ui/installer"
+	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 	"github.com/gravitational/robotest/lib/defaults"
-	"github.com/sclevine/agouti"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	web "github.com/sclevine/agouti"
 )
 
-func VerifyAwsInstall(getPage pageFunc, ctx framework.TestContextType) {
-
-	var (
-		page               *agouti.Page
-		deploymentName     = ctx.ClusterName
-		appToInstallURL    = ctx.StartURL
-		userName           = ctx.Login.Username
-		password           = ctx.Login.Password
-		awsConfig          = ctx.AWS
-		flavorIndex        = 2
-		serverInstanceType = "m3.large"
-	)
-
+func VerifyAwsInstall(page *web.Page) {
 	Describe("AWS Installation", func() {
+		ctx := framework.TestContext
+		var domainName string
 
 		BeforeEach(func() {
-			page = getPage()
+			domainName = ctx.ClusterName
 		})
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
-			site.Open(page, deploymentName)
+			site.Open(page, domainName)
 		}
 
 		shouldHandleNewDeploymentScreen := func() {
-			inst := installer.Open(page, appToInstallURL)
+			installer := installermodel.Open(page, framework.InstallerURL())
 
-			Eventually(inst.IsCreateSiteStep, defaults.FindTimeout).Should(
+			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(
 				BeTrue(),
-				"Should navigate to installer screen")
+				"should navigate to installer screen")
 
-			inst.CreateAwsSite(deploymentName, awsConfig)
+			installer.CreateAwsSite(domainName, *ctx.AWS)
 		}
 
 		shouldHandleRequirementsScreen := func() {
 			By("entering domain name")
-			inst := installer.OpenWithSite(page, deploymentName)
-			Expect(inst.IsRequirementsReviewStep()).To(
+			installer := installermodel.OpenWithSite(page, domainName)
+			Expect(installer.IsRequirementsReviewStep()).To(
 				BeTrue(),
-				"Should be on requirement step")
+				"should be on requirement step")
 
 			By("selecting a flavor")
-			inst.SelectFlavor(flavorIndex)
+			installer.SelectFlavor(ctx.NumInstallNodes)
 
-			profiles := installer.FindAwsProfiles(page)
+			profiles := installermodel.FindAwsProfiles(page)
 
 			Expect(len(profiles)).To(
 				Equal(1),
-				"Should verify required node number")
+				"should verify required node number")
 
-			profiles[0].SetInstanceType(serverInstanceType)
+			profiles[0].SetInstanceType(defaults.InstanceType)
 
 			By("starting an installation")
-			inst.StartInstallation()
+			installer.StartInstallation()
 		}
 
 		shouldHandleInProgressScreen := func() {
-			validation.WaitForComplete(page, deploymentName)
+			validation.WaitForComplete(page, domainName)
 		}
 
 		shouldHandleBandwagonScreen := func() {
-			bandwagon.Complete(page, deploymentName, userName, password)
+			bandwagon.Complete(page, domainName, ctx.Login.Username, ctx.Login.Password)
 		}
 
 		It("should handle installation", func() {
@@ -85,5 +75,4 @@ func VerifyAwsInstall(getPage pageFunc, ctx framework.TestContextType) {
 			shouldNavigateToSite()
 		})
 	})
-
 }

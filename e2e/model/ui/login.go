@@ -1,9 +1,9 @@
-package framework
+package ui
 
 import (
-	"regexp"
 	"time"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/gomega"
@@ -30,7 +30,7 @@ func EnsureUser(page *web.Page, URL string, username string, password string, au
 		case WithGoogle:
 			user.LoginWithGoogle()
 		default:
-			Failf("unknown auth type %q", authType)
+			framework.Failf("unknown auth type %q", authType)
 		}
 
 		time.Sleep(defaults.ShortTimeout)
@@ -48,9 +48,9 @@ type User struct {
 }
 
 func (u *User) NavigateToLogin() {
-	r, _ := regexp.Compile("/web/.*")
-	url, _ := u.page.URL()
-	url = r.ReplaceAllString(url, "/web/login")
+	urlS, err := u.page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	url := URLPath(urlS, "/web/login")
 
 	Expect(u.page.Navigate(url)).To(Succeed())
 	Eventually(u.page.FindByClass("grv-user-login"), defaults.FindTimeout).Should(BeFound())

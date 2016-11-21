@@ -42,16 +42,6 @@ func (r *T) BeforeEach() {
 	}
 }
 
-func (r *T) InstallerPage(authType AuthType) *web.Page {
-	url, err := InstallerURL()
-	Expect(err).NotTo(HaveOccurred())
-	log.Infof("navigating to installer URL %v", url)
-	EnsureUser(r.Page, url,
-		TestContext.Login.Username,
-		TestContext.Login.Password, authType)
-	return r.Page
-}
-
 func (r *T) AfterEach() {
 }
 

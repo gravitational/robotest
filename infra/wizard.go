@@ -22,11 +22,6 @@ import (
 )
 
 func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluster, err error) {
-	// handle provisioning errors
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	var session *ssh.Session
 	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		session, err = installer.Connect()
@@ -67,6 +62,8 @@ func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluste
 		if err != nil {
 			log.Errorf("failed to read from remote stdout: %v", err)
 		}
+		reader.Close()
+		writer.Close()
 	}()
 	defer func() {
 		if err != nil {
@@ -184,7 +181,6 @@ func extractPackage(installerURL url.URL) (application *loc.Locator, err error) 
 	return loc.NewLocator(repository, name, version), nil
 }
 
-// FIXME: deprecated
 func extractInstallerURL(input, installerIP string) (installerURL *url.URL, err error) {
 	match := reInstallerURL.FindStringSubmatch(input)
 	if len(match) != 2 {

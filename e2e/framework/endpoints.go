@@ -4,16 +4,14 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/gravitational/trace"
+	"github.com/onsi/gomega"
 )
 
-func InstallerURL() (string, error) {
+func InstallerURL() string {
 	installerURL, err := url.Parse(Cluster.OpsCenterURL())
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	installerURL.RawQuery = ""
 	installerURL.Path = fmt.Sprintf("web/installer/new/%v/%v/%v",
 		TestContext.Application.Repository, TestContext.Application.Name, TestContext.Application.Version)
-	return installerURL.String(), nil
+	return installerURL.String()
 }
