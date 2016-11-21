@@ -5,15 +5,18 @@ import (
 	"io"
 	"io/ioutil"
 	"sync"
-	"time"
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
 )
 
+// Connect creates a new connection to the remote system specified with
+// addr and user. keyInput defines the SSH key to use for authentication.
+// Returns a new session object if successful.
 func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 	keyBytes, err := ioutil.ReadAll(keyInput)
 	if err != nil {
@@ -29,7 +32,7 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(key),
 		},
-		Timeout: sshConnectTimeout,
+		Timeout: defaults.SSHConnectTimeout,
 	}
 
 	client, err := ssh.Dial("tcp", addr, conf)
@@ -73,31 +76,32 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 
 	var wg sync.WaitGroup
 	wg.Add(2)
+	errCh := make(chan error, 2)
 	sink := make(chan string)
+	done := make(chan struct{})
 
 	go func() {
-		err := stream(stdout, sink)
-		if err != nil {
-			log.Error(err.Error())
-		}
+		errCh <- stream(stdout, sink)
 		wg.Done()
 	}()
 	go func() {
-		err := stream(stderr, sink)
-		if err != nil {
-			log.Error(err.Error())
-		}
+		errCh <- stream(stderr, sink)
 		wg.Done()
+	}()
+	go func() {
+		wg.Wait()
+		close(errCh)
 	}()
 	go func() {
 		w := bufio.NewWriter(w)
 		for line := range sink {
-			_, err := w.WriteString(line)
+			_, err := w.Write([]byte(line))
 			if err != nil {
-				log.Warningf("failed to write to w: %v", err)
+				log.Errorf("failed to write to w: %v", err)
 			}
 		}
 		w.Flush()
+		close(done)
 	}()
 
 	err = session.Start(command)
@@ -107,7 +111,11 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 
 	err = session.Wait()
 	session.Close()
-	wg.Wait()
+	for err := range errCh {
+		if err != nil {
+			log.Errorf("failed to stream: %v", err)
+		}
+	}
 	close(sink)
 
 	return trace.Wrap(err)
@@ -115,9 +123,11 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 
 func stream(r io.Reader, sink chan<- string) error {
 	s := bufio.NewScanner(r)
+	s.Split(bytesID)
 	for s.Scan() {
-		line := s.Text()
-		sink <- line
+		line := s.Bytes()
+		// Copy avoid re-using scanner's internal buffer
+		sink <- string(line)
 	}
 	if err := s.Err(); err != nil && err != io.EOF {
 		return trace.Wrap(err, "failed to stream")
@@ -125,4 +135,11 @@ func stream(r io.Reader, sink chan<- string) error {
 	return nil
 }
 
-const sshConnectTimeout = 20 * time.Second
+func bytesID(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+
+	// Request more data
+	return len(data), data, nil
+}

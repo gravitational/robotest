@@ -17,9 +17,6 @@ func (r *Config) Validate() error {
 	if r.SSHKeyPath == "" {
 		errors = append(errors, trace.BadParameter("SSH key path is required"))
 	}
-	if r.InstallerURL == "" {
-		errors = append(errors, trace.BadParameter("installer URL is required"))
-	}
 	if r.ScriptPath == "" {
 		errors = append(errors, trace.BadParameter("script path is required"))
 	}

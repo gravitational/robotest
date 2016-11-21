@@ -8,6 +8,9 @@ const (
 	// RetryAttempts defines the maximum number of retry attempts
 	RetryAttempts = 100
 
+	// SSHConnectTimeout defines the timeout for establishing an SSH connection
+	SSHConnectTimeout = 20 * time.Second
+
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 20 * time.Second
 

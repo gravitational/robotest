@@ -40,8 +40,8 @@ var _ = ginkgo.SynchronizedAfterSuite(func() {
 }, func() {
 	// Run only on ginkgo node 1
 	framework.CloseDriver()
-	framework.DestroyCluster()
 	if framework.TestContext.ReportDir != "" {
 		framework.CoreDump()
 	}
+	framework.DestroyCluster()
 })
