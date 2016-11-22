@@ -11,8 +11,6 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
-type AuthType string
-
 const (
 	WithEmail         = "email"
 	WithGoogle        = "google"
@@ -27,8 +25,7 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 	if count != 0 {
 		user := CreateUser(page, login.Username, login.Password)
 		switch login.AuthProvider {
-		case WithNoProvider:
-		case WithEmail:
+		case WithEmail, WithNoProvider:
 			user.LoginWithEmail()
 		case WithGoogle:
 			user.LoginWithGoogle()

@@ -89,6 +89,7 @@ type Provisioner interface {
 	// StartInstall initiates installation in the specified session
 	StartInstall(session *ssh.Session) error
 	Nodes() []Node
+	Node(addr string) (Node, error)
 	NumNodes() int
 	// Allocate allocates a new node (from the pool of available nodes)
 	// and returns a reference to it
@@ -97,6 +98,8 @@ type Provisioner interface {
 	Deallocate(Node) error
 	// InstallerLogPath returns remote path to the installer log file
 	InstallerLogPath() string
+	StateDir() string
+	State() ProvisionerState
 }
 
 // Node defines an interface to a remote node

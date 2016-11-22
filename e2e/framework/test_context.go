@@ -27,6 +27,8 @@ func ConfigureFlags() {
 
 	flag.Parse()
 
+	initLogger(debugFlag)
+
 	confFile, err := os.Open(configFile)
 	if err != nil {
 		Failf("failed to read configuration from %q", configFile)
@@ -36,14 +38,46 @@ func ConfigureFlags() {
 	if err != nil {
 		Failf("failed to read configuration from %q", configFile)
 	}
+
+	stateFile, err := os.Open(stateConfigFile)
+	if err != nil && !os.IsNotExist(err) {
+		Failf("failed to read configuration state from %q", stateConfigFile)
+	}
+	if err == nil {
+		defer stateFile.Close()
+		err = newFileState(stateFile)
+		if err != nil {
+			Failf("failed to read configuration state from %q", stateConfigFile)
+		}
+	}
+
+	if testState != nil {
+		TestContext.OpsCenterURL = testState.OpsCenterURL
+		TestContext.Provisioner = testState.Provisioner
+	}
+
 	if wizardFlag {
 		TestContext.Wizard = wizardFlag
 	}
 	if provisionerName != "" {
-		TestContext.Provisioner = provisionerName
+		TestContext.Provisioner = provisionerType(provisionerName)
+	}
+	if teardownFlag {
+		TestContext.Teardown = teardownFlag
+	}
+	if dumpFlag {
+		TestContext.DumpCore = dumpFlag
 	}
 
-	initLogger(debugFlag)
+	if TestContext.Teardown || TestContext.DumpCore {
+		// Skip tests for this operation
+		config.GinkgoConfig.SkipString = ".*"
+	}
+
+	log.Debugf("[CONFIG]: %#v", TestContext)
+	if testState != nil {
+		log.Debugf("[STATE]: %#v", testState)
+	}
 }
 
 func (r *TestContextType) Validate() error {
@@ -77,9 +111,20 @@ func Failf(format string, args ...interface{}) {
 // TestContext defines the global test configuration for the test run
 var TestContext = &TestContextType{}
 
+// stateConfig defines an optional test state configuration
+var testState *TestState
+
+// TestContextType defines the configuration context of a single test run
 type TestContextType struct {
-	Wizard      bool   `json:"wizard" env:"ROBO_WIZARD"`
-	Provisioner string `json:"provisioner" env:"ROBO_WIZARD"`
+	// Wizard specifies whether to use wizard to bootstrap cluster
+	Wizard bool `json:"wizard" env:"ROBO_WIZARD"`
+	// Provisioner defines the type of provisioner to use
+	Provisioner provisionerType `json:"provisioner" env:"ROBO_WIZARD"`
+	// DumpCore defines a command to collect all installation/operation logs
+	DumpCore bool `json:"-"`
+	// Teardown specifies if the cluster should be destroyed at the end of this
+	// test run
+	Teardown bool `json:"-"`
 	// ReportDir defines location to store the results of the test
 	ReportDir string `json:"report_dir" env:"ROBO_REPORT_DIR"`
 	// ClusterName defines the name to use for domain name or state directory
@@ -99,24 +144,31 @@ type TestContextType struct {
 	Onprem OnpremConfig `json:"onprem"`
 }
 
+// Login defines Ops Center authentication parameters
 type Login struct {
 	Username     string `json:"username" env:"ROBO_USERNAME"`
 	Password     string `json:"password" env:"ROBO_PASSWORD"`
 	AuthProvider string `json:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
 }
 
+// AWSConfig describes AWS EC2 test configuration
 type AWSConfig struct {
 	AccessKey string `json:"access_key" env:"ROBO_AWS_ACCESS_KEY"`
 	SecretKey string `json:"secret_key" env:"ROBO_AWS_SECRET_KEY"`
 	Region    string `json:"region" env:"ROBO_AWS_REGION"`
-	KeyPair   string `json:"key_pair" env:"ROBO_AWS_KEYPAIR"`
-	VPC       string `json:"vpc" env:"ROBO_AWS_VPC"`
+	// KeyPair specifies the name of the SSH key pair to use for provisioning
+	// nodes
+	KeyPair string `json:"key_pair" env:"ROBO_AWS_KEYPAIR"`
+	// VPC defines the Amazon VPC to install into.
+	// Specify "Create new" to create a new VPC for this test run
+	VPC string `json:"vpc" env:"ROBO_AWS_VPC"`
 }
 
 func (r AWSConfig) IsEmpty() bool {
 	return r.AccessKey == "" && r.SecretKey == ""
 }
 
+// OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
 	// NumNodes defines the total cluster capacity.
 	// This is a total number of nodes to provision
@@ -140,8 +192,11 @@ func registerCommonFlags() {
 	config.GinkgoConfig.EmitSpecProgress = true
 
 	flag.StringVar(&configFile, "config-file", "config.json", "Configuration file to use")
+	flag.StringVar(&stateConfigFile, "state-file", "config.json.state", "State configuration file to use")
 	flag.BoolVar(&debugFlag, "debug", false, "Verbose mode")
 	flag.BoolVar(&wizardFlag, "wizard", false, "Run tests in wizard mode")
+	flag.BoolVar(&teardownFlag, "destroy", false, "Destroy infrastructure after all tests")
+	flag.BoolVar(&dumpFlag, "dumpcore", false, "Collect installation and operation logs into the report directory")
 	flag.StringVar(&provisionerName, "provisioner", "", "Provision nodes using this provisioner")
 }
 
@@ -165,6 +220,21 @@ func newFileConfig(input io.Reader) error {
 	return nil
 }
 
+func newFileState(input io.Reader) error {
+	d := json.NewDecoder(input)
+	err := d.Decode(&testState)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = testState.Validate()
+	if err != nil {
+		return trace.Wrap(err, "failed to validate state configuration")
+	}
+
+	return nil
+}
+
 func nowStamp() string {
 	return time.Now().Format(time.StampMilli)
 }
@@ -180,14 +250,22 @@ func initLogger(debug bool) {
 	log.SetLevel(level)
 }
 
-func provisionerFromConfig(infraConfig infra.Config, stateDir, provisionerName string) (provisioner infra.Provisioner, err error) {
+func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisionerName provisionerType) (provisioner infra.Provisioner, err error) {
 	switch provisionerName {
-	case "terraform":
+	case provisionerTerraform:
 		config := terraform.Config{
-			Config: infraConfig,
+			Config:          infraConfig,
+			ScriptPath:      TestContext.Onprem.ScriptPath,
+			InstallerURL:    TestContext.Onprem.InstallerURL,
+			NumNodes:        TestContext.Onprem.NumNodes,
+			NumInstallNodes: TestContext.NumInstallNodes,
+		}
+		err := config.Validate()
+		if err != nil {
+			return nil, trace.Wrap(err)
 		}
 		provisioner, err = terraform.New(stateDir, config)
-	case "vagrant":
+	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:          infraConfig,
 			ScriptPath:      TestContext.Onprem.ScriptPath,
@@ -195,10 +273,17 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir, provisionerName s
 			NumNodes:        TestContext.Onprem.NumNodes,
 			NumInstallNodes: TestContext.NumInstallNodes,
 		}
+		err := config.Validate()
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 		provisioner, err = vagrant.New(stateDir, config)
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
+		if provisionerName != "" {
+			return nil, trace.BadParameter("unknown provisioner %q", provisionerName)
+		}
 	}
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -206,8 +291,63 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir, provisionerName s
 	return provisioner, nil
 }
 
+func provisionerFromState(infraConfig infra.Config, testState TestState) (provisioner infra.Provisioner, err error) {
+	err = testState.Validate()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	switch testState.Provisioner {
+	case provisionerTerraform:
+		config := terraform.Config{
+			Config:          infraConfig,
+			ScriptPath:      TestContext.Onprem.ScriptPath,
+			InstallerURL:    TestContext.Onprem.InstallerURL,
+			NumNodes:        len(testState.ProvisionerState.Nodes),
+			NumInstallNodes: TestContext.NumInstallNodes,
+		}
+		err := config.Validate()
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		provisioner, err = terraform.NewFromState(config, testState.ProvisionerState)
+	case provisionerVagrant:
+		config := vagrant.Config{
+			Config:          infraConfig,
+			ScriptPath:      TestContext.Onprem.ScriptPath,
+			InstallerURL:    TestContext.Onprem.InstallerURL,
+			NumNodes:        len(testState.ProvisionerState.Nodes),
+			NumInstallNodes: TestContext.NumInstallNodes,
+		}
+		err := config.Validate()
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		provisioner, err = vagrant.NewFromState(config, testState.ProvisionerState)
+	default:
+		// no provisioner when the cluster has already been provisioned
+		// or automatic provisioning is used
+		if testState.Provisioner != "" {
+			return nil, trace.BadParameter("unknown provisioner %q", testState.Provisioner)
+		}
+	}
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return provisioner, nil
+}
+
+type provisionerType string
+
+const (
+	provisionerTerraform provisionerType = "terraform"
+	provisionerVagrant   provisionerType = "vagrant"
+)
+
 // configFile defines the configuration file to use for the tests
 var configFile string
+
+// stateConfigFile defines the state configuration file to use for the tests
+var stateConfigFile string
 
 // debugFlag defines whether to run in verbose mode
 var debugFlag bool
@@ -215,5 +355,11 @@ var debugFlag bool
 // wizardFlag defines whether to run tests in wizard mode
 var wizardFlag bool
 
-// provisionerNAme defines the provisioner to use to provision nodes in the test cluster
+// provisionerName defines the provisioner to use to provision nodes in the test cluster
 var provisionerName string
+
+// teardownFlag defines if the cluster should be destroyed
+var teardownFlag bool
+
+// dumpFlag defines whether to collect installation and operation logs
+var dumpFlag bool

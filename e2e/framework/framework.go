@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
@@ -71,37 +73,87 @@ var Cluster infra.Infra
 // are running in wizard mode
 var installerNode infra.Node
 
-func SetupCluster() {
+func InitializeCluster() {
 	config := infra.Config{ClusterName: TestContext.ClusterName}
 
+	var err error
 	var provisioner infra.Provisioner
-	if TestContext.Provisioner != "" {
-		stateDir, err := newStateDir(TestContext.ClusterName)
+	if testState != nil {
+		provisioner, err = provisionerFromState(config, *testState)
 		Expect(err).NotTo(HaveOccurred())
+	} else {
+		if TestContext.Provisioner != "" {
+			var stateDir string
+			stateDir, err = newStateDir(TestContext.ClusterName)
+			Expect(err).NotTo(HaveOccurred())
 
-		provisioner, err = provisionerFromConfig(config, stateDir, TestContext.Provisioner)
-		Expect(err).NotTo(HaveOccurred())
+			provisioner, err = provisionerFromConfig(config, stateDir, TestContext.Provisioner)
+			Expect(err).NotTo(HaveOccurred())
 
-		installerNode, err = provisioner.Create()
-		Expect(err).NotTo(HaveOccurred())
+			installerNode, err = provisioner.Create()
+			Expect(err).NotTo(HaveOccurred())
+
+		}
 	}
 
-	var err error
 	var application *loc.Locator
-	if TestContext.Wizard {
+	if TestContext.Wizard && testState == nil {
+		// Only initialize wizard with no previous test state
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application = application
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
 	Expect(err).NotTo(HaveOccurred())
+
+	if Cluster.Provisioner() != nil {
+		testState = &TestState{
+			OpsCenterURL:     Cluster.OpsCenterURL(),
+			Provisioner:      TestContext.Provisioner,
+			ProvisionerState: Cluster.Provisioner().State(),
+		}
+		Expect(saveState()).To(Succeed())
+	}
 }
 
-func DestroyCluster() {
+func Destroy() {
+	var stateDir string
 	if Cluster != nil {
+		if Cluster.Provisioner() != nil {
+			stateDir = Cluster.Provisioner().StateDir()
+		}
 		Expect(Cluster.Close()).To(Succeed())
 		Expect(Cluster.Destroy()).To(Succeed())
 	}
+	// Clean up state
+	err := os.Remove(stateConfigFile)
+	if err != nil && !os.IsNotExist(err) {
+		Failf("failed to remove state file %q: %v", stateConfigFile, err)
+	}
+	if stateDir == "" {
+		return
+	}
+	err = system.RemoveContents(stateDir)
+	if err != nil && !os.IsNotExist(err) {
+		Failf("failed to remove state directory %q: %v", stateDir, err)
+	}
+}
+
+// UpdateState updates the state file with the current provisioner state.
+// It validates the context to avoid updating a state file on an inactive
+// or automatically provisioned cluster
+func UpdateState() {
+	if Cluster == nil || testState == nil {
+		log.Infof("cluster inactive: skip UpdateState")
+		return
+	}
+	if Cluster.Provisioner() == nil {
+		log.Infof("cluster is auto-provisioned: skip UpdateState")
+		return
+	}
+
+	testState.ProvisionerState = Cluster.Provisioner().State()
+	Expect(saveState()).To(Succeed())
 }
 
 // CoreDump collects diagnostic information into the specified report directory
@@ -113,12 +165,21 @@ func CoreDump() {
 	}
 	cmd := exec.Command("gravity", "ops", "connect", Cluster.OpsCenterURL(),
 		TestContext.Login.Username, TestContext.Login.Password)
-	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
+	err := system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
+	if err != nil {
+		// If connect to Ops Center fails, no site report can be collected
+		// so bail out
+		log.Errorf("failed to connect to the Ops Center: %v", err)
+		return
+	}
 
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
 	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
 	cmd = exec.Command("gravity", "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
-	Expect(system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))).To(Succeed())
+	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
+	if err != nil {
+		log.Errorf("failed to collect site report: %v", err)
+	}
 
 	// TODO: this implies a test run (incl. infra setup) per invocation
 	// Since this is headed in the direction of shared state, installer node should also
@@ -133,14 +194,16 @@ func CoreDump() {
 			Cluster.Provisioner().InstallerLogPath(), installerLog)).To(Succeed())
 	}
 
+	if Cluster.Provisioner() == nil {
+		return
+	}
 	for _, node := range Cluster.Provisioner().Nodes() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
 			fmt.Sprintf("agent_%v.log", node.Addr())))
 		Expect(err).NotTo(HaveOccurred())
 		defer agentLog.Close()
-		Expect(infra.ScpText(node,
-			"/var/log/gravity.agent.log", agentLog)).To(Succeed())
-		// TODO: collect other operations agent logs from nodes
+		Expect(infra.ScpText(node, defaults.AgentLogPath, agentLog)).To(Succeed())
+		// TODO: collect shrink operation agent logs
 	}
 }
 
@@ -151,10 +214,23 @@ func RoboDescribe(text string, body func()) bool {
 	return Describe("[robotest] "+text, body)
 }
 
+// RunAgentCommand interprets the specified command as agent command.
+// It will modify the agent command line to start agent in background
+// and will distribute the command on the specified nodes
 func RunAgentCommand(command string, nodes ...infra.Node) {
 	command, err := infra.ConfigureAgentCommandRunDetached(command)
 	Expect(err).NotTo(HaveOccurred())
 	Distribute(command, nodes...)
+}
+
+func saveState() error {
+	file, err := os.Create(stateConfigFile)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	return trace.Wrap(enc.Encode(testState))
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

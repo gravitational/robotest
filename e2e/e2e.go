@@ -30,7 +30,7 @@ func RunE2ETests(t *testing.T) {
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	// Run only on ginkgo node 1
 	framework.CreateDriver()
-	framework.SetupCluster()
+	framework.InitializeCluster()
 	return nil
 }, func([]byte) {
 })
@@ -39,9 +39,19 @@ var _ = ginkgo.SynchronizedAfterSuite(func() {
 	// Run on all ginkgo nodes
 }, func() {
 	// Run only on ginkgo node 1
-	framework.CloseDriver()
-	if framework.TestContext.ReportDir != "" {
+	if framework.TestContext.DumpCore {
 		framework.CoreDump()
+		return
 	}
-	framework.DestroyCluster()
+
+	if !framework.TestContext.Teardown {
+		framework.UpdateState()
+	}
+	framework.CloseDriver()
+	if framework.TestContext.Teardown {
+		if framework.TestContext.ReportDir != "" {
+			framework.CoreDump()
+		}
+		framework.Destroy()
+	}
 })
