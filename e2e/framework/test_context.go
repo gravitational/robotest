@@ -59,7 +59,7 @@ func (r *TestContextType) Validate() error {
 			r.NumInstallNodes, r.Onprem.NumNodes))
 	}
 	if !r.Onprem.IsEmpty() && r.NumInstallNodes == 0 {
-  		// TODO: maybe set install nodes = node-1 by default if nodes > 1
+		// TODO: maybe set install nodes = node-1 by default if nodes > 1
 		r.NumInstallNodes = r.Onprem.NumNodes
 	}
 	if r.NumInstallNodes == 0 {
