@@ -117,6 +117,7 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 		}
 	}
 	close(sink)
+	<-done
 
 	return trace.Wrap(err)
 }
