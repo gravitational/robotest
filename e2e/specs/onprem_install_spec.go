@@ -46,7 +46,8 @@ func VerifyOnpremInstall(f *framework.T) {
 			framework.RunAgentCommand(profiles[0].Command)
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(HaveLen(1))
+			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(
+				HaveLen(ctx.NumInstallNodes))
 
 			By("veryfing that server has IP")
 			server := profiles[0].GetAgentServers()[0]

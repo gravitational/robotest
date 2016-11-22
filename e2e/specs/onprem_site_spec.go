@@ -31,16 +31,12 @@ func VerifyOnpremSite(f *framework.T) {
 			site.NavigateToServers()
 			siteProvisioner := site.GetSiteServerProvisioner()
 
-			By("executing a command")
+			By("executing a command on server")
+			agentCommand := siteProvisioner.InitOnPremOperation()
+			node, err := framework.Cluster.Provisioner().Allocate()
+			Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
 
-			siteProvisioner.InitOnPremOperation()
-			/*
-				agentCommand := siteProvisioner.InitOnPremOperation()
-				node, err := framework.Cluster.Provisioner().Allocate()
-				Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
-				err = infra.Run(node, agentCommand, os.Stderr)
-				Expect(err).NotTo(HaveOccurred(), "should execute command")
-			*/
+			framework.RunAgentCommand(agentCommand, node)
 
 			By("waiting for agent servers")
 			Eventually(siteProvisioner.GetAgentServers, defaults.AgentServerTimeout).Should(
@@ -54,11 +50,6 @@ func VerifyOnpremSite(f *framework.T) {
 
 			By("deleting a server")
 			siteProvisioner.DeleteOnPremServer(newItem)
-
-			//			cluster.siteProvisioner.AddOnPremServer()
-
-			//		newItem := siteProvisioner.AddAwsServer(awsConfig, profileLabel, instanceType)
-
 		})
 	})
 
