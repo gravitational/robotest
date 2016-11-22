@@ -126,6 +126,15 @@ func (r *vagrant) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
+func (r *vagrant) AllNodes() (nodes []infra.Node) {
+	nodes = make([]infra.Node, 0, len(r.nodes))
+	for addr := range r.nodes {
+		node := r.nodes[addr]
+		nodes = append(nodes, &node)
+	}
+	return nodes
+}
+
 func (r *vagrant) Nodes() (nodes []infra.Node) {
 	nodes = make([]infra.Node, 0, len(r.active))
 	for addr := range r.active {

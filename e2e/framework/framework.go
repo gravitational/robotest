@@ -97,7 +97,7 @@ func InitializeCluster() {
 	}
 
 	var application *loc.Locator
-	if TestContext.Wizard && testState == nil {
+	if TestContext.Wizard {
 		// Only initialize wizard with no previous test state
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application = application
@@ -106,7 +106,15 @@ func InitializeCluster() {
 	}
 	Expect(err).NotTo(HaveOccurred())
 
-	if Cluster.Provisioner() != nil {
+	if testState != nil {
+		// Get reference to installer node if provisioner state came
+		// from the config file
+		installerNode, err = Cluster.Provisioner().Node(testState.ProvisionerState.InstallerAddr)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	if Cluster.Provisioner() != nil && testState == nil {
+		log.Debug("init test state")
 		testState = &TestState{
 			OpsCenterURL:     Cluster.OpsCenterURL(),
 			Provisioner:      TestContext.Provisioner,
@@ -181,9 +189,6 @@ func CoreDump() {
 		log.Errorf("failed to collect site report: %v", err)
 	}
 
-	// TODO: this implies a test run (incl. infra setup) per invocation
-	// Since this is headed in the direction of shared state, installer node should also
-	// be persisted as state attribute
 	if installerNode != nil {
 		// Collect installer log
 		installerLog, err := os.Create(filepath.Join(TestContext.ReportDir, "installer.log"))
@@ -197,7 +202,7 @@ func CoreDump() {
 	if Cluster.Provisioner() == nil {
 		return
 	}
-	for _, node := range Cluster.Provisioner().Nodes() {
+	for _, node := range Cluster.Provisioner().AllNodes() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
 			fmt.Sprintf("agent_%v.log", node.Addr())))
 		Expect(err).NotTo(HaveOccurred())

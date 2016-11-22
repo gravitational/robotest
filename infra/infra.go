@@ -88,7 +88,10 @@ type Provisioner interface {
 	SelectInterface(installer Node, addrs []string) (int, error)
 	// StartInstall initiates installation in the specified session
 	StartInstall(session *ssh.Session) error
+	// Nodes returns a set of currently active nodes
 	Nodes() []Node
+	// Node looks up a node given with addr.
+	// Returns trace.NotFound if no node matches the specified addr
 	Node(addr string) (Node, error)
 	NumNodes() int
 	// Allocate allocates a new node (from the pool of available nodes)
@@ -98,8 +101,12 @@ type Provisioner interface {
 	Deallocate(Node) error
 	// InstallerLogPath returns remote path to the installer log file
 	InstallerLogPath() string
+	// StateDir returns the state directory this provisioner is using
 	StateDir() string
+	// State returns the state of this provisioner
 	State() ProvisionerState
+	// AllNodes returns both active and pooled nodes
+	AllNodes() []Node
 }
 
 // Node defines an interface to a remote node

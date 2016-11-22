@@ -58,6 +58,8 @@ func ConfigureFlags() {
 
 	if wizardFlag {
 		TestContext.Wizard = wizardFlag
+		// Void test state in wizard mode
+		testState = nil
 	}
 	if provisionerName != "" {
 		TestContext.Provisioner = provisionerType(provisionerName)

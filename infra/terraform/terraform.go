@@ -121,13 +121,21 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
+func (r *terraform) AllNodes() (nodes []infra.Node) {
+	nodes = make([]infra.Node, 0, len(r.nodes))
+	for addr := range r.nodes {
+		node := r.nodes[addr]
+		nodes = append(nodes, &node)
+	}
+	return nodes
+}
+
 func (r *terraform) Nodes() (nodes []infra.Node) {
 	nodes = make([]infra.Node, 0, len(r.active))
 	for addr := range r.active {
 		node := r.nodes[addr]
 		nodes = append(nodes, &node)
 	}
-	r.Debugf("active nodes: %#v", nodes)
 	return nodes
 }
 
