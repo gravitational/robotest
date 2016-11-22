@@ -31,14 +31,14 @@ func FindOnPremProfiles(page *agouti.Page) []OnPremProfile {
 	return profiles
 }
 
-func (self *OnPremProfile) GetAgentServers() []agent.AgentServer {
+func (p *OnPremProfile) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
-	s := self.page.All(".grv-provision-req-server")
+	s := p.page.All(".grv-provision-req-server")
 
 	elements, _ := s.Elements()
 
 	for index, _ := range elements {
-		agentServers = append(agentServers, agent.CreateAgentServer(self.page, index))
+		agentServers = append(agentServers, agent.CreateAgentServer(p.page, index))
 	}
 
 	return agentServers

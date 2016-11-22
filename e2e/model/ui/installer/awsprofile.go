@@ -31,9 +31,9 @@ func FindAwsProfiles(page *web.Page) []AwsProfile {
 	return profiles
 }
 
-func (r *AwsProfile) SetInstanceType(instanceType string) {
-	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(r.index))
-	ui.SetDropdownValue(r.page, cssSelector, instanceType)
+func (p *AwsProfile) SetInstanceType(instanceType string) {
+	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(p.index))
+	ui.SetDropdownValue(p.page, cssSelector, instanceType)
 }
 
 func getAwsProfileCssSelector(index int) string {

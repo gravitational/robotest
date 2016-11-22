@@ -25,7 +25,7 @@ func CreateAgentServer(page *web.Page, index int) AgentServer {
 	return AgentServer{page: page, Hostname: hostname, index: index}
 }
 
-func (p *AgentServer) GetIPs() []string {
+func (a *AgentServer) GetIPs() []string {
 	const scriptTemplate = `
 		var result = [];
 		var cssSelector = "%v .grv-provision-req-server-interface li a";
@@ -34,8 +34,8 @@ func (p *AgentServer) GetIPs() []string {
 		return result; `
 	var result []string
 
-	script := fmt.Sprintf(scriptTemplate, getServerCssSelector(p.index))
-	p.page.RunScript(script, nil, &result)
+	script := fmt.Sprintf(scriptTemplate, getServerCssSelector(a.index))
+	a.page.RunScript(script, nil, &result)
 	return result
 }
 
