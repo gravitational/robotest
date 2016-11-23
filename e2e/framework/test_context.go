@@ -54,6 +54,7 @@ func ConfigureFlags() {
 	if testState != nil {
 		TestContext.OpsCenterURL = testState.OpsCenterURL
 		TestContext.Provisioner = testState.Provisioner
+		TestContext.StateDir = testState.StateDir
 	}
 
 	if wizardFlag {
@@ -113,7 +114,8 @@ func Failf(format string, args ...interface{}) {
 // TestContext defines the global test configuration for the test run
 var TestContext = &TestContextType{}
 
-// stateConfig defines an optional test state configuration
+// testState defines an optional state configuration that allows the test runner
+// to use state from previous runs
 var testState *TestState
 
 // TestContextType defines the configuration context of a single test run
@@ -124,6 +126,8 @@ type TestContextType struct {
 	Provisioner provisionerType `json:"provisioner" env:"ROBO_WIZARD"`
 	// DumpCore defines a command to collect all installation/operation logs
 	DumpCore bool `json:"-"`
+	// StateDir specifies the location for test-specific temporary data
+	StateDir string `json:"-"`
 	// Teardown specifies if the cluster should be destroyed at the end of this
 	// test run
 	Teardown bool `json:"-"`
@@ -343,7 +347,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = terraform.NewFromState(config, testState.ProvisionerState)
+		provisioner, err = terraform.NewFromState(config, *testState.ProvisionerState)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:          infraConfig,
@@ -356,7 +360,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = vagrant.NewFromState(config, testState.ProvisionerState)
+		provisioner, err = vagrant.NewFromState(config, *testState.ProvisionerState)
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used

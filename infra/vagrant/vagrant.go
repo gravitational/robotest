@@ -57,7 +57,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 
 func (r *vagrant) Create() (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
-	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
+	err = system.CopyFile(filepath.Join(r.stateDir, file), r.ScriptPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -212,7 +212,7 @@ func (r *vagrant) syncInstallerTarball() error {
 	}
 	file := filepath.Base(r.InstallerURL)
 	target := filepath.Join(r.stateDir, file)
-	err := system.CopyFile(r.InstallerURL, target)
+	err := system.CopyFile(target, r.InstallerURL)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
 	}
@@ -351,6 +351,10 @@ func (r *node) Connect() (*ssh.Session, error) {
 	}
 	defer keyFile.Close()
 	return sshutils.Connect(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
+}
+
+func (r node) String() string {
+	return fmt.Sprintf("node(addr=%v)", r.addrIP)
 }
 
 func args(opts ...string) (result []string) {

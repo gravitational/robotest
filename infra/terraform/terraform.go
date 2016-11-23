@@ -59,7 +59,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 }
 
 func (r *terraform) Create() (installer infra.Node, err error) {
-	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, "terraform.tf"))
+	err = system.CopyFile(filepath.Join(r.stateDir, "terraform.tf"), r.ScriptPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
