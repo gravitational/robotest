@@ -48,7 +48,7 @@ func (s *Site) NavigateToServers() {
 		BeTrue(),
 		"waiting for servers to load")
 
-	ui.PauseForComponentJs()
+	ui.PauseForPageJs()
 }
 
 func (s *Site) assertSiteNavigation(URL string) {
