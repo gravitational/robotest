@@ -170,10 +170,8 @@ func CoreDump() {
 		log.Infof("no service login configured: skip CoreDump")
 		return
 	}
-	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
-	cmd := exec.Command("gravity", stateDir, "ops", "connect", Cluster.OpsCenterURL(),
-		TestContext.ServiceLogin.Username, TestContext.ServiceLogin.Password)
-	err := system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
+
+	err := ConnectToOpsCenter()
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
 		// so bail out
@@ -182,8 +180,9 @@ func CoreDump() {
 	}
 
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
+	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
 	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
-	cmd = exec.Command("gravity", stateDir, "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
+	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL, TestContext.ClusterName, output)
 	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {
 		log.Errorf("failed to collect site report: %v", err)

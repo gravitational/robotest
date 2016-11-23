@@ -56,7 +56,7 @@ func (a *AgentServer) SetIPByInfra(provisioner infra.Provisioner) {
 		}
 	}
 
-	descriptionText := fmt.Sprintf("cannot find Node matching any of &v IPs", a.Hostname)
+	descriptionText := fmt.Sprintf("cannot find node matching any of %v IPs", a.Hostname)
 	Expect(node).NotTo(BeNil(), descriptionText)
 	a.SetIP(node.Addr())
 }
