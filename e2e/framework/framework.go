@@ -79,26 +79,24 @@ func InitializeCluster() {
 	var err error
 	var provisioner infra.Provisioner
 	if testState != nil {
-		provisioner, err = provisionerFromState(config, *testState)
-		Expect(err).NotTo(HaveOccurred())
-	} else {
-		if TestContext.Provisioner != "" {
-			var stateDir string
-			stateDir, err = newStateDir(TestContext.ClusterName)
+		if testState.Provisioner != "" {
+			provisioner, err = provisionerFromState(config, *testState)
 			Expect(err).NotTo(HaveOccurred())
-
-			provisioner, err = provisionerFromConfig(config, stateDir, TestContext.Provisioner)
+		}
+	} else {
+		TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
+		Expect(err).NotTo(HaveOccurred())
+		if TestContext.Provisioner != "" {
+			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, TestContext.Provisioner)
 			Expect(err).NotTo(HaveOccurred())
 
 			installerNode, err = provisioner.Create()
 			Expect(err).NotTo(HaveOccurred())
-
 		}
 	}
 
 	var application *loc.Locator
 	if TestContext.Wizard {
-		// Only initialize wizard with no previous test state
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application = application
 	} else {
@@ -106,30 +104,31 @@ func InitializeCluster() {
 	}
 	Expect(err).NotTo(HaveOccurred())
 
-	if testState != nil {
-		// Get reference to installer node if provisioner state came
-		// from the config file
-		installerNode, err = Cluster.Provisioner().Node(testState.ProvisionerState.InstallerAddr)
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	if Cluster.Provisioner() != nil && testState == nil {
+	switch {
+	case testState == nil:
 		log.Debug("init test state")
 		testState = &TestState{
-			OpsCenterURL:     Cluster.OpsCenterURL(),
-			Provisioner:      TestContext.Provisioner,
-			ProvisionerState: Cluster.Provisioner().State(),
+			OpsCenterURL: Cluster.OpsCenterURL(),
+			StateDir:     TestContext.StateDir,
 		}
-		Expect(saveState()).To(Succeed())
+		if Cluster.Provisioner() != nil {
+			testState.Provisioner = TestContext.Provisioner
+			provisionerState := Cluster.Provisioner().State()
+			testState.ProvisionerState = &provisionerState
+		}
+		Expect(saveState(withBackup)).To(Succeed())
+		TestContext.StateDir = testState.StateDir
+	case testState != nil:
+		if Cluster.Provisioner() != nil && TestContext.Onprem.InstallerURL != "" {
+			// Get reference to installer node if the cluster was provisioned with installer
+			installerNode, err = Cluster.Provisioner().Node(testState.ProvisionerState.InstallerAddr)
+			Expect(err).NotTo(HaveOccurred())
+		}
 	}
 }
 
 func Destroy() {
-	var stateDir string
 	if Cluster != nil {
-		if Cluster.Provisioner() != nil {
-			stateDir = Cluster.Provisioner().StateDir()
-		}
 		Expect(Cluster.Close()).To(Succeed())
 		Expect(Cluster.Destroy()).To(Succeed())
 	}
@@ -138,12 +137,9 @@ func Destroy() {
 	if err != nil && !os.IsNotExist(err) {
 		Failf("failed to remove state file %q: %v", stateConfigFile, err)
 	}
-	if stateDir == "" {
-		return
-	}
-	err = system.RemoveContents(stateDir)
+	err = system.RemoveAll(TestContext.StateDir)
 	if err != nil && !os.IsNotExist(err) {
-		Failf("failed to remove state directory %q: %v", stateDir, err)
+		Failf("failed to cleanup state directory %q: %v", TestContext.StateDir, err)
 	}
 }
 
@@ -155,13 +151,12 @@ func UpdateState() {
 		log.Infof("cluster inactive: skip UpdateState")
 		return
 	}
-	if Cluster.Provisioner() == nil {
-		log.Infof("cluster is auto-provisioned: skip UpdateState")
-		return
+	if Cluster.Provisioner() != nil {
+		provisionerState := Cluster.Provisioner().State()
+		testState.ProvisionerState = &provisionerState
 	}
 
-	testState.ProvisionerState = Cluster.Provisioner().State()
-	Expect(saveState()).To(Succeed())
+	Expect(saveState(withoutBackup)).To(Succeed())
 }
 
 // CoreDump collects diagnostic information into the specified report directory
@@ -171,8 +166,13 @@ func CoreDump() {
 		log.Infof("cluster inactive: skip CoreDump")
 		return
 	}
-	cmd := exec.Command("gravity", "ops", "connect", Cluster.OpsCenterURL(),
-		TestContext.Login.Username, TestContext.Login.Password)
+	if TestContext.ServiceLogin.IsEmpty() {
+		log.Infof("no service login configured: skip CoreDump")
+		return
+	}
+	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
+	cmd := exec.Command("gravity", stateDir, "ops", "connect", Cluster.OpsCenterURL(),
+		TestContext.ServiceLogin.Username, TestContext.ServiceLogin.Password)
 	err := system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
@@ -183,10 +183,14 @@ func CoreDump() {
 
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
 	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
-	cmd = exec.Command("gravity", "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
+	cmd = exec.Command("gravity", stateDir, "--insecure", "site", "report", opsURL, TestContext.ClusterName, output)
 	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {
 		log.Errorf("failed to collect site report: %v", err)
+	}
+
+	if Cluster.Provisioner() == nil {
+		return
 	}
 
 	if installerNode != nil {
@@ -198,16 +202,15 @@ func CoreDump() {
 		Expect(infra.ScpText(installerNode,
 			Cluster.Provisioner().InstallerLogPath(), installerLog)).To(Succeed())
 	}
-
-	if Cluster.Provisioner() == nil {
-		return
-	}
 	for _, node := range Cluster.Provisioner().AllNodes() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
 			fmt.Sprintf("agent_%v.log", node.Addr())))
 		Expect(err).NotTo(HaveOccurred())
 		defer agentLog.Close()
-		Expect(infra.ScpText(node, defaults.AgentLogPath, agentLog)).To(Succeed())
+		errCopy := infra.ScpText(node, defaults.AgentLogPath, agentLog)
+		if errCopy != nil {
+			log.Errorf("failed to fetch agent from %s: %v", node, errCopy)
+		}
 		// TODO: collect shrink operation agent logs
 	}
 }
@@ -228,14 +231,24 @@ func RunAgentCommand(command string, nodes ...infra.Node) {
 	Distribute(command, nodes...)
 }
 
-func saveState() error {
+func saveState(withBackup backupFlag) error {
 	file, err := os.Create(stateConfigFile)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	defer file.Close()
 	enc := json.NewEncoder(file)
-	return trace.Wrap(enc.Encode(testState))
+	enc.SetIndent("", "  ")
+	err = enc.Encode(testState)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	if withBackup {
+		filename := fmt.Sprintf("%vbackup", filepath.Base(stateConfigFile))
+		stateConfigBackup := filepath.Join(filepath.Dir(stateConfigFile), filename)
+		return trace.Wrap(system.CopyFile(stateConfigBackup, stateConfigFile))
+	}
+	return nil
 }
 
 func newStateDir(clusterName string) (dir string, err error) {
@@ -246,3 +259,10 @@ func newStateDir(clusterName string) (dir string, err error) {
 	log.Infof("state directory: %v", dir)
 	return dir, nil
 }
+
+type backupFlag bool
+
+const (
+	withBackup    backupFlag = true
+	withoutBackup backupFlag = false
+)

@@ -13,18 +13,30 @@ type TestState struct {
 	OpsCenterURL string `json:"ops_url"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner
-	Provisioner provisionerType `json:"provisioner"`
+	Provisioner provisionerType `json:"provisioner,omitempty"`
 	// Onprem defines the provisioner state.
 	// The provisioner used is specified by Provisioner.
 	// Only a single state is active at any time. With automatic provisioner,
 	// no provisioner state is stored
-	ProvisionerState infra.ProvisionerState `json:"provisioner_state"`
+	ProvisionerState *infra.ProvisionerState `json:"provisioner_state,omitempty"`
+	// StateDir specifies the location of temporary state used for a single test run
+	// (from bootstrapping to destroy)
+	StateDir string `json:"state_dir"`
 }
 
 func (r TestState) Validate() error {
 	var errors []error
 	if r.OpsCenterURL == "" {
 		errors = append(errors, trace.BadParameter("Ops Center URL is required"))
+	}
+	if r.Provisioner != "" && r.ProvisionerState == nil {
+		errors = append(errors, trace.BadParameter("ProvisionerState is required"))
+	}
+	if r.Provisioner == "" && r.ProvisionerState != nil {
+		errors = append(errors, trace.BadParameter("Provisioner is required"))
+	}
+	if r.StateDir == "" {
+		errors = append(errors, trace.BadParameter("StateDir is required"))
 	}
 	return trace.NewAggregate(errors...)
 }

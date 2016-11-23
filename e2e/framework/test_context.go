@@ -31,12 +31,12 @@ func ConfigureFlags() {
 
 	confFile, err := os.Open(configFile)
 	if err != nil {
-		Failf("failed to read configuration from %q", configFile)
+		Failf("failed to read configuration from %q: %v", configFile, err)
 	}
 	defer confFile.Close()
 	err = newFileConfig(confFile)
 	if err != nil {
-		Failf("failed to read configuration from %q", configFile)
+		Failf("failed to read configuration from %q: %v", configFile, err)
 	}
 
 	stateFile, err := os.Open(stateConfigFile)
@@ -54,6 +54,7 @@ func ConfigureFlags() {
 	if testState != nil {
 		TestContext.OpsCenterURL = testState.OpsCenterURL
 		TestContext.Provisioner = testState.Provisioner
+		TestContext.StateDir = testState.StateDir
 	}
 
 	if wizardFlag {
@@ -106,14 +107,15 @@ func (r *TestContextType) Validate() error {
 
 func Failf(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	log.Info(msg)
+	log.Error(msg)
 	ginkgo.Fail(nowStamp()+": "+msg, 1)
 }
 
 // TestContext defines the global test configuration for the test run
 var TestContext = &TestContextType{}
 
-// stateConfig defines an optional test state configuration
+// testState defines an optional state configuration that allows the test runner
+// to use state from previous runs
 var testState *TestState
 
 // TestContextType defines the configuration context of a single test run
@@ -124,6 +126,8 @@ type TestContextType struct {
 	Provisioner provisionerType `json:"provisioner" env:"ROBO_WIZARD"`
 	// DumpCore defines a command to collect all installation/operation logs
 	DumpCore bool `json:"-"`
+	// StateDir specifies the location for test-specific temporary data
+	StateDir string `json:"-"`
 	// Teardown specifies if the cluster should be destroyed at the end of this
 	// test run
 	Teardown bool `json:"-"`
@@ -131,13 +135,15 @@ type TestContextType struct {
 	ReportDir string `json:"report_dir" env:"ROBO_REPORT_DIR"`
 	// ClusterName defines the name to use for domain name or state directory
 	ClusterName string `json:"cluster_name" env:"ROBO_CLUSTER_NAME"`
-	// OpsCenterURL defines the URL of the existing OpsCenter.
+	// OpsCenterURL defines the URL of the existing Ops Center.
 	// This is a requirement for all browser-based tests
 	OpsCenterURL string `json:"ops_url" env:"ROBO_CLUSTER_NAME"`
 	// Application defines the application package to test
 	Application *loc.Locator `json:"application" env:"ROBO_APP"`
-	// Login defines the login details to access the OpsCenter
+	// Login defines the login details to access the Ops Center
 	Login Login `json:"login"`
+	// ServiceLogin defines the login parameters for service access to the Ops Center
+	ServiceLogin ServiceLogin `json:"service_login"`
 	// NumInstallNodes defines the subset of nodes to use for installation.
 	NumInstallNodes int `json:"install_nodes" env:"ROBO_NUM_INSTALL_NODES"`
 	// AWS defines the AWS-specific test configuration
@@ -148,22 +154,42 @@ type TestContextType struct {
 
 // Login defines Ops Center authentication parameters
 type Login struct {
-	Username     string `json:"username" env:"ROBO_USERNAME"`
-	Password     string `json:"password" env:"ROBO_PASSWORD"`
+	Username string `json:"username" env:"ROBO_USERNAME"`
+	Password string `json:"password" env:"ROBO_PASSWORD"`
+	// AuthProvider specifies the authentication provider to use for login.
+	// Available providers are `email` and `gogole`
 	AuthProvider string `json:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
+}
+
+// ServiceLogin defines authentication options for Ops Center service access
+type ServiceLogin struct {
+	Username string `json:"username" env:"ROBO_SERVICE_USERNAME"`
+	Password string `json:"password" env:"ROBO_SERVICE_PASSWORD"`
+}
+
+func (r ServiceLogin) IsEmpty() bool {
+	return r.Username == "" && r.Password == ""
 }
 
 // AWSConfig describes AWS EC2 test configuration
 type AWSConfig struct {
 	AccessKey string `json:"access_key" env:"ROBO_AWS_ACCESS_KEY"`
 	SecretKey string `json:"secret_key" env:"ROBO_AWS_SECRET_KEY"`
-	Region    string `json:"region" env:"ROBO_AWS_REGION"`
+	// Region specifies the EC2 region to install into
+	Region string `json:"region" env:"ROBO_AWS_REGION"`
 	// KeyPair specifies the name of the SSH key pair to use for provisioning
 	// nodes
-	KeyPair string `json:"key_pair" env:"ROBO_AWS_KEYPAIR"`
+	KeyPair string `json:"key_pair" env:"ROBO_AWS_KEY_PAIR"`
 	// VPC defines the Amazon VPC to install into.
 	// Specify "Create new" to create a new VPC for this test run
 	VPC string `json:"vpc" env:"ROBO_AWS_VPC"`
+	// KeyPath specifies the location of the SSH key to use for remote access.
+	// Mandatory only with terraform provisioner
+	KeyPath string `json:"key_path" env:"ROBO_AWS_KEY_PATH"`
+	// InstanceType defines the type of AWS EC2 instance to boot.
+	// Relevant only with terraform provisioner.
+	// Defaults are specific to the terraform script used (if any)
+	InstanceType string `json:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
 }
 
 func (r AWSConfig) IsEmpty() bool {
@@ -261,6 +287,11 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			InstallerURL:    TestContext.Onprem.InstallerURL,
 			NumNodes:        TestContext.Onprem.NumNodes,
 			NumInstallNodes: TestContext.NumInstallNodes,
+			AccessKey:       TestContext.AWS.AccessKey,
+			SecretKey:       TestContext.AWS.SecretKey,
+			KeyPair:         TestContext.AWS.KeyPair,
+			SSHKeyPath:      TestContext.AWS.KeyPath,
+			InstanceType:    TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -306,12 +337,17 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			InstallerURL:    TestContext.Onprem.InstallerURL,
 			NumNodes:        len(testState.ProvisionerState.Nodes),
 			NumInstallNodes: TestContext.NumInstallNodes,
+			AccessKey:       TestContext.AWS.AccessKey,
+			SecretKey:       TestContext.AWS.SecretKey,
+			KeyPair:         TestContext.AWS.KeyPair,
+			SSHKeyPath:      TestContext.AWS.KeyPath,
+			InstanceType:    TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = terraform.NewFromState(config, testState.ProvisionerState)
+		provisioner, err = terraform.NewFromState(config, *testState.ProvisionerState)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:          infraConfig,
@@ -324,7 +360,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = vagrant.NewFromState(config, testState.ProvisionerState)
+		provisioner, err = vagrant.NewFromState(config, *testState.ProvisionerState)
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used

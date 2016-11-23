@@ -17,8 +17,7 @@ import (
 
 // New creates a new cluster from the specified config and an optional
 // provisioner.
-// With no provisioner, existing cluster is assumed (config.InitialCluster
-// must be provided).
+// If no provisioner is specified, automatic provisioning is assumed
 func New(config Config, opsCenterURL string, provisioner Provisioner) (Infra, error) {
 	return &autoCluster{
 		opsCenterURL: opsCenterURL,
@@ -28,10 +27,10 @@ func New(config Config, opsCenterURL string, provisioner Provisioner) (Infra, er
 
 // NewWizard creates a new cluster using an installer tarball (which
 // is assumed to be part of the configuration).
-// It provisions a cluster, picks a node as installer node and starts
+// It provisions a cluster, picks an installer node and starts
 // a local wizard process.
-// Provisioner should not have its Create method called - this is done
-// automatically
+// Returns the reference to the created infrastructure and the application package
+// the wizard is installing
 func NewWizard(config Config, provisioner Provisioner, installer Node) (Infra, *loc.Locator, error) {
 	cluster, err := startWizard(provisioner, installer)
 	if err != nil {
@@ -45,11 +44,11 @@ func NewWizard(config Config, provisioner Provisioner, installer Node) (Infra, *
 // Infra describes the infrastructure as used in tests.
 //
 // Infrastructure can be a new cluster that is provisioned as part of the test run
-// using one of the built-in provisioners, or an active cluster and OpsCenter
+// using one of the built-in provisioners, or an active cluster and Ops Center
 // to run tests that require existing infrastructure
 type Infra interface {
-	// OpsCenterURL returns the address of the OpsCenter this infrastructure describes.
-	// This can be an existing OpsCenter or the one created using the provided provisioner
+	// OpsCenterURL returns the address of the Ops Center this infrastructure describes.
+	// This can be an existing Ops Center or the one created using the provided provisioner
 	// running the wizard
 	OpsCenterURL() string
 	// Close releases resources
@@ -102,7 +101,6 @@ type Provisioner interface {
 	// InstallerLogPath returns remote path to the installer log file
 	InstallerLogPath() string
 	// StateDir returns the state directory this provisioner is using
-	StateDir() string
 	// State returns the state of this provisioner
 	State() ProvisionerState
 	// AllNodes returns both active and pooled nodes

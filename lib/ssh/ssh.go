@@ -55,7 +55,7 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 // the command
 func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (err error) {
 	defer func() {
-		if err != nil {
+		if err != nil && session != nil {
 			errClose := session.Close()
 			if errClose != nil {
 				log.Errorf("failed to close SSH session: %v", errClose)
@@ -111,6 +111,7 @@ func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (er
 
 	err = session.Wait()
 	session.Close()
+	session = nil // Avoid second close
 	for err := range errCh {
 		if err != nil {
 			log.Errorf("failed to stream: %v", err)
