@@ -27,7 +27,6 @@ func VerifySiteUpdate(f *framework.T) {
 			site.NavigateToSiteApp()
 
 			appPage := site.GetSiteAppPage()
-			appPage.GetCurrentVersion()
 			newVersions := appPage.GetNewVersions()
 
 			Expect(newVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
