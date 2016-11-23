@@ -34,13 +34,32 @@ func New(stateDir string, config Config) (*terraform, error) {
 }
 
 func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform, error) {
-	// TODO
-	return nil, nil
+	t := &terraform{
+		Entry: log.WithFields(log.Fields{
+			constants.FieldProvisioner: "terraform",
+			constants.FieldCluster:     config.ClusterName,
+		}),
+		Config:      config,
+		stateDir:    stateConfig.Dir,
+		installerIP: stateConfig.InstallerAddr,
+		nodes:       make(map[string]node),
+		active:      make(map[string]struct{}),
+	}
+	// TODO: make it an error?
+	if len(stateConfig.Nodes) != 0 {
+		t.Config.SSHKeyPath = stateConfig.Nodes[0].KeyPath
+	}
+	for _, n := range stateConfig.Nodes {
+		t.nodes[n.Addr] = node{publicIP: n.Addr, owner: t}
+	}
+	for _, addr := range stateConfig.Allocated {
+		t.active[addr] = struct{}{}
+	}
+	return t, nil
 }
 
 func (r *terraform) Create() (installer infra.Node, err error) {
-	file := filepath.Base(r.ScriptPath)
-	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
+	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, "terraform.tf"))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -50,16 +69,18 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 		return nil, trace.Wrap(err)
 	}
 
-	// find installer public IP
-	match := reInstallerIP.FindStringSubmatch(output)
-	if len(match) != 2 {
-		return nil, trace.NotFound(
-			"failed to extract installer IP from terraform output: %v", match)
+	if r.Config.InstallerURL != "" {
+		// find installer public IP
+		match := reInstallerIP.FindStringSubmatch(output)
+		if len(match) != 2 {
+			return nil, trace.NotFound(
+				"failed to extract installer IP from terraform output: %v", match)
+		}
+		r.installerIP = strings.TrimSpace(match[1])
 	}
-	installerIP := strings.TrimSpace(match[1])
 
 	// find all nodes' private IPs
-	match = rePrivateIPs.FindStringSubmatch(output)
+	match := rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return nil, trace.NotFound(
 			"failed to extract private IPs from terraform output: %v", match)
@@ -92,8 +113,11 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 	r.Debugf("cluster: %#v", r.nodes)
 	r.Debugf("install subset: %#v", r.active)
 
-	node := r.nodes[installerIP]
-	return &node, nil
+	if r.installerIP != "" {
+		node := r.nodes[r.installerIP]
+		return &node, nil
+	}
+	return nil, nil
 }
 
 func (r *terraform) Destroy() error {
@@ -169,10 +193,21 @@ func (r *terraform) InstallerLogPath() string {
 	return installerLogPath
 }
 
-func (r *terraform) StateDir() string { return r.stateDir }
-
 func (r *terraform) State() infra.ProvisionerState {
-	return infra.ProvisionerState{}
+	nodes := make([]infra.StateNode, 0, len(r.nodes))
+	for _, node := range r.nodes {
+		nodes = append(nodes, infra.StateNode{Addr: node.publicIP, KeyPath: r.Config.SSHKeyPath})
+	}
+	allocated := make([]string, 0, len(r.active))
+	for addr := range r.active {
+		allocated = append(allocated, addr)
+	}
+	return infra.ProvisionerState{
+		Dir:           r.stateDir,
+		InstallerAddr: r.installerIP,
+		Nodes:         nodes,
+		Allocated:     allocated,
+	}
 }
 
 // Write implements io.Writer
@@ -220,9 +255,11 @@ func getVars(config Config) []string {
 		"key_pair":      config.KeyPair,
 		"instance_type": config.InstanceType,
 		"cluster_name":  config.ClusterName,
-		"installer_url": config.InstallerURL,
+		"nodes":         strconv.Itoa(config.NumNodes),
 	}
-	variables["nodes"] = strconv.Itoa(config.NumNodes)
+	if config.InstallerURL != "" {
+		variables["installer_url"] = config.InstallerURL
+	}
 	var args []string
 	for k, v := range variables {
 		if strings.TrimSpace(v) != "" {
@@ -236,9 +273,10 @@ type terraform struct {
 	*log.Entry
 	Config
 
-	stateDir string
-	nodes    map[string]node
-	active   map[string]struct{}
+	stateDir    string
+	installerIP string
+	nodes       map[string]node
+	active      map[string]struct{}
 }
 
 type node struct {

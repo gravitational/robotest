@@ -174,8 +174,6 @@ func (r *vagrant) InstallerLogPath() string {
 	return installerLogPath
 }
 
-func (r *vagrant) StateDir() string { return r.stateDir }
-
 func (r *vagrant) State() infra.ProvisionerState {
 	nodes := make([]infra.StateNode, 0, len(r.nodes))
 	for _, node := range r.nodes {
