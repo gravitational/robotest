@@ -20,5 +20,7 @@ const (
 	AjaxCallTimeout   = 20 * time.Second
 	ServerLoadTimeout = 20 * time.Second
 	ElementTimeout    = 20 * time.Second
-	OperationTimeout  = 5 * time.Minute
+
+	// Waiting time for operation to be completed (Expand and Application Update operations)
+	OperationTimeout = 10 * time.Minute
 )

@@ -26,6 +26,8 @@ func VerifyOnpremSite(f *framework.T) {
 		It("should be able to add and remove server", func() {
 			ui.EnsureUser(f.Page, siteURL, ctx.Login)
 
+			cluster := framework.Cluster
+
 			By("opening a site page")
 			site := uisite.Open(f.Page, domainName)
 			site.NavigateToServers()
@@ -33,23 +35,32 @@ func VerifyOnpremSite(f *framework.T) {
 
 			By("executing a command on server")
 			agentCommand := siteProvisioner.InitOnPremOperation()
-			node, err := framework.Cluster.Provisioner().Allocate()
+			node, err := cluster.Provisioner().Allocate()
 			Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
 
 			framework.RunAgentCommand(agentCommand, node)
 
-			By("waiting for agent servers")
+			By("waiting for agent server")
 			Eventually(siteProvisioner.GetAgentServers, constants.AgentServerTimeout).Should(
 				HaveLen(1),
 				"should wait for the agent server")
 
+			By("configuring agent server")
+			provisioner := cluster.Provisioner()
+			agentServers := siteProvisioner.GetAgentServers()
+			for _, s := range agentServers {
+				s.SetIPByInfra(provisioner)
+			}
+
 			By("starting an operation")
 			newItem := siteProvisioner.StartOnPremOperation()
-
-			Expect(newItem).NotTo(BeNil())
+			Expect(newItem).NotTo(BeNil(), "new server should appear in the server table")
 
 			By("deleting a server")
 			siteProvisioner.DeleteOnPremServer(newItem)
+			Expect(cluster.Provisioner().Deallocate(node)).ShouldNot(
+				HaveOccurred(),
+				"should dealocate the node after it has been removed")
 		})
 	})
 

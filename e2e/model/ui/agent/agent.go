@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	utils "github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/infra"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -44,6 +45,20 @@ func (a *AgentServer) GetIPs() []string {
 	script := fmt.Sprintf(scriptTemplate, getServerCssSelector(a.index))
 	a.page.RunScript(script, nil, &result)
 	return result
+}
+
+func (a *AgentServer) SetIPByInfra(provisioner infra.Provisioner) {
+	var node infra.Node
+	for _, ip := range a.GetIPs() {
+		node, _ = provisioner.Node(ip)
+		if node != nil {
+			break
+		}
+	}
+
+	descriptionText := fmt.Sprintf("cannot find Node matching any of &v IPs", a.Hostname)
+	Expect(node).NotTo(BeNil(), descriptionText)
+	a.SetIP(node.Addr())
 }
 
 func getServerCssSelector(index int) string {

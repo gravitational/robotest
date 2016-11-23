@@ -47,11 +47,13 @@ func VerifyOnpremInstall(f *framework.T) {
 			Eventually(profiles[0].GetAgentServers, constants.AgentServerTimeout).Should(
 				HaveLen(ctx.NumInstallNodes))
 
-			By("veryfing that server has IP")
-			server := profiles[0].GetAgentServers()[0]
-			ips := server.GetIPs()
-			Expect(len(ips)).To(BeNumerically(">", 0))
-			// FIXME: make sure there're ctx.NumInstallNodes agent entries
+			By("configuring the servers with IPs")
+			provisioner := framework.Cluster.Provisioner()
+			agentServers := profiles[0].GetAgentServers()
+
+			for _, s := range agentServers {
+				s.SetIPByInfra(provisioner)
+			}
 
 			By("starting an installation")
 			installer.StartInstallation()
