@@ -1,5 +1,5 @@
-hash: 6fc2dfd307580611a3c2673d2933a7f163d18d345af2fbfcf2e5ab470f677fb4
-updated: 2016-11-04T11:57:55.772287216-06:00
+hash: d055620b9c1ea31b03d5b11a542441c3e1afba3b87bd814ab617f9d394fa3e35
+updated: 2016-11-23T22:17:24.49000716+01:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -7,14 +7,62 @@ imports:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/go-yaml/yaml
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 - name: github.com/gravitational/configure
   version: 4e0f2df8846ee9557b5c88307a769ff2f85e89cd
   subpackages:
   - cstrings
 - name: github.com/gravitational/trace
   version: 6e153c7add15eb07e311f892779fb294373c4cfa
+- name: github.com/hashicorp/go-version
+  version: e96d3840402619007766590ecea8dd7af1292276
 - name: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
+- name: github.com/onsi/ginkgo
+  version: 00054c0bb96fc880d4e0be1b90937fad438c5290
+  subpackages:
+  - config
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
+  - types
+- name: github.com/onsi/gomega
+  version: f1f0f388b31eca4e2cbe7a6dd8a3a1dfddda5b1c
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
+- name: github.com/sclevine/agouti
+  version: fc7e3d5144ff5ded9239b3cda4a345ab20e14cc1
+  subpackages:
+  - api
+  - api/internal/bus
+  - api/internal/service
+  - internal/element
+  - internal/target
+  - matchers
+  - matchers/internal
+  - matchers/internal/colorparser
 - name: github.com/Sirupsen/logrus
   version: d26492970760ca5d33129d2d799e34be5c4782eb
 - name: github.com/tebeka/selenium
@@ -22,10 +70,10 @@ imports:
 - name: golang.org/x/crypto
   version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
   subpackages:
-  - ssh
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
+  - ssh
 - name: golang.org/x/net
   version: 569280fa63be4e201b975e5411e30a92178f0118
   subpackages:
