@@ -75,13 +75,18 @@ func (u *User) LoginWithGoogle() {
 
 	PauseForPageJs()
 
+	// check if google approve access page is shown
+	// (this page may not appear based on the browser history)
 	allowButton := u.page.FindByID("submit_approve_access")
 	count, _ := allowButton.Count()
-
 	if count > 0 {
+		Eventually(
+			u.page.Find("#submit_approve_access:not(:disabled)"), constants.FindTimeout).Should(
+			BeFound(),
+			"should wait until google approve btn becomes active")
+
 		Expect(allowButton.Click()).To(Succeed())
 	}
-
 }
 
 func (u *User) Signout() {
