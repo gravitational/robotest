@@ -3,20 +3,19 @@ package site
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
 	utils "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/agent"
-	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
-type SiteServerProvisioner struct {
+type SiteServerPage struct {
 	page *agouti.Page
 }
 
@@ -28,7 +27,7 @@ type SiteServer struct {
 	InstaceType string
 }
 
-func (p *SiteServerProvisioner) GetSiteServers() []SiteServer {
+func (p *SiteServerPage) GetSiteServers() []SiteServer {
 	var items []SiteServer
 	var result string
 	js := ` 			
@@ -52,7 +51,7 @@ func (p *SiteServerProvisioner) GetSiteServers() []SiteServer {
 	return items
 }
 
-func (p *SiteServerProvisioner) GetAgentServers() []agent.AgentServer {
+func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
 	s := p.page.All(".grv-provision-req-server")
 
@@ -65,7 +64,7 @@ func (p *SiteServerProvisioner) GetAgentServers() []agent.AgentServer {
 	return agentServers
 }
 
-func (p *SiteServerProvisioner) StartOnPremOperation() *SiteServer {
+func (p *SiteServerPage) StartOnPremOperation() *SiteServer {
 	currentServerItems := p.GetSiteServers()
 
 	Expect(p.page.FindByClass("grv-site-servers-btn-start").Click()).To(
@@ -99,28 +98,30 @@ func (p *SiteServerProvisioner) StartOnPremOperation() *SiteServer {
 	return newItem
 }
 
-func (p *SiteServerProvisioner) InitOnPremOperation() string {
+func (p *SiteServerPage) InitOnPremOperation() string {
 	page := p.page
 
 	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(
 		Succeed(),
 		"should click on Add Existing button")
 
+	utils.PauseForComponentJs()
+
 	Expect(page.FindByClass("grv-control-radio-indicator").Click()).To(
 		Succeed(),
 		"should select first available profile")
 
-	utils.Pause()
+	utils.PauseForComponentJs()
 
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
 		Succeed(),
 		"should click on continue button")
 
-	utils.Pause()
+	utils.PauseForComponentJs()
 
 	element := page.Find(".grv-installer-server-instruction span")
 
-	Eventually(element, defaults.AjaxCallTimeout).Should(
+	Eventually(element, constants.AjaxCallTimeout).Should(
 		BeFound(),
 		"should find a command")
 
@@ -133,7 +134,7 @@ func (p *SiteServerProvisioner) InitOnPremOperation() string {
 	return command
 }
 
-func (p *SiteServerProvisioner) AddAwsServer(
+func (p *SiteServerPage) AddAwsServer(
 	awsConfig framework.AWSConfig, profileLable string, instanceType string) *SiteServer {
 	page := p.page
 
@@ -143,7 +144,7 @@ func (p *SiteServerProvisioner) AddAwsServer(
 		Succeed(),
 		"should click on Provision new button")
 
-	utils.Pause()
+	utils.PauseForComponentJs()
 
 	utils.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
 
@@ -151,12 +152,12 @@ func (p *SiteServerProvisioner) AddAwsServer(
 		Succeed(),
 		"click on continue")
 
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.ElementTimeout).Should(
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), constants.ElementTimeout).Should(
 		BeFound(),
 		"should display profile and instance type")
 
-	setDropDownValue(page, "grv-site-servers-provisioner-new-profile", defaults.ProfileLabel)
-	setDropDownValue(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
+	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-profile", profileLable)
+	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
 
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
@@ -186,15 +187,15 @@ func (p *SiteServerProvisioner) AddAwsServer(
 	return newItem
 }
 
-func (p *SiteServerProvisioner) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
+func (p *SiteServerPage) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
 	p.deleteServer(itemToDelete, &awsConfig)
 }
 
-func (p *SiteServerProvisioner) DeleteOnPremServer(itemToDelete *SiteServer) {
+func (p *SiteServerPage) DeleteOnPremServer(itemToDelete *SiteServer) {
 	p.deleteServer(itemToDelete, nil)
 }
 
-func (p *SiteServerProvisioner) deleteServer(itemToDelete *SiteServer, awsConfig *framework.AWSConfig) {
+func (p *SiteServerPage) deleteServer(itemToDelete *SiteServer, awsConfig *framework.AWSConfig) {
 	itemBeforeDelete := p.GetSiteServers()
 	p.clickDeleteServer(itemToDelete.Hostname)
 
@@ -214,13 +215,13 @@ func (p *SiteServerProvisioner) deleteServer(itemToDelete *SiteServer, awsConfig
 		"very that server disappeared from the list")
 }
 
-func (p *SiteServerProvisioner) expectProgressIndicator() {
+func (p *SiteServerPage) expectProgressIndicator() {
 	page := p.page
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.ElementTimeout).Should(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), constants.ElementTimeout).Should(
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.OperationTimeout).ShouldNot(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), constants.OperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 
@@ -228,7 +229,7 @@ func (p *SiteServerProvisioner) expectProgressIndicator() {
 	utils.Pause(10 * time.Second)
 }
 
-func (p *SiteServerProvisioner) clickDeleteServer(hostname string) {
+func (p *SiteServerPage) clickDeleteServer(hostname string) {
 	var result int
 	page := p.page
 
@@ -249,32 +250,4 @@ func (p *SiteServerProvisioner) clickDeleteServer(hostname string) {
 	Expect(page.Find(btnPath).Click()).To(
 		Succeed(),
 		"should find and click on server delete button")
-
-}
-
-func setDropDownValue(page *agouti.Page, classPath string, value string) {
-	if !strings.HasPrefix(classPath, ".") {
-		classPath = "." + classPath
-	}
-
-	var result []string
-	page.Find(classPath).Click()
-
-	js := ` var result = []; var cssSelector = "%v .dropdown-menu a"; var children = document.querySelectorAll(cssSelector); children.forEach( z => result.push(z.innerText) ); return result; `
-	js = fmt.Sprintf(js, classPath)
-
-	page.RunScript(js, nil, &result)
-
-	for index, optionValue := range result {
-		if optionValue == value {
-			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", classPath, index+1)
-			Expect(page.Find(optionClass).Click()).To(
-				Succeed(),
-				"should select given dropdown value")
-
-			return
-		}
-	}
-
-	Expect(false).To(BeTrue(), "given dropdown value does not exist")
 }

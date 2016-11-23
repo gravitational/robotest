@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 
+	utils "github.com/gravitational/robotest/e2e/model/ui"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -23,6 +24,12 @@ func CreateAgentServer(page *web.Page, index int) AgentServer {
 	Expect(hostname).NotTo(BeEmpty())
 
 	return AgentServer{page: page, Hostname: hostname, index: index}
+}
+
+func (a *AgentServer) SetIP(value string) {
+	cssSelector := fmt.Sprintf("%v .grv-provision-req-server-interface", getServerCssSelector(a.index))
+
+	utils.SetDropDownValue2(a.page, cssSelector, value)
 }
 
 func (a *AgentServer) GetIPs() []string {

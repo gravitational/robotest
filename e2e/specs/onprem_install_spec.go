@@ -1,15 +1,13 @@
 package specs
 
 import (
-	"time"
-
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
-	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -27,7 +25,7 @@ func VerifyOnpremInstall(f *framework.T) {
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("entering domain name")
-			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
+			Eventually(installer.IsCreateSiteStep, constants.FindTimeout).Should(BeTrue())
 			installer.CreateOnPremNewSite(domainName)
 		}
 
@@ -46,7 +44,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			framework.RunAgentCommand(profiles[0].Command)
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(
+			Eventually(profiles[0].GetAgentServers, constants.AgentServerTimeout).Should(
 				HaveLen(ctx.NumInstallNodes))
 
 			By("veryfing that server has IP")
@@ -57,8 +55,6 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			By("starting an installation")
 			installer.StartInstallation()
-
-			time.Sleep(defaults.ShortTimeout)
 		}
 
 		shouldHandleInProgressScreen := func() {

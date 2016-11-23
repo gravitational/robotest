@@ -9,5 +9,6 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	f := framework.New()
 
 	specs.VerifyAwsInstall(f)
-	specs.VerifyAwsSite(f)
+	specs.VerifyAwsSiteServers(f)
+	specs.VerifySiteUpdate(f)
 })

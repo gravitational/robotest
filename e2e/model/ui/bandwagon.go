@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gravitational/robotest/lib/defaults"
-
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -28,7 +27,7 @@ func OpenBandwagon(page *web.Page, domainName string, email string, password str
 		Succeed(),
 		"should open bandwagon")
 
-	Eventually(page.FindByClass("my-page-btn-submit"), defaults.FindTimeout).Should(
+	Eventually(page.FindByClass("my-page-btn-submit"), constants.FindTimeout).Should(
 		BeFound(),
 		"should wait for bandwagon to load")
 
@@ -54,7 +53,7 @@ func (b *Bandwagon) SubmitForm() {
 		Succeed(),
 		"should click submit btn")
 
-	Eventually(page.FindByClass("my-page-section-endpoints"), defaults.FindTimeout).Should(
+	Eventually(page.FindByClass("my-page-section-endpoints"), constants.FindTimeout).Should(
 		BeFound(),
 		"should find endpoints")
 }

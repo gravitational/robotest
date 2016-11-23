@@ -3,11 +3,11 @@ package specs
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
-	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,7 +32,7 @@ func VerifyAwsInstall(f *framework.T) {
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 
-			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(
+			Eventually(installer.IsCreateSiteStep, constants.FindTimeout).Should(
 				BeTrue(),
 				"should navigate to installer screen")
 
@@ -55,7 +55,7 @@ func VerifyAwsInstall(f *framework.T) {
 				Equal(1),
 				"should verify required node number")
 
-			profiles[0].SetInstanceType(defaults.InstanceType)
+			profiles[0].SetInstanceType(awsInstanceType)
 
 			By("starting an installation")
 			installer.StartInstallation()

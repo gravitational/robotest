@@ -3,8 +3,8 @@ package specs
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 	uisite "github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/lib/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -29,7 +29,7 @@ func VerifyOnpremSite(f *framework.T) {
 			By("opening a site page")
 			site := uisite.Open(f.Page, domainName)
 			site.NavigateToServers()
-			siteProvisioner := site.GetSiteServerProvisioner()
+			siteProvisioner := site.GetSiteServerPage()
 
 			By("executing a command on server")
 			agentCommand := siteProvisioner.InitOnPremOperation()
@@ -39,7 +39,7 @@ func VerifyOnpremSite(f *framework.T) {
 			framework.RunAgentCommand(agentCommand, node)
 
 			By("waiting for agent servers")
-			Eventually(siteProvisioner.GetAgentServers, defaults.AgentServerTimeout).Should(
+			Eventually(siteProvisioner.GetAgentServers, constants.AgentServerTimeout).Should(
 				HaveLen(1),
 				"should wait for the agent server")
 

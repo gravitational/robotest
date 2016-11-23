@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -45,6 +45,35 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 	framework.Failf("failed to select value %q in dropdown", value)
 }
 
+// There are 2 different controls that UI uses for dropdown thus each
+// requires different handling  
+func SetDropDownValue2(page *web.Page, classPath string, value string) {
+	if !strings.HasPrefix(classPath, ".") {
+		classPath = "." + classPath
+	}
+
+	var result []string
+	page.Find(classPath).Click()
+
+	js := ` var result = []; var cssSelector = "%v .dropdown-menu a"; var children = document.querySelectorAll(cssSelector); children.forEach( z => result.push(z.innerText) ); return result; `
+	js = fmt.Sprintf(js, classPath)
+
+	page.RunScript(js, nil, &result)
+
+	for index, optionValue := range result {
+		if optionValue == value {
+			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", classPath, index+1)
+			Expect(page.Find(optionClass).Click()).To(
+				Succeed(),
+				"should select given dropdown value")
+
+			return
+		}
+	}
+
+	Expect(false).To(BeTrue(), "given dropdown value does not exist")
+}
+
 func FillOutAwsKeys(page *web.Page, accessKey string, secretKey string) {
 	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(
 		Succeed(),
@@ -63,8 +92,16 @@ func URLPath(urlS string, path string) string {
 	return newURL.String()
 }
 
+func PauseForPageJs() {
+	time.Sleep(1 * time.Second)
+}
+
+func PauseForComponentJs() {
+	time.Sleep(100 * time.Microsecond)
+}
+
 func Pause(params ...time.Duration) {
-	timeInterval := defaults.PauseTimeout
+	timeInterval := constants.PauseTimeout
 
 	if len(params) != 0 {
 		timeInterval = params[0]

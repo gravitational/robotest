@@ -3,10 +3,9 @@ package site
 import (
 	"fmt"
 	"regexp"
-	"time"
 
-	"github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/lib/defaults"
+	ui "github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/constants"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -25,8 +24,17 @@ func Open(page *web.Page, domainName string) Site {
 	return site
 }
 
-func (s *Site) GetSiteServerProvisioner() SiteServerProvisioner {
-	return SiteServerProvisioner{page: s.page}
+func (s *Site) GetSiteAppPage() SiteAppPage {
+	return SiteAppPage{page: s.page}
+}
+
+func (s *Site) GetSiteServerPage() SiteServerPage {
+	return SiteServerPage{page: s.page}
+}
+
+func (s *Site) NavigateToSiteApp() {
+	newUrl := s.formatUrl("")
+	s.assertSiteNavigation(newUrl)
 }
 
 func (s *Site) NavigateToServers() {
@@ -36,17 +44,17 @@ func (s *Site) NavigateToServers() {
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
 		return count > 0
-	}, defaults.ServerLoadTimeout).Should(
+	}, constants.ServerLoadTimeout).Should(
 		BeTrue(),
 		"waiting for servers to load")
 
-	ui.Pause()
+	ui.PauseForComponentJs()
 }
 
 func (s *Site) assertSiteNavigation(URL string) {
 	Expect(s.page.Navigate(URL)).To(Succeed())
-	Eventually(s.page.FindByClass("grv-site"), defaults.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
-	time.Sleep(defaults.ShortTimeout)
+	Eventually(s.page.FindByClass("grv-site"), constants.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
+	ui.PauseForComponentJs()
 }
 
 func (s *Site) formatUrl(newPrefix string) string {

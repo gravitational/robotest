@@ -4,12 +4,13 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
-
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func VerifyAwsSiteServers(f *framework.T) {
-	Describe("AWS Site Servers", func() {
+func VerifySiteUpdate(f *framework.T) {
+
+	PDescribe("Site Update", func() {
 		ctx := framework.TestContext
 		var domainName string
 		var siteURL string
@@ -19,19 +20,18 @@ func VerifyAwsSiteServers(f *framework.T) {
 			siteURL = framework.SiteURL()
 		})
 
-		It("should be able to add and remove a server", func() {
+		It("should update site to the latest version", func() {
 			ui.EnsureUser(f.Page, siteURL, ctx.Login)
 
-			By("opening a site page")
 			site := sitemodel.Open(f.Page, domainName)
-			site.NavigateToServers()
-			siteProvisioner := site.GetSiteServerPage()
+			site.NavigateToSiteApp()
 
-			By("trying to add a new server")
-			newItem := siteProvisioner.AddAwsServer(ctx.AWS, awsProfileLabel, awsInstanceType)
+			appPage := site.GetSiteAppPage()
+			appPage.GetCurrentVersion()
+			newVersions := appPage.GetNewVersions()
 
-			By("trying remove a server")
-			siteProvisioner.DeleteAwsServer(ctx.AWS, newItem)
+			Expect(newVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
+			appPage.UpdateApp(&newVersions[0])
 		})
 	})
 }
