@@ -23,11 +23,6 @@ import (
 )
 
 func New(stateDir string, config Config) (*terraform, error) {
-	err := config.Validate()
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	return &terraform{
 		Entry: log.WithFields(log.Fields{
 			constants.FieldProvisioner: "terraform",
@@ -36,6 +31,11 @@ func New(stateDir string, config Config) (*terraform, error) {
 		Config:   config,
 		stateDir: stateDir,
 	}, nil
+}
+
+func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform, error) {
+	// TODO
+	return nil, nil
 }
 
 func (r *terraform) Create() (installer infra.Node, err error) {
@@ -89,15 +89,15 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 		r.active[addr] = struct{}{}
 	}
 
-	r.Infof("cluster: %#v", r.nodes)
-	r.Infof("install subset: %#v", r.active)
+	r.Debugf("cluster: %#v", r.nodes)
+	r.Debugf("install subset: %#v", r.active)
 
 	node := r.nodes[installerIP]
 	return &node, nil
 }
 
 func (r *terraform) Destroy() error {
-	log.Infof("destroying terraform cluster: %v", r.stateDir)
+	r.Debugf("destroying terraform cluster: %v", r.stateDir)
 	args := append([]string{"destroy", "-force"}, getVars(r.Config)...)
 	_, err := r.command(args)
 	return trace.Wrap(err)
@@ -121,18 +121,33 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
+func (r *terraform) AllNodes() (nodes []infra.Node) {
+	nodes = make([]infra.Node, 0, len(r.nodes))
+	for addr := range r.nodes {
+		node := r.nodes[addr]
+		nodes = append(nodes, &node)
+	}
+	return nodes
+}
+
 func (r *terraform) Nodes() (nodes []infra.Node) {
 	nodes = make([]infra.Node, 0, len(r.active))
 	for addr := range r.active {
 		node := r.nodes[addr]
 		nodes = append(nodes, &node)
 	}
-	r.Infof("active nodes: %#v", nodes)
 	return nodes
 }
 
 func (r *terraform) NumNodes() int {
 	return len(r.active)
+}
+
+func (r *terraform) Node(addr string) (infra.Node, error) {
+	if node, exists := r.nodes[addr]; exists {
+		return &node, nil
+	}
+	return nil, trace.NotFound("node %q not found", addr)
 }
 
 func (r *terraform) Allocate() (infra.Node, error) {
@@ -152,6 +167,12 @@ func (r *terraform) Deallocate(n infra.Node) error {
 
 func (r *terraform) InstallerLogPath() string {
 	return installerLogPath
+}
+
+func (r *terraform) StateDir() string { return r.stateDir }
+
+func (r *terraform) State() infra.ProvisionerState {
+	return infra.ProvisionerState{}
 }
 
 // Write implements io.Writer

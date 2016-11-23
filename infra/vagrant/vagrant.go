@@ -24,11 +24,6 @@ import (
 )
 
 func New(stateDir string, config Config) (*vagrant, error) {
-	err := config.Validate()
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	return &vagrant{
 		Entry: log.WithFields(log.Fields{
 			constants.FieldProvisioner: "vagrant",
@@ -37,6 +32,27 @@ func New(stateDir string, config Config) (*vagrant, error) {
 		stateDir: stateDir,
 		Config:   config,
 	}, nil
+}
+
+func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, error) {
+	v := &vagrant{
+		Entry: log.WithFields(log.Fields{
+			constants.FieldProvisioner: "vagrant",
+			constants.FieldCluster:     config.ClusterName,
+		}),
+		stateDir:    stateConfig.Dir,
+		installerIP: stateConfig.InstallerAddr,
+		nodes:       make(map[string]node),
+		active:      make(map[string]struct{}),
+		Config:      config,
+	}
+	for _, n := range stateConfig.Nodes {
+		v.nodes[n.Addr] = node{addrIP: n.Addr, identityFile: n.KeyPath}
+	}
+	for _, addr := range stateConfig.Allocated {
+		v.active[addr] = struct{}{}
+	}
+	return v, nil
 }
 
 func (r *vagrant) Create() (installer infra.Node, err error) {
@@ -70,15 +86,17 @@ func (r *vagrant) Create() (installer infra.Node, err error) {
 	for _, addr := range publicIPs[:r.NumInstallNodes] {
 		r.active[addr] = struct{}{}
 	}
+	r.installerIP = publicIPs[0]
 
-	r.Infof("cluster: %#v", r.nodes)
-	r.Infof("install subset: %#v", r.active)
+	r.Debugf("cluster: %#v", r.nodes)
+	r.Debugf("install subset: %#v", r.active)
 
-	node := r.nodes[publicIPs[0]]
+	node := r.nodes[r.installerIP]
 	return &node, nil
 }
 
 func (r *vagrant) Destroy() error {
+	r.Debugf("destroying vagrant cluster: %v", r.stateDir)
 	out, err := r.command(args("destroy", "-f"))
 	if err != nil {
 		return trace.Wrap(err, "failed to destroy vagrant cluster: %s", out)
@@ -108,6 +126,15 @@ func (r *vagrant) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
+func (r *vagrant) AllNodes() (nodes []infra.Node) {
+	nodes = make([]infra.Node, 0, len(r.nodes))
+	for addr := range r.nodes {
+		node := r.nodes[addr]
+		nodes = append(nodes, &node)
+	}
+	return nodes
+}
+
 func (r *vagrant) Nodes() (nodes []infra.Node) {
 	nodes = make([]infra.Node, 0, len(r.active))
 	for addr := range r.active {
@@ -119,6 +146,13 @@ func (r *vagrant) Nodes() (nodes []infra.Node) {
 
 func (r *vagrant) NumNodes() int {
 	return len(r.active)
+}
+
+func (r *vagrant) Node(addr string) (infra.Node, error) {
+	if node, exists := r.nodes[addr]; exists {
+		return &node, nil
+	}
+	return nil, trace.NotFound("node %q not found", addr)
 }
 
 func (r *vagrant) Allocate() (infra.Node, error) {
@@ -138,6 +172,25 @@ func (r *vagrant) Deallocate(n infra.Node) error {
 
 func (r *vagrant) InstallerLogPath() string {
 	return installerLogPath
+}
+
+func (r *vagrant) StateDir() string { return r.stateDir }
+
+func (r *vagrant) State() infra.ProvisionerState {
+	nodes := make([]infra.StateNode, 0, len(r.nodes))
+	for _, node := range r.nodes {
+		nodes = append(nodes, infra.StateNode{Addr: node.addrIP, KeyPath: node.identityFile})
+	}
+	allocated := make([]string, 0, len(r.active))
+	for addr := range r.active {
+		allocated = append(allocated, addr)
+	}
+	return infra.ProvisionerState{
+		Dir:           r.stateDir,
+		InstallerAddr: r.installerIP,
+		Nodes:         nodes,
+		Allocated:     allocated,
+	}
 }
 
 func (r *vagrant) boot() error {
@@ -244,7 +297,7 @@ func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
 		line := s.Text()
 		fields := strings.Fields(line)
 		if len(fields) != 6 {
-			log.Warningf("skipping invalid arp entry %q", line)
+			r.Warningf("skipping invalid arp entry %q", line)
 			continue
 		}
 		if macAddr == fields[3] {
@@ -350,7 +403,6 @@ type vagrant struct {
 	Config
 
 	stateDir    string
-	keyPath     string
 	installerIP string
 	// nodes maps node address to a node.
 	// nodes represents the total cluster capacity as defined

@@ -127,7 +127,7 @@ func stream(r io.Reader, sink chan<- string) error {
 	s.Split(bytesID)
 	for s.Scan() {
 		line := s.Bytes()
-		// Copy avoid re-using scanner's internal buffer
+		// Copy to avoid re-using scanner's internal buffer
 		sink <- string(line)
 	}
 	if err := s.Err(); err != nil && err != io.EOF {
