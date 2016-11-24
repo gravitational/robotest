@@ -9,7 +9,9 @@ type TestState struct {
 	// OpsCenterURL defines the Ops Center address this infrastructure is
 	// communicating with.
 	// In case of the wizard mode, this is the actual Ops Center created by the wizard
-	// which was not available upfront
+	// which was not available upfront.
+	// This can be different from the Ops Center configired in TestContext which always
+	// refers to the originating Ops Center
 	OpsCenterURL string `json:"ops_url"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner

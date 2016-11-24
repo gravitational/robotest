@@ -10,7 +10,7 @@ import (
 
 func VerifySiteUpdate(f *framework.T) {
 
-	PDescribe("Site Update", func() {
+	Describe("Site Update", func() {
 		ctx := framework.TestContext
 		var domainName string
 		var siteURL string
@@ -21,6 +21,9 @@ func VerifySiteUpdate(f *framework.T) {
 		})
 
 		It("should update site to the latest version", func() {
+			// Upload a new version to Ops Center
+			framework.UpdateApplication()
+
 			ui.EnsureUser(f.Page, siteURL, ctx.Login)
 
 			site := sitemodel.Open(f.Page, domainName)

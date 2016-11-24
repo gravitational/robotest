@@ -171,11 +171,11 @@ func CoreDump() {
 		return
 	}
 
-	err := ConnectToOpsCenter()
+	err := ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
 		// so bail out
-		log.Errorf("failed to connect to the Ops Center: %v", err)
+		log.Errorf("failed to connect to the Ops Center %q: %v", TestContext.OpsCenterURL, err)
 		return
 	}
 
@@ -189,6 +189,7 @@ func CoreDump() {
 	}
 
 	if Cluster.Provisioner() == nil {
+		log.Infof("no provisioner: skip collecting provisioner logs")
 		return
 	}
 

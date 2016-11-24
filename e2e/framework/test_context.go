@@ -52,7 +52,6 @@ func ConfigureFlags() {
 	}
 
 	if testState != nil {
-		TestContext.OpsCenterURL = testState.OpsCenterURL
 		TestContext.Provisioner = testState.Provisioner
 		TestContext.StateDir = testState.StateDir
 	}
@@ -136,6 +135,8 @@ type TestContextType struct {
 	// ClusterName defines the name to use for domain name or state directory
 	ClusterName string `json:"cluster_name" env:"ROBO_CLUSTER_NAME"`
 	// OpsCenterURL defines the URL of the existing Ops Center.
+	// This specifies the original Ops Center for the wizard test flow
+	// and will be used to upload application updates.
 	// This is a requirement for all browser-based tests
 	OpsCenterURL string `json:"ops_url" env:"ROBO_CLUSTER_NAME"`
 	// Application defines the application package to test

@@ -23,7 +23,13 @@ import (
 )
 
 func UpdateApplication() {
-	Expect(ConnectToOpsCenter()).To(Succeed())
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+
+	nodes := Cluster.Provisioner().Nodes()
+	if len(nodes) == 0 {
+		Failf("expected active nodes in cluster, got none")
+	}
+	Distribute("gravity update", nodes[0])
 
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
 	opsURL := fmt.Sprintf("--ops-url=%v", TestContext.OpsCenterURL)
@@ -49,10 +55,10 @@ func UpdateApplication() {
 	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
 }
 
-func ConnectToOpsCenter() error {
+func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
-	cmd := exec.Command("gravity", "--insecure", stateDir, "ops", "connect", Cluster.OpsCenterURL(),
-		TestContext.ServiceLogin.Username, TestContext.ServiceLogin.Password)
+	cmd := exec.Command("gravity", "--insecure", stateDir, "ops", "connect", opsCenterURL,
+		login.Username, login.Password)
 	return trace.Wrap(system.Exec(cmd, io.MultiWriter(os.Stderr, ginkgo.GinkgoWriter)))
 }
 
