@@ -34,6 +34,7 @@ func ConfigureFlags() {
 		Failf("failed to read configuration from %q: %v", configFile, err)
 	}
 	defer confFile.Close()
+
 	err = newFileConfig(confFile)
 	if err != nil {
 		Failf("failed to read configuration from %q: %v", configFile, err)
@@ -60,13 +61,18 @@ func ConfigureFlags() {
 		TestContext.Wizard = wizardFlag
 		// Void test state in wizard mode
 		testState = nil
+	} else {
+		TestContext.Onprem.InstallerURL = ""
 	}
+
 	if provisionerName != "" {
 		TestContext.Provisioner = provisionerType(provisionerName)
 	}
+
 	if teardownFlag {
 		TestContext.Teardown = teardownFlag
 	}
+
 	if dumpFlag {
 		TestContext.DumpCore = dumpFlag
 	}

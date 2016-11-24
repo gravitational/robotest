@@ -48,8 +48,12 @@ func (a *AgentServer) GetIPs() []string {
 }
 
 func (a *AgentServer) SetIPByInfra(provisioner infra.Provisioner) {
+	ips := a.GetIPs()
+	if len(ips) < 2 {
+		return
+	}
 	var node infra.Node
-	for _, ip := range a.GetIPs() {
+	for _, ip := range ips {
 		node, _ = provisioner.Node(ip)
 		if node != nil {
 			break

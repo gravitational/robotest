@@ -1,6 +1,8 @@
 package specs
 
 import (
+	"time"
+
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/constants"
@@ -52,9 +54,11 @@ func VerifyOnpremSite(f *framework.T) {
 				s.SetIPByInfra(provisioner)
 			}
 
-			By("starting an operation")
+			By("starting an expand operation")
 			newItem := siteProvisioner.StartOnPremOperation()
 			Expect(newItem).NotTo(BeNil(), "new server should appear in the server table")
+
+			time.Sleep(constants.InitializeTimeout)
 
 			By("deleting a server")
 			siteProvisioner.DeleteOnPremServer(newItem)

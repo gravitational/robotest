@@ -46,7 +46,7 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 }
 
 // There are 2 different controls that UI uses for dropdown thus each
-// requires different handling  
+// requires different handling
 func SetDropDownValue2(page *web.Page, classPath string, value string) {
 	if !strings.HasPrefix(classPath, ".") {
 		classPath = "." + classPath

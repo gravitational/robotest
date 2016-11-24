@@ -2,7 +2,6 @@ package site
 
 import (
 	"fmt"
-	"regexp"
 
 	ui "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/constants"
@@ -59,7 +58,7 @@ func (s *Site) assertSiteNavigation(URL string) {
 
 func (s *Site) formatUrl(newPrefix string) string {
 	urlPrefix := fmt.Sprintf("/web/site/%v/%v", s.domainName, newPrefix)
-	r, _ := regexp.Compile("/web/.*")
-	url, _ := s.page.URL()
-	return r.ReplaceAllString(url, urlPrefix)
+	url, err := s.page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	return ui.URLPath(url, urlPrefix)
 }

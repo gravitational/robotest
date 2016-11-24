@@ -23,4 +23,7 @@ const (
 
 	// Waiting time for operation to be completed (Expand and Application Update operations)
 	OperationTimeout = 10 * time.Minute
+
+	// InitializeTimeout is the amount of time between expand/shrink tests
+	InitializeTimeout = 20 * time.Second
 )

@@ -58,6 +58,7 @@ func CopyFileWithPerms(dst, src string, perm os.FileMode) error {
 	err = os.Rename(tmp.Name(), dst)
 	if err != nil {
 		cleanup()
+		return trace.ConvertSystemError(err)
 	}
 	return nil
 }

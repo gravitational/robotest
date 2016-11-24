@@ -11,16 +11,16 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/constants"
 
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/agouti"
+	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
 type SiteServerPage struct {
-	page *agouti.Page
+	page *web.Page
 }
 
 type SiteServer struct {
-	PrivateIP   string `json:"PrivateIP"`
+	AdvertiseIP string `json:"AdvertiseIP"`
 	PublicIP    string `json:"PublicIP"`
 	Profile     string `json:"Profile"`
 	Hostname    string `json:"Hostname"`
@@ -28,25 +28,26 @@ type SiteServer struct {
 }
 
 func (p *SiteServerPage) GetSiteServers() []SiteServer {
-	var items []SiteServer
-	var result string
-	js := ` 			
+	const script = `
         var getter = [ ["site_servers"], serverList => {
             return serverList.map(srvMap => {                
                 return {
-					PublicIP: srvMap.get("public_ipv4"), 
-					PrivateIP: srvMap.get("advertise_ip"),
-					Hostname: srvMap.get("hostname"),                
-					Profile: srvMap.get("role")					
-            }
+                    PublicIP: srvMap.get("public_ipv4"), 
+                    AdvertiseIP: srvMap.get("advertise_ip"),
+                    Hostname: srvMap.get("hostname"),                
+                    Profile: srvMap.get("role")
+                }
             }).toJS();
         }];
 
         var data = window.reactor.evaluate(getter)
-        return JSON.stringify(data);	
+        return JSON.stringify(data);
 	`
-	p.page.RunScript(js, nil, &result)
-	json.Unmarshal([]byte(result), &items)
+	var items []SiteServer
+	var result string
+
+	p.page.RunScript(script, nil, &result)
+	Expect(json.Unmarshal([]byte(result), &items)).To(Succeed())
 
 	return items
 }
@@ -65,13 +66,13 @@ func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 }
 
 func (p *SiteServerPage) StartOnPremOperation() *SiteServer {
-	currentServerItems := p.GetSiteServers()
+	currentItems := p.GetSiteServers()
 
 	Expect(p.page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
 		"should start expand operation")
 
-	//give it some time to appear on UI
+	// give it some time to appear on UI
 	utils.Pause(10 * time.Second)
 
 	p.expectProgressIndicator()
@@ -80,20 +81,18 @@ func (p *SiteServerPage) StartOnPremOperation() *SiteServer {
 
 	var newItem *SiteServer
 
-	for _, item := range updatedItems {
-		for _, existedItem := range currentServerItems {
-			if item.PrivateIP == existedItem.PrivateIP {
+	for i, item := range updatedItems {
+		for _, existingItem := range currentItems {
+			if item.AdvertiseIP == existingItem.AdvertiseIP {
 				break
 			}
-
-			newItem = &item
+			newItem = &updatedItems[i]
 		}
-
 	}
 
 	Expect(newItem).ToNot(
 		BeNil(),
-		"Should find a new server in the server list")
+		"should find a new server in the server list")
 
 	return newItem
 }
@@ -169,13 +168,13 @@ func (p *SiteServerPage) AddAwsServer(
 
 	var newItem *SiteServer
 
-	for _, item := range updatedItems {
-		for _, existedItem := range currentServerItems {
-			if item.PrivateIP == existedItem.PrivateIP {
+	for i, item := range updatedItems {
+		for _, existingItem := range currentServerItems {
+			if item.AdvertiseIP == existingItem.AdvertiseIP {
 				break
 			}
 
-			newItem = &item
+			newItem = &updatedItems[i]
 		}
 
 	}

@@ -29,7 +29,6 @@ func UpdateApplication() {
 	if len(nodes) == 0 {
 		Failf("expected active nodes in cluster, got none")
 	}
-	Distribute("gravity update", nodes[0])
 
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
 	opsURL := fmt.Sprintf("--ops-url=%v", TestContext.OpsCenterURL)
@@ -53,6 +52,8 @@ func UpdateApplication() {
 	// Import the same package with a new version to emulate update
 	cmd = exec.Command("gravity", "--insecure", stateDir, "app", "import", opsURL, bumpedVersion, outputPath)
 	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
+
+	Distribute("gravity update", nodes[0])
 }
 
 func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {

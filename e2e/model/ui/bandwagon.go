@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/gravitational/robotest/e2e/model/ui/constants"
+
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
