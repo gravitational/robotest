@@ -83,7 +83,7 @@ func (u *User) LoginWithGoogle() {
 		Eventually(
 			u.page.Find("#submit_approve_access:not(:disabled)"), constants.FindTimeout).Should(
 			BeFound(),
-			"should wait until google approve btn becomes active")
+			"should wait until google access approve button becomes active")
 
 		Expect(allowButton.Click()).To(Succeed())
 	}
