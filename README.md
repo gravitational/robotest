@@ -28,7 +28,7 @@ Usage of ./e2e.test:
     	If set, default reporter print out all specs as they begin.
 ```
 
-The tool supports stateful mode of operation when there're bootstrapping (i.e. creating infrastructure) and cleanup phases (i.e. destroying the infrastructure) and as such can fit many more scenarios than would a monolithic design allow.
+The tool supports stateful mode of operation when there're bootstrapping (i.e. creating infrastructure) and cleanup phases (i.e. destroying the infrastructure) and as such can fit many more scenarios than a monolithic design would allow.
 
 ## Configuration
 
@@ -41,7 +41,7 @@ Here's an example configuration:
     "cluster_name": "test",
     "ops_url": "https://localhost:33009",
     "application": "gravitational.io/k8s-aws:0.0.0+latest",
-    "install_nodes": 2,
+    "install_nodes": 1,
     "login": {
         "username": "user",
         "password": "password",
@@ -56,7 +56,7 @@ Here's an example configuration:
         "secret key": "secret key",
         "region": "us-east-1",
         "key_pair": "test",
-        "vpc": "Create new"
+        "vpc": "Create new",
         "key_path": "/path/to/SSH/key"
     },
     "onprem": {
@@ -69,14 +69,14 @@ Here's an example configuration:
 
  * `report_dir` specifies the location of the log files which are always collected during teardown or, manually, with `-dumpcore` command
  * `cluster_name` specifies the name of the cluster (and domain) to create for tests
- * `ops_url` specifies the URL of an active Ops Center to run tests against (see note below on [Wizard mode](#Wizard-mode))
+ * `ops_url` specifies the URL of an active Ops Center to run tests against (see note below on [Wizard mode](#wizard-mode))
  * `application` specifies the name of the application package to run tests with
  * `login` block specifies user details for authenticating to Ops Center
  * `service_login` specifies details of a service user to use to programmatically access Ops Center from the command line. This can be a
   user specifically created for tests. The user will be used to connect to the Ops Center and query logs or export/import application packages
   as required by tests.
- * `aws` specifies a block of parameters for AWS-based test scenarios.
- * `onprem` specifies a block of parameters for bare metal tests.
+ * `aws` specifies a [block](#aws-configuration) of parameters for AWS-based test scenarios.
+ * `onprem` specifies a [block](#onprem-configuration) of parameters for bare metal tests.
 
 
 ### Ops Center login
@@ -94,10 +94,10 @@ The valid values are names of VPCs or a special value `Create new` to indicate t
 ### Onprem configuration
 
 The bare metal provisioners can work in two modes - creating an infrastructure and optionally executing an installer to
-run tests from an installer tarball. See below on details about the wizard mode.
+run tests from an installer tarball. See below on details about the [Wizard mode](#wizard-mode).
 
 The `installer_url` specifies either the URL of the installer tarball to download (as required by the `terraform` provisioner) or
-a path to a local tarball for `vagrant`. The `instalelr_url` is optional and is only required for [Wizard mode](#Wizard-mode).
+a path to a local tarball for `vagrant`. The `installer_url` is optional and is only required for [Wizard mode](#wizard-mode).
 
 The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
 Note the `install_nodes` paramater in the global configuration section - this optional parameter specifies how many nodes to
@@ -113,29 +113,49 @@ There're several provisioner scripts available in this repository - for both typ
 ```
 assets/
 ├── terraform
-│     ├── terraform.tf
-│     └── terraform_noinstaller.tf
+│     ├── [terraform.tf](assets/terraform/terraform.tf)
+│     └── [terraform_noinstaller.tf](assets/terraform/terraform_noinstaller.tf)
 └── vagrant
-      └── Vagrantfile
+      └── [Vagrantfile](assets/vagrant/Vagrantfile)
 ```
 
-`terraform_noinstaller.tf` is a variation w/o the installer bootstrap script.
+`terraform_noinstaller.tf` is a variation w/o downloading and unpacking an installer tarball.
 
 
 ### Creating infrastructure (terraform)
 
 To provision a terraform-based infrastructure, configure the `onprem` section of the configuration file and invoke the binary:
 
+```json
+{
+    "onprem": {
+        "script_path": "/home/robotest/assets/terraform/terraform.tf",
+        "installer_url": "/home/robotest/assets/installer/installer.tar.gz",
+        "nodes": 1
+    }
+}
+```
+
 ```shell
-$ ./e2e.test -provisioner terraform -config-file=config.json -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=terraform -config-file=config.json -ginkgo.focus=`Onprem Install`
 ```
 
 ### Creating infrastructure (vagrant)
 
 To provision a vagrant-based infrastructure, configure the `onprem` section of the configuration file and invoke the binary:
 
+```json
+{
+    "onprem": {
+        "script_path": "/home/robotest/assets/vagrant/Vagrantfile",
+        "installer_url": "/home/robotest/assets/installer/installer.tar.gz",
+        "nodes": 2
+    }
+}
+```
+
 ```shell
-$ ./e2e.test -provisioner vagrant -config-file=config.json -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=vagrant -config-file=config.json -ginkgo.focus=`Onprem Install`
 ```
 
 
@@ -146,7 +166,7 @@ If the tests are to be run against an installer tarball of a particular applicat
 
 
 ```shell
-$ ./e2e.test -provisioner vagrant -config-file=config.json -wizard -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=vagrant -config-file=config.json -wizard -ginkgo.focus=`Onprem Install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
@@ -178,7 +198,7 @@ $ ./e2e.test -ginkgo.focus='AWS Install' ...
 to setup the cluster for further tests.
 
 `ginkgo.focus` specifies a regular expression to use as an anchor to search for specs to execute. Its counterpart is `ginkgo.skip` which specifies
-the specs to skip. Without this option, the default behavior is to execuet _all_ available test specs in _arbitrary_ order (although by default [ginkgo] permutes only the top-level contexts).
+the specs to skip. Without this option, the default behavior is to execute **all** available test specs in **arbitrary** order (although by default [ginkgo] permutes only the top-level contexts).
 
 ### Running in-between tests
 
