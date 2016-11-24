@@ -113,10 +113,10 @@ There're several provisioner scripts available in this repository - for both typ
 ```
 assets/
 ├── terraform
-│     ├── [terraform.tf](assets/terraform/terraform.tf)
-│     └── [terraform_noinstaller.tf](assets/terraform/terraform_noinstaller.tf)
+│     ├── terraform.tf
+│     └── terraform_noinstaller.tf
 └── vagrant
-      └── [Vagrantfile](assets/vagrant/Vagrantfile)
+      └── Vagrantfile
 ```
 
 `terraform_noinstaller.tf` is a variation w/o downloading and unpacking an installer tarball.
