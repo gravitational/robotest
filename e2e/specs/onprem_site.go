@@ -64,7 +64,7 @@ func VerifyOnpremSite(f *framework.T) {
 			siteProvisioner.DeleteOnPremServer(newItem)
 			Expect(cluster.Provisioner().NodePool().Free(nodes)).ShouldNot(
 				HaveOccurred(),
-				"should dealocate the node after it has been removed")
+				"should deallocate the node after it has been removed")
 		})
 	})
 

@@ -74,8 +74,7 @@ func Distribute(command string, nodes ...infra.Node) {
 	Expect(Cluster).NotTo(BeNil(), "requires a cluster")
 	Expect(Cluster.Provisioner()).NotTo(BeNil(), "requires a provisioner")
 	if len(nodes) == 0 {
-		nodes = Cluster.Provisioner().NodePool().AllocedNodes()
-		log.Infof("allocated nodes: %#v", nodes)
+		nodes = Cluster.Provisioner().NodePool().AllocatedNodes()
 	}
 	Expect(infra.Distribute(command, nodes...)).To(Succeed())
 }

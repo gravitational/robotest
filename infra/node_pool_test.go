@@ -21,8 +21,8 @@ func TestCreatesPool(t *testing.T) {
 	if pool.Size() != len(nodes) {
 		t.Errorf("expected %v nodes but got %v", len(nodes), pool.Size())
 	}
-	if pool.SizeAlloced() != len(allocated) {
-		t.Errorf("expected %v nodes but got %v", len(allocated), pool.SizeAlloced())
+	if pool.SizeAllocated() != len(allocated) {
+		t.Errorf("expected %v nodes but got %v", len(allocated), pool.SizeAllocated())
 	}
 }
 
@@ -45,8 +45,8 @@ func TestAllocatesAndFrees(t *testing.T) {
 	if !reflect.DeepEqual(allocatedNodes[0], nodes[2]) {
 		t.Errorf("unexpected allocation: want %v, got %v", nodes[1], allocatedNodes[0])
 	}
-	if pool.SizeAlloced() != len(allocated)+1 {
-		t.Errorf("expected %v total allocated nodes but got %v", len(allocated)+1, pool.SizeAlloced())
+	if pool.SizeAllocated() != len(allocated)+1 {
+		t.Errorf("expected %v total allocated nodes but got %v", len(allocated)+1, pool.SizeAllocated())
 	}
 	if len(allocatedNodes) != 1 {
 		t.Errorf("expected 1 allocated node but got %v", len(allocatedNodes))
@@ -59,8 +59,8 @@ func TestAllocatesAndFrees(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to free: %v", err)
 	}
-	if pool.SizeAlloced() != len(allocated) {
-		t.Errorf("expected %v total allocated nodes but got %v", len(allocated), pool.SizeAlloced())
+	if pool.SizeAllocated() != len(allocated) {
+		t.Errorf("expected %v total allocated nodes but got %v", len(allocated), pool.SizeAllocated())
 	}
 }
 
@@ -98,8 +98,8 @@ func TestDoesnotFreeNonExisting(t *testing.T) {
 	if err == nil {
 		t.Error("expected an error")
 	}
-	if pool.SizeAlloced() != len(allocated) {
-		t.Errorf("expected %v allocated nodes but got %v", len(allocated), pool.SizeAlloced())
+	if pool.SizeAllocated() != len(allocated) {
+		t.Errorf("expected %v allocated nodes but got %v", len(allocated), pool.SizeAllocated())
 	}
 }
 

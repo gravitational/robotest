@@ -133,8 +133,8 @@ func (r *vagrant) State() infra.ProvisionerState {
 	for _, n := range r.pool.Nodes() {
 		nodes = append(nodes, infra.StateNode{Addr: n.(*node).addrIP, KeyPath: n.(*node).identityFile})
 	}
-	allocated := make([]string, 0, r.pool.SizeAlloced())
-	for _, node := range r.pool.AllocedNodes() {
+	allocated := make([]string, 0, r.pool.SizeAllocated())
+	for _, node := range r.pool.AllocatedNodes() {
 		allocated = append(allocated, node.Addr())
 	}
 	return infra.ProvisionerState{

@@ -22,10 +22,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// UpdateApplication implements site update test by download the application tarball
+// increasing the version and importing the same tarball with a new version.
+//
+// It downloads the update from one of the remote nodes before returning to ensure
+// that the application update is available
 func UpdateApplication() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
 
-	nodes := Cluster.Provisioner().NodePool().AllocedNodes()
+	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
 	if len(nodes) == 0 {
 		Failf("expected active nodes in cluster, got none")
 	}
@@ -56,6 +61,8 @@ func UpdateApplication() {
 	Distribute("gravity update", nodes[0])
 }
 
+// ConnectToOpsCenter connects to the Ops Center specified with opsCenterURL using
+// specified login
 func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
 	cmd := exec.Command("gravity", "--insecure", stateDir, "ops", "connect", opsCenterURL,
@@ -63,6 +70,8 @@ func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {
 	return trace.Wrap(system.Exec(cmd, io.MultiWriter(os.Stderr, ginkgo.GinkgoWriter)))
 }
 
+// getResourceVersion retrieves the version of the test application
+// from the specified tarball
 func getResourceVersion(tarball string) (string, error) {
 	f, err := os.Open(tarball)
 	if err != nil {
@@ -103,6 +112,8 @@ func getResourceVersion(tarball string) (string, error) {
 	return resourceVersion, trace.Wrap(err)
 }
 
+// bump increments the version specified in v by adding 1 to
+// the last segment's value
 func bump(v semver.Version) string {
 	segments := v.Segments()
 	if len(segments) == 0 {

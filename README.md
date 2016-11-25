@@ -7,18 +7,18 @@ It is implemented as a testing package that is built as a binary with custom com
 $ ./e2e.test -h
 Usage of ./e2e.test:
   ...
-  -config-file string
-    	Configuration file to use (default "config.json")
+  -config string
+    	Configuration file to use (default "config.yaml")
   -debug
     	Verbose mode
   -destroy
     	Destroy infrastructure after all tests
-  -dumpcore
+  -report
     	Collect installation and operation logs into the report directory
   -provisioner string
     	Provision nodes using this provisioner
-  -wizard
-    	Run tests in wizard mode
+  -mode wizard
+    	Run tests in specified mode. Supported modes are [wizard]
   ...
   -ginkgo.focus string
     	If set, ginkgo will only run specs that match this regular expression.
@@ -30,44 +30,47 @@ Usage of ./e2e.test:
 
 The tool supports stateful mode of operation when there're bootstrapping (i.e. creating infrastructure) and cleanup phases (i.e. destroying the infrastructure) and as such can fit many more scenarios than a monolithic design would allow.
 
-## Configuration
+## Building
 
-Configuration is stored in a JSON file that can be specified with `-config-file` on the command line. It defaults to `config.json`.
-Here's an example configuration:
+To build, invoke from the repository directory:
 
-```json
-{
-    "report_dir": "/tmp/robotest-reports",
-    "cluster_name": "test",
-    "ops_url": "https://localhost:33009",
-    "application": "gravitational.io/k8s-aws:0.0.0+latest",
-    "install_nodes": 1,
-    "login": {
-        "username": "user",
-        "password": "password",
-        "auth_provider": "google"
-    },
-    "service_login": {
-        "username": "robotest@example.com",
-        "password": "robotest!"
-    },
-    "aws": {
-        "access_key": "access key",
-        "secret key": "secret key",
-        "region": "us-east-1",
-        "key_pair": "test",
-        "vpc": "Create new",
-        "key_path": "/path/to/SSH/key"
-    },
-    "onprem": {
-        "script_path": "/home/robotest/assets/vagrant/Vagrantfile",
-        "installer_url": "/home/robotest/assets/installer/installer.tar.gz",
-        "nodes": 2
-    }
-}
+```
+go test -i -c ./e2e
 ```
 
- * `report_dir` specifies the location of the log files which are always collected during teardown or, manually, with `-dumpcore` command
+## Configuration
+
+Configuration is stored in a YAML file that can be specified with `-config` on the command line. It defaults to `config.yaml`.
+Here's an example configuration:
+
+```yaml
+report_dir: /tmp/robotest-reports
+cluster_name: test
+ops_url: https://localhost:33009
+application: gravitational.io/k8s-aws:0.0.0+latest
+license: "application license"
+flavor_label: "2 nodes"
+login:
+    username: user
+    password: password
+    auth_provider: google
+service_login:
+    username: robotest@example.com
+    password: robotest!
+aws:
+    access_key: "access key"
+    secret key: "secret key"
+    region: us-east-1
+    key_pair: test
+    vpc: "Create new"
+    key_path: /path/to/SSH/key
+onprem:
+    script_path: /home/robotest/assets/vagrant/Vagrantfile
+    installer_url: /home/robotest/assets/installer/installer.tar.gz
+    nodes: 2
+```
+
+ * `report_dir` specifies the location of the log files which are always collected during teardown or, manually, with `-report` command
  * `cluster_name` specifies the name of the cluster (and domain) to create for tests
  * `ops_url` specifies the URL of an active Ops Center to run tests against (see note below on [Wizard mode](#wizard-mode))
  * `application` specifies the name of the application package to run tests with
@@ -100,8 +103,8 @@ The `installer_url` specifies either the URL of the installer tarball to downloa
 a path to a local tarball for `vagrant`. The `installer_url` is optional and is only required for [Wizard mode](#wizard-mode).
 
 The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
-Note the `install_nodes` paramater in the global configuration section - this optional parameter specifies how many nodes to
-use for the initial installation and must be <= `nodes`. If not specified, it defaults to `nodes`.
+Note the `flavor_label` paramater in the global configuration section - this parameter specifies the actual
+installation flavor which determines the number of nodes used for installation. The selected flavor should not exceed the number of `nodes`.
 
 ## Creating infrastructure (bare metal tests)
 
@@ -126,36 +129,30 @@ assets/
 
 To provision a terraform-based infrastructure, configure the `onprem` section of the configuration file and invoke the binary:
 
-```json
-{
-    "onprem": {
-        "script_path": "/home/robotest/assets/terraform/terraform.tf",
-        "installer_url": "/home/robotest/assets/installer/installer.tar.gz",
-        "nodes": 1
-    }
-}
+```yaml
+onprem:
+    script_path: /home/robotest/assets/terraform/terraform.tf
+    installer_url: s3://infra.example.com/installers/v0.0.1/installer.tar.gz
+    nodes: 1
 ```
 
 ```shell
-$ ./e2e.test -provisioner=terraform -config-file=config.json -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=terraform -config=config.yaml -ginkgo.focus=`Onprem Install`
 ```
 
 ### Creating infrastructure (vagrant)
 
 To provision a vagrant-based infrastructure, configure the `onprem` section of the configuration file and invoke the binary:
 
-```json
-{
-    "onprem": {
-        "script_path": "/home/robotest/assets/vagrant/Vagrantfile",
-        "installer_url": "/home/robotest/assets/installer/installer.tar.gz",
-        "nodes": 2
-    }
-}
+```yaml
+onprem:
+    script_path: /home/robotest/assets/vagrant/Vagrantfile
+    installer_url: /home/robotest/assets/installer/installer.tar.gz
+    nodes: 2
 ```
 
 ```shell
-$ ./e2e.test -provisioner=vagrant -config-file=config.json -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Install`
 ```
 
 
@@ -166,7 +163,7 @@ If the tests are to be run against an installer tarball of a particular applicat
 
 
 ```shell
-$ ./e2e.test -provisioner=vagrant -config-file=config.json -wizard -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=vagrant -config=config.yaml-wizard -ginkgo.focus=`Onprem Install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
@@ -175,7 +172,7 @@ any tests are run.
 
 ## Integration Tests
 
-The package uses [ginkgo] as a test runner. The tests are split into [specs] (independent pieces that can be tests individually and in arbitrary order).
+The package uses [ginkgo] as a test runner. The tests are split into [specs] (independent pieces that can be tested individually and in arbitrary order).
 We differentiate the tests in two directions: AWS and bare metal.
 
 Here're the relevant top-level test specs:
@@ -203,7 +200,7 @@ the specs to skip. Without this option, the default behavior is to execute **all
 ### Running in-between tests
 
 After the infrstructure has been prepared and the application installed, one can run a further set of tests that require an infrstructure and
-the application:
+an application:
 
 ```
 $ ./e2e.test -gingko.focus='Site Update'

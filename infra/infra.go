@@ -100,15 +100,15 @@ type Provisioner interface {
 type NodePool interface {
 	// Nodes returns all nodes in this pool
 	Nodes() []Node
-	// AllocedNodes returns only allocated nodes in this pool
-	AllocedNodes() []Node
+	// AllocatedNodes returns only allocated nodes in this pool
+	AllocatedNodes() []Node
 	// Node looks up a node given with addr.
 	// Returns error if no node matches the specified addr
 	Node(addr string) (Node, error)
 	// Size returns the number of nodes in this pool
 	Size() int
-	// SizeAlloced returns the number of allocated nodes in this pool
-	SizeAlloced() int
+	// SizeAllocated returns the number of allocated nodes in this pool
+	SizeAllocated() int
 	// Allocate allocates amount new nodes from the pool and returns
 	// a slice of allocated nodes
 	Allocate(amount int) ([]Node, error)
