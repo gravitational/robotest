@@ -5,12 +5,15 @@ import (
 	"github.com/gravitational/trace"
 )
 
+// TestState represents the state of the test between boostrapping a cluster
+// and teardown.
+// The state is updated on each in-between test run to sync the provisioner state.
 type TestState struct {
 	// OpsCenterURL defines the Ops Center address this infrastructure is
 	// communicating with.
 	// In case of the wizard mode, this is the actual Ops Center created by the wizard
 	// which was not available upfront.
-	// This can be different from the Ops Center configired in TestContext which always
+	// This can be different from the Ops Center configured in TestContext which always
 	// refers to the originating Ops Center
 	OpsCenterURL string `json:"ops_url"`
 	// Provisioner defines the provisioner used to create the infrastructure.
@@ -18,8 +21,7 @@ type TestState struct {
 	Provisioner provisionerType `json:"provisioner,omitempty"`
 	// Onprem defines the provisioner state.
 	// The provisioner used is specified by Provisioner.
-	// Only a single state is active at any time. With automatic provisioner,
-	// no provisioner state is stored
+	// With automatic provisioner, no provisioner state is stored
 	ProvisionerState *infra.ProvisionerState `json:"provisioner_state,omitempty"`
 	// StateDir specifies the location of temporary state used for a single test run
 	// (from bootstrapping to destroy)

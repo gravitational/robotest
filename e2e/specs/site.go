@@ -11,7 +11,7 @@ import (
 
 func VerifySiteUpdate(f *framework.T) {
 
-	Describe("Site Update", func() {
+	framework.RoboDescribe("Site Update", func() {
 		ctx := framework.TestContext
 		var domainName string
 		var siteURL string

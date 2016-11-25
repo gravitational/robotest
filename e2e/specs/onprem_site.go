@@ -37,10 +37,10 @@ func VerifyOnpremSite(f *framework.T) {
 
 			By("executing a command on server")
 			agentCommand := siteProvisioner.InitOnPremOperation()
-			node, err := cluster.Provisioner().Allocate()
+			nodes, err := cluster.Provisioner().NodePool().Allocate(1)
 			Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
 
-			framework.RunAgentCommand(agentCommand, node)
+			framework.RunAgentCommand(agentCommand, nodes[0])
 
 			By("waiting for agent server")
 			Eventually(siteProvisioner.GetAgentServers, constants.AgentServerTimeout).Should(
@@ -62,7 +62,7 @@ func VerifyOnpremSite(f *framework.T) {
 
 			By("deleting a server")
 			siteProvisioner.DeleteOnPremServer(newItem)
-			Expect(cluster.Provisioner().Deallocate(node)).ShouldNot(
+			Expect(cluster.Provisioner().NodePool().Free(nodes)).ShouldNot(
 				HaveOccurred(),
 				"should dealocate the node after it has been removed")
 		})

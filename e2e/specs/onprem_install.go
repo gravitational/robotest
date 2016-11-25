@@ -9,6 +9,7 @@ import (
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -34,7 +35,13 @@ func VerifyOnpremInstall(f *framework.T) {
 			Expect(installer.IsRequirementsReviewStep()).To(BeTrue())
 
 			By("selecting a flavor")
-			installer.SelectFlavor(ctx.NumInstallNodes)
+			numInstallNodes := installer.SelectFlavorByLabel(ctx.FlavorLabel)
+
+			provisioner := framework.Cluster.Provisioner()
+			Expect(provisioner).NotTo(BeNil())
+			log.Infof("allocating %v nodes", numInstallNodes)
+			_, err := provisioner.NodePool().Allocate(numInstallNodes)
+			Expect(err).NotTo(HaveOccurred())
 
 			By("veryfing requirements")
 			profiles := installermodel.FindOnPremProfiles(f.Page)
@@ -45,10 +52,9 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			By("waiting for agent report with the servers")
 			Eventually(profiles[0].GetAgentServers, constants.AgentServerTimeout).Should(
-				HaveLen(ctx.NumInstallNodes))
+				HaveLen(numInstallNodes))
 
 			By("configuring the servers with IPs")
-			provisioner := framework.Cluster.Provisioner()
 			agentServers := profiles[0].GetAgentServers()
 
 			for _, s := range agentServers {

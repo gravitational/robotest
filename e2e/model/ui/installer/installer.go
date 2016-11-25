@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gravitational/robotest/e2e/framework"
@@ -36,7 +37,7 @@ func Open(page *web.Page, URL string) *Installer {
 	return &Installer{page: page}
 }
 
-func (i *Installer) CreateAwsSite(domainName string, config framework.AWSConfig) string {
+func (i *Installer) CreateAWSSite(domainName string, config framework.AWSConfig) string {
 	By("setting domain name")
 	page := i.page
 	specifyDomainName(page, domainName)
@@ -112,11 +113,56 @@ func (i *Installer) IsInstallCompleted() bool {
 	return count != 0
 }
 
-func (i *Installer) SelectFlavor(index int) {
+func (i *Installer) SelectFlavorByIndex(index int) {
 	cssSelector := fmt.Sprintf(".grv-slider-value-desc:nth-child(%v) span", index)
 	elem := i.page.First(cssSelector)
 	Expect(elem).To(BeFound())
 	Expect(elem.Click()).To(Succeed())
+}
+
+func (i *Installer) SelectFlavorByLabel(label string) int {
+	labels := i.page.All(".grv-slider-value-desc span")
+	Expect(labels).To(BeFound())
+
+	elems, err := labels.Elements()
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, elem := range elems {
+		text, err := elem.GetText()
+		Expect(err).NotTo(HaveOccurred())
+		if text == label {
+			Expect(elem.Click()).To(Succeed())
+			return getServerCountFromSelectedProfile(i.page)
+		}
+	}
+	framework.Failf("no flavor matches the specified label %q", label)
+	return 0 // unreachable
+}
+
+func getServerCountFromSelectedProfile(page *web.Page) int {
+	const script = `
+            var getter = [ ["installer_provision", "profilesToProvision"], profiles => {
+                return profiles.map(profile => {                
+                    return {
+                        Nodes: profile.get("count"), 
+                    }
+                }).toJS();
+            }];
+
+            var data = window.reactor.evaluate(getter)
+            return JSON.stringify(data);
+        `
+	var profiles map[string]serverProfile
+	var profileBytes string
+
+	Expect(page.RunScript(script, nil, &profileBytes)).To(Succeed())
+	Expect(json.Unmarshal([]byte(profileBytes), &profiles)).To(Succeed())
+
+	var count int
+	for _, profile := range profiles {
+		count = count + profile.Nodes
+	}
+	return count
 }
 
 func specifyDomainName(page *web.Page, domainName string) {
@@ -128,4 +174,9 @@ func specifyDomainName(page *web.Page, domainName string) {
 func (i *Installer) proceedToReqs() {
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(i.page.FindByClass("grv-installer-provision-reqs"), constants.FindTimeout).Should(BeFound())
+}
+
+type serverProfile struct {
+	// Nodes specifies the number of nodes to provision
+	Nodes int
 }

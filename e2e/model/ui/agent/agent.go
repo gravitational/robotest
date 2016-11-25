@@ -22,7 +22,7 @@ func CreateAgentServer(page *web.Page, index int) AgentServer {
 	Expect(elem).To(BeFound())
 
 	hostname, _ := elem.Find(".grv-provision-req-server-hostname span").Text()
-	Expect(hostname).NotTo(BeEmpty())
+	Expect(hostname).NotTo(BeEmpty(), "should have a hostname")
 
 	return AgentServer{page: page, Hostname: hostname, index: index}
 }
@@ -35,11 +35,11 @@ func (a *AgentServer) SetIP(value string) {
 
 func (a *AgentServer) GetIPs() []string {
 	const scriptTemplate = `
-		var result = [];
-		var cssSelector = "%v .grv-provision-req-server-interface li a";
-		var children = document.querySelectorAll(cssSelector);
-		children.forEach( z => result.push(z.text) );
-		return result; `
+            var result = [];
+            var cssSelector = "%v .grv-provision-req-server-interface li a";
+            var children = document.querySelectorAll(cssSelector);
+            children.forEach( z => result.push(z.text) );
+            return result; `
 	var result []string
 
 	script := fmt.Sprintf(scriptTemplate, getServerCssSelector(a.index))
@@ -54,7 +54,7 @@ func (a *AgentServer) SetIPByInfra(provisioner infra.Provisioner) {
 	}
 	var node infra.Node
 	for _, ip := range ips {
-		node, _ = provisioner.Node(ip)
+		node, _ = provisioner.NodePool().Node(ip)
 		if node != nil {
 			break
 		}

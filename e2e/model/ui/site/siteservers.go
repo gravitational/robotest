@@ -29,20 +29,20 @@ type SiteServer struct {
 
 func (p *SiteServerPage) GetSiteServers() []SiteServer {
 	const script = `
-        var getter = [ ["site_servers"], serverList => {
-            return serverList.map(srvMap => {                
-                return {
-                    PublicIP: srvMap.get("public_ipv4"), 
-                    AdvertiseIP: srvMap.get("advertise_ip"),
-                    Hostname: srvMap.get("hostname"),                
-                    Profile: srvMap.get("role")
-                }
-            }).toJS();
-        }];
+            var getter = [ ["site_servers"], serverList => {
+                return serverList.map(srvMap => {                
+                    return {
+                        PublicIP: srvMap.get("public_ipv4"), 
+                        AdvertiseIP: srvMap.get("advertise_ip"),
+                        Hostname: srvMap.get("hostname"),
+                        Profile: srvMap.get("role")
+                    }
+                }).toJS();
+            }];
 
-        var data = window.reactor.evaluate(getter)
-        return JSON.stringify(data);
-	`
+            var data = window.reactor.evaluate(getter)
+            return JSON.stringify(data);
+        `
 	var items []SiteServer
 	var result string
 
@@ -56,7 +56,8 @@ func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
 	s := p.page.All(".grv-provision-req-server")
 
-	elements, _ := s.Elements()
+	elements, err := s.Elements()
+	Expect(err).NotTo(HaveOccurred())
 
 	for index, _ := range elements {
 		agentServers = append(agentServers, agent.CreateAgentServer(p.page, index))
@@ -133,8 +134,7 @@ func (p *SiteServerPage) InitOnPremOperation() string {
 	return command
 }
 
-func (p *SiteServerPage) AddAwsServer(
-	awsConfig framework.AWSConfig, profileLable string, instanceType string) *SiteServer {
+func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig, profileLabel string) *SiteServer {
 	page := p.page
 
 	currentServerItems := p.GetSiteServers()
@@ -145,7 +145,7 @@ func (p *SiteServerPage) AddAwsServer(
 
 	utils.PauseForComponentJs()
 
-	utils.FillOutAwsKeys(page, awsConfig.AccessKey, awsConfig.SecretKey)
+	utils.FillOutAWSKeys(page, config.AccessKey, config.SecretKey)
 
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
 		Succeed(),
@@ -155,8 +155,8 @@ func (p *SiteServerPage) AddAwsServer(
 		BeFound(),
 		"should display profile and instance type")
 
-	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-profile", profileLable)
-	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-instance-type", instanceType)
+	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-profile", profileLabel)
+	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-instance-type", config.InstanceType)
 
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
@@ -176,17 +176,16 @@ func (p *SiteServerPage) AddAwsServer(
 
 			newItem = &updatedItems[i]
 		}
-
 	}
 
 	Expect(newItem).ToNot(
 		BeNil(),
-		"Should find a new server in the server list")
+		"should find a new server in the server list")
 
 	return newItem
 }
 
-func (p *SiteServerPage) DeleteAwsServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
+func (p *SiteServerPage) DeleteAWSServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
 	p.deleteServer(itemToDelete, &awsConfig)
 }
 
@@ -199,7 +198,7 @@ func (p *SiteServerPage) deleteServer(itemToDelete *SiteServer, awsConfig *frame
 	p.clickDeleteServer(itemToDelete.Hostname)
 
 	if awsConfig != nil {
-		utils.FillOutAwsKeys(p.page, awsConfig.AccessKey, awsConfig.SecretKey)
+		utils.FillOutAWSKeys(p.page, awsConfig.AccessKey, awsConfig.SecretKey)
 	}
 
 	Expect(p.page.Find(".modal-dialog .btn-danger").Click()).To(
@@ -229,20 +228,19 @@ func (p *SiteServerPage) expectProgressIndicator() {
 }
 
 func (p *SiteServerPage) clickDeleteServer(hostname string) {
+	const scriptTemplate = `
+            var targetIndex = -1;
+            var rows = document.querySelectorAll(".grv-site-servers .grv-table tr");
+            rows.forEach( (z, index) => {
+                if( z.innerText.indexOf("%v") !== -1) targetIndex = index; 
+            })
+            
+            return targetIndex;
+        `
 	var result int
 	page := p.page
 
-	js := ` 			
-		var targetIndex = -1;
-		var rows = document.querySelectorAll(".grv-site-servers .grv-table tr");
-		rows.forEach( (z, index) => {
-			if( z.innerText.indexOf("%v") !== -1) targetIndex = index; 
-		})
-		
-		return targetIndex;					
-	`
-
-	js = fmt.Sprintf(js, hostname)
+	js := fmt.Sprintf(scriptTemplate, hostname)
 
 	page.RunScript(js, nil, &result)
 	btnPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)

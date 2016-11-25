@@ -10,37 +10,37 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
-type AwsProfile struct {
+type AWSProfile struct {
 	Label string
 	Count string
 	index int
 	page  *web.Page
 }
 
-func FindAwsProfiles(page *web.Page) []AwsProfile {
-	var profiles []AwsProfile
+func FindAWSProfiles(page *web.Page) []AWSProfile {
+	var profiles []AWSProfile
 
 	reqs := page.All(".grv-installer-provision-reqs-item")
 	elements, err := reqs.Elements()
 	Expect(err).NotTo(HaveOccurred())
 
 	for i := range elements {
-		profiles = append(profiles, createAwsProfile(page, i))
+		profiles = append(profiles, createAWSProfile(page, i))
 	}
 
 	return profiles
 }
 
-func (p *AwsProfile) SetInstanceType(instanceType string) {
+func (p *AWSProfile) SetInstanceType(instanceType string) {
 	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(p.index))
 	ui.SetDropdownValue(p.page, cssSelector, instanceType)
 }
 
-func getAwsProfileCssSelector(index int) string {
+func getAWSProfileCssSelector(index int) string {
 	return fmt.Sprintf(".grv-installer-provision-reqs-item:nth-child(%v)", index+1)
 }
 
-func createAwsProfile(page *web.Page, index int) AwsProfile {
+func createAWSProfile(page *web.Page, index int) AWSProfile {
 	cssSelector := fmt.Sprintf("%v .grv-installer-provision-node-count h2", getProfileCssSelector(index))
 
 	child := page.Find(cssSelector)
@@ -55,7 +55,7 @@ func createAwsProfile(page *web.Page, index int) AwsProfile {
 
 	Expect(nodeLabel).NotTo(BeEmpty())
 
-	return AwsProfile{
+	return AWSProfile{
 		page:  page,
 		Count: nodeCount,
 		Label: nodeLabel,

@@ -52,7 +52,7 @@ func (b *Bandwagon) SubmitForm() {
 
 	Expect(page.FindByClass("my-page-btn-submit").Click()).To(
 		Succeed(),
-		"should click submit btn")
+		"should click submit button")
 
 	Eventually(page.FindByClass("my-page-section-endpoints"), constants.FindTimeout).Should(
 		BeFound(),
@@ -61,11 +61,11 @@ func (b *Bandwagon) SubmitForm() {
 
 func (b *Bandwagon) GetEndpoints() []string {
 	const scriptTemplate = `
-		var result = [];
-		var cssSelector = ".my-page-section-endpoints-item a";
-		var children = document.querySelectorAll(cssSelector);
-		children.forEach( z => result.push(z.text) );
-		return result; `
+            var result = [];
+            var cssSelector = ".my-page-section-endpoints-item a";
+            var children = document.querySelectorAll(cssSelector);
+            children.forEach( z => result.push(z.text) );
+            return result; `
 	var result []string
 
 	b.page.RunScript(scriptTemplate, nil, &result)

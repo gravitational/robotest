@@ -50,21 +50,21 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 	const expectDescriptionText = "should retrieve the current version"
 	const script = `
-        var str = document.querySelector(".grv-site-app-label-version:first-child");
-	var text = "";
-	if (str) {
-		text = str.innerText;
-	}
-        var parts = text.split(" ");
-	var version = "";
-	if (parts.length > 1) {
-		version = parts[1];
-	}
-        return JSON.stringify({
-            Index: 0,
-            Version: version.trim()
-        })
-    `
+            var str = document.querySelector(".grv-site-app-label-version:first-child");
+            var text = "";
+            if (str) {
+                text = str.innerText;
+            }
+            var parts = text.split(" ");
+            var version = "";
+            if (parts.length > 1) {
+                version = parts[1];
+            }
+            return JSON.stringify({
+                Index: 0,
+                Version: version.trim()
+            })
+        `
 	var version AppVersion
 	var jsOutput string
 
@@ -77,19 +77,19 @@ func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 func (a *SiteAppPage) GetNewVersions() []AppVersion {
 	const expectDescriptionText = "should retrieve new versions"
 	const script = `    
-        var data = [];        
-        var items = document.querySelectorAll(".grv-site-app-new-ver .grv-site-app-label-version");
-		items.forEach( (i, index) => {
-            var text = i.innerText;
-            var ver = text.split(" ")[1];
-            data.push({
-                Index: index, 
-                Version: ver.trim()
-            } )			 
-		})
-            
-        return JSON.stringify(data);
-    `
+            var data = [];        
+            var items = document.querySelectorAll(".grv-site-app-new-ver .grv-site-app-label-version");
+            items.forEach( (i, index) => {
+                var text = i.innerText;
+                var ver = text.split(" ")[1];
+                data.push({
+                    Index: index, 
+                    Version: ver.trim()
+                } )
+            })
+                
+            return JSON.stringify(data);
+        `
 	var versions []AppVersion
 	var jsOutput string
 

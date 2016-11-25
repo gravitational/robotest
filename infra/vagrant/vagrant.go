@@ -42,16 +42,13 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 		}),
 		stateDir:    stateConfig.Dir,
 		installerIP: stateConfig.InstallerAddr,
-		nodes:       make(map[string]node),
-		active:      make(map[string]struct{}),
 		Config:      config,
 	}
+	nodes := make([]infra.Node, 0, len(stateConfig.Nodes))
 	for _, n := range stateConfig.Nodes {
-		v.nodes[n.Addr] = node{addrIP: n.Addr, identityFile: n.KeyPath}
+		nodes = append(nodes, &node{addrIP: n.Addr, identityFile: n.KeyPath})
 	}
-	for _, addr := range stateConfig.Allocated {
-		v.active[addr] = struct{}{}
-	}
+	v.pool = infra.NewNodePool(nodes, stateConfig.Allocated)
 	return v, nil
 }
 
@@ -67,32 +64,29 @@ func (r *vagrant) Create() (installer infra.Node, err error) {
 		return nil, trace.Wrap(err)
 	}
 
-	err = r.discoverNodes()
+	nodes, err := r.discoverNodes()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	if len(r.nodes) == 0 {
+	if len(nodes) == 0 {
 		return nil, trace.NotFound("failed to discover any nodes")
 	}
-	if r.Config.NumNodes > len(r.nodes) {
-		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.NumNodes, len(r.nodes))
+	if r.Config.NumNodes > len(nodes) {
+		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.NumNodes, len(nodes))
 	}
 
-	publicIPs := make([]string, 0, len(r.nodes))
-	for _, node := range r.nodes {
-		publicIPs = append(publicIPs, node.addrIP)
-	}
-	r.active = make(map[string]struct{})
-	for _, addr := range publicIPs[:r.NumInstallNodes] {
-		r.active[addr] = struct{}{}
-	}
-	r.installerIP = publicIPs[0]
+	// Use first node as installer
+	r.installerIP = nodes[0].Addr()
+	r.pool = infra.NewNodePool(nodes, nil)
 
-	r.Debugf("cluster: %#v", r.nodes)
-	r.Debugf("install subset: %#v", r.active)
+	r.Debugf("cluster: %#v", r.pool)
 
-	node := r.nodes[r.installerIP]
-	return &node, nil
+	node, err := r.pool.Node(r.installerIP)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return node, nil
 }
 
 func (r *vagrant) Destroy() error {
@@ -115,9 +109,9 @@ func (r *vagrant) SelectInterface(installer infra.Node, addrs []string) (int, er
 
 // Connect establishes an SSH connection to the specified address
 func (r *vagrant) Connect(addrIP string) (*ssh.Session, error) {
-	node, ok := r.nodes[addrIP]
-	if !ok {
-		return nil, trace.NotFound("no node with IP %q", addrIP)
+	node, err := r.pool.Node(addrIP)
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
 	return node.Connect()
 }
@@ -126,48 +120,8 @@ func (r *vagrant) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
-func (r *vagrant) AllNodes() (nodes []infra.Node) {
-	nodes = make([]infra.Node, 0, len(r.nodes))
-	for addr := range r.nodes {
-		node := r.nodes[addr]
-		nodes = append(nodes, &node)
-	}
-	return nodes
-}
-
-func (r *vagrant) Nodes() (nodes []infra.Node) {
-	nodes = make([]infra.Node, 0, len(r.active))
-	for addr := range r.active {
-		node := r.nodes[addr]
-		nodes = append(nodes, &node)
-	}
-	return nodes
-}
-
-func (r *vagrant) NumNodes() int {
-	return len(r.active)
-}
-
-func (r *vagrant) Node(addr string) (infra.Node, error) {
-	if node, exists := r.nodes[addr]; exists {
-		return &node, nil
-	}
-	return nil, trace.NotFound("node %q not found", addr)
-}
-
-func (r *vagrant) Allocate() (infra.Node, error) {
-	for _, node := range r.nodes {
-		if _, active := r.active[node.addrIP]; !active {
-			r.active[node.addrIP] = struct{}{}
-			return &node, nil
-		}
-	}
-	return nil, trace.NotFound("cannot allocate node")
-}
-
-func (r *vagrant) Deallocate(n infra.Node) error {
-	delete(r.active, n.(*node).addrIP)
-	return nil
+func (r *vagrant) NodePool() infra.NodePool {
+	return r.pool
 }
 
 func (r *vagrant) InstallerLogPath() string {
@@ -175,13 +129,13 @@ func (r *vagrant) InstallerLogPath() string {
 }
 
 func (r *vagrant) State() infra.ProvisionerState {
-	nodes := make([]infra.StateNode, 0, len(r.nodes))
-	for _, node := range r.nodes {
-		nodes = append(nodes, infra.StateNode{Addr: node.addrIP, KeyPath: node.identityFile})
+	nodes := make([]infra.StateNode, 0, r.pool.Size())
+	for _, n := range r.pool.Nodes() {
+		nodes = append(nodes, infra.StateNode{Addr: n.(*node).addrIP, KeyPath: n.(*node).identityFile})
 	}
-	allocated := make([]string, 0, len(r.active))
-	for addr := range r.active {
-		allocated = append(allocated, addr)
+	allocated := make([]string, 0, r.pool.SizeAlloced())
+	for _, node := range r.pool.AllocedNodes() {
+		allocated = append(allocated, node.Addr())
 	}
 	return infra.ProvisionerState{
 		Dir:           r.stateDir,
@@ -219,23 +173,21 @@ func (r *vagrant) syncInstallerTarball() error {
 	return nil
 }
 
-func (r *vagrant) discoverNodes() error {
-	if len(r.nodes) > 0 {
-		return nil
+func (r *vagrant) discoverNodes() ([]infra.Node, error) {
+	if r.pool != nil {
+		return nil, nil
 	}
 	out, err := r.command(args("ssh-config"))
 	if err != nil {
-		return trace.Wrap(err, "failed to query SSH config: %s", out)
+		return nil, trace.Wrap(err, "failed to query SSH config: %s", out)
 	}
 
 	nodes, err := parseSSHConfig(out, r.getIPLibvirt)
 	if err != nil {
-		return trace.Wrap(err, "failed to parse SSH config")
+		return nil, trace.Wrap(err, "failed to parse SSH config")
 	}
 
-	r.nodes = nodes
-
-	return nil
+	return nodes, nil
 }
 
 func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
@@ -370,11 +322,10 @@ func setEnv(envs ...string) system.CommandOptionSetter {
 	}
 }
 
-func parseSSHConfig(config []byte, getIP func(string) (string, error)) (nodes map[string]node, err error) {
+func parseSSHConfig(config []byte, getIP func(string) (string, error)) (nodes []infra.Node, err error) {
 	s := bufio.NewScanner(bytes.NewReader(config))
 	var host string
 	// nodes maps node IP address to node
-	nodes = make(map[string]node)
 	for s.Scan() {
 		line := s.Text()
 		switch {
@@ -391,10 +342,7 @@ func parseSSHConfig(config []byte, getIP func(string) (string, error)) (nodes ma
 			if err != nil {
 				return nil, trace.Wrap(err, "failed to determine IP address of the host %q", host)
 			}
-			node := nodes[addrIP]
-			node.identityFile = identityFile
-			node.addrIP = addrIP
-			nodes[addrIP] = node
+			nodes = append(nodes, &node{addrIP: addrIP, identityFile: identityFile})
 		}
 	}
 	return nodes, nil
@@ -404,15 +352,12 @@ type vagrant struct {
 	*log.Entry
 	Config
 
+	pool        infra.NodePool
 	stateDir    string
 	installerIP string
 	// nodes maps node address to a node.
-	// nodes represents the total cluster capacity as defined
-	// by the Vagrantfile
+	// nodes represents the total cluster capacity as defined by the Vagrantfile
 	nodes map[string]node
-	// active defines the subset of nodes forming the current cluster
-	// which maybe less than the total capacity (len(nodes))
-	active map[string]struct{}
 }
 
 type node struct {

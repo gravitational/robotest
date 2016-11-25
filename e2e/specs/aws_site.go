@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func VerifyAwsSiteServers(f *framework.T) {
-	Describe("AWS Site Servers", func() {
+func VerifyAWSSiteServers(f *framework.T) {
+	framework.RoboDescribe("AWS Site Servers", func() {
 		ctx := framework.TestContext
 		var domainName string
 		var siteURL string
@@ -28,10 +28,10 @@ func VerifyAwsSiteServers(f *framework.T) {
 			siteProvisioner := site.GetSiteServerPage()
 
 			By("trying to add a new server")
-			newItem := siteProvisioner.AddAwsServer(ctx.AWS, awsProfileLabel, awsInstanceType)
+			newItem := siteProvisioner.AddAWSServer(ctx.AWS, ctx.FlavorLabel)
 
 			By("trying remove a server")
-			siteProvisioner.DeleteAwsServer(ctx.AWS, newItem)
+			siteProvisioner.DeleteAWSServer(ctx.AWS, newItem)
 		})
 	})
 }

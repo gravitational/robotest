@@ -21,8 +21,13 @@ import (
 	web "github.com/sclevine/agouti"
 )
 
+// driver is a test-global web driver instance
 var driver *web.WebDriver
 
+// New creates a new instance of the framework.
+// Creating a framework instance installs a set of BeforeEach/AfterEach to
+// emulate BeforeAll/AfterAll for controlled access to resources that should
+// only be created once per context
 func New() *T {
 	f := &T{}
 
@@ -32,10 +37,15 @@ func New() *T {
 	return f
 }
 
+// T defines a framework type.
+// Framework stores attributes common to a single context
 type T struct {
 	Page *web.Page
 }
 
+// BeforeEach emulates BeforeAll for a context.
+// It creates a new web page that is only initialized once per series of It
+// grouped in any given context
 func (r *T) BeforeEach() {
 	if r.Page == nil {
 		var err error
@@ -47,21 +57,25 @@ func (r *T) BeforeEach() {
 func (r *T) AfterEach() {
 }
 
+// CreateDriver creates a new instance of the web driver
 func CreateDriver() {
 	driver = web.ChromeDriver()
 	Expect(driver).NotTo(BeNil())
 	Expect(driver.Start()).To(Succeed())
 }
 
+// CloseDriver stops and closes the test-global web driver
 func CloseDriver() {
 	Expect(driver.Stop()).To(Succeed())
 }
 
+// Distribute executes the specified command on nodes
 func Distribute(command string, nodes ...infra.Node) {
 	Expect(Cluster).NotTo(BeNil(), "requires a cluster")
 	Expect(Cluster.Provisioner()).NotTo(BeNil(), "requires a provisioner")
 	if len(nodes) == 0 {
-		nodes = Cluster.Provisioner().Nodes()
+		nodes = Cluster.Provisioner().NodePool().AllocedNodes()
+		log.Infof("allocated nodes: %#v", nodes)
 	}
 	Expect(infra.Distribute(command, nodes...)).To(Succeed())
 }
@@ -73,6 +87,7 @@ var Cluster infra.Infra
 // are running in wizard mode
 var installerNode infra.Node
 
+// InitializeCluster creates infrastructure according to configuration
 func InitializeCluster() {
 	config := infra.Config{ClusterName: TestContext.ClusterName}
 
@@ -121,12 +136,14 @@ func InitializeCluster() {
 	case testState != nil:
 		if Cluster.Provisioner() != nil && TestContext.Onprem.InstallerURL != "" {
 			// Get reference to installer node if the cluster was provisioned with installer
-			installerNode, err = Cluster.Provisioner().Node(testState.ProvisionerState.InstallerAddr)
+			installerNode, err = Cluster.Provisioner().NodePool().Node(testState.ProvisionerState.InstallerAddr)
 			Expect(err).NotTo(HaveOccurred())
 		}
 	}
 }
 
+// Destroy destroys the infrastructure created previously in InitializeCluster
+// and removes state directory
 func Destroy() {
 	if Cluster != nil {
 		Expect(Cluster.Close()).To(Succeed())
@@ -202,7 +219,7 @@ func CoreDump() {
 		Expect(infra.ScpText(installerNode,
 			Cluster.Provisioner().InstallerLogPath(), installerLog)).To(Succeed())
 	}
-	for _, node := range Cluster.Provisioner().AllNodes() {
+	for _, node := range Cluster.Provisioner().NodePool().Nodes() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
 			fmt.Sprintf("agent_%v.log", node.Addr())))
 		Expect(err).NotTo(HaveOccurred())

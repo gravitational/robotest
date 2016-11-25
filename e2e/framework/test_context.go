@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/go-yaml/yaml"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
 )
@@ -37,7 +39,7 @@ func ConfigureFlags() {
 
 	err = newFileConfig(confFile)
 	if err != nil {
-		Failf("failed to read configuration from %q: %v", configFile, err)
+		Failf("failed to read configuration from %q: %v", configFile, trace.DebugReport(err))
 	}
 
 	stateFile, err := os.Open(stateConfigFile)
@@ -57,8 +59,8 @@ func ConfigureFlags() {
 		TestContext.StateDir = testState.StateDir
 	}
 
-	if wizardFlag {
-		TestContext.Wizard = wizardFlag
+	if mode == wizardMode {
+		TestContext.Wizard = true
 		// Void test state in wizard mode
 		testState = nil
 	} else {
@@ -93,19 +95,14 @@ func (r *TestContextType) Validate() error {
 	if TestContext.Wizard && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
+	if TestContext.Login.IsEmpty() {
+		errors = append(errors, trace.BadParameter("Ops Center login is required"))
+	}
+	if TestContext.ServiceLogin.IsEmpty() {
+		log.Warningf("service login not configured - reports will not be collected")
+	}
 	if TestContext.AWS.IsEmpty() && TestContext.Onprem.IsEmpty() {
 		errors = append(errors, trace.BadParameter("either AWS or Onprem is required"))
-	}
-	if !r.Onprem.IsEmpty() && r.NumInstallNodes > r.Onprem.NumNodes {
-		errors = append(errors, trace.BadParameter("cannot install on more nodes than the cluster capacity: %v > %v",
-			r.NumInstallNodes, r.Onprem.NumNodes))
-	}
-	if !r.Onprem.IsEmpty() && r.NumInstallNodes == 0 {
-		// TODO: maybe set install nodes = node-1 by default if nodes > 1
-		r.NumInstallNodes = r.Onprem.NumNodes
-	}
-	if r.NumInstallNodes == 0 {
-		errors = append(errors, trace.BadParameter("number of install nodes is required"))
 	}
 	return trace.NewAggregate(errors...)
 }
@@ -126,52 +123,59 @@ var testState *TestState
 // TestContextType defines the configuration context of a single test run
 type TestContextType struct {
 	// Wizard specifies whether to use wizard to bootstrap cluster
-	Wizard bool `json:"wizard" env:"ROBO_WIZARD"`
+	Wizard bool `json:"wizard" yaml:"wizard" env:"ROBO_WIZARD"`
 	// Provisioner defines the type of provisioner to use
-	Provisioner provisionerType `json:"provisioner" env:"ROBO_WIZARD"`
+	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_WIZARD"`
 	// DumpCore defines a command to collect all installation/operation logs
-	DumpCore bool `json:"-"`
+	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
-	StateDir string `json:"-"`
+	StateDir string `json:"-" yaml:"-"`
 	// Teardown specifies if the cluster should be destroyed at the end of this
 	// test run
-	Teardown bool `json:"-"`
+	Teardown bool `json:"-" yaml:"-"`
 	// ReportDir defines location to store the results of the test
-	ReportDir string `json:"report_dir" env:"ROBO_REPORT_DIR"`
+	ReportDir string `json:"report_dir" yaml:"report_dir" env:"ROBO_REPORT_DIR"`
 	// ClusterName defines the name to use for domain name or state directory
-	ClusterName string `json:"cluster_name" env:"ROBO_CLUSTER_NAME"`
+	ClusterName string `json:"cluster_name" yaml:"cluster_name" env:"ROBO_CLUSTER_NAME"`
+	// License specifies the application license
+	License string `json:"license" yaml:"license" env:"ROBO_APP_LICENSE"`
 	// OpsCenterURL defines the URL of the existing Ops Center.
 	// This specifies the original Ops Center for the wizard test flow
 	// and will be used to upload application updates.
 	// This is a requirement for all browser-based tests
-	OpsCenterURL string `json:"ops_url" env:"ROBO_CLUSTER_NAME"`
+	OpsCenterURL string `json:"ops_url" yaml:"ops_url" env:"ROBO_OPS_URL"`
 	// Application defines the application package to test
-	Application *loc.Locator `json:"application" env:"ROBO_APP"`
+	Application *loc.Locator `json:"application" yaml:"application" env:"ROBO_APP"`
 	// Login defines the login details to access the Ops Center
-	Login Login `json:"login"`
+	Login Login `json:"login" yaml:"login"`
 	// ServiceLogin defines the login parameters for service access to the Ops Center
-	ServiceLogin ServiceLogin `json:"service_login"`
-	// NumInstallNodes defines the subset of nodes to use for installation.
-	NumInstallNodes int `json:"install_nodes" env:"ROBO_NUM_INSTALL_NODES"`
+	ServiceLogin ServiceLogin `json:"service_login" yaml:"service_login"`
+	// FlavorLabel specifies the installation flavor label to use for the test.
+	// This is application-specific, e.g. `3 nodes` or `medium`
+	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" env:"ROBO_FLAVOR_LABEL"`
 	// AWS defines the AWS-specific test configuration
-	AWS AWSConfig `json:"aws"`
+	AWS AWSConfig `json:"aws" yaml:"aws"`
 	// Onprem defines the test configuration for bare metal tests
-	Onprem OnpremConfig `json:"onprem"`
+	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
 }
 
 // Login defines Ops Center authentication parameters
 type Login struct {
-	Username string `json:"username" env:"ROBO_USERNAME"`
-	Password string `json:"password" env:"ROBO_PASSWORD"`
+	Username string `json:"username" yaml:"username" env:"ROBO_USERNAME"`
+	Password string `json:"password" yaml:"password" env:"ROBO_PASSWORD"`
 	// AuthProvider specifies the authentication provider to use for login.
 	// Available providers are `email` and `gogole`
-	AuthProvider string `json:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
+	AuthProvider string `json:"auth_provider" yaml:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
+}
+
+func (r Login) IsEmpty() bool {
+	return r.Username == "" && r.Password == ""
 }
 
 // ServiceLogin defines authentication options for Ops Center service access
 type ServiceLogin struct {
-	Username string `json:"username" env:"ROBO_SERVICE_USERNAME"`
-	Password string `json:"password" env:"ROBO_SERVICE_PASSWORD"`
+	Username string `json:"username" yaml:"username" env:"ROBO_SERVICE_USERNAME"`
+	Password string `json:"password" yaml:"password" env:"ROBO_SERVICE_PASSWORD"`
 }
 
 func (r ServiceLogin) IsEmpty() bool {
@@ -180,23 +184,23 @@ func (r ServiceLogin) IsEmpty() bool {
 
 // AWSConfig describes AWS EC2 test configuration
 type AWSConfig struct {
-	AccessKey string `json:"access_key" env:"ROBO_AWS_ACCESS_KEY"`
-	SecretKey string `json:"secret_key" env:"ROBO_AWS_SECRET_KEY"`
+	AccessKey string `json:"access_key" yaml:"access_key" env:"ROBO_AWS_ACCESS_KEY"`
+	SecretKey string `json:"secret_key" yaml:"secret_key" env:"ROBO_AWS_SECRET_KEY"`
 	// Region specifies the EC2 region to install into
-	Region string `json:"region" env:"ROBO_AWS_REGION"`
+	Region string `json:"region" yaml:"region" env:"ROBO_AWS_REGION"`
 	// KeyPair specifies the name of the SSH key pair to use for provisioning
 	// nodes
-	KeyPair string `json:"key_pair" env:"ROBO_AWS_KEY_PAIR"`
+	KeyPair string `json:"key_pair" yaml:"key_pair" env:"ROBO_AWS_KEY_PAIR"`
 	// VPC defines the Amazon VPC to install into.
 	// Specify "Create new" to create a new VPC for this test run
-	VPC string `json:"vpc" env:"ROBO_AWS_VPC"`
+	VPC string `json:"vpc" yaml:"vpc" env:"ROBO_AWS_VPC"`
 	// KeyPath specifies the location of the SSH key to use for remote access.
 	// Mandatory only with terraform provisioner
-	KeyPath string `json:"key_path" env:"ROBO_AWS_KEY_PATH"`
+	KeyPath string `json:"key_path" yaml:"key_path" env:"ROBO_AWS_KEY_PATH"`
 	// InstanceType defines the type of AWS EC2 instance to boot.
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
-	InstanceType string `json:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
+	InstanceType string `json:"instance_type" yaml:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
 }
 
 func (r AWSConfig) IsEmpty() bool {
@@ -207,13 +211,13 @@ func (r AWSConfig) IsEmpty() bool {
 type OnpremConfig struct {
 	// NumNodes defines the total cluster capacity.
 	// This is a total number of nodes to provision
-	NumNodes int `json:"nodes" env:"ROBO_NUM_NODES"`
+	NumNodes int `json:"nodes" yaml:"nodes" env:"ROBO_NUM_NODES"`
 	// InstallerURL defines the location of the installer tarball.
 	// Depending on the provisioner - this can be either a URL or local path
-	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL"`
+	InstallerURL string `json:"installer_url" yaml:"installer_url" env:"ROBO_INSTALLER_URL"`
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
-	ScriptPath string `json:"script_path"  env:"ROBO_SCRIPT_PATH"`
+	ScriptPath string `json:"script_path" yaml:"script_path" env:"ROBO_SCRIPT_PATH"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
@@ -226,18 +230,21 @@ func registerCommonFlags() {
 	// Turn on EmitSpecProgress to get spec progress (especially on interrupt)
 	config.GinkgoConfig.EmitSpecProgress = true
 
-	flag.StringVar(&configFile, "config-file", "config.json", "Configuration file to use")
-	flag.StringVar(&stateConfigFile, "state-file", "config.json.state", "State configuration file to use")
+	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file to use")
+	flag.StringVar(&stateConfigFile, "state-file", "config.yaml.state", "State configuration file to use")
 	flag.BoolVar(&debugFlag, "debug", false, "Verbose mode")
-	flag.BoolVar(&wizardFlag, "wizard", false, "Run tests in wizard mode")
+	flag.Var(&mode, "mode", "Run tests in specific mode. Supported modes: [`wizard`]")
 	flag.BoolVar(&teardownFlag, "destroy", false, "Destroy infrastructure after all tests")
-	flag.BoolVar(&dumpFlag, "dumpcore", false, "Collect installation and operation logs into the report directory")
+	flag.BoolVar(&dumpFlag, "report", false, "Collect installation and operation logs into the report directory")
 	flag.StringVar(&provisionerName, "provisioner", "", "Provision nodes using this provisioner")
 }
 
 func newFileConfig(input io.Reader) error {
-	d := json.NewDecoder(input)
-	err := d.Decode(&TestContext)
+	configBytes, err := ioutil.ReadAll(input)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = yaml.Unmarshal(configBytes, &TestContext)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -289,16 +296,15 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 	switch provisionerName {
 	case provisionerTerraform:
 		config := terraform.Config{
-			Config:          infraConfig,
-			ScriptPath:      TestContext.Onprem.ScriptPath,
-			InstallerURL:    TestContext.Onprem.InstallerURL,
-			NumNodes:        TestContext.Onprem.NumNodes,
-			NumInstallNodes: TestContext.NumInstallNodes,
-			AccessKey:       TestContext.AWS.AccessKey,
-			SecretKey:       TestContext.AWS.SecretKey,
-			KeyPair:         TestContext.AWS.KeyPair,
-			SSHKeyPath:      TestContext.AWS.KeyPath,
-			InstanceType:    TestContext.AWS.InstanceType,
+			Config:       infraConfig,
+			ScriptPath:   TestContext.Onprem.ScriptPath,
+			InstallerURL: TestContext.Onprem.InstallerURL,
+			NumNodes:     TestContext.Onprem.NumNodes,
+			AccessKey:    TestContext.AWS.AccessKey,
+			SecretKey:    TestContext.AWS.SecretKey,
+			KeyPair:      TestContext.AWS.KeyPair,
+			SSHKeyPath:   TestContext.AWS.KeyPath,
+			InstanceType: TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -307,11 +313,11 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 		provisioner, err = terraform.New(stateDir, config)
 	case provisionerVagrant:
 		config := vagrant.Config{
-			Config:          infraConfig,
-			ScriptPath:      TestContext.Onprem.ScriptPath,
-			InstallerURL:    TestContext.Onprem.InstallerURL,
-			NumNodes:        TestContext.Onprem.NumNodes,
-			NumInstallNodes: TestContext.NumInstallNodes,
+			Config:       infraConfig,
+			ScriptPath:   TestContext.Onprem.ScriptPath,
+			InstallerURL: TestContext.Onprem.InstallerURL,
+			NumNodes:     TestContext.Onprem.NumNodes,
+			// NumInstallNodes: TestContext.NumInstallNodes,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -339,16 +345,16 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 	switch testState.Provisioner {
 	case provisionerTerraform:
 		config := terraform.Config{
-			Config:          infraConfig,
-			ScriptPath:      TestContext.Onprem.ScriptPath,
-			InstallerURL:    TestContext.Onprem.InstallerURL,
-			NumNodes:        len(testState.ProvisionerState.Nodes),
-			NumInstallNodes: TestContext.NumInstallNodes,
-			AccessKey:       TestContext.AWS.AccessKey,
-			SecretKey:       TestContext.AWS.SecretKey,
-			KeyPair:         TestContext.AWS.KeyPair,
-			SSHKeyPath:      TestContext.AWS.KeyPath,
-			InstanceType:    TestContext.AWS.InstanceType,
+			Config:       infraConfig,
+			ScriptPath:   TestContext.Onprem.ScriptPath,
+			InstallerURL: TestContext.Onprem.InstallerURL,
+			NumNodes:     len(testState.ProvisionerState.Nodes),
+			// NumInstallNodes: TestContext.NumInstallNodes,
+			AccessKey:    TestContext.AWS.AccessKey,
+			SecretKey:    TestContext.AWS.SecretKey,
+			KeyPair:      TestContext.AWS.KeyPair,
+			SSHKeyPath:   TestContext.AWS.KeyPath,
+			InstanceType: TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -357,11 +363,11 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		provisioner, err = terraform.NewFromState(config, *testState.ProvisionerState)
 	case provisionerVagrant:
 		config := vagrant.Config{
-			Config:          infraConfig,
-			ScriptPath:      TestContext.Onprem.ScriptPath,
-			InstallerURL:    TestContext.Onprem.InstallerURL,
-			NumNodes:        len(testState.ProvisionerState.Nodes),
-			NumInstallNodes: TestContext.NumInstallNodes,
+			Config:       infraConfig,
+			ScriptPath:   TestContext.Onprem.ScriptPath,
+			InstallerURL: TestContext.Onprem.InstallerURL,
+			NumNodes:     len(testState.ProvisionerState.Nodes),
+			// NumInstallNodes: TestContext.NumInstallNodes,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -388,6 +394,24 @@ const (
 	provisionerVagrant   provisionerType = "vagrant"
 )
 
+func (r *modeType) String() string {
+	return string(*r)
+}
+
+func (r *modeType) Set(value string) error {
+	*r = modeType(value)
+	if *r == "" {
+		*r = wizardMode
+	}
+	return nil
+}
+
+type modeType string
+
+const (
+	wizardMode modeType = "wizard"
+)
+
 // configFile defines the configuration file to use for the tests
 var configFile string
 
@@ -397,8 +421,8 @@ var stateConfigFile string
 // debugFlag defines whether to run in verbose mode
 var debugFlag bool
 
-// wizardFlag defines whether to run tests in wizard mode
-var wizardFlag bool
+// mode defines the mode for tests
+var mode modeType
 
 // provisionerName defines the provisioner to use to provision nodes in the test cluster
 var provisionerName string

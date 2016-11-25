@@ -16,11 +16,11 @@ import (
 
 func SetDropdownValue(page *web.Page, classPath string, value string) {
 	const scriptTemplate = `
-		var result = [];
-		var cssSelector = "%v .Select-option";
-		var children = document.querySelectorAll(cssSelector);
-		children.forEach( z => result.push(z.innerText) );
-		return result; `
+            var result = [];
+            var cssSelector = "%v .Select-option";
+            var children = document.querySelectorAll(cssSelector);
+            children.forEach( z => result.push(z.innerText) );
+            return result; `
 
 	if !strings.HasPrefix(classPath, ".") {
 		classPath = "." + classPath
@@ -48,6 +48,14 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 // There are 2 different controls that UI uses for dropdown thus each
 // requires different handling
 func SetDropDownValue2(page *web.Page, classPath string, value string) {
+	const scriptTemplate = `
+            var result = [];
+            var cssSelector = "%v .dropdown-menu a";
+            var children = document.querySelectorAll(cssSelector);
+            children.forEach( z => result.push(z.innerText) );
+            return result;
+        `
+
 	if !strings.HasPrefix(classPath, ".") {
 		classPath = "." + classPath
 	}
@@ -55,8 +63,7 @@ func SetDropDownValue2(page *web.Page, classPath string, value string) {
 	var result []string
 	page.Find(classPath).Click()
 
-	js := ` var result = []; var cssSelector = "%v .dropdown-menu a"; var children = document.querySelectorAll(cssSelector); children.forEach( z => result.push(z.innerText) ); return result; `
-	js = fmt.Sprintf(js, classPath)
+	js := fmt.Sprintf(scriptTemplate, classPath)
 
 	page.RunScript(js, nil, &result)
 
@@ -74,7 +81,7 @@ func SetDropDownValue2(page *web.Page, classPath string, value string) {
 	Expect(false).To(BeTrue(), "given dropdown value does not exist")
 }
 
-func FillOutAwsKeys(page *web.Page, accessKey string, secretKey string) {
+func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
 	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(
 		Succeed(),
 		"should enter access key")

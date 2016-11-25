@@ -25,7 +25,7 @@ import (
 func UpdateApplication() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
 
-	nodes := Cluster.Provisioner().Nodes()
+	nodes := Cluster.Provisioner().NodePool().AllocedNodes()
 	if len(nodes) == 0 {
 		Failf("expected active nodes in cluster, got none")
 	}

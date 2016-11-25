@@ -87,24 +87,33 @@ type Provisioner interface {
 	SelectInterface(installer Node, addrs []string) (int, error)
 	// StartInstall initiates installation in the specified session
 	StartInstall(session *ssh.Session) error
-	// Nodes returns a set of currently active nodes
-	Nodes() []Node
-	// Node looks up a node given with addr.
-	// Returns trace.NotFound if no node matches the specified addr
-	Node(addr string) (Node, error)
-	NumNodes() int
-	// Allocate allocates a new node (from the pool of available nodes)
-	// and returns a reference to it
-	Allocate() (Node, error)
-	// Deallocate places specified node back to the node pool
-	Deallocate(Node) error
+	// Pool returns a reference to the managing node pool
+	NodePool() NodePool
 	// InstallerLogPath returns remote path to the installer log file
 	InstallerLogPath() string
 	// StateDir returns the state directory this provisioner is using
 	// State returns the state of this provisioner
 	State() ProvisionerState
-	// AllNodes returns both active and pooled nodes
-	AllNodes() []Node
+}
+
+// NodePool manages node allocation/release for a provisioner
+type NodePool interface {
+	// Nodes returns all nodes in this pool
+	Nodes() []Node
+	// AllocedNodes returns only allocated nodes in this pool
+	AllocedNodes() []Node
+	// Node looks up a node given with addr.
+	// Returns error if no node matches the specified addr
+	Node(addr string) (Node, error)
+	// Size returns the number of nodes in this pool
+	Size() int
+	// SizeAlloced returns the number of allocated nodes in this pool
+	SizeAlloced() int
+	// Allocate allocates amount new nodes from the pool and returns
+	// a slice of allocated nodes
+	Allocate(amount int) ([]Node, error)
+	// Free releases specified nodes back to the node pool
+	Free([]Node) error
 }
 
 // Node defines an interface to a remote node

@@ -42,19 +42,16 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 		Config:      config,
 		stateDir:    stateConfig.Dir,
 		installerIP: stateConfig.InstallerAddr,
-		nodes:       make(map[string]node),
-		active:      make(map[string]struct{}),
 	}
-	// TODO: make it an error?
 	if len(stateConfig.Nodes) != 0 {
 		t.Config.SSHKeyPath = stateConfig.Nodes[0].KeyPath
 	}
+	nodes := make([]infra.Node, 0, len(stateConfig.Nodes))
 	for _, n := range stateConfig.Nodes {
-		t.nodes[n.Addr] = node{publicIP: n.Addr, owner: t}
+		nodes = append(nodes, &node{publicIP: n.Addr, owner: t})
 	}
-	for _, addr := range stateConfig.Allocated {
-		t.active[addr] = struct{}{}
-	}
+	t.pool = infra.NewNodePool(nodes, stateConfig.Allocated)
+
 	return t, nil
 }
 
@@ -100,22 +97,20 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs))
 	}
 
-	r.nodes = make(map[string]node)
+	nodes := make([]infra.Node, 0, len(publicIPs))
 	for i, addr := range publicIPs {
-		r.nodes[addr] = node{privateIP: privateIPs[i], publicIP: addr, owner: r}
+		nodes = append(nodes, &node{privateIP: privateIPs[i], publicIP: addr, owner: r})
 	}
+	r.pool = infra.NewNodePool(nodes, nil)
 
-	r.active = make(map[string]struct{})
-	for _, addr := range publicIPs[:r.NumInstallNodes] {
-		r.active[addr] = struct{}{}
-	}
-
-	r.Debugf("cluster: %#v", r.nodes)
-	r.Debugf("install subset: %#v", r.active)
+	r.Debugf("cluster: %#v", nodes)
 
 	if r.installerIP != "" {
-		node := r.nodes[r.installerIP]
-		return &node, nil
+		node, err := r.pool.Node(r.installerIP)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		return node, nil
 	}
 	return nil, nil
 }
@@ -145,62 +140,20 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
-func (r *terraform) AllNodes() (nodes []infra.Node) {
-	nodes = make([]infra.Node, 0, len(r.nodes))
-	for addr := range r.nodes {
-		node := r.nodes[addr]
-		nodes = append(nodes, &node)
-	}
-	return nodes
-}
-
-func (r *terraform) Nodes() (nodes []infra.Node) {
-	nodes = make([]infra.Node, 0, len(r.active))
-	for addr := range r.active {
-		node := r.nodes[addr]
-		nodes = append(nodes, &node)
-	}
-	return nodes
-}
-
-func (r *terraform) NumNodes() int {
-	return len(r.active)
-}
-
-func (r *terraform) Node(addr string) (infra.Node, error) {
-	if node, exists := r.nodes[addr]; exists {
-		return &node, nil
-	}
-	return nil, trace.NotFound("node %q not found", addr)
-}
-
-func (r *terraform) Allocate() (infra.Node, error) {
-	for _, node := range r.nodes {
-		if _, active := r.active[node.publicIP]; !active {
-			r.active[node.publicIP] = struct{}{}
-			return &node, nil
-		}
-	}
-	return nil, trace.NotFound("cannot allocate node")
-}
-
-func (r *terraform) Deallocate(n infra.Node) error {
-	delete(r.active, n.(*node).publicIP)
-	return nil
-}
+func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
 	return installerLogPath
 }
 
 func (r *terraform) State() infra.ProvisionerState {
-	nodes := make([]infra.StateNode, 0, len(r.nodes))
-	for _, node := range r.nodes {
-		nodes = append(nodes, infra.StateNode{Addr: node.publicIP, KeyPath: r.Config.SSHKeyPath})
+	nodes := make([]infra.StateNode, 0, r.pool.Size())
+	for _, n := range r.pool.Nodes() {
+		nodes = append(nodes, infra.StateNode{Addr: n.(*node).publicIP, KeyPath: r.Config.SSHKeyPath})
 	}
-	allocated := make([]string, 0, len(r.active))
-	for addr := range r.active {
-		allocated = append(allocated, addr)
+	allocated := make([]string, 0, r.pool.SizeAlloced())
+	for _, node := range r.pool.AllocedNodes() {
+		allocated = append(allocated, node.Addr())
 	}
 	return infra.ProvisionerState{
 		Dir:           r.stateDir,
@@ -273,10 +226,9 @@ type terraform struct {
 	*log.Entry
 	Config
 
+	pool        infra.NodePool
 	stateDir    string
 	installerIP string
-	nodes       map[string]node
-	active      map[string]struct{}
 }
 
 type node struct {

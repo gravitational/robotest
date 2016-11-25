@@ -13,8 +13,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func VerifyAwsInstall(f *framework.T) {
-	Describe("AWS Installation", func() {
+func VerifyAWSInstall(f *framework.T) {
+
+	framework.RoboDescribe("AWS Installation", func() {
 		ctx := framework.TestContext
 		var domainName string
 		var siteURL string
@@ -36,7 +37,7 @@ func VerifyAwsInstall(f *framework.T) {
 				BeTrue(),
 				"should navigate to installer screen")
 
-			installer.CreateAwsSite(domainName, ctx.AWS)
+			installer.CreateAWSSite(domainName, ctx.AWS)
 		}
 
 		shouldHandleRequirementsScreen := func() {
@@ -47,15 +48,15 @@ func VerifyAwsInstall(f *framework.T) {
 				"should be on requirement step")
 
 			By("selecting a flavor")
-			installer.SelectFlavor(ctx.NumInstallNodes)
+			installer.SelectFlavorByLabel(ctx.FlavorLabel)
 
-			profiles := installermodel.FindAwsProfiles(f.Page)
+			profiles := installermodel.FindAWSProfiles(f.Page)
 
 			Expect(len(profiles)).To(
 				Equal(1),
 				"should verify required node number")
 
-			profiles[0].SetInstanceType(awsInstanceType)
+			profiles[0].SetInstanceType(ctx.AWS.InstanceType)
 
 			By("starting an installation")
 			installer.StartInstallation()

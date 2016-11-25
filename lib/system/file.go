@@ -63,7 +63,7 @@ func CopyFileWithPerms(dst, src string, perm os.FileMode) error {
 	return nil
 }
 
-// RemoveALl removes the specified directory including sub-directories
+// RemoveAll removes the specified directory including sub-directories
 func RemoveAll(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {
@@ -72,13 +72,13 @@ func RemoveAll(dir string) error {
 	defer d.Close()
 	names, err := d.Readdirnames(-1)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.ConvertSystemError(err)
 	}
 	for _, name := range names {
 		err = os.RemoveAll(filepath.Join(dir, name))
 		if err != nil {
-			return trace.Wrap(err)
+			return trace.ConvertSystemError(err)
 		}
 	}
-	return os.Remove(dir)
+	return trace.ConvertSystemError(os.Remove(dir))
 }
