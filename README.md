@@ -159,11 +159,11 @@ $ ./e2e.test -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Inst
 ## Wizard mode
 
 If the tests are to be run against an installer tarball of a particular application, then the tool is invoked with an additional
-`wizard` flag:
+`-mode=wizard` flag:
 
 
 ```shell
-$ ./e2e.test -provisioner=vagrant -config=config.yaml-wizard -ginkgo.focus=`Onprem Install`
+$ ./e2e.test -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`Onprem Install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
