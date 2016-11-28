@@ -20,7 +20,7 @@ type ProvisionerState struct {
 	// Dir defines the location where provisioner stores state
 	Dir string `json:"state_dir"`
 	// InstallerAddr is the address of the installer node
-	InstallerAddr string `json:"installer_addr"`
+	InstallerAddr string `json:"installer_addr,omitempty"`
 	// Nodes is a list of all nodes in the cluster
 	Nodes []StateNode `json:"nodes"`
 	// Allocated defines the allocated subset

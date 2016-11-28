@@ -22,8 +22,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// UpdateApplication implements site update test by download the application tarball
-// increasing the version and importing the same tarball with a new version.
+// UpdateApplication implements site update test by downloading the application tarball,
+// incrementing the version and importing the same tarball with a new version.
 //
 // It downloads the update from one of the remote nodes before returning to ensure
 // that the application update is available

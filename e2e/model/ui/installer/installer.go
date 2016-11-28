@@ -18,6 +18,11 @@ type Installer struct {
 	page *web.Page
 }
 
+type serverProfile struct {
+	// Nodes specifies the number of nodes to provision
+	Nodes int
+}
+
 func OpenWithSite(page *web.Page, domainName string) *Installer {
 	installerPath := fmt.Sprintf("/web/installer/site/%v", domainName)
 	url, err := page.URL()
@@ -35,6 +40,19 @@ func Open(page *web.Page, URL string) *Installer {
 	ui.PauseForPageJs()
 
 	return &Installer{page: page}
+}
+
+func (i *Installer) FillOutLicenseIfRequired(license string) {
+	elems := i.page.FindByClass("grv-license")
+	count, err := elems.Count()
+	if err == nil {
+		Expect(count).To(HaveLen(1))
+		Expect(license).NotTo(BeEmpty(), "should have a valid license")
+		Expect(elems.SendKeys(license)).To(Succeed())
+		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
+		Eventually(i.page.FindByClass("grv-installer-warning"),
+			constants.FindTimeout, constants.SelectionPollInterval).ShouldNot(BeFound())
+	}
 }
 
 func (i *Installer) CreateAWSSite(domainName string, config framework.AWSConfig) string {
@@ -63,7 +81,8 @@ func (i *Installer) CreateAWSSite(domainName string, config framework.AWSConfig)
 
 	i.proceedToReqs()
 
-	pageURL, _ := page.URL()
+	pageURL, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
 	return pageURL
 }
 
@@ -78,7 +97,8 @@ func (i *Installer) CreateOnPremNewSite(domainName string) string {
 
 	i.proceedToReqs()
 
-	pageURL, _ := page.URL()
+	pageURL, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
 	return pageURL
 }
 
@@ -174,9 +194,4 @@ func specifyDomainName(page *web.Page, domainName string) {
 func (i *Installer) proceedToReqs() {
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(i.page.FindByClass("grv-installer-provision-reqs"), constants.FindTimeout).Should(BeFound())
-}
-
-type serverProfile struct {
-	// Nodes specifies the number of nodes to provision
-	Nodes int
 }

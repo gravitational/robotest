@@ -317,7 +317,6 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
 			NumNodes:     TestContext.Onprem.NumNodes,
-			// NumInstallNodes: TestContext.NumInstallNodes,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -349,7 +348,6 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
 			NumNodes:     len(testState.ProvisionerState.Nodes),
-			// NumInstallNodes: TestContext.NumInstallNodes,
 			AccessKey:    TestContext.AWS.AccessKey,
 			SecretKey:    TestContext.AWS.SecretKey,
 			KeyPair:      TestContext.AWS.KeyPair,
@@ -367,7 +365,6 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
 			NumNodes:     len(testState.ProvisionerState.Nodes),
-			// NumInstallNodes: TestContext.NumInstallNodes,
 		}
 		err := config.Validate()
 		if err != nil {

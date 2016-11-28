@@ -32,6 +32,7 @@ func FindAWSProfiles(page *web.Page) []AWSProfile {
 }
 
 func (p *AWSProfile) SetInstanceType(instanceType string) {
+	Expect(instanceType).NotTo(BeEmpty(), "should have a valid instance type")
 	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(p.index))
 	ui.SetDropdownValue(p.page, cssSelector, instanceType)
 }

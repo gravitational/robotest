@@ -49,9 +49,13 @@ func VerifyOnpremSite(f *framework.T) {
 
 			By("configuring agent server")
 			provisioner := cluster.Provisioner()
-			agentServers := siteProvisioner.GetAgentServers()
-			for _, s := range agentServers {
-				s.SetIPByInfra(provisioner)
+			// TODO: store private IPs for terraform in state
+			// to avoid this check
+			if ctx.Provisioner != "terraform" {
+				agentServers := siteProvisioner.GetAgentServers()
+				for _, s := range agentServers {
+					s.SetIPByInfra(provisioner)
+				}
 			}
 
 			By("starting an expand operation")

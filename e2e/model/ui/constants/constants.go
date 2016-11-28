@@ -6,6 +6,9 @@ const (
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 20 * time.Second
 
+	// SelectionPollInterval specifies the frequency of polling for elements
+	SelectionPollInterval = 2 * time.Second
+
 	// AgentTimeout defines the amount of time to wait for agents to connect
 	AgentServerTimeout = 5 * time.Minute
 

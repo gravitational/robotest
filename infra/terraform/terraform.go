@@ -177,6 +177,10 @@ func (r *node) Connect() (*ssh.Session, error) {
 	return r.owner.Connect(r.publicIP)
 }
 
+func (r node) String() string {
+	return fmt.Sprintf("node(addr=%v)", r.publicIP)
+}
+
 func (r *terraform) boot() (output string, err error) {
 	args := append([]string{"apply"}, getVars(r.Config)...)
 	out, err := r.command(args)

@@ -25,9 +25,10 @@ func VerifyAWSInstall(f *framework.T) {
 			siteURL = framework.SiteURL()
 		})
 
-		shouldNavigateToSite := func() {
-			By("opening a site page")
-			site.Open(f.Page, domainName)
+		shouldProvideLicense := func() {
+			installer := installermodel.Open(f.Page, framework.InstallerURL())
+			By("filling out license text field if required")
+			installer.FillOutLicenseIfRequired(ctx.License)
 		}
 
 		shouldHandleNewDeploymentScreen := func() {
@@ -70,8 +71,14 @@ func VerifyAWSInstall(f *framework.T) {
 			bandwagon.Complete(f.Page, domainName, ctx.Login.Username, ctx.Login.Password)
 		}
 
+		shouldNavigateToSite := func() {
+			By("opening a site page")
+			site.Open(f.Page, domainName)
+		}
+
 		It("should handle installation", func() {
 			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
+			shouldProvideLicense()
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()

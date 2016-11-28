@@ -23,6 +23,12 @@ func VerifyOnpremInstall(f *framework.T) {
 			domainName = ctx.ClusterName
 		})
 
+		shouldProvideLicense := func() {
+			installer := installermodel.Open(f.Page, framework.InstallerURL())
+			By("filling out license text field if required")
+			installer.FillOutLicenseIfRequired(ctx.License)
+		}
+
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("entering domain name")
@@ -38,7 +44,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			numInstallNodes := installer.SelectFlavorByLabel(ctx.FlavorLabel)
 
 			provisioner := framework.Cluster.Provisioner()
-			Expect(provisioner).NotTo(BeNil())
+			Expect(provisioner).NotTo(BeNil(), "expected valid provisioner for onprem installation")
 			log.Infof("allocating %v nodes", numInstallNodes)
 			_, err := provisioner.NodePool().Allocate(numInstallNodes)
 			Expect(err).NotTo(HaveOccurred())
@@ -84,6 +90,7 @@ func VerifyOnpremInstall(f *framework.T) {
 
 		It("should install an application", func() {
 			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
+			shouldProvideLicense()
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()

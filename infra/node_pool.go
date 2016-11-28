@@ -27,7 +27,7 @@ type nodePool struct {
 
 func (r *nodePool) Allocate(amount int) (nodes []Node, err error) {
 	if amount+r.SizeAllocated() > r.Size() {
-		return nil, trace.NotFound("cannot allocate %v node(s): capacity exhausted (by %v)",
+		return nil, trace.NotFound("cannot allocate %v node(s): capacity exceeded (by %v)",
 			amount, amount+r.SizeAllocated()-r.Size())
 	}
 	for _, node := range r.nodes {

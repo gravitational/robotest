@@ -225,7 +225,7 @@ func CoreDump() {
 		defer agentLog.Close()
 		errCopy := infra.ScpText(node, defaults.AgentLogPath, agentLog)
 		if errCopy != nil {
-			log.Errorf("failed to fetch agent from %s: %v", node, errCopy)
+			log.Errorf("failed to fetch agent log from %s: %v", node, errCopy)
 		}
 		// TODO: collect shrink operation agent logs
 	}

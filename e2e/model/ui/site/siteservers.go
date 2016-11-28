@@ -193,12 +193,11 @@ func (p *SiteServerPage) DeleteOnPremServer(itemToDelete *SiteServer) {
 	p.deleteServer(itemToDelete, nil)
 }
 
-func (p *SiteServerPage) deleteServer(itemToDelete *SiteServer, awsConfig *framework.AWSConfig) {
-	itemBeforeDelete := p.GetSiteServers()
-	p.clickDeleteServer(itemToDelete.Hostname)
+func (p *SiteServerPage) deleteServer(server *SiteServer, config *framework.AWSConfig) {
+	p.clickDeleteServer(server.Hostname)
 
-	if awsConfig != nil {
-		utils.FillOutAWSKeys(p.page, awsConfig.AccessKey, awsConfig.SecretKey)
+	if config != nil {
+		utils.FillOutAWSKeys(p.page, config.AccessKey, config.SecretKey)
 	}
 
 	Expect(p.page.Find(".modal-dialog .btn-danger").Click()).To(
@@ -207,10 +206,21 @@ func (p *SiteServerPage) deleteServer(itemToDelete *SiteServer, awsConfig *frame
 	)
 
 	p.expectProgressIndicator()
-	itemsAfterDelete := p.GetSiteServers()
-	Expect(len(itemsAfterDelete) < len(itemBeforeDelete)).To(
+
+	Eventually(p.serverInList(server)).ShouldNot(
 		BeTrue(),
-		"very that server disappeared from the list")
+		"verify that the server disappeared from the list")
+}
+
+func (p *SiteServerPage) serverInList(server *SiteServer) func() bool {
+	return func() bool {
+		for _, existingServer := range p.GetSiteServers() {
+			if existingServer.Hostname == server.Hostname {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 func (p *SiteServerPage) expectProgressIndicator() {
@@ -240,11 +250,11 @@ func (p *SiteServerPage) clickDeleteServer(hostname string) {
 	var result int
 	page := p.page
 
-	js := fmt.Sprintf(scriptTemplate, hostname)
+	script := fmt.Sprintf(scriptTemplate, hostname)
 
-	page.RunScript(js, nil, &result)
-	btnPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
-	Expect(page.Find(btnPath).Click()).To(
+	page.RunScript(script, nil, &result)
+	buttonPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
+	Expect(page.Find(buttonPath).Click()).To(
 		Succeed(),
 		"should find and click on server delete button")
 }
