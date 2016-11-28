@@ -50,6 +50,7 @@ func ConfigureFlags() {
 		defer stateFile.Close()
 		err = newFileState(stateFile)
 		if err != nil {
+			testState = nil
 			Failf("failed to read configuration state from %q", stateConfigFile)
 		}
 	}

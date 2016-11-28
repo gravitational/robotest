@@ -148,6 +148,11 @@ func Destroy() {
 		Expect(Cluster.Close()).To(Succeed())
 		Expect(Cluster.Destroy()).To(Succeed())
 	}
+
+	if testState == nil {
+		log.Debug("no test state read: skip state clean up")
+		return
+	}
 	// Clean up state
 	err := os.Remove(stateConfigFile)
 	if err != nil && !os.IsNotExist(err) {
