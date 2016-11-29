@@ -3,7 +3,7 @@ package specs
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
@@ -34,7 +34,7 @@ func VerifyAWSInstall(f *framework.T) {
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 
-			Eventually(installer.IsCreateSiteStep, constants.FindTimeout).Should(
+			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(
 				BeTrue(),
 				"should navigate to installer screen")
 

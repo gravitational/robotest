@@ -10,4 +10,5 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 
 	specs.VerifyOnpremInstall(f)
 	specs.VerifyOnpremSite(f)
+	specs.SiteUninstall(f)
 })

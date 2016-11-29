@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -49,24 +49,24 @@ type User struct {
 func (u *User) NavigateToLogin() {
 	urlS, err := u.page.URL()
 	Expect(err).NotTo(HaveOccurred())
-	url := URLPath(urlS, "/web/login")
+	url := framework.URLPathFromString(urlS, "/web/login")
 
 	Expect(u.page.Navigate(url)).To(Succeed())
-	Eventually(u.page.FindByClass("grv-user-login"), constants.FindTimeout).Should(BeFound())
+	Eventually(u.page.FindByClass("grv-user-login"), defaults.FindTimeout).Should(BeFound())
 }
 
 func (u *User) LoginWithEmail() {
 	Expect(u.page.FindByName("email").Fill(u.email)).To(Succeed())
 	Expect(u.page.FindByName("password").Fill(u.password)).To(Succeed())
 	Expect(u.page.FindByClass("btn-primary").Click()).To(Succeed())
-	Eventually(u.page.URL, constants.FindTimeout).ShouldNot(HaveSuffix("/login"))
+	Eventually(u.page.URL, defaults.FindTimeout).ShouldNot(HaveSuffix("/login"))
 }
 
 func (u *User) LoginWithGoogle() {
 	Expect(u.page.FindByClass("btn-google").Click()).To(Succeed())
 	Expect(u.page.FindByID("Email").Fill(u.email)).To(Succeed())
 	Expect(u.page.FindByID("next").Click()).To(Succeed())
-	Eventually(u.page.FindByID("Passwd"), constants.FindTimeout).Should(BeFound())
+	Eventually(u.page.FindByID("Passwd"), defaults.FindTimeout).Should(BeFound())
 
 	PauseForPageJs()
 
@@ -81,7 +81,7 @@ func (u *User) LoginWithGoogle() {
 	count, _ := allowButton.Count()
 	if count > 0 {
 		Eventually(
-			u.page.Find("#submit_approve_access:not(:disabled)"), constants.FindTimeout).Should(
+			u.page.Find("#submit_approve_access:not(:disabled)"), defaults.FindTimeout).Should(
 			BeFound(),
 			"should wait until google access approve button becomes active")
 
@@ -90,7 +90,7 @@ func (u *User) LoginWithGoogle() {
 }
 
 func (u *User) Signout() {
-	Eventually(u.page.FindByClass("fa-sign-out"), constants.FindTimeout).Should(BeFound())
+	Eventually(u.page.FindByClass("fa-sign-out"), defaults.FindTimeout).Should(BeFound())
 	Expect(u.page.FindByClass("fa-sign-out").Click()).To(Succeed())
 	Eventually(u.page.FindByClass("grv-user-login")).Should(BeFound())
 }

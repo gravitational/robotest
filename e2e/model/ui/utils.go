@@ -2,12 +2,11 @@ package ui
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -42,43 +41,44 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 		}
 	}
 
-	framework.Failf("failed to select value %q in dropdown", value)
+	framework.Failf("failed to select value %q in dropdown %q", value, classPath)
 }
 
 // There are 2 different controls that UI uses for dropdown thus each
 // requires different handling
-func SetDropDownValue2(page *web.Page, classPath string, value string) {
+func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value string) {
 	const scriptTemplate = `
-            var result = [];
+            var options = [];
             var cssSelector = "%v .dropdown-menu a";
             var children = document.querySelectorAll(cssSelector);
-            children.forEach( z => result.push(z.innerText) );
-            return result;
+            children.forEach( option => options.push(option.innerText) );
+            return options;
         `
 
-	if !strings.HasPrefix(classPath, ".") {
-		classPath = "." + classPath
+	if buttonSelector == "" {
+		buttonSelector = rootSelector
+	} else {
+		buttonSelector = fmt.Sprintf("%v %v", rootSelector, buttonSelector)
 	}
+	Expect(page.Find(buttonSelector).Click()).To(Succeed())
 
-	var result []string
-	page.Find(classPath).Click()
+	script := fmt.Sprintf(scriptTemplate, rootSelector)
+	var options []string
 
-	js := fmt.Sprintf(scriptTemplate, classPath)
+	Expect(page.RunScript(script, nil, &options)).To(Succeed())
 
-	page.RunScript(js, nil, &result)
-
-	for index, optionValue := range result {
+	for index, optionValue := range options {
 		if optionValue == value {
-			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", classPath, index+1)
+			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", rootSelector, index+1)
+			Expect(page.Find(optionClass)).To(BeFound())
 			Expect(page.Find(optionClass).Click()).To(
 				Succeed(),
 				"should select given dropdown value")
-
 			return
 		}
 	}
 
-	Expect(false).To(BeTrue(), "given dropdown value does not exist")
+	framework.Failf("failed to select value %q in dropdown %q", value, rootSelector)
 }
 
 func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
@@ -91,14 +91,6 @@ func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
 		"should enter secret key")
 }
 
-func URLPath(urlS string, path string) string {
-	newURL, err := url.Parse(urlS)
-	Expect(err).NotTo(HaveOccurred())
-	newURL.RawQuery = ""
-	newURL.Path = path
-	return newURL.String()
-}
-
 func PauseForPageJs() {
 	time.Sleep(1 * time.Second)
 }
@@ -108,7 +100,7 @@ func PauseForComponentJs() {
 }
 
 func Pause(params ...time.Duration) {
-	timeInterval := constants.PauseTimeout
+	timeInterval := defaults.PauseTimeout
 
 	if len(params) != 0 {
 		timeInterval = params[0]

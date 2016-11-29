@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -42,7 +42,7 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 	a.expectAppUpdateProgressIndicator()
 
 	Expect(a.page.Refresh()).To(Succeed())
-	Eventually(a.GetCurrentVersion, constants.FindTimeout).Should(
+	Eventually(a.GetCurrentVersion, defaults.FindTimeout).Should(
 		BeEquivalentTo(toVersion),
 		"current version should match to new one")
 }
@@ -101,11 +101,11 @@ func (a *SiteAppPage) GetNewVersions() []AppVersion {
 
 func (a *SiteAppPage) expectAppUpdateProgressIndicator() {
 	page := a.page
-	Eventually(page.FindByClass("grv-site-app-progres-indicator"), constants.ElementTimeout).Should(
+	Eventually(page.FindByClass("grv-site-app-progres-indicator"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-app-progres-indicator"), constants.OperationTimeout).ShouldNot(
+	Eventually(page.FindByClass("grv-site-app-progres-indicator"), defaults.OperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 
