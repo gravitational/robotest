@@ -11,3 +11,8 @@ gravity.log
 vendor
 .vscode
 config.json
+.glide
+config.yaml
+*.state
+*.statebackup
+*.tfstate
