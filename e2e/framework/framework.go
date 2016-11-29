@@ -192,17 +192,22 @@ func CoreDump() {
 		return
 	}
 
-	err := ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)
+	opsURL := TestContext.OpsCenterURL
+	if opsURL == "" && testState != nil {
+		// Fallback to Ops Center URL from state
+		opsURL = testState.OpsCenterURL
+	}
+	err := ConnectToOpsCenter(opsURL, TestContext.ServiceLogin)
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
 		// so bail out
-		log.Errorf("failed to connect to the Ops Center %q: %v", TestContext.OpsCenterURL, err)
+		log.Errorf("failed to connect to the Ops Center %q: %v", opsURL, err)
 		return
 	}
 
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
-	opsURL := fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
+	opsURL = fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
 	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL, TestContext.ClusterName, output)
 	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {

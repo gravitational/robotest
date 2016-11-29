@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -31,28 +30,14 @@ func ConfigureFlags() {
 
 	initLogger(debugFlag)
 
-	confFile, err := os.Open(configFile)
-	if err != nil {
-		Failf("failed to read configuration from %q: %v", configFile, err)
-	}
-	defer confFile.Close()
-
-	err = newFileConfig(confFile)
+	err := initTestContext(configFile)
 	if err != nil {
 		Failf("failed to read configuration from %q: %v", configFile, trace.DebugReport(err))
 	}
 
-	stateFile, err := os.Open(stateConfigFile)
-	if err != nil && !os.IsNotExist(err) {
-		Failf("failed to read configuration state from %q", stateConfigFile)
-	}
-	if err == nil {
-		defer stateFile.Close()
-		err = newFileState(stateFile)
-		if err != nil {
-			testState = nil
-			Failf("failed to read configuration state from %q", stateConfigFile)
-		}
+	err = initTestState(stateConfigFile)
+	if err != nil {
+		Failf("failed to read state configuration from %q: %v", stateConfigFile, trace.DebugReport(err))
 	}
 
 	if testState != nil {
@@ -244,41 +229,68 @@ func registerCommonFlags() {
 	flag.StringVar(&provisionerName, "provisioner", "", "Provision nodes using this provisioner")
 }
 
-func newFileConfig(input io.Reader) error {
-	configBytes, err := ioutil.ReadAll(input)
+func initTestContext(confFile string) error {
+	err := newContextConfig(confFile)
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	err = yaml.Unmarshal(configBytes, &TestContext)
-	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(err, "failed to read configuration from %q", confFile)
 	}
 
 	err = configure.ParseEnv(TestContext)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(err, "failed to update configuration from environment")
 	}
 
 	err = TestContext.Validate()
 	if err != nil {
 		return trace.Wrap(err, "failed to validate configuration")
 	}
-
 	return nil
 }
 
-func newFileState(input io.Reader) error {
-	d := json.NewDecoder(input)
-	err := d.Decode(&testState)
+func newContextConfig(configFile string) error {
+	confFile, err := os.Open(configFile)
+	if err != nil && !os.IsNotExist(err) {
+		return trace.Wrap(err)
+	}
+	if confFile == nil {
+		// No configuration file - consume configuration from environment
+		return nil
+	}
+
+	defer confFile.Close()
+
+	configBytes, err := ioutil.ReadAll(confFile)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = testState.Validate()
+	return trace.Wrap(yaml.Unmarshal(configBytes, &TestContext))
+}
+
+func initTestState(configFile string) error {
+	confFile, err := os.Open(configFile)
+	if err != nil && !os.IsNotExist(err) {
+		return trace.ConvertSystemError(err)
+	}
+	if err != nil {
+		// No test state configuration
+		return nil
+	}
+	defer confFile.Close()
+
+	var state TestState
+	d := json.NewDecoder(confFile)
+	err = d.Decode(&state)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = state.Validate()
 	if err != nil {
 		return trace.Wrap(err, "failed to validate state configuration")
 	}
 
+	testState = &state
 	return nil
 }
 
