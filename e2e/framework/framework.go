@@ -133,7 +133,7 @@ func InitializeCluster() {
 		Expect(saveState(withBackup)).To(Succeed())
 		TestContext.StateDir = testState.StateDir
 	case testState != nil:
-		if Cluster.Provisioner() != nil && TestContext.Onprem.InstallerURL != "" {
+		if Cluster.Provisioner() != nil && testState.ProvisionerState.InstallerAddr != "" {
 			// Get reference to installer node if the cluster was provisioned with installer
 			installerNode, err = Cluster.Provisioner().NodePool().Node(testState.ProvisionerState.InstallerAddr)
 			Expect(err).NotTo(HaveOccurred())

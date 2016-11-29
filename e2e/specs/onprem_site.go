@@ -5,7 +5,7 @@ import (
 
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	uisite "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	. "github.com/onsi/ginkgo"
@@ -43,7 +43,7 @@ func VerifyOnpremSite(f *framework.T) {
 			framework.RunAgentCommand(agentCommand, nodes[0])
 
 			By("waiting for agent server")
-			Eventually(siteProvisioner.GetAgentServers, constants.AgentServerTimeout).Should(
+			Eventually(siteProvisioner.GetAgentServers, defaults.AgentServerTimeout).Should(
 				HaveLen(1),
 				"should wait for the agent server")
 
@@ -62,7 +62,7 @@ func VerifyOnpremSite(f *framework.T) {
 			newItem := siteProvisioner.StartOnPremOperation()
 			Expect(newItem).NotTo(BeNil(), "new server should appear in the server table")
 
-			time.Sleep(constants.InitializeTimeout)
+			time.Sleep(defaults.InitializeTimeout)
 
 			By("deleting a server")
 			siteProvisioner.DeleteOnPremServer(newItem)

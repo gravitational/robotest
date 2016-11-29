@@ -8,7 +8,7 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 	utils "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/agent"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -121,7 +121,7 @@ func (p *SiteServerPage) InitOnPremOperation() string {
 
 	element := page.Find(".grv-installer-server-instruction span")
 
-	Eventually(element, constants.AjaxCallTimeout).Should(
+	Eventually(element, defaults.AjaxCallTimeout).Should(
 		BeFound(),
 		"should find a command")
 
@@ -151,12 +151,12 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig, profileLabel s
 		Succeed(),
 		"click on continue")
 
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), constants.ElementTimeout).Should(
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should display profile and instance type")
 
-	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-profile", profileLabel)
-	utils.SetDropDownValue2(page, "grv-site-servers-provisioner-new-instance-type", config.InstanceType)
+	utils.SetDropdownValue2(page, "grv-site-servers-provisioner-new-profile", "", profileLabel)
+	utils.SetDropdownValue2(page, "grv-site-servers-provisioner-new-instance-type", "", config.InstanceType)
 
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
@@ -225,11 +225,11 @@ func (p *SiteServerPage) serverInList(server *SiteServer) func() bool {
 
 func (p *SiteServerPage) expectProgressIndicator() {
 	page := p.page
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), constants.ElementTimeout).Should(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), constants.OperationTimeout).ShouldNot(
+	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.OperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 

@@ -1,4 +1,4 @@
-package constants
+package defaults
 
 import "time"
 
@@ -27,6 +27,14 @@ const (
 	// Waiting time for operation to be completed (Expand and Application Update operations)
 	OperationTimeout = 10 * time.Minute
 
+	// DeleteTimeout specifies the amount of time allotted to a site delete operation
+	DeleteTimeout = 5 * time.Minute
+
 	// InitializeTimeout is the amount of time between expand/shrink tests
 	InitializeTimeout = 20 * time.Second
+
+	// BandwagonUsername specifies the name of the test user to use in bandwagon form
+	BandwagonUsername = "robotest@example.com"
+	// BandwagonPassword specifies the password to use in bandwagon form
+	BandwagonPassword = "r0b0t@st"
 )

@@ -3,8 +3,9 @@ package site
 import (
 	"fmt"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	ui "github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -43,7 +44,7 @@ func (s *Site) NavigateToServers() {
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
 		return count > 0
-	}, constants.ServerLoadTimeout).Should(
+	}, defaults.ServerLoadTimeout).Should(
 		BeTrue(),
 		"waiting for servers to load")
 
@@ -52,7 +53,7 @@ func (s *Site) NavigateToServers() {
 
 func (s *Site) assertSiteNavigation(URL string) {
 	Expect(s.page.Navigate(URL)).To(Succeed())
-	Eventually(s.page.FindByClass("grv-site"), constants.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
+	Eventually(s.page.FindByClass("grv-site"), defaults.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
 	ui.PauseForComponentJs()
 }
 
@@ -60,5 +61,5 @@ func (s *Site) formatUrl(newPrefix string) string {
 	urlPrefix := fmt.Sprintf("/web/site/%v/%v", s.domainName, newPrefix)
 	url, err := s.page.URL()
 	Expect(err).NotTo(HaveOccurred())
-	return ui.URLPath(url, urlPrefix)
+	return framework.URLPathFromString(url, urlPrefix)
 }

@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gravitational/robotest/infra"
 )
 
 func TestParsesSSHConfig(t *testing.T) {
 	var testCases = []struct {
 		comment  string
 		config   []byte
-		expected map[string]node
+		expected []infra.Node
 	}{
 		{
 			comment: "Parses quoted identity file path",
@@ -25,9 +26,7 @@ func TestParsesSSHConfig(t *testing.T) {
   IdentityFile "/path/to/box/virtualbox/private_key"
   IdentitiesOnly yes
   LogLevel FATAL`),
-			expected: map[string]node{
-				"127.0.0.1": node{identityFile: "/path/to/box/virtualbox/private_key", addrIP: "127.0.0.1"},
-			},
+			expected: []infra.Node{&node{identityFile: "/path/to/box/virtualbox/private_key", addrIP: "127.0.0.1"}},
 		},
 		{
 			comment: "Handles unquoted identity file path as well",
@@ -41,9 +40,7 @@ func TestParsesSSHConfig(t *testing.T) {
   IdentityFile /path/to/box/virtualbox/private_key
   IdentitiesOnly yes
   LogLevel FATAL`),
-			expected: map[string]node{
-				"127.0.0.1": node{identityFile: "/path/to/box/virtualbox/private_key", addrIP: "127.0.0.1"},
-			},
+			expected: []infra.Node{&node{identityFile: "/path/to/box/virtualbox/private_key", addrIP: "127.0.0.1"}},
 		},
 	}
 	getIP := func(host string) (string, error) { return "127.0.0.1", nil }

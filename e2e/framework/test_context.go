@@ -87,7 +87,10 @@ func ConfigureFlags() {
 
 	log.Debugf("[CONFIG]: %#v", TestContext)
 	if testState != nil {
-		log.Debugf("[STATE]: %#v", testState)
+		log.Debugf("[STATE]: %#v", testState, testState.ProvisionerState)
+		if testState.ProvisionerState != nil {
+			log.Debugf("[PROVISIONER STATE]: %#v", *testState.ProvisionerState)
+		}
 	}
 }
 
@@ -96,7 +99,8 @@ func (r *TestContextType) Validate() error {
 	if TestContext.Wizard && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
-	if TestContext.Login.IsEmpty() {
+	var command bool = teardownFlag || dumpFlag || mode == wizardMode
+	if !command && TestContext.Login.IsEmpty() {
 		errors = append(errors, trace.BadParameter("Ops Center login is required"))
 	}
 	if TestContext.ServiceLogin.IsEmpty() {

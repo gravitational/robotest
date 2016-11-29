@@ -3,7 +3,7 @@ package specs
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
-	"github.com/gravitational/robotest/e2e/model/ui/constants"
+	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
@@ -32,7 +32,7 @@ func VerifyOnpremInstall(f *framework.T) {
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("entering domain name")
-			Eventually(installer.IsCreateSiteStep, constants.FindTimeout).Should(BeTrue())
+			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
 			installer.CreateOnPremNewSite(domainName)
 		}
 
@@ -57,7 +57,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			framework.RunAgentCommand(profiles[0].Command)
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetAgentServers, constants.AgentServerTimeout).Should(
+			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(
 				HaveLen(numInstallNodes))
 
 			By("configuring the servers with IPs")
@@ -79,8 +79,8 @@ func VerifyOnpremInstall(f *framework.T) {
 			bandwagon.Complete(
 				f.Page,
 				domainName,
-				ctx.Login.Username,
-				ctx.Login.Password)
+				defaults.BandwagonUsername,
+				defaults.BandwagonPassword)
 		}
 
 		shouldNavigateToSite := func() {
