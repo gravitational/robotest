@@ -97,7 +97,7 @@ func InitializeCluster() {
 			provisioner, err = provisionerFromState(config, *testState)
 			Expect(err).NotTo(HaveOccurred())
 		}
-	} else {
+	} else if !TestContext.Teardown {
 		TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
 		Expect(err).NotTo(HaveOccurred())
 		if TestContext.Provisioner != "" {
@@ -113,6 +113,7 @@ func InitializeCluster() {
 	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application.Locator = application
+		TestContext.OpsCenterURL = Cluster.OpsCenterURL()
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
@@ -121,9 +122,10 @@ func InitializeCluster() {
 	switch {
 	case testState == nil:
 		log.Debug("init test state")
+		// TestContext -> testState
 		testState = &TestState{
-			OpsCenterURL: Cluster.OpsCenterURL(),
-			StateDir:     TestContext.StateDir,
+			EntryURL: TestContext.OpsCenterURL,
+			StateDir: TestContext.StateDir,
 		}
 		if TestContext.Application.Locator != nil {
 			testState.Application = TestContext.Application.Locator
@@ -134,7 +136,6 @@ func InitializeCluster() {
 			testState.ProvisionerState = &provisionerState
 		}
 		Expect(saveState(withBackup)).To(Succeed())
-		TestContext.StateDir = testState.StateDir
 	case testState != nil:
 		if Cluster.Provisioner() != nil && testState.ProvisionerState.InstallerAddr != "" {
 			// Get reference to installer node if the cluster was provisioned with installer
@@ -196,10 +197,6 @@ func CoreDump() {
 	}
 
 	opsURL := TestContext.OpsCenterURL
-	if opsURL == "" && testState != nil {
-		// Fallback to Ops Center URL from state
-		opsURL = testState.OpsCenterURL
-	}
 	err := ConnectToOpsCenter(opsURL, TestContext.ServiceLogin)
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
@@ -208,13 +205,24 @@ func CoreDump() {
 		return
 	}
 
+	tempOutput, err := ioutil.TempFile("", "crashreport")
+	Expect(err).NotTo(HaveOccurred(), "expected to create a temporary file")
+	defer func() {
+		tempOutput.Close()
+		if err := os.Remove(tempOutput.Name()); err != nil {
+			log.Warningf("failed to remove temporary report file %q: %v", tempOutput.Name(), err)
+		}
+	}()
+
 	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
 	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
 	opsURL = fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
-	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL, TestContext.ClusterName, output)
+	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL, TestContext.ClusterName, tempOutput.Name())
 	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {
 		log.Errorf("failed to collect site report: %v", err)
+	} else {
+		Expect(system.CopyFile(output, tempOutput.Name())).To(Succeed())
 	}
 
 	if Cluster.Provisioner() == nil {

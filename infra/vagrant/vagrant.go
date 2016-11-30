@@ -165,7 +165,7 @@ func (r *vagrant) syncInstallerTarball() error {
 		return nil
 	}
 	target := filepath.Join(r.stateDir, "installer.tar.gz")
-	log.Infof("copy %v -> %v", r.InstallerURL, target)
+	log.Debugf("copy %v -> %v", r.InstallerURL, target)
 	err := system.CopyFile(target, r.InstallerURL)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)

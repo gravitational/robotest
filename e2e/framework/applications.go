@@ -29,7 +29,7 @@ import (
 // that the application update is available
 func UpdateApplication() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
-	Expect(TestContext.Application.Locator).NotTo(BeNil())
+	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
 
 	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
 	if len(nodes) == 0 {

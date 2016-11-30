@@ -19,8 +19,8 @@ type Site struct {
 
 func Open(page *web.Page, domainName string) Site {
 	site := Site{page: page, domainName: domainName}
-	newUrl := site.formatUrl("")
-	site.assertSiteNavigation(newUrl)
+	url := site.formatUrl("")
+	VerifySiteNavigation(page, url)
 	return site
 }
 
@@ -33,13 +33,13 @@ func (s *Site) GetSiteServerPage() SiteServerPage {
 }
 
 func (s *Site) NavigateToSiteApp() {
-	newUrl := s.formatUrl("")
-	s.assertSiteNavigation(newUrl)
+	url := s.formatUrl("")
+	VerifySiteNavigation(s.page, url)
 }
 
 func (s *Site) NavigateToServers() {
-	newUrl := s.formatUrl("servers")
-	s.assertSiteNavigation(newUrl)
+	url := s.formatUrl("servers")
+	VerifySiteNavigation(s.page, url)
 
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
@@ -51,9 +51,9 @@ func (s *Site) NavigateToServers() {
 	ui.PauseForPageJs()
 }
 
-func (s *Site) assertSiteNavigation(URL string) {
-	Expect(s.page.Navigate(URL)).To(Succeed())
-	Eventually(s.page.FindByClass("grv-site"), defaults.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
+func VerifySiteNavigation(page *web.Page, URL string) {
+	Expect(page.Navigate(URL)).To(Succeed())
+	Eventually(page.FindByClass("grv-site"), defaults.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
 	ui.PauseForComponentJs()
 }
 

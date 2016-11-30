@@ -40,12 +40,18 @@ func ConfigureFlags() {
 		Failf("failed to read state configuration from %q: %v", stateConfigFile, trace.DebugReport(err))
 	}
 
-	// TODO: move to InitializeCluster?
 	if testState != nil {
+		// testState -> TestContext
 		TestContext.Provisioner = testState.Provisioner
 		TestContext.StateDir = testState.StateDir
-		if TestContext.OpsCenterURL == "" {
-			TestContext.OpsCenterURL = testState.OpsCenterURL
+		if testState.EntryURL != "" {
+			TestContext.OpsCenterURL = testState.EntryURL
+		}
+		if testState.Login != nil {
+			TestContext.Login = *testState.Login
+		}
+		if testState.ServiceLogin != nil {
+			TestContext.ServiceLogin = *testState.ServiceLogin
 		}
 		if testState.ProvisionerState != nil {
 			TestContext.Wizard = testState.ProvisionerState.InstallerAddr != ""
@@ -57,8 +63,6 @@ func ConfigureFlags() {
 
 	if mode == wizardMode {
 		TestContext.Wizard = true
-		// Void test state in wizard mode
-		testState = nil
 	} else {
 		TestContext.Onprem.InstallerURL = ""
 	}
@@ -82,7 +86,7 @@ func ConfigureFlags() {
 
 	log.Debugf("[CONFIG]: %#v", TestContext)
 	if testState != nil {
-		log.Debugf("[STATE]: %#v", testState, testState.ProvisionerState)
+		log.Debugf("[STATE]: %#v", testState)
 		if testState.ProvisionerState != nil {
 			log.Debugf("[PROVISIONER STATE]: %#v", *testState.ProvisionerState)
 		}
@@ -122,31 +126,43 @@ var testState *TestState
 
 // TestContextType defines the configuration context of a single test run
 type TestContextType struct {
-	// Wizard specifies whether to use wizard to bootstrap cluster
-	Wizard bool `json:"wizard" yaml:"wizard" env:"ROBO_WIZARD"`
+	// Wizard specifies whether wizard was used to bootstrap cluster
+	Wizard bool `json:"-" yaml:"-"`
 	// Provisioner defines the type of provisioner to use
-	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_WIZARD"`
-	// DumpCore defines a command to collect all installation/operation logs
+	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_PROVISIONER"`
+	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
 	StateDir string `json:"-" yaml:"-"`
-	// Teardown specifies if the cluster should be destroyed at the end of this
-	// test run
+	// Teardown specifies the command to destroy the infrastructure
 	Teardown bool `json:"-" yaml:"-"`
+	// ForceRemoteAccess explicitly enables the remote access for the installed site.
+	// If unspecified (or false), remote access is configured automatically:
+	//  - if installing into existing Ops Center, remote access is enabled
+	//  - in wizard mode remote access is disabled
+	//
+	// TODO: automatically determine when to enable remote access
+	ForceRemoteAccess bool `json:"remote_access,omitempty" yaml:"remote_access,omitempty" env:"ROBO_REMOTE_ACCESS"`
+	// ForceLocalEndpoint specifies whether to use the local application endpoint
+	// instead of Ops Center to control the installed site
+	//
+	// TODO: automatically determine when to use local endpoint
+	ForceLocalEndpoint bool `json:"local_endpoint,omitempty" yaml:"local_endpoint,omitempty" env:"ROBO_LOCAL_ENDPOINT"`
 	// ReportDir defines location to store the results of the test
 	ReportDir string `json:"report_dir" yaml:"report_dir" env:"ROBO_REPORT_DIR"`
 	// ClusterName defines the name to use for domain name or state directory
 	ClusterName string `json:"cluster_name" yaml:"cluster_name" env:"ROBO_CLUSTER_NAME"`
 	// License specifies the application license
 	License string `json:"license" yaml:"license" env:"ROBO_APP_LICENSE"`
-	// OpsCenterURL defines the URL of the existing Ops Center.
-	// This specifies the original Ops Center for the wizard test flow
-	// and will be used to upload application updates.
-	// This is a requirement for all browser-based tests
+	// OpsCenterURL specifies the Ops Center to use for tests.
+	// OpsCenterURL is mandatory when running tests on an existing Ops Center.
+	// In wizard mode, this is automatically populated by the wizard (incl. Application, see below)
 	OpsCenterURL string `json:"ops_url" yaml:"ops_url" env:"ROBO_OPS_URL"`
-	// Application defines the application package to test
+	// Application defines the application package to test.
+	// In wizard mode, this is automatically set by the wizard
 	Application LocatorRef `json:"application" yaml:"application" env:"ROBO_APP"`
-	// Login defines the login details to access the Ops Center
+	// Login defines the login details to access existing Ops Center.
+	// Mandatory only in non-wizard mode
 	Login Login `json:"login" yaml:"login"`
 	// ServiceLogin defines the login parameters for service access to the Ops Center
 	ServiceLogin ServiceLogin `json:"service_login" yaml:"service_login"`
@@ -165,7 +181,7 @@ type Login struct {
 	Password string `json:"password" yaml:"password" env:"ROBO_PASSWORD"`
 	// AuthProvider specifies the authentication provider to use for login.
 	// Available providers are `email` and `gogole`
-	AuthProvider string `json:"auth_provider" yaml:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
+	AuthProvider string `json:"auth_provider,omitempty" yaml:"auth_provider,omitempty" env:"ROBO_AUTH_PROVIDER"`
 }
 
 func (r Login) IsEmpty() bool {
@@ -232,6 +248,7 @@ type LocatorRef struct {
 	*loc.Locator
 }
 
+// SetEnv implements configure.EnvSetter
 func (r *LocatorRef) SetEnv(value string) error {
 	var loc loc.Locator
 	err := loc.UnmarshalText([]byte(value))
