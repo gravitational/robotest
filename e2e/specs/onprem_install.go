@@ -80,7 +80,7 @@ func VerifyOnpremInstall(f *framework.T) {
 				f.Page,
 				domainName,
 				defaults.BandwagonUsername,
-				defaults.BandwagonPassword)
+				defaults.BandwagonPassword, true)
 		}
 
 		shouldNavigateToSite := func() {

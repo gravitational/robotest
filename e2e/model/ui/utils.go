@@ -81,6 +81,37 @@ func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value strin
 	framework.Failf("failed to select value %q in dropdown %q", value, rootSelector)
 }
 
+func SelectRadio(page *web.Page, selector string, matches valueMatcher) {
+	const scriptTemplate = `
+            var options = [];
+            var cssSelector = "%v span";
+            var children = document.querySelectorAll(cssSelector);
+            children.forEach(option => options.push(option.innerText));
+            return options;
+        `
+
+	script := fmt.Sprintf(scriptTemplate, selector)
+	var options []string
+
+	Expect(page.RunScript(script, nil, &options)).To(Succeed())
+
+	for i, optionValue := range options {
+		if matches(optionValue) {
+			optionClass := fmt.Sprintf("%v:nth-child(%v) span", selector, i+1)
+			Expect(page.Find(optionClass)).To(BeFound())
+			Expect(page.Find(optionClass).Click()).To(
+				Succeed(),
+				"should select given radio control")
+			return
+		}
+	}
+
+	framework.Failf("failed to select control in %q", selector)
+}
+
+// valueMatcher defines an interface to select a value
+type valueMatcher func(value string) bool
+
 func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
 	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(
 		Succeed(),

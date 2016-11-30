@@ -68,7 +68,10 @@ func VerifyAWSInstall(f *framework.T) {
 		}
 
 		shouldHandleBandwagonScreen := func() {
-			bandwagon.Complete(f.Page, domainName, ctx.Login.Username, ctx.Login.Password)
+			bandwagon.Complete(f.Page,
+				domainName,
+				ctx.Login.Username,
+				ctx.Login.Password, true)
 		}
 
 		shouldNavigateToSite := func() {

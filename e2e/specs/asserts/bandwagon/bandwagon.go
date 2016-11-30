@@ -7,10 +7,10 @@ import (
 	web "github.com/sclevine/agouti"
 )
 
-func Complete(page *web.Page, domainName string, username string, password string) {
+func Complete(page *web.Page, domainName string, username string, password string, remoteAccess bool) {
 	bandwagon := ui.OpenBandwagon(page, domainName, username, password)
 	By("submitting bandwagon form")
-	bandwagon.SubmitForm()
+	bandwagon.SubmitForm(remoteAccess)
 
 	/*By("verying endpoints")
 	endpoints := band.GetEndPoints()

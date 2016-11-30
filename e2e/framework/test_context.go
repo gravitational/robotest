@@ -40,9 +40,19 @@ func ConfigureFlags() {
 		Failf("failed to read state configuration from %q: %v", stateConfigFile, trace.DebugReport(err))
 	}
 
+	// TODO: move to InitializeCluster?
 	if testState != nil {
 		TestContext.Provisioner = testState.Provisioner
 		TestContext.StateDir = testState.StateDir
+		if TestContext.OpsCenterURL == "" {
+			TestContext.OpsCenterURL = testState.OpsCenterURL
+		}
+		if testState.ProvisionerState != nil {
+			TestContext.Wizard = testState.ProvisionerState.InstallerAddr != ""
+		}
+		if testState.Application != nil {
+			TestContext.Application.Locator = testState.Application
+		}
 	}
 
 	if mode == wizardMode {
@@ -81,12 +91,12 @@ func ConfigureFlags() {
 
 func (r *TestContextType) Validate() error {
 	var errors []error
-	if TestContext.Wizard && TestContext.Onprem.InstallerURL == "" {
+	if mode == wizardMode && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
 	var command bool = teardownFlag || dumpFlag || mode == wizardMode
 	if !command && TestContext.Login.IsEmpty() {
-		errors = append(errors, trace.BadParameter("Ops Center login is required"))
+		log.Warningf("Ops Center login not configured - Ops Center access will not be available")
 	}
 	if TestContext.ServiceLogin.IsEmpty() {
 		log.Warningf("service login not configured - reports will not be collected")
@@ -135,7 +145,7 @@ type TestContextType struct {
 	// This is a requirement for all browser-based tests
 	OpsCenterURL string `json:"ops_url" yaml:"ops_url" env:"ROBO_OPS_URL"`
 	// Application defines the application package to test
-	Application *loc.Locator `json:"application" yaml:"application" env:"ROBO_APP"`
+	Application LocatorRef `json:"application" yaml:"application" env:"ROBO_APP"`
 	// Login defines the login details to access the Ops Center
 	Login Login `json:"login" yaml:"login"`
 	// ServiceLogin defines the login parameters for service access to the Ops Center
@@ -212,6 +222,24 @@ type OnpremConfig struct {
 
 func (r OnpremConfig) IsEmpty() bool {
 	return r.NumNodes == 0 && r.InstallerURL == "" && r.ScriptPath == ""
+}
+
+// LocatorRef defines a reference to a package locator.
+// It is necessary to keep application package optional
+// in the configuration while being able to consume value
+// from environment
+type LocatorRef struct {
+	*loc.Locator
+}
+
+func (r *LocatorRef) SetEnv(value string) error {
+	var loc loc.Locator
+	err := loc.UnmarshalText([]byte(value))
+	if err != nil {
+		return err
+	}
+	r.Locator = &loc
+	return nil
 }
 
 func registerCommonFlags() {

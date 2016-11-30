@@ -110,9 +110,9 @@ func InitializeCluster() {
 	}
 
 	var application *loc.Locator
-	if TestContext.Wizard {
+	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
-		TestContext.Application = application
+		TestContext.Application.Locator = application
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
@@ -124,6 +124,9 @@ func InitializeCluster() {
 		testState = &TestState{
 			OpsCenterURL: Cluster.OpsCenterURL(),
 			StateDir:     TestContext.StateDir,
+		}
+		if TestContext.Application.Locator != nil {
+			testState.Application = TestContext.Application.Locator
 		}
 		if Cluster.Provisioner() != nil {
 			testState.Provisioner = TestContext.Provisioner

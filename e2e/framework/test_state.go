@@ -2,6 +2,7 @@ package framework
 
 import (
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/trace"
 )
 
@@ -16,6 +17,8 @@ type TestState struct {
 	// This can be different from the Ops Center configured in TestContext which always
 	// refers to the originating Ops Center
 	OpsCenterURL string `json:"ops_url"`
+	// Application defines the application package to test as retrieved from the wizard
+	Application *loc.Locator `json:"application,omitempty"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner
 	Provisioner provisionerType `json:"provisioner,omitempty"`

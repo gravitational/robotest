@@ -75,18 +75,18 @@ func (r *vagrant) Create() (installer infra.Node, err error) {
 		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.NumNodes, len(nodes))
 	}
 
-	// Use first node as installer
-	r.installerIP = nodes[0].Addr()
 	r.pool = infra.NewNodePool(nodes, nil)
-
 	r.Debugf("cluster: %#v", r.pool)
 
-	node, err := r.pool.Node(r.installerIP)
-	if err != nil {
-		return nil, trace.Wrap(err)
+	if r.InstallerURL == "" {
+		return nil, nil
 	}
 
-	return node, nil
+	// Use first node as installer
+	r.installerIP = nodes[0].Addr()
+	node, err := r.pool.Node(r.installerIP)
+
+	return node, trace.Wrap(err)
 }
 
 func (r *vagrant) Destroy() error {

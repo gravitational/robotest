@@ -3,9 +3,11 @@ package ui
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -35,21 +37,37 @@ func OpenBandwagon(page *web.Page, domainName string, email string, password str
 	return &Bandwagon{page: page, email: email, password: password, domainName: domainName}
 }
 
-func (b *Bandwagon) SubmitForm() {
+func (b *Bandwagon) SubmitForm(remoteAccess bool) {
 	page := b.page
 
+	By("entering email")
 	Expect(page.FindByName("email").Fill(b.email)).To(
 		Succeed(),
 		"should enter email")
 
+	By("entering password")
 	Expect(page.FindByName("password").Fill(b.password)).To(
 		Succeed(),
 		"should enter password")
 
+	By("re-entering password")
 	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(
 		Succeed(),
 		"should re-enter password")
 
+	if remoteAccess {
+		By("enabling remote access")
+		SelectRadio(page, ".my-page-section .grv-control-radio", func(value string) bool {
+			return strings.HasPrefix(value, "Enable remote")
+		})
+	} else {
+		By("disabling remote access")
+		SelectRadio(page, ".my-page-section .grv-control-radio", func(value string) bool {
+			return strings.HasPrefix(value, "Disable remote")
+		})
+	}
+
+	By("submitting the form")
 	Expect(page.FindByClass("my-page-btn-submit").Click()).To(
 		Succeed(),
 		"should click submit button")

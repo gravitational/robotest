@@ -15,6 +15,8 @@ func SiteURL() string {
 
 // InstallerURL returns URL of the installer for the configured application package
 func InstallerURL() string {
+	gomega.Expect(TestContext.Application.Locator).NotTo(gomega.BeNil(), "should have a valid application package")
+
 	path := fmt.Sprintf("web/installer/new/%v/%v/%v",
 		TestContext.Application.Repository, TestContext.Application.Name, TestContext.Application.Version)
 	return URLPath(path)
