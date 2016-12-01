@@ -100,10 +100,10 @@ func (r *TestContextType) Validate() error {
 	}
 	var command bool = teardownFlag || dumpFlag || mode == wizardMode
 	if !command && TestContext.Login.IsEmpty() {
-		log.Warningf("Ops Center login not configured - Ops Center access will not be available")
+		log.Warningf("Ops Center login not configured - Ops Center access will likely not be available")
 	}
 	if TestContext.ServiceLogin.IsEmpty() {
-		log.Warningf("service login not configured - reports will not be collected")
+		log.Warningf("service login not configured - reports will likely not be collected")
 	}
 	if TestContext.AWS.IsEmpty() && TestContext.Onprem.IsEmpty() {
 		errors = append(errors, trace.BadParameter("either AWS or Onprem is required"))
