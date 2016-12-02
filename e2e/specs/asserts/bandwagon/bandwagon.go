@@ -9,19 +9,12 @@ import (
 	web "github.com/sclevine/agouti"
 )
 
-func Complete(page *web.Page, domainName string, username string, password string,
-	remoteAccess, localEndpoint bool) {
-	bandwagon := ui.OpenBandwagon(page, domainName, username, password)
+func Complete(page *web.Page, domainName string, login framework.Login, remoteAccess bool) (endpoints []string) {
+	bandwagon := ui.OpenBandwagon(page, domainName, login.Username, login.Password)
 
 	By("submitting bandwagon form")
-	endpoints := bandwagon.SubmitForm(remoteAccess)
+	endpoints = bandwagon.SubmitForm(remoteAccess)
 	Expect(len(endpoints)).To(BeNumerically(">", 0))
 
-	if localEndpoint {
-		By("using local application endpoint")
-		// Use bandwagon login for both entry/service access
-		login := framework.Login{Username: username, Password: password}
-		serviceLogin := &framework.ServiceLogin{Username: username, Password: password}
-		framework.UpdateEntry(endpoints[0], login, serviceLogin)
-	}
+	return endpoints
 }

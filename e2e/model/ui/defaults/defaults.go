@@ -4,7 +4,7 @@ import "time"
 
 const (
 	// FindTimeout defines the timeout to use for lookup operations
-	FindTimeout = 20 * time.Second
+	FindTimeout = 1 * time.Minute
 
 	// SelectionPollInterval specifies the frequency of polling for elements
 	SelectionPollInterval = 2 * time.Second
@@ -37,4 +37,8 @@ const (
 	BandwagonUsername = "robotest@example.com"
 	// BandwagonPassword specifies the password to use in bandwagon form
 	BandwagonPassword = "r0b0t@st"
+
+	// GravityHTTPPort specifies the port used by the local gravity site HTTP endpoint
+	// to speed up testing (by avoiding the wait for the Load Balancer to come online)
+	GravityHTTPPort = 32009
 )
