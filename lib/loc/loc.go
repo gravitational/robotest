@@ -55,6 +55,9 @@ func (r *Locator) UnmarshalText(p []byte) error {
 	if err != nil {
 		return err
 	}
+	if r == nil {
+		r = &Locator{}
+	}
 	*r = *locator
 	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -31,39 +30,39 @@ func ConfigureFlags() {
 
 	initLogger(debugFlag)
 
-	confFile, err := os.Open(configFile)
-	if err != nil {
-		Failf("failed to read configuration from %q: %v", configFile, err)
-	}
-	defer confFile.Close()
-
-	err = newFileConfig(confFile)
+	err := initTestContext(configFile)
 	if err != nil {
 		Failf("failed to read configuration from %q: %v", configFile, trace.DebugReport(err))
 	}
 
-	stateFile, err := os.Open(stateConfigFile)
-	if err != nil && !os.IsNotExist(err) {
-		Failf("failed to read configuration state from %q", stateConfigFile)
-	}
-	if err == nil {
-		defer stateFile.Close()
-		err = newFileState(stateFile)
-		if err != nil {
-			testState = nil
-			Failf("failed to read configuration state from %q", stateConfigFile)
-		}
+	err = initTestState(stateConfigFile)
+	if err != nil {
+		Failf("failed to read state configuration from %q: %v", stateConfigFile, trace.DebugReport(err))
 	}
 
 	if testState != nil {
+		// testState -> TestContext
 		TestContext.Provisioner = testState.Provisioner
 		TestContext.StateDir = testState.StateDir
+		if testState.EntryURL != "" {
+			TestContext.OpsCenterURL = testState.EntryURL
+		}
+		if testState.Login != nil {
+			TestContext.Login = *testState.Login
+		}
+		if testState.ServiceLogin != nil {
+			TestContext.ServiceLogin = *testState.ServiceLogin
+		}
+		if testState.ProvisionerState != nil {
+			TestContext.Wizard = testState.ProvisionerState.InstallerAddr != ""
+		}
+		if testState.Application != nil {
+			TestContext.Application.Locator = testState.Application
+		}
 	}
 
 	if mode == wizardMode {
 		TestContext.Wizard = true
-		// Void test state in wizard mode
-		testState = nil
 	} else {
 		TestContext.Onprem.InstallerURL = ""
 	}
@@ -87,7 +86,7 @@ func ConfigureFlags() {
 
 	log.Debugf("[CONFIG]: %#v", TestContext)
 	if testState != nil {
-		log.Debugf("[STATE]: %#v", testState, testState.ProvisionerState)
+		log.Debugf("[STATE]: %#v", testState)
 		if testState.ProvisionerState != nil {
 			log.Debugf("[PROVISIONER STATE]: %#v", *testState.ProvisionerState)
 		}
@@ -96,15 +95,15 @@ func ConfigureFlags() {
 
 func (r *TestContextType) Validate() error {
 	var errors []error
-	if TestContext.Wizard && TestContext.Onprem.InstallerURL == "" {
+	if mode == wizardMode && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
 	var command bool = teardownFlag || dumpFlag || mode == wizardMode
 	if !command && TestContext.Login.IsEmpty() {
-		errors = append(errors, trace.BadParameter("Ops Center login is required"))
+		log.Warningf("Ops Center login not configured - Ops Center access will likely not be available")
 	}
 	if TestContext.ServiceLogin.IsEmpty() {
-		log.Warningf("service login not configured - reports will not be collected")
+		log.Warningf("service login not configured - reports will likely not be collected")
 	}
 	if TestContext.AWS.IsEmpty() && TestContext.Onprem.IsEmpty() {
 		errors = append(errors, trace.BadParameter("either AWS or Onprem is required"))
@@ -127,31 +126,43 @@ var testState *TestState
 
 // TestContextType defines the configuration context of a single test run
 type TestContextType struct {
-	// Wizard specifies whether to use wizard to bootstrap cluster
-	Wizard bool `json:"wizard" yaml:"wizard" env:"ROBO_WIZARD"`
+	// Wizard specifies whether wizard was used to bootstrap cluster
+	Wizard bool `json:"-" yaml:"-"`
 	// Provisioner defines the type of provisioner to use
-	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_WIZARD"`
-	// DumpCore defines a command to collect all installation/operation logs
+	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_PROVISIONER"`
+	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
 	StateDir string `json:"-" yaml:"-"`
-	// Teardown specifies if the cluster should be destroyed at the end of this
-	// test run
+	// Teardown specifies the command to destroy the infrastructure
 	Teardown bool `json:"-" yaml:"-"`
+	// ForceRemoteAccess explicitly enables the remote access for the installed site.
+	// If unspecified (or false), remote access is configured automatically:
+	//  - if installing into existing Ops Center, remote access is enabled
+	//  - in wizard mode remote access is disabled
+	//
+	// TODO: automatically determine when to enable remote access
+	ForceRemoteAccess bool `json:"remote_access,omitempty" yaml:"remote_access,omitempty" env:"ROBO_REMOTE_ACCESS"`
+	// ForceLocalEndpoint specifies whether to use the local application endpoint
+	// instead of Ops Center to control the installed site
+	//
+	// TODO: automatically determine when to use local endpoint
+	ForceLocalEndpoint bool `json:"local_endpoint,omitempty" yaml:"local_endpoint,omitempty" env:"ROBO_LOCAL_ENDPOINT"`
 	// ReportDir defines location to store the results of the test
 	ReportDir string `json:"report_dir" yaml:"report_dir" env:"ROBO_REPORT_DIR"`
 	// ClusterName defines the name to use for domain name or state directory
 	ClusterName string `json:"cluster_name" yaml:"cluster_name" env:"ROBO_CLUSTER_NAME"`
 	// License specifies the application license
 	License string `json:"license" yaml:"license" env:"ROBO_APP_LICENSE"`
-	// OpsCenterURL defines the URL of the existing Ops Center.
-	// This specifies the original Ops Center for the wizard test flow
-	// and will be used to upload application updates.
-	// This is a requirement for all browser-based tests
+	// OpsCenterURL specifies the Ops Center to use for tests.
+	// OpsCenterURL is mandatory when running tests on an existing Ops Center.
+	// In wizard mode, this is automatically populated by the wizard (incl. Application, see below)
 	OpsCenterURL string `json:"ops_url" yaml:"ops_url" env:"ROBO_OPS_URL"`
-	// Application defines the application package to test
-	Application *loc.Locator `json:"application" yaml:"application" env:"ROBO_APP"`
-	// Login defines the login details to access the Ops Center
+	// Application defines the application package to test.
+	// In wizard mode, this is automatically set by the wizard
+	Application LocatorRef `json:"application" yaml:"application" env:"ROBO_APP"`
+	// Login defines the login details to access existing Ops Center.
+	// Mandatory only in non-wizard mode
 	Login Login `json:"login" yaml:"login"`
 	// ServiceLogin defines the login parameters for service access to the Ops Center
 	ServiceLogin ServiceLogin `json:"service_login" yaml:"service_login"`
@@ -170,7 +181,7 @@ type Login struct {
 	Password string `json:"password" yaml:"password" env:"ROBO_PASSWORD"`
 	// AuthProvider specifies the authentication provider to use for login.
 	// Available providers are `email` and `gogole`
-	AuthProvider string `json:"auth_provider" yaml:"auth_provider" env:"ROBO_AUTH_PROVIDER"`
+	AuthProvider string `json:"auth_provider,omitempty" yaml:"auth_provider,omitempty" env:"ROBO_AUTH_PROVIDER"`
 }
 
 func (r Login) IsEmpty() bool {
@@ -229,6 +240,25 @@ func (r OnpremConfig) IsEmpty() bool {
 	return r.NumNodes == 0 && r.InstallerURL == "" && r.ScriptPath == ""
 }
 
+// LocatorRef defines a reference to a package locator.
+// It is necessary to keep application package optional
+// in the configuration while being able to consume value
+// from environment
+type LocatorRef struct {
+	*loc.Locator
+}
+
+// SetEnv implements configure.EnvSetter
+func (r *LocatorRef) SetEnv(value string) error {
+	var loc loc.Locator
+	err := loc.UnmarshalText([]byte(value))
+	if err != nil {
+		return err
+	}
+	r.Locator = &loc
+	return nil
+}
+
 func registerCommonFlags() {
 	// Turn on verbose by default to get spec names
 	config.DefaultReporterConfig.Verbose = true
@@ -244,41 +274,68 @@ func registerCommonFlags() {
 	flag.StringVar(&provisionerName, "provisioner", "", "Provision nodes using this provisioner")
 }
 
-func newFileConfig(input io.Reader) error {
-	configBytes, err := ioutil.ReadAll(input)
+func initTestContext(confFile string) error {
+	err := newContextConfig(confFile)
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	err = yaml.Unmarshal(configBytes, &TestContext)
-	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(err, "failed to read configuration from %q", confFile)
 	}
 
 	err = configure.ParseEnv(TestContext)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(err, "failed to update configuration from environment")
 	}
 
 	err = TestContext.Validate()
 	if err != nil {
 		return trace.Wrap(err, "failed to validate configuration")
 	}
-
 	return nil
 }
 
-func newFileState(input io.Reader) error {
-	d := json.NewDecoder(input)
-	err := d.Decode(&testState)
+func newContextConfig(configFile string) error {
+	confFile, err := os.Open(configFile)
+	if err != nil && !os.IsNotExist(err) {
+		return trace.Wrap(err)
+	}
+	if confFile == nil {
+		// No configuration file - consume configuration from environment
+		return nil
+	}
+
+	defer confFile.Close()
+
+	configBytes, err := ioutil.ReadAll(confFile)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = testState.Validate()
+	return trace.Wrap(yaml.Unmarshal(configBytes, &TestContext))
+}
+
+func initTestState(configFile string) error {
+	confFile, err := os.Open(configFile)
+	if err != nil && !os.IsNotExist(err) {
+		return trace.ConvertSystemError(err)
+	}
+	if err != nil {
+		// No test state configuration
+		return nil
+	}
+	defer confFile.Close()
+
+	var state TestState
+	d := json.NewDecoder(confFile)
+	err = d.Decode(&state)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = state.Validate()
 	if err != nil {
 		return trace.Wrap(err, "failed to validate state configuration")
 	}
 
+	testState = &state
 	return nil
 }
 

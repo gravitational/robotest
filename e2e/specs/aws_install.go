@@ -68,11 +68,26 @@ func VerifyAWSInstall(f *framework.T) {
 		}
 
 		shouldHandleBandwagonScreen := func() {
-			bandwagon.Complete(f.Page, domainName, ctx.Login.Username, ctx.Login.Password)
+			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
+			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
+			bandwagon.Complete(f.Page,
+				domainName,
+				ctx.Login.Username,
+				ctx.Login.Password,
+				enableRemoteAccess, useLocalEndpoint)
 		}
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
+			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
+			if useLocalEndpoint {
+				siteURL := framework.SiteURL()
+				login := framework.Login{
+					Username: defaults.BandwagonUsername,
+					Password: defaults.BandwagonPassword,
+				}
+				ui.EnsureLocalUser(f.Page, siteURL, login)
+			}
 			site.Open(f.Page, domainName)
 		}
 

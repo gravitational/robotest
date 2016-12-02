@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	WithEmail         = "email"
-	WithGoogle        = "google"
-	WithNoProvider    = ""
+	WithEmail      = "email"
+	WithGoogle     = "google"
+	WithNoProvider = ""
+
 	googlePageTimeout = 1 * time.Second
 )
 
@@ -31,6 +32,18 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 		default:
 			framework.Failf("unknown auth type %q", login.AuthProvider)
 		}
+
+		PauseForComponentJs()
+	}
+}
+
+func EnsureLocalUser(page *web.Page, URL string, login framework.Login) {
+	Expect(page.Navigate(URL)).To(Succeed())
+	count, _ := page.FindByClass("grv-user-login").Count()
+
+	if count != 0 {
+		user := CreateUser(page, login.Username, login.Password)
+		user.LoginWithEmail()
 
 		PauseForComponentJs()
 	}

@@ -15,14 +15,16 @@ func SiteURL() string {
 
 // InstallerURL returns URL of the installer for the configured application package
 func InstallerURL() string {
+	gomega.Expect(TestContext.Application.Locator).NotTo(gomega.BeNil(), "should have a valid application package")
+
 	path := fmt.Sprintf("web/installer/new/%v/%v/%v",
 		TestContext.Application.Repository, TestContext.Application.Name, TestContext.Application.Version)
 	return URLPath(path)
 }
 
-// URLPath returns a new URL with the configured Ops Center using path as a custom URL path
+// URLPath returns a new URL from the configured entry URL using path as new URL path
 func URLPath(path string) string {
-	url, err := url.Parse(Cluster.OpsCenterURL())
+	url, err := url.Parse(TestContext.OpsCenterURL)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	url.RawQuery = ""
 	url.Path = path
@@ -36,4 +38,17 @@ func URLPathFromString(urlS string, path string) string {
 	url.RawQuery = ""
 	url.Path = path
 	return url.String()
+}
+
+// UpdateEntry specifies new entryURL and login details
+// to use for subsequent site access.
+func UpdateEntry(entryURL string, login Login, serviceLogin *ServiceLogin) {
+	TestContext.OpsCenterURL = entryURL
+	TestContext.Login = login
+	if serviceLogin != nil {
+		TestContext.ServiceLogin = *serviceLogin
+	}
+	testState.EntryURL = entryURL
+	testState.Login = &login
+	testState.ServiceLogin = serviceLogin
 }

@@ -76,15 +76,27 @@ func VerifyOnpremInstall(f *framework.T) {
 		}
 
 		shouldHandleBandwagonScreen := func() {
+			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
+			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
 			bandwagon.Complete(
 				f.Page,
 				domainName,
 				defaults.BandwagonUsername,
-				defaults.BandwagonPassword)
+				defaults.BandwagonPassword,
+				enableRemoteAccess, useLocalEndpoint)
 		}
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
+			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
+			if useLocalEndpoint {
+				siteURL := framework.SiteURL()
+				login := framework.Login{
+					Username: defaults.BandwagonUsername,
+					Password: defaults.BandwagonPassword,
+				}
+				ui.EnsureLocalUser(f.Page, siteURL, login)
+			}
 			site.Open(f.Page, domainName)
 		}
 

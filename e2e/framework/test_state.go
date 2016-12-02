@@ -2,6 +2,7 @@ package framework
 
 import (
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/trace"
 )
 
@@ -9,13 +10,16 @@ import (
 // and teardown.
 // The state is updated on each in-between test run to sync the provisioner state.
 type TestState struct {
-	// OpsCenterURL defines the Ops Center address this infrastructure is
-	// communicating with.
-	// In case of the wizard mode, this is the actual Ops Center created by the wizard
-	// which was not available upfront.
-	// This can be different from the Ops Center configured in TestContext which always
-	// refers to the originating Ops Center
-	OpsCenterURL string `json:"ops_url"`
+	// EntryURL defines the entry point to the application.
+	// This can be the address of existing Ops Center or local application endpoint URL
+	EntryURL string `json:"ops_url"`
+	// Application defines the application package to test as retrieved from the wizard
+	Application *loc.Locator `json:"application,omitempty"`
+	// Login specifies optional login to connect to the EntryURL.
+	// Falls back to TestContext.Login if unspecified
+	Login *Login `json:"login,omitempty"`
+	// ServiceLogin specifies optional service login to connect to the EntryURL.
+	ServiceLogin *ServiceLogin `json:"service_login,omitempty"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner
 	Provisioner provisionerType `json:"provisioner,omitempty"`
@@ -30,8 +34,8 @@ type TestState struct {
 
 func (r TestState) Validate() error {
 	var errors []error
-	if r.OpsCenterURL == "" {
-		errors = append(errors, trace.BadParameter("Ops Center URL is required"))
+	if r.EntryURL == "" {
+		errors = append(errors, trace.BadParameter("EntryURL is required"))
 	}
 	if r.Provisioner != "" && r.ProvisionerState == nil {
 		errors = append(errors, trace.BadParameter("ProvisionerState is required"))

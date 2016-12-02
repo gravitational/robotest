@@ -58,6 +58,11 @@ Vagrant.configure(2) do |config|
                   "--device", 0, "--type", "hdd", "--medium", vdi_file]
   end
 
+  def attach_libvirt_media(box, node_name, device, size)
+    path = node_name + device + ".qcow2"
+    box.storage :file, :size => size, :path => path, :allow_existing => true
+  end
+
   # mount a volume using the specified filesystem on the given device
   def mount_volume(vm, fs, volume, device)
     vm.provision "shell", inline: <<-SHELL
@@ -79,16 +84,18 @@ Vagrant.configure(2) do |config|
     vm.define node_name do |node|
       node.vm.hostname = node_name
       node.vm.network "private_network", ip: "#{node_ip}"
-      node.vm.provider :libvirt do |vb|
-        vb.cpus = cpus
-        vb.memory = ram_mb
+      node.vm.provider :libvirt do |box|
+        box.cpus = cpus
+        box.memory = ram_mb
+        attach_libvirt_media(box, node_name, "vdb", $vm_device_size) # /var/lib/gravity
+        attach_libvirt_media(box, node_name, "vdc", $vm_device_size) # direct-lvm partition, no fs
       end
       node.vm.provider "virtualbox" do |vb|
         vb.name = node.vm.hostname
         vb.cpus = cpus
         vb.memory = ram_mb
-        attach_media(vb, "SATA Controller", "sdb", $vm_device_size, 1) # 10Gb, /var/lib/gravity
-        attach_media(vb, "SATA Controller", "sdc", $vm_device_size, 2) # 10Gb, direct-lvm partition, no fs
+        attach_media(vb, "SATA Controller", "sdb", $vm_device_size, 1) # /var/lib/gravity
+        attach_media(vb, "SATA Controller", "sdc", $vm_device_size, 2) # direct-lvm partition, no fs
       end
     end
   end
@@ -123,6 +130,22 @@ Vagrant.configure(2) do |config|
 
   config.vm.provision "shell", inline: <<-SHELL
     # yum -y install net-tools
+    # set up system device
+    if lsblk -n /dev/vdb; then
+      device=vdb
+    else
+      device=sdb
+    fi
+    echo system device: /dev/${device}
+    umount /dev/${device} || true
+    mkfs.xfs -f /dev/${device}
+    sed -i.bak "/${device}/d" /etc/fstab
+    echo -e "/dev/${device}\t/var/lib/gravity\txfs\tdefaults\t0\t2" >> /etc/fstab
+    mkdir -p /var/lib/gravity
+    mount /var/lib/gravity
+    chown -R 1000:1000 /var/lib/gravity
+    sed -i.bak "s/Defaults    requiretty/#Defaults    requiretty/g" /etc/sudoers
+
     /usr/sbin/ip route add 10.100.0.0/16 dev eth0 || true
     /usr/sbin/ip route add 10.100.0.0/16 dev enp0s8 || true
     echo 192.168.122.1 opscenter.localhost.localdomain >> /etc/hosts

@@ -75,18 +75,18 @@ func (r *vagrant) Create() (installer infra.Node, err error) {
 		return nil, trace.BadParameter("number of requested nodes %v larger than the cluster capacity %v", r.Config.NumNodes, len(nodes))
 	}
 
-	// Use first node as installer
-	r.installerIP = nodes[0].Addr()
 	r.pool = infra.NewNodePool(nodes, nil)
-
 	r.Debugf("cluster: %#v", r.pool)
 
-	node, err := r.pool.Node(r.installerIP)
-	if err != nil {
-		return nil, trace.Wrap(err)
+	if r.InstallerURL == "" {
+		return nil, nil
 	}
 
-	return node, nil
+	// Use first node as installer
+	r.installerIP = nodes[0].Addr()
+	node, err := r.pool.Node(r.installerIP)
+
+	return node, trace.Wrap(err)
 }
 
 func (r *vagrant) Destroy() error {
@@ -164,8 +164,8 @@ func (r *vagrant) syncInstallerTarball() error {
 	if r.InstallerURL == "" {
 		return nil
 	}
-	file := filepath.Base(r.InstallerURL)
-	target := filepath.Join(r.stateDir, file)
+	target := filepath.Join(r.stateDir, "installer.tar.gz")
+	log.Debugf("copy %v -> %v", r.InstallerURL, target)
 	err := system.CopyFile(target, r.InstallerURL)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
