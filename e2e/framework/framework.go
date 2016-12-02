@@ -49,7 +49,7 @@ type T struct {
 func (r *T) BeforeEach() {
 	if r.Page == nil {
 		var err error
-		r.Page, err = driver.NewPage()
+		r.Page, err = newPage()
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -59,6 +59,10 @@ func (r *T) AfterEach() {
 
 // CreateDriver creates a new instance of the web driver
 func CreateDriver() {
+	if TestContext.WebDriverURL != "" {
+		log.Debugf("WebDriverURL specified - skip CreateDriver")
+		return
+	}
 	driver = web.ChromeDriver()
 	Expect(driver).NotTo(BeNil())
 	Expect(driver.Start()).To(Succeed())
@@ -66,7 +70,9 @@ func CreateDriver() {
 
 // CloseDriver stops and closes the test-global web driver
 func CloseDriver() {
-	Expect(driver.Stop()).To(Succeed())
+	if driver != nil {
+		Expect(driver.Stop()).To(Succeed())
+	}
 }
 
 // Distribute executes the specified command on nodes
@@ -145,11 +151,11 @@ func InitializeCluster() {
 	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application.Locator = application
-		TestContext.OpsCenterURL = Cluster.OpsCenterURL()
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
 	Expect(err).NotTo(HaveOccurred())
+	TestContext.OpsCenterURL = Cluster.OpsCenterURL()
 
 }
 
@@ -302,6 +308,14 @@ func saveState(withBackup backupFlag) error {
 	}
 
 	return nil
+}
+
+func newPage() (*web.Page, error) {
+	if TestContext.WebDriverURL != "" {
+		capabilities := web.NewCapabilities().Browser("chrome").Platform("linux").With("javascriptEnabled")
+		return web.NewPage(TestContext.WebDriverURL, web.Desired(capabilities))
+	}
+	return driver.NewPage()
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

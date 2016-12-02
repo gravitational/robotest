@@ -96,7 +96,6 @@ resource "aws_instance" "installer_node" {
     key_name = "${var.key_pair}"
     placement_group = "${aws_placement_group.cluster.id}"
     count = "1"
-    iam_instance_profile = "${aws_iam_instance_profile.node.id}"
 
     tags {
         Name = "${var.cluster_name}"
@@ -180,7 +179,6 @@ resource "aws_instance" "node" {
     key_name = "${var.key_pair}"
     placement_group = "${aws_placement_group.cluster.id}"
     count = "${var.nodes - 1}"
-    iam_instance_profile = "${aws_iam_instance_profile.node.id}"
 
     tags {
         Name = "${var.cluster_name}"
@@ -248,76 +246,4 @@ EOF
         iops = 3000
         delete_on_termination = true
     }
-}
-
-resource "aws_iam_instance_profile" "node" {
-    name = "${var.cluster_name}"
-    roles = ["${var.cluster_name}"]
-}
-
-resource "aws_iam_role_policy" "node" {
-    name = "${var.cluster_name}"
-    role = "${aws_iam_role.node.id}"
-    policy = <<EOF
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ec2:*"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "elasticloadbalancing:*"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["s3:*"],
-            "Resource": [
-                "arn:aws:s3:::kubernetes-*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["s3:ListBucket"],
-            "Resource": ["arn:aws:s3:::builds.gravitational.io/robotest"]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-              "s3:PutObject",
-              "s3:GetObject",
-              "s3:DeleteObject"
-            ],
-            "Resource": ["arn:aws:s3:::builds.gravitational.io/robotest/*"]
-        }
-    ]
-}
-EOF
-}
-
-resource "aws_iam_role" "node" {
-    name = "${var.cluster_name}"
-    assume_role_policy = <<EOF
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {"Service": "ec2.amazonaws.com"},
-            "Action": "sts:AssumeRole"
-        }
-    ]
-}
-EOF
 }

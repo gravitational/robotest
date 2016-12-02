@@ -179,6 +179,8 @@ type TestContextType struct {
 	AWS AWSConfig `json:"aws" yaml:"aws"`
 	// Onprem defines the test configuration for bare metal tests
 	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
+	// WebDriverURL specifies optional WebDriver URL to use
+	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" env:"ROBO_WEB_DRIVER_URL"`
 }
 
 // Login defines Ops Center authentication parameters
