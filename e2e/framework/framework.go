@@ -49,7 +49,7 @@ type T struct {
 func (r *T) BeforeEach() {
 	if r.Page == nil {
 		var err error
-		r.Page, err = driver.NewPage()
+		r.Page, err = newPage()
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -59,6 +59,10 @@ func (r *T) AfterEach() {
 
 // CreateDriver creates a new instance of the web driver
 func CreateDriver() {
+	if TestContext.WebDriverURL != "" {
+		log.Debugf("WebDriverURL specified - skip CreateDriver")
+		return
+	}
 	driver = web.ChromeDriver()
 	Expect(driver).NotTo(BeNil())
 	Expect(driver.Start()).To(Succeed())
@@ -66,7 +70,9 @@ func CreateDriver() {
 
 // CloseDriver stops and closes the test-global web driver
 func CloseDriver() {
-	Expect(driver.Stop()).To(Succeed())
+	if driver != nil {
+		Expect(driver.Stop()).To(Succeed())
+	}
 }
 
 // Distribute executes the specified command on nodes
@@ -85,6 +91,12 @@ var Cluster infra.Infra
 // installerNode is the node with installer running on it in case the tests
 // are running in wizard mode
 var installerNode infra.Node
+
+// InstallerNode returns the node with the running installer.
+// Only applicable in wizard mode (TestContext.Wizard == true)
+func InstallerNode() infra.Node {
+	return installerNode
+}
 
 // InitializeCluster creates infrastructure according to configuration
 func InitializeCluster() {
@@ -109,16 +121,6 @@ func InitializeCluster() {
 		}
 	}
 
-	var application *loc.Locator
-	if mode == wizardMode {
-		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
-		TestContext.Application.Locator = application
-		TestContext.OpsCenterURL = Cluster.OpsCenterURL()
-	} else {
-		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
-	}
-	Expect(err).NotTo(HaveOccurred())
-
 	switch {
 	case testState == nil:
 		log.Debug("init test state")
@@ -130,19 +132,31 @@ func InitializeCluster() {
 		if TestContext.Application.Locator != nil {
 			testState.Application = TestContext.Application.Locator
 		}
-		if Cluster.Provisioner() != nil {
+		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner
-			provisionerState := Cluster.Provisioner().State()
+			provisionerState := provisioner.State()
 			testState.ProvisionerState = &provisionerState
 		}
-		Expect(saveState(withBackup)).To(Succeed())
+		// Save initial state as soon as possible
+		Expect(saveState(withoutBackup)).To(Succeed())
 	case testState != nil:
-		if Cluster.Provisioner() != nil && testState.ProvisionerState.InstallerAddr != "" {
+		if provisioner != nil && testState.ProvisionerState.InstallerAddr != "" {
 			// Get reference to installer node if the cluster was provisioned with installer
-			installerNode, err = Cluster.Provisioner().NodePool().Node(testState.ProvisionerState.InstallerAddr)
+			installerNode, err = provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
 			Expect(err).NotTo(HaveOccurred())
 		}
 	}
+
+	var application *loc.Locator
+	if mode == wizardMode {
+		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
+		TestContext.Application.Locator = application
+	} else {
+		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
+	}
+	Expect(err).NotTo(HaveOccurred())
+	TestContext.OpsCenterURL = Cluster.OpsCenterURL()
+
 }
 
 // Destroy destroys the infrastructure created previously in InitializeCluster
@@ -181,7 +195,7 @@ func UpdateState() {
 		testState.ProvisionerState = &provisionerState
 	}
 
-	Expect(saveState(withoutBackup)).To(Succeed())
+	Expect(saveState(withBackup)).To(Succeed())
 }
 
 // CoreDump collects diagnostic information into the specified report directory
@@ -236,8 +250,11 @@ func CoreDump() {
 		Expect(err).NotTo(HaveOccurred())
 		defer installerLog.Close()
 
-		Expect(infra.ScpText(installerNode,
-			Cluster.Provisioner().InstallerLogPath(), installerLog)).To(Succeed())
+		err = infra.ScpText(installerNode, Cluster.Provisioner().InstallerLogPath(), installerLog)
+		if err != nil {
+			log.Errorf("failed to fetch the installer log from %q: %v", installerNode, err)
+			os.Remove(installerLog.Name())
+		}
 	}
 	for _, node := range Cluster.Provisioner().NodePool().Nodes() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
@@ -269,6 +286,15 @@ func RunAgentCommand(command string, nodes ...infra.Node) {
 }
 
 func saveState(withBackup backupFlag) error {
+	if withBackup {
+		filename := fmt.Sprintf("%vbackup", filepath.Base(stateConfigFile))
+		stateConfigBackup := filepath.Join(filepath.Dir(stateConfigFile), filename)
+		err := system.CopyFile(stateConfigBackup, stateConfigFile)
+		if err != nil {
+			log.Errorf("failed to make a backup of state file %q: %v", stateConfigFile, err)
+		}
+	}
+
 	file, err := os.Create(stateConfigFile)
 	if err != nil {
 		return trace.Wrap(err)
@@ -280,12 +306,16 @@ func saveState(withBackup backupFlag) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	if withBackup {
-		filename := fmt.Sprintf("%vbackup", filepath.Base(stateConfigFile))
-		stateConfigBackup := filepath.Join(filepath.Dir(stateConfigFile), filename)
-		return trace.Wrap(system.CopyFile(stateConfigBackup, stateConfigFile))
-	}
+
 	return nil
+}
+
+func newPage() (*web.Page, error) {
+	if TestContext.WebDriverURL != "" {
+		capabilities := web.NewCapabilities().Browser("chrome").Platform("linux").With("javascriptEnabled")
+		return web.NewPage(TestContext.WebDriverURL, web.Desired(capabilities))
+	}
+	return driver.NewPage()
 }
 
 func newStateDir(clusterName string) (dir string, err error) {

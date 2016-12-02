@@ -99,6 +99,7 @@ resource "aws_instance" "installer_node" {
 
     tags {
         Name = "${var.cluster_name}"
+        Origin = "robotest"
     }
 
     user_data = <<EOF
@@ -181,6 +182,7 @@ resource "aws_instance" "node" {
 
     tags {
         Name = "${var.cluster_name}"
+        Origin = "robotest"
     }
 
     user_data = <<EOF

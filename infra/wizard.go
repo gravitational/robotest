@@ -85,15 +85,22 @@ func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluste
 	}()
 
 	// launch the installer
+	log.Debugf("starting installer...")
 	err = provisioner.StartInstall(session)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	var installerURL *url.URL
+	log.Debugf("configuring wizard...")
 	installerURL, err = configureWizard(reader, stdin, provisioner, installer)
 	if err != nil {
 		return nil, trace.Wrap(err)
+	}
+
+	if installerURL == nil {
+		err = trace.NotFound("failed to fetch installer URL. Check installer output for details.")
+		return nil, err
 	}
 
 	var application *loc.Locator

@@ -12,6 +12,7 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
+	"github.com/gravitational/robotest/lib/debug"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/trace"
 
@@ -29,6 +30,11 @@ func ConfigureFlags() {
 	flag.Parse()
 
 	initLogger(debugFlag)
+
+	if debugFlag {
+		// TODO: make port configurable
+		debug.StartProfiling("localhost:6060")
+	}
 
 	err := initTestContext(configFile)
 	if err != nil {
@@ -61,7 +67,7 @@ func ConfigureFlags() {
 		}
 	}
 
-	if mode == wizardMode {
+	if mode == wizardMode || TestContext.Wizard {
 		TestContext.Wizard = true
 	} else {
 		TestContext.Onprem.InstallerURL = ""
@@ -173,6 +179,8 @@ type TestContextType struct {
 	AWS AWSConfig `json:"aws" yaml:"aws"`
 	// Onprem defines the test configuration for bare metal tests
 	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
+	// WebDriverURL specifies optional WebDriver URL to use
+	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" env:"ROBO_WEB_DRIVER_URL"`
 }
 
 // Login defines Ops Center authentication parameters
@@ -257,6 +265,22 @@ func (r *LocatorRef) SetEnv(value string) error {
 	}
 	r.Locator = &loc
 	return nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (r *LocatorRef) UnmarshalText(p []byte) error {
+	loc := &loc.Locator{}
+	err := loc.UnmarshalText(p)
+	if err != nil {
+		return err
+	}
+	r.Locator = loc
+	return nil
+}
+
+// UnmarshalText implements encoding.TextMarshaler
+func (r LocatorRef) MarshalText() ([]byte, error) {
+	return r.Locator.MarshalText()
 }
 
 func registerCommonFlags() {

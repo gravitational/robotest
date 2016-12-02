@@ -148,7 +148,7 @@ Vagrant.configure(2) do |config|
 
     /usr/sbin/ip route add 10.100.0.0/16 dev eth0 || true
     /usr/sbin/ip route add 10.100.0.0/16 dev enp0s8 || true
-    echo 192.168.122.1 opscenter.localhost.localdomain >> /etc/hosts
+    echo $(ip route | grep default | awk '{print $3}') opscenter.localhost.localdomain >> /etc/hosts
   SHELL
 
   # Don't attempt to update Virtualbox Guest Additions (requires gcc)

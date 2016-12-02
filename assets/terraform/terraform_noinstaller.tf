@@ -94,6 +94,7 @@ resource "aws_instance" "node" {
 
     tags {
         Name = "${var.cluster_name}"
+        Origin = "robotest"
     }
 
     user_data = <<EOF

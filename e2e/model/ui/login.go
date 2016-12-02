@@ -37,18 +37,6 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 	}
 }
 
-func EnsureLocalUser(page *web.Page, URL string, login framework.Login) {
-	Expect(page.Navigate(URL)).To(Succeed())
-	count, _ := page.FindByClass("grv-user-login").Count()
-
-	if count != 0 {
-		user := CreateUser(page, login.Username, login.Password)
-		user.LoginWithEmail()
-
-		PauseForComponentJs()
-	}
-}
-
 func CreateUser(page *web.Page, email string, password string) User {
 	return User{page: page, email: email, password: password}
 }

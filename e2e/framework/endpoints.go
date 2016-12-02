@@ -40,9 +40,9 @@ func URLPathFromString(urlS string, path string) string {
 	return url.String()
 }
 
-// UpdateEntry specifies new entryURL and login details
+// UpdateSiteEntry specifies new entryURL and login details
 // to use for subsequent site access.
-func UpdateEntry(entryURL string, login Login, serviceLogin *ServiceLogin) {
+func UpdateSiteEntry(entryURL string, login Login, serviceLogin *ServiceLogin) {
 	TestContext.OpsCenterURL = entryURL
 	TestContext.Login = login
 	if serviceLogin != nil {

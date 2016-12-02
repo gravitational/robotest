@@ -1,6 +1,8 @@
 package specs
 
 import (
+	"fmt"
+
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
@@ -18,6 +20,10 @@ func VerifyOnpremInstall(f *framework.T) {
 	var _ = framework.RoboDescribe("Onprem Installation", func() {
 		ctx := framework.TestContext
 		var domainName string
+		var login = framework.Login{
+			Username: defaults.BandwagonUsername,
+			Password: defaults.BandwagonPassword,
+		}
 
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
@@ -77,26 +83,26 @@ func VerifyOnpremInstall(f *framework.T) {
 
 		shouldHandleBandwagonScreen := func() {
 			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
-			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
-			bandwagon.Complete(
+			// useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
+			endpoints := bandwagon.Complete(
 				f.Page,
 				domainName,
-				defaults.BandwagonUsername,
-				defaults.BandwagonPassword,
-				enableRemoteAccess, useLocalEndpoint)
+				login,
+				enableRemoteAccess)
+			By("using local application endpoint")
+			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
+			siteEntryURL := endpoints[0]
+			// TODO: for terraform, use public installer address
+			// terraform nodes are provisioned only with a single private network interface
+			if ctx.Provisioner == "terraform" {
+				siteEntryURL = fmt.Sprintf("https://%v:%v", framework.InstallerNode().Addr(), defaults.GravityHTTPPort)
+			}
+			framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		}
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
-			useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
-			if useLocalEndpoint {
-				siteURL := framework.SiteURL()
-				login := framework.Login{
-					Username: defaults.BandwagonUsername,
-					Password: defaults.BandwagonPassword,
-				}
-				ui.EnsureLocalUser(f.Page, siteURL, login)
-			}
+			ui.EnsureUser(f.Page, framework.SiteURL(), login)
 			site.Open(f.Page, domainName)
 		}
 
