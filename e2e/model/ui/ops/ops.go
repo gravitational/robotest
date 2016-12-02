@@ -3,17 +3,18 @@ package ops
 import (
 	"encoding/json"
 	"fmt"
-
 	"time"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 )
 
+// OpsProvider provides methods to search/filter site operations
 type OpsProvider struct {
 	page *web.Page
 }
 
+// SiteOperation describes site operations such as expand, shrink, install
 type SiteOperation struct {
 	ID          string    `json:"id"`
 	AccountID   string    `json:"account_id"`
@@ -25,10 +26,12 @@ type SiteOperation struct {
 	Provisioner string    `json:"provisioner"`
 }
 
+// Returns OpsProvider that can be used to retrieve site operations
 func CreateOpsProvider(page *web.Page) OpsProvider {
 	return OpsProvider{page: page}
 }
 
+// Returns last operation by operation type
 func (o *OpsProvider) GetLastOperationByType(opType string) *SiteOperation {
 	const scriptTemplate = `
         var opsMap = reactor.evaluate(["op"]);        
