@@ -3,9 +3,10 @@ package specs
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
+	ops "github.com/gravitational/robotest/e2e/model/ui/ops"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
-
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func VerifyAWSSiteServers(f *framework.T) {
@@ -29,6 +30,14 @@ func VerifyAWSSiteServers(f *framework.T) {
 
 			By("trying to add a new server")
 			newItem := siteProvisioner.AddAWSServer(ctx.AWS, ctx.FlavorLabel)
+
+			By("veryfing operation state")
+			opsProvider := ops.CreateOpsProvider(f.Page)
+			lastExpandOp := opsProvider.GetLastOperationByType(ops.OperationExpandType)
+			Expect(lastExpandOp).NotTo(BeNil(), "should retrieve last expand operation")
+			Expect(lastExpandOp.State).To(
+				BeEquivalentTo(ops.OperationStateCompleted),
+				"operation should be in complete state")
 
 			By("trying remove a server")
 			siteProvisioner.DeleteAWSServer(ctx.AWS, newItem)
