@@ -52,7 +52,7 @@ func (o *OpsProvider) GetLastOperationByType(opType string) *SiteOperation {
 
 	Expect(o.page.RunScript(js, nil, &jsOutput)).ShouldNot(
 		HaveOccurred(),
-		"should be able to filter operations by type using JS")
+		"should filter operations by type using JS")
 
 	if jsOutput == "" {
 		return nil
