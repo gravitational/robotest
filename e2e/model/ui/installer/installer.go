@@ -48,9 +48,11 @@ func (i *Installer) FillOutLicenseIfRequired(license string) {
 	if count > 0 {
 		Expect(license).NotTo(BeEmpty(), "should have a valid license")
 		Expect(elems.SendKeys(license)).To(Succeed())
-		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
+		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed(),
+			"should input the license text")
 		Eventually(i.page.FindByClass("grv-installer-warning"),
-			defaults.FindTimeout, defaults.SelectionPollInterval).ShouldNot(BeFound())
+			defaults.FindTimeout, defaults.SelectionPollInterval).ShouldNot(BeFound(),
+			"should not see an error about an invalid license")
 	}
 }
 
