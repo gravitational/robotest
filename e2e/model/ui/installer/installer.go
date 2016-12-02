@@ -44,14 +44,15 @@ func Open(page *web.Page, URL string) *Installer {
 
 func (i *Installer) FillOutLicenseIfRequired(license string) {
 	elems := i.page.FindByClass("grv-license")
-	count, err := elems.Count()
-	if err == nil {
-		Expect(count).To(HaveLen(1))
+	count, _ := elems.Count()
+	if count > 0 {
 		Expect(license).NotTo(BeEmpty(), "should have a valid license")
 		Expect(elems.SendKeys(license)).To(Succeed())
-		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
+		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed(),
+			"should input the license text")
 		Eventually(i.page.FindByClass("grv-installer-warning"),
-			defaults.FindTimeout, defaults.SelectionPollInterval).ShouldNot(BeFound())
+			defaults.FindTimeout, defaults.SelectionPollInterval).ShouldNot(BeFound(),
+			"should not see an error about an invalid license")
 	}
 }
 

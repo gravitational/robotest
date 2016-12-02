@@ -31,14 +31,11 @@ func VerifyAWSInstall(f *framework.T) {
 			siteURL = framework.SiteURL()
 		})
 
-		shouldProvideLicense := func() {
-			installer := installermodel.Open(f.Page, framework.InstallerURL())
-			By("filling out license text field if required")
-			installer.FillOutLicenseIfRequired(ctx.License)
-		}
-
 		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
+
+			By("filling out license text field if required")
+			installer.FillOutLicenseIfRequired(ctx.License)
 
 			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(
 				BeTrue(),
@@ -100,7 +97,6 @@ func VerifyAWSInstall(f *framework.T) {
 
 		It("should handle installation", func() {
 			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
-			shouldProvideLicense()
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()

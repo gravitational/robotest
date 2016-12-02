@@ -29,14 +29,10 @@ func VerifyOnpremInstall(f *framework.T) {
 			domainName = ctx.ClusterName
 		})
 
-		shouldProvideLicense := func() {
+		shouldHandleNewDeploymentScreen := func() {
 			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("filling out license text field if required")
 			installer.FillOutLicenseIfRequired(ctx.License)
-		}
-
-		shouldHandleNewDeploymentScreen := func() {
-			installer := installermodel.Open(f.Page, framework.InstallerURL())
 			By("entering domain name")
 			Eventually(installer.IsCreateSiteStep, defaults.FindTimeout).Should(BeTrue())
 			installer.CreateOnPremNewSite(domainName)
@@ -108,7 +104,6 @@ func VerifyOnpremInstall(f *framework.T) {
 
 		It("should install an application", func() {
 			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
-			shouldProvideLicense()
 			shouldHandleNewDeploymentScreen()
 			shouldHandleRequirementsScreen()
 			shouldHandleInProgressScreen()
