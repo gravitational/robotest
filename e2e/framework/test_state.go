@@ -12,7 +12,7 @@ import (
 type TestState struct {
 	// EntryURL defines the entry point to the application.
 	// This can be the address of existing Ops Center or local application endpoint URL
-	EntryURL string `json:"ops_url"`
+	EntryURL string `json:"ops_url,omitempty"`
 	// Application defines the application package to test as retrieved from the wizard
 	Application *loc.Locator `json:"application,omitempty"`
 	// Login specifies optional login to connect to the EntryURL.
@@ -34,9 +34,6 @@ type TestState struct {
 
 func (r TestState) Validate() error {
 	var errors []error
-	if r.EntryURL == "" {
-		errors = append(errors, trace.BadParameter("EntryURL is required"))
-	}
 	if r.Provisioner != "" && r.ProvisionerState == nil {
 		errors = append(errors, trace.BadParameter("ProvisionerState is required"))
 	}
