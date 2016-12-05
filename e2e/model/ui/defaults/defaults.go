@@ -6,6 +6,10 @@ const (
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 1 * time.Minute
 
+	// ProvisionerSelectedTimeout specifies the amount of time to
+	// wait for the requirements screen after selecting a provisioner
+	ProvisionerSelectedTimeout = 5 * time.Minute
+
 	// SelectionPollInterval specifies the frequency of polling for elements
 	SelectionPollInterval = 2 * time.Second
 

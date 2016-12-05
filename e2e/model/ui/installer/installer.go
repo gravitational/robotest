@@ -194,5 +194,5 @@ func specifyDomainName(page *web.Page, domainName string) {
 
 func (i *Installer) proceedToReqs() {
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
-	Eventually(i.page.FindByClass("grv-installer-provision-reqs"), defaults.FindTimeout).Should(BeFound())
+	Eventually(i.page.FindByClass("grv-installer-provision-reqs"), defaults.ProvisionerSelectedTimeout).Should(BeFound())
 }
