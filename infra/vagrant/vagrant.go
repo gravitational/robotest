@@ -30,7 +30,9 @@ func New(stateDir string, config Config) (*vagrant, error) {
 			constants.FieldCluster:     config.ClusterName,
 		}),
 		stateDir: stateDir,
-		Config:   config,
+		// will be reset in Create
+		pool:   infra.NewNodePool(nil, nil),
+		Config: config,
 	}, nil
 }
 

@@ -482,8 +482,12 @@ func outputSensitiveConfig(testConfig TestContextType) {
 }
 
 func outputSensitiveState(testState TestState) {
-	testState.Login.Password = mask
-	testState.ServiceLogin.Password = mask
+	if testState.Login != nil {
+		testState.Login.Password = mask
+	}
+	if testState.ServiceLogin != nil {
+		testState.ServiceLogin.Password = mask
+	}
 	log.Debugf("[STATE]: %#v", testState)
 }
 
