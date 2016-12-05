@@ -150,7 +150,7 @@ func (r *vagrant) boot() error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	out, err := r.command(args("up"), setEnv(
+	out, err := r.command(args("up"), system.SetEnv(
 		fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.ScriptPath),
 		"ROBO_USE_SCRIPTS=true",
 	))
@@ -278,7 +278,7 @@ func (r *vagrant) getIPVirtualbox(nodename string) (string, error) {
 func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
 	cmd := exec.Command("vagrant", args...)
 	var out bytes.Buffer
-	opts = append(opts, system.Dir(r.stateDir), setEnv(fmt.Sprintf("ROBO_NUM_NODES=%v", r.Config.NumNodes)))
+	opts = append(opts, system.Dir(r.stateDir), system.SetEnv(fmt.Sprintf("ROBO_NUM_NODES=%v", r.Config.NumNodes)))
 	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry, opts...)
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
@@ -311,15 +311,6 @@ func (r node) String() string {
 
 func args(opts ...string) (result []string) {
 	return opts
-}
-
-func setEnv(envs ...string) system.CommandOptionSetter {
-	return func(cmd *exec.Cmd) {
-		if len(cmd.Env) == 0 {
-			cmd.Env = os.Environ()
-		}
-		cmd.Env = append(cmd.Env, envs...)
-	}
 }
 
 func parseSSHConfig(config []byte, getIP func(string) (string, error)) (nodes []infra.Node, err error) {

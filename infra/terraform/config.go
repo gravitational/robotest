@@ -3,6 +3,8 @@ package terraform
 import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/trace"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Validate validates the configuration
@@ -20,8 +22,12 @@ func (r *Config) Validate() error {
 	if r.ScriptPath == "" {
 		errors = append(errors, trace.BadParameter("script path is required"))
 	}
+	// Even if the cluster has not been successfully provisioned, there might be some state
+	// that had been created and needs to be cleaned up.
+	// We create a provisioner anyways and let it fail elsewhere if this configuration is
+	// used to allocate new nodes
 	if r.NumNodes <= 0 {
-		errors = append(errors, trace.BadParameter("cannot provision %v nodes", r.NumNodes))
+		log.Warningf("implausible number of nodes: %v", r.NumNodes)
 	}
 	return trace.NewAggregate(errors...)
 }
