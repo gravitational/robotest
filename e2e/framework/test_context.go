@@ -92,9 +92,9 @@ func ConfigureFlags() {
 
 	outputSensitiveConfig(*TestContext)
 	if testState != nil {
-		log.Debugf("[STATE]: %#v", testState)
+		outputSensitiveState(*testState)
 		if testState.ProvisionerState != nil {
-			log.Debugf("[PROVISIONER STATE]: %#v", *testState.ProvisionerState)
+			log.Debugf("[PROVISIONER STATE]: %#v", testState)
 		}
 	}
 }
@@ -116,7 +116,7 @@ func (r *TestContextType) Validate() error {
 			TestContext.Provisioner))
 	}
 	// Do not mandate AWS.AccessKey/AWS.SecretKey for terraform as scripts can be written to consume
-	// crdenetials not only from environment
+	// credentials not only from environment
 	return trace.NewAggregate(errors...)
 }
 
@@ -474,13 +474,20 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 }
 
 func outputSensitiveConfig(testConfig TestContextType) {
-	const mask = "****"
 	testConfig.AWS.AccessKey = mask
 	testConfig.AWS.SecretKey = mask
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
 	log.Debugf("[CONFIG] %#v", testConfig)
 }
+
+func outputSensitiveState(testState TestState) {
+	testState.Login.Password = mask
+	testState.ServiceLogin.Password = mask
+	log.Debugf("[STATE]: %#v", testState)
+}
+
+const mask = "****"
 
 type provisionerType string
 
