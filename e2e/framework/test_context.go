@@ -90,7 +90,7 @@ func ConfigureFlags() {
 		config.GinkgoConfig.SkipString = ".*"
 	}
 
-	log.Debugf("[CONFIG]: %#v", TestContext)
+	outputSensitiveConfig(*TestContext)
 	if testState != nil {
 		log.Debugf("[STATE]: %#v", testState)
 		if testState.ProvisionerState != nil {
@@ -111,9 +111,12 @@ func (r *TestContextType) Validate() error {
 	if TestContext.ServiceLogin.IsEmpty() {
 		log.Warningf("service login not configured - reports will likely not be collected")
 	}
-	if TestContext.AWS.IsEmpty() && TestContext.Onprem.IsEmpty() {
-		errors = append(errors, trace.BadParameter("either AWS or Onprem is required"))
+	if TestContext.Provisioner != "" && TestContext.Onprem.IsEmpty() {
+		errors = append(errors, trace.BadParameter("Onprem configuration is required for provisioner %q",
+			TestContext.Provisioner))
 	}
+	// Do not mandate AWS.AccessKey/AWS.SecretKey for terraform as scripts can be written to consume
+	// crdenetials not only from environment
 	return trace.NewAggregate(errors...)
 }
 
@@ -245,7 +248,7 @@ type OnpremConfig struct {
 }
 
 func (r OnpremConfig) IsEmpty() bool {
-	return r.NumNodes == 0 && r.InstallerURL == "" && r.ScriptPath == ""
+	return r.NumNodes == 0 && r.ScriptPath == ""
 }
 
 // LocatorRef defines a reference to a package locator.
@@ -468,6 +471,15 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		return nil, trace.Wrap(err)
 	}
 	return provisioner, nil
+}
+
+func outputSensitiveConfig(testConfig TestContextType) {
+	const mask = "****"
+	testConfig.AWS.AccessKey = mask
+	testConfig.AWS.SecretKey = mask
+	testConfig.Login.Password = mask
+	testConfig.ServiceLogin.Password = mask
+	log.Debugf("[CONFIG] %#v", testConfig)
 }
 
 type provisionerType string

@@ -2,6 +2,7 @@ package system
 
 import (
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -11,14 +12,30 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// CommandOptionSetter defines an interface to configure child process
+// before execution
 type CommandOptionSetter func(cmd *exec.Cmd)
 
+// Dir sets working directory for the child process
 func Dir(dir string) CommandOptionSetter {
 	return func(cmd *exec.Cmd) {
 		cmd.Dir = dir
 	}
 }
 
+// SetEnv passes specified environment variables to the child process
+func SetEnv(envs ...string) CommandOptionSetter {
+	return func(cmd *exec.Cmd) {
+		if len(cmd.Env) == 0 {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = append(cmd.Env, envs...)
+	}
+}
+
+// ExecL executes the specified command and outputs its Stdout/Stderr into the specified
+// writer `out`, using `entry` for logging.
+// Accepts configuration as a series of CommandOptionSetters
 func ExecL(cmd *exec.Cmd, out io.Writer, entry *log.Entry, setters ...CommandOptionSetter) error {
 	err := Exec(cmd, out, setters...)
 	entry.WithFields(log.Fields{
@@ -28,10 +45,17 @@ func ExecL(cmd *exec.Cmd, out io.Writer, entry *log.Entry, setters ...CommandOpt
 	return err
 }
 
+// ExecL executes the specified command and outputs its Stdout/Stderr into the specified
+// writer `out`.
+// Accepts configuration as a series of CommandOptionSetters
 func Exec(cmd *exec.Cmd, out io.Writer, setters ...CommandOptionSetter) error {
 	return ExecWithInput(cmd, "", out, setters...)
 }
 
+// ExecWithInput executes the specified command and outputs its Stdout/Stderr into the specified
+// writer `out`.
+// Uses `input` to provide command with Stdin input
+// Accepts configuration as a series of CommandOptionSetters
 func ExecWithInput(cmd *exec.Cmd, input string, out io.Writer, setters ...CommandOptionSetter) error {
 	for _, s := range setters {
 		s(cmd)

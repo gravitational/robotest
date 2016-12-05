@@ -30,6 +30,8 @@ func New(stateDir string, config Config) (*terraform, error) {
 		}),
 		Config:   config,
 		stateDir: stateDir,
+		// pool will be reset in Create
+		pool: infra.NewNodePool(nil, nil),
 	}, nil
 }
 
@@ -117,8 +119,11 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 
 func (r *terraform) Destroy() error {
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
+	// Pass secrets via environment variables
+	accessKeyVar := fmt.Sprintf("TF_VAR_access_key=%v", r.Config.AccessKey)
+	secretKeyVar := fmt.Sprintf("TF_VAR_secret_key=%v", r.Config.SecretKey)
 	args := append([]string{"destroy", "-force"}, getVars(r.Config)...)
-	_, err := r.command(args)
+	_, err := r.command(args, system.SetEnv(accessKeyVar, secretKeyVar))
 	return trace.Wrap(err)
 }
 
@@ -183,7 +188,10 @@ func (r node) String() string {
 
 func (r *terraform) boot() (output string, err error) {
 	args := append([]string{"apply"}, getVars(r.Config)...)
-	out, err := r.command(args)
+	// Pass secrets via environment variables
+	accessKeyVar := fmt.Sprintf("TF_VAR_access_key=%v", r.Config.AccessKey)
+	secretKeyVar := fmt.Sprintf("TF_VAR_secret_key=%v", r.Config.SecretKey)
+	out, err := r.command(args, system.SetEnv(accessKeyVar, secretKeyVar))
 	if err != nil {
 		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
@@ -206,8 +214,6 @@ func (r *terraform) command(args []string, opts ...system.CommandOptionSetter) (
 // extracted from the config
 func getVars(config Config) []string {
 	variables := map[string]string{
-		"access_key":    config.AccessKey,
-		"secret_key":    config.SecretKey,
 		"region":        config.Region,
 		"key_pair":      config.KeyPair,
 		"instance_type": config.InstanceType,

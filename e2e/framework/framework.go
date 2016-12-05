@@ -104,26 +104,27 @@ func InitializeCluster() {
 
 	var err error
 	var provisioner infra.Provisioner
-	if testState != nil {
+	switch {
+	case testState != nil:
 		if testState.Provisioner != "" {
 			provisioner, err = provisionerFromState(config, *testState)
 			Expect(err).NotTo(HaveOccurred())
 		}
-	} else if !TestContext.Teardown {
-		TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
-		Expect(err).NotTo(HaveOccurred())
-		if TestContext.Provisioner != "" {
-			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, TestContext.Provisioner)
-			Expect(err).NotTo(HaveOccurred())
-
-			installerNode, err = provisioner.Create()
+		if provisioner != nil && testState.ProvisionerState.InstallerAddr != "" {
+			// Get reference to installer node if the cluster was provisioned with installer
+			installerNode, err = provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
 			Expect(err).NotTo(HaveOccurred())
 		}
-	}
-
-	switch {
 	case testState == nil:
 		log.Debug("init test state")
+
+		if TestContext.Teardown {
+			break
+		}
+
+		TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
+		Expect(err).NotTo(HaveOccurred())
+
 		// TestContext -> testState
 		testState = &TestState{
 			EntryURL: TestContext.OpsCenterURL,
@@ -132,6 +133,13 @@ func InitializeCluster() {
 		if TestContext.Application.Locator != nil {
 			testState.Application = TestContext.Application.Locator
 		}
+
+		if TestContext.Provisioner != "" {
+			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, TestContext.Provisioner)
+			Expect(err).NotTo(HaveOccurred())
+
+			installerNode, err = provisioner.Create()
+		}
 		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner
 			provisionerState := provisioner.State()
@@ -139,12 +147,8 @@ func InitializeCluster() {
 		}
 		// Save initial state as soon as possible
 		Expect(saveState(withoutBackup)).To(Succeed())
-	case testState != nil:
-		if provisioner != nil && testState.ProvisionerState.InstallerAddr != "" {
-			// Get reference to installer node if the cluster was provisioned with installer
-			installerNode, err = provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
-			Expect(err).NotTo(HaveOccurred())
-		}
+		// Validate provisioning
+		Expect(err).NotTo(HaveOccurred())
 	}
 
 	var application *loc.Locator
