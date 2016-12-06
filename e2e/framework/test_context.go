@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-yaml/yaml"
+	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
 )
@@ -478,17 +480,27 @@ func outputSensitiveConfig(testConfig TestContextType) {
 	testConfig.AWS.SecretKey = mask
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
-	log.Debugf("[CONFIG] %#v", testConfig)
+	var buf bytes.Buffer
+	pretty.Fprintf(&buf, "[CONFIG] %# v", testConfig)
+	log.Debug(buf.String())
 }
 
 func outputSensitiveState(testState TestState) {
 	if testState.Login != nil {
-		testState.Login.Password = mask
+		login := &Login{}
+		*login = *testState.Login
+		login.Password = mask
+		testState.Login = login
 	}
 	if testState.ServiceLogin != nil {
-		testState.ServiceLogin.Password = mask
+		login := &ServiceLogin{}
+		*login = *testState.ServiceLogin
+		login.Password = mask
+		testState.ServiceLogin = login
 	}
-	log.Debugf("[STATE]: %#v", testState)
+	var buf bytes.Buffer
+	pretty.Fprintf(&buf, "[STATE]: %# v", testState)
+	log.Debug(buf.String())
 }
 
 const mask = "****"
