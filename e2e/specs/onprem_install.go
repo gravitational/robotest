@@ -10,6 +10,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/site"
 	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
+	"github.com/gravitational/robotest/infra"
 
 	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
@@ -24,6 +25,8 @@ func VerifyOnpremInstall(f *framework.T) {
 			Username: defaults.BandwagonUsername,
 			Password: defaults.BandwagonPassword,
 		}
+		// installNode is the node used to install application on
+		var installNode infra.Node
 
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
@@ -48,8 +51,14 @@ func VerifyOnpremInstall(f *framework.T) {
 			provisioner := framework.Cluster.Provisioner()
 			Expect(provisioner).NotTo(BeNil(), "expected valid provisioner for onprem installation")
 			log.Infof("allocating %v nodes", numInstallNodes)
-			_, err := provisioner.NodePool().Allocate(numInstallNodes)
+
+			var err error
+			var allocated []infra.Node
+			allocated, err = provisioner.NodePool().Allocate(numInstallNodes)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(allocated).To(HaveLen(numInstallNodes))
+
+			installNode = allocated[0]
 
 			By("veryfing requirements")
 			profiles := installermodel.FindOnPremProfiles(f.Page)
@@ -88,10 +97,10 @@ func VerifyOnpremInstall(f *framework.T) {
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
 			siteEntryURL := endpoints[0]
-			// TODO: for terraform, use public installer address
+			// TODO: for terraform, use public install node address
 			// terraform nodes are provisioned only with a single private network interface
 			if ctx.Provisioner == "terraform" {
-				siteEntryURL = fmt.Sprintf("https://%v:%v", framework.InstallerNode().Addr(), defaults.GravityHTTPPort)
+				siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
 			}
 			framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		}
