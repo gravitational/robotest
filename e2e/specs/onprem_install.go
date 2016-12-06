@@ -55,9 +55,11 @@ func VerifyOnpremInstall(f *framework.T) {
 			var err error
 			var allocated []infra.Node
 			allocated, err = provisioner.NodePool().Allocate(numInstallNodes)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(allocated).To(HaveLen(numInstallNodes))
+			Expect(err).NotTo(HaveOccurred(), "expected to allocate node(s)")
+			Expect(allocated).To(HaveLen(numInstallNodes),
+				fmt.Sprintf("expected to allocated %v nodes", numInstallNodes))
 
+			// Use the first allocated node to access the local site
 			installNode = allocated[0]
 
 			By("veryfing requirements")
