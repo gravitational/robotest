@@ -1,8 +1,6 @@
 package specs
 
 import (
-	"fmt"
-
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
@@ -16,7 +14,6 @@ import (
 )
 
 func VerifyAWSInstall(f *framework.T) {
-
 	framework.RoboDescribe("AWS Installation", func() {
 		ctx := framework.TestContext
 		var domainName string
@@ -24,6 +21,10 @@ func VerifyAWSInstall(f *framework.T) {
 		var login = framework.Login{
 			Username: defaults.BandwagonUsername,
 			Password: defaults.BandwagonPassword,
+		}
+
+		if ctx.Wizard {
+			Skip("this test cannot run in wizard mode")
 		}
 
 		BeforeEach(func() {
@@ -71,22 +72,11 @@ func VerifyAWSInstall(f *framework.T) {
 		}
 
 		shouldHandleBandwagonScreen := func() {
-			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
-			// useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
-			endpoints := bandwagon.Complete(f.Page,
+			enableRemoteAccess := true
+			bandwagon.Complete(f.Page,
 				domainName,
 				login,
 				enableRemoteAccess)
-
-			By("using local application endpoint")
-			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
-			siteEntryURL := endpoints[0]
-			// TODO: for terraform, use public installer address
-			// terraform nodes are provisioned only with a single private network interface
-			if ctx.Provisioner == "terraform" {
-				siteEntryURL = fmt.Sprintf("https://%v:%v", framework.InstallerNode().Addr(), defaults.GravityHTTPPort)
-			}
-			framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		}
 
 		shouldNavigateToSite := func() {
