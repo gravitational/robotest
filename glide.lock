@@ -1,5 +1,5 @@
 hash: d055620b9c1ea31b03d5b11a542441c3e1afba3b87bd814ab617f9d394fa3e35
-updated: 2016-11-23T22:17:24.49000716+01:00
+updated: 2016-12-06T13:22:54.744396446+01:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -19,6 +19,10 @@ imports:
   version: e96d3840402619007766590ecea8dd7af1292276
 - name: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
+- name: github.com/kr/pretty
+  version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
+- name: github.com/kr/text
+  version: 7cafcd837844e784b526369c9bce262804aebc60
 - name: github.com/onsi/ginkgo
   version: 00054c0bb96fc880d4e0be1b90937fad438c5290
   subpackages:
@@ -53,7 +57,7 @@ imports:
   - matchers/support/goraph/util
   - types
 - name: github.com/sclevine/agouti
-  version: fc7e3d5144ff5ded9239b3cda4a345ab20e14cc1
+  version: da6ce95d89acab048b648c71fb45b57622d3457e
   subpackages:
   - api
   - api/internal/bus
