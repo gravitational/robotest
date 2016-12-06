@@ -176,9 +176,6 @@ func (r *vagrant) syncInstallerTarball() error {
 }
 
 func (r *vagrant) discoverNodes() ([]infra.Node, error) {
-	if r.pool != nil {
-		return nil, nil
-	}
 	out, err := r.command(args("ssh-config"))
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to query SSH config: %s", out)
