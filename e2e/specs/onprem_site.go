@@ -36,7 +36,7 @@ func VerifyOnpremSite(f *framework.T) {
 			siteProvisioner := site.GetSiteServerPage()
 
 			By("executing a command on server")
-			agentCommand := siteProvisioner.InitOnPremOperation()
+			agentCommand := siteProvisioner.InitOnPremOperation(ctx.Onprem)
 			nodes, err := cluster.Provisioner().NodePool().Allocate(1)
 			Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
 
