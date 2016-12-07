@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 
+	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/ginkgo"
@@ -16,14 +17,31 @@ func DeleteSite(page *web.Page, domainName string) {
 		return getDeploymentIndex(page, domainName) >= 0
 	}
 
+	Eventually(deploymentAvailable, defaults.DeleteTimeout).Should(BeTrue(),
+		fmt.Sprintf("deployment %q should be in the deployment list", domainName))
+
 	deploymentIndex := getDeploymentIndex(page, domainName)
 	Expect(deploymentIndex).To(BeNumerically(">=", 0), "expected to find a valid deployment index")
 
 	By("selecting a delete site item")
 	SetDropdownValue2(page, fmt.Sprintf(".grv-portal-sites tr:nth-child(%v)", deploymentIndex+1), "button", "Delete...")
 
+	By("entering AWS credentials")
+	elems := page.FindByName("aws_access_key")
+	count, _ := elems.Count()
+	if count > 0 {
+		Expect(elems).To(BeFound(), "expected to find an input field for AWS access key")
+		Expect(elems.SendKeys(framework.TestContext.AWS.AccessKey)).To(Succeed(),
+			"expected to input AWS access key")
+
+		elems = page.FindByName("aws_secret_key")
+		Expect(elems).To(BeFound(), "expected to find an input field for AWS secret key")
+		Expect(elems.SendKeys(framework.TestContext.AWS.SecretKey)).To(Succeed(),
+			"expected to input AWS secret key")
+	}
+
 	By("entering domain name")
-	elems := page.FindByName("deploymentName")
+	elems = page.FindByName("deploymentName")
 	Expect(elems).To(BeFound())
 	Expect(elems.SendKeys(domainName)).To(Succeed())
 
