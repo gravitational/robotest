@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func SiteUninstall(f *framework.T) {
+func VerifySiteUninstall(f *framework.T) {
 	var _ = framework.RoboDescribe("Site Uninstall", func() {
 		ctx := framework.TestContext
 
