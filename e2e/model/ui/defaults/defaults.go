@@ -22,6 +22,9 @@ const (
 	// PollInterval defines the frequency of polling attempts
 	PollInterval = 10 * time.Second
 
+	// Amount of time needed to refresh server list table on Site Server page
+	SiteServerListRefreshTimeout = 5 * time.Second
+
 	PauseTimeout = 100 * time.Millisecond
 
 	AjaxCallTimeout   = 20 * time.Second

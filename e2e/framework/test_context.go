@@ -231,10 +231,11 @@ type AWSConfig struct {
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
 	InstanceType string `json:"instance_type" yaml:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
-	// ExpandProfile specifies profile during aws expand operation
+	// ExpandProfile specifies an optional name of the server profile for AWS expand operation.
+	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_AWS_EXPAND_PROFILE"`
-	// ExpandAwsInstanceType specifies instance type during aws expand operation
-	ExpandAwsInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type" env:"ROBO_AWS_EXPAND_INSTANCE_TYPE"`
+	// ExpandAwsInstanceType specifies an optional instance type for AWS expand operation
+	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type" env:"ROBO_AWS_EXPAND_INSTANCE_TYPE"`
 }
 
 func (r AWSConfig) IsEmpty() bool {
@@ -252,7 +253,8 @@ type OnpremConfig struct {
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
 	ScriptPath string `json:"script_path" yaml:"script_path" env:"ROBO_SCRIPT_PATH"`
-	// ExpandProfile defines profile to use during onprem expand operation
+	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
+	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_ONPREM_EXPAND_PROFILE"`
 }
 

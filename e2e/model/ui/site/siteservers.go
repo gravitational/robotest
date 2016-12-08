@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
 	utils "github.com/gravitational/robotest/e2e/model/ui"
@@ -140,7 +139,6 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 		"should click on Provision new button")
 
 	utils.PauseForComponentJs()
-
 	utils.FillOutAWSKeys(page, config.AccessKey, config.SecretKey)
 
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
@@ -152,13 +150,11 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 		"should display profile and instance type")
 
 	profileLabel := p.getProfileLabel(config.ExpandProfile)
-
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-profile", "", profileLabel)
 
-	instanceType := config.ExpandAwsInstanceType
-
+	instanceType := config.ExpandAWSInstanceType
 	if instanceType == "" {
-		instanceType = p.getFirstAvailableAwsInstanceType()
+		instanceType = p.getFirstAvailableAWSInstanceType()
 	}
 
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-instance-type", "", instanceType)
@@ -170,9 +166,7 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 	p.expectProgressIndicator()
 
 	updatedItems := p.GetSiteServers()
-
 	var newItem *SiteServer
-
 	for i, item := range updatedItems {
 		for _, existingItem := range currentServerItems {
 			if item.AdvertiseIP == existingItem.AdvertiseIP {
@@ -238,8 +232,7 @@ func (p *SiteServerPage) expectProgressIndicator() {
 		BeFound(),
 		"should wait for progress indicator to disappear")
 
-	// give some time to let all UI components to update
-	utils.Pause(5 * time.Second)
+	utils.PauseForServerListRefresh()
 }
 
 func (p *SiteServerPage) clickDeleteServer(hostname string) {
@@ -256,30 +249,27 @@ func (p *SiteServerPage) clickDeleteServer(hostname string) {
 	page := p.page
 
 	script := fmt.Sprintf(scriptTemplate, hostname)
-
 	page.RunScript(script, nil, &result)
+
 	buttonPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
 	Expect(page.Find(buttonPath).Click()).To(
 		Succeed(),
 		"should find and click on server delete button")
 }
 
-func (p *SiteServerPage) getFirstAvailableAwsInstanceType() string {
+func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
 	var instanceType string
+	const js = `
+		var cssSelector = ".grv-site-servers-provisioner-new-instance-type li a"; 
+		var items = document.querySelectorAll(cssSelector)			
+		return items.length > 0 ? items[0].text : "";  			
+	`
 
-	const js = `			            
-			var availableInstanceTypes = [];
-			var cssSelector = ".grv-site-servers-provisioner-new-instance-type li a"; 
-			var items = document.querySelectorAll(cssSelector)
+	Expect(p.page.RunScript(js, nil, &instanceType)).To(
+		Succeed(),
+		"should retrieve first available instance type")
 
-			items.forEach( i => availableInstanceTypes.push(i.text) );
-
-			return availableInstanceTypes[0];
-		`
-
-	Expect(p.page.RunScript(js, nil, &instanceType)).ShouldNot(
-		HaveOccurred(),
-		"should find first available instance type")
+	Expect(instanceType).NotTo(BeEmpty(), "cannot find any instance types")
 
 	return instanceType
 }
@@ -289,43 +279,47 @@ func (p *SiteServerPage) selectOnPremProfile(profileName string) {
 		Expect(p.page.FindByClass("grv-control-radio-indicator").Click()).To(
 			Succeed(),
 			"should select first available profile")
-	} else {
-		profileLabel := p.getProfileLabel(profileName)
-		utils.SelectRadio(p.page, ".grv-control-radio", func(value string) bool {
-			return strings.HasPrefix(value, profileLabel)
-		})
+		return
 	}
+
+	profileLabel := p.getProfileLabel(profileName)
+	utils.SelectRadio(p.page, ".grv-control-radio", func(value string) bool {
+		return strings.HasPrefix(value, profileLabel)
+	})
 }
 
 func (p *SiteServerPage) getProfileLabel(profileName string) string {
-	var js string
 	var profileLabel string
+	const jsTemplate = `
+		var profileName = "%v";
+		var server = null;
+		
+		var allServers = reactor.evaluate(["sites"])
+			.first()
+			.getIn(["app", "manifest", "installer", "servers"]);
+			
+		if(profileName !== ""){
+			server = allServers.get(profileName);								
+		}else{
+			server = allServers.first();
+		}
 
-	if profileName == "" {
-		// if no profile specifed, use the first available
-		js = ` 		
-			var server = reactor.evaluate(["sites"])
-				.first()
-				.getIn(["app", "manifest", "installer", "servers"])
-				.first();
+		if(!server){
+			return "";
+		}
 
-			return server.get("description") || server.get("service_role")
-		`
-	} else {
-		js = ` 		
-			var server = reactor.evaluate(["sites"])
-				.first()
-				.getIn(["app", "manifest", "installer", "servers", "%v"]);
-							
-			return server.get("description") || server.get("service_role")
-		`
+		return server.get("description") || server.get("service_role")
+	`
 
-		js = fmt.Sprintf(js, profileName)
-	}
+	js := fmt.Sprintf(jsTemplate, profileName)
 
-	Expect(p.page.RunScript(js, nil, &profileLabel)).ShouldNot(
-		HaveOccurred(),
-		fmt.Sprintf("should retrieve a label for %v profile", profileName))
+	Expect(p.page.RunScript(js, nil, &profileLabel)).To(
+		Succeed(),
+		fmt.Sprintf("should run js script to retrieve a label for %v profile", profileName))
+
+	Expect(profileLabel).NotTo(
+		BeEmpty(),
+		fmt.Sprintf("label should not be empty for %v profile", profileName))
 
 	return profileLabel
 }
