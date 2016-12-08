@@ -248,9 +248,9 @@ type node struct {
 }
 
 var (
-	reInstallerIP = regexp.MustCompile("(?m:^installer_ip = ([0-9\\.]+))")
-	rePrivateIPs  = regexp.MustCompile("(?m:^private_ips = ([0-9\\. ]+))")
-	rePublicIPs   = regexp.MustCompile("(?m:^public_ips = ([0-9\\. ]+))")
+	reInstallerIP = regexp.MustCompile("(?m:^ *installer_ip *= *([0-9\\.]+))")
+	rePrivateIPs  = regexp.MustCompile("(?m:^ *private_ips *= *(([0-9\\. ]+))")
+	rePublicIPs   = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
 )
 
 // installerCommand waits for the installer tarball to download, unpacks it and launches the installation
