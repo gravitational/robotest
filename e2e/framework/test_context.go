@@ -180,6 +180,7 @@ type TestContextType struct {
 	// FlavorLabel specifies the installation flavor label to use for the test.
 	// This is application-specific, e.g. `3 nodes` or `medium`
 	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" env:"ROBO_FLAVOR_LABEL"`
+
 	// AWS defines the AWS-specific test configuration
 	AWS AWSConfig `json:"aws" yaml:"aws"`
 	// Onprem defines the test configuration for bare metal tests
@@ -230,6 +231,11 @@ type AWSConfig struct {
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
 	InstanceType string `json:"instance_type" yaml:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
+	// ExpandProfile specifies an optional name of the server profile for AWS expand operation.
+	// If the profile is unspecified, the test will use the first available.
+	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_AWS_EXPAND_PROFILE"`
+	// ExpandAwsInstanceType specifies an optional instance type for AWS expand operation
+	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type" env:"ROBO_AWS_EXPAND_INSTANCE_TYPE"`
 }
 
 func (r AWSConfig) IsEmpty() bool {
@@ -247,6 +253,9 @@ type OnpremConfig struct {
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
 	ScriptPath string `json:"script_path" yaml:"script_path" env:"ROBO_SCRIPT_PATH"`
+	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
+	// If the profile is unspecified, the test will use the first available.
+	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_ONPREM_EXPAND_PROFILE"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {

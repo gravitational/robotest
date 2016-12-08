@@ -87,6 +87,7 @@ func (u *User) LoginWithGoogle() {
 			"should wait until google access approve button becomes active")
 
 		Expect(allowButton.Click()).To(Succeed())
+		PauseForPageJs()
 	}
 }
 

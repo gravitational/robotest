@@ -30,7 +30,7 @@ func VerifyAWSSiteServers(f *framework.T) {
 			siteProvisioner := site.GetSiteServerPage()
 
 			By("trying to add a new server")
-			newItem := siteProvisioner.AddAWSServer(ctx.AWS, ctx.FlavorLabel)
+			newItem := siteProvisioner.AddAWSServer(ctx.AWS)
 
 			By("veryfing operation state")
 			opsProvider := ops.CreateOpsProvider(f.Page)

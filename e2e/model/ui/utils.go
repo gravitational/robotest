@@ -130,6 +130,10 @@ func PauseForComponentJs() {
 	time.Sleep(100 * time.Microsecond)
 }
 
+func PauseForServerListRefresh() {
+	time.Sleep(defaults.SiteServerListRefreshTimeout)
+}
+
 func Pause(params ...time.Duration) {
 	timeInterval := defaults.PauseTimeout
 
