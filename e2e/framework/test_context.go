@@ -441,13 +441,18 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	numNodes := len(testState.ProvisionerState.Nodes)
+	if TestContext.Onprem.NumNodes > 0 {
+		// Always override from configuration if available
+		numNodes = TestContext.Onprem.NumNodes
+	}
 	switch testState.Provisioner {
 	case provisionerTerraform:
 		config := terraform.Config{
 			Config:       infraConfig,
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
-			NumNodes:     len(testState.ProvisionerState.Nodes),
+			NumNodes:     numNodes,
 			AccessKey:    TestContext.AWS.AccessKey,
 			SecretKey:    TestContext.AWS.SecretKey,
 			KeyPair:      TestContext.AWS.KeyPair,
@@ -464,7 +469,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			Config:       infraConfig,
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
-			NumNodes:     len(testState.ProvisionerState.Nodes),
+			NumNodes:     numNodes,
 		}
 		err := config.Validate()
 		if err != nil {
