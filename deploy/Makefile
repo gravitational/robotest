@@ -1,17 +1,17 @@
-NAME := selenium
+NAME := chromedriver
 VER ?= 0.0.1
 
 #
-# build an image with standalone headless selenium server
+# build an image with standalone headless chromedriver server
 #
 build:
 	docker build -t $(NAME):$(VER) .
 
 #
-# run selenium service locally for development/testing
+# run chromedriver service locally for development/testing
 #
 run: build
-	-docker rm -f selenium
+	-docker rm -f chromedriver
 	docker run -u 995 -d -p 9515:9515 --name=$(NAME) $(NAME):$(VER)
 
 #

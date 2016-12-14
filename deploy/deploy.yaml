@@ -1,7 +1,7 @@
 ---
 - hosts: "jenkins"
   vars:
-    temp_dir: "/tmp/selenium-build"
+    temp_dir: "/tmp/chromedriver-build"
   become: yes
   become_method: sudo
   tasks:
@@ -17,17 +17,17 @@
     - name: building docker image
       command: make build chdir="{{temp_dir}}"
 
-    - name: uploading selenium systemd service
-      copy: src=selenium.service dest=/etc/systemd/system force=true
+    - name: uploading chromedriver systemd service
+      copy: src=chromedriver.service dest=/etc/systemd/system force=true
 
-    - name: stopping selenium systemd service
-      service: name=selenium state=stopped
+    - name: stopping chromedriver systemd service
+      service: name=chromedriver state=stopped
 
     - name: reloading systemd
       command: systemctl daemon-reload
 
-    - name: enabling selenium systemd service
-      service: name=selenium enabled=true
+    - name: enabling chromedriver systemd service
+      service: name=chromedriver enabled=true
 
-    - name: restarting selenium systemd service
-      service: name=selenium state=restarted
+    - name: restarting chromedriver systemd service
+      service: name=chromedriver state=restarted
