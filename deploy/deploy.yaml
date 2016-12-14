@@ -1,0 +1,33 @@
+---
+- hosts: "jenkins"
+  vars:
+    temp_dir: "/tmp/selenium-build"
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: clearing build dir
+      file: path="{{temp_dir}}" state=absent
+
+    - name: creating build dir
+      file: path="{{temp_dir}}" state=directory
+
+    - name: uploading build files
+      synchronize: src=./ dest="{{temp_dir}}" perms=yes
+
+    - name: building docker image
+      command: make build chdir="{{temp_dir}}"
+
+    - name: uploading selenium systemd service
+      copy: src=selenium.service dest=/etc/systemd/system force=true
+
+    - name: stopping selenium systemd service
+      service: name=selenium state=stopped
+
+    - name: reloading systemd
+      command: systemctl daemon-reload
+
+    - name: enabling selenium systemd service
+      service: name=selenium enabled=true
+
+    - name: restarting selenium systemd service
+      service: name=selenium state=restarted

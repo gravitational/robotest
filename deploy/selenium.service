@@ -1,0 +1,14 @@
+[Unit]
+Description=Standalone Selenium server
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStartPre=-/usr/bin/docker rm -f selenium
+ExecStart=/usr/bin/docker run -u 995 -p 4444:4444 --privileged --name=selenium selenium:0.0.1
+ExecStop=/usr/bin/docker stop selenium
+ExecStopPost=-/usr/bin/docker rm -f selenium
+
+[Install]
+WantedBy=default.target
