@@ -35,7 +35,7 @@ func ConfigureFlags() {
 
 	if debugFlag {
 		// TODO: make port configurable
-		debug.StartProfiling("localhost:6060")
+		debug.StartProfiling(fmt.Sprintf("localhost:%v", debugPort))
 	}
 
 	err := initTestContext(configFile)
@@ -306,6 +306,7 @@ func registerCommonFlags() {
 	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file to use")
 	flag.StringVar(&stateConfigFile, "state-file", "config.yaml.state", "State configuration file to use")
 	flag.BoolVar(&debugFlag, "debug", false, "Verbose mode")
+	flag.IntVar(&debugPort, "debug-port", 6060, "Profiling port")
 	flag.Var(&mode, "mode", "Run tests in specific mode. Supported modes: [`wizard`]")
 	flag.BoolVar(&teardownFlag, "destroy", false, "Destroy infrastructure after all tests")
 	flag.BoolVar(&dumpFlag, "report", false, "Collect installation and operation logs into the report directory")
@@ -552,6 +553,9 @@ var stateConfigFile string
 
 // debugFlag defines whether to run in verbose mode
 var debugFlag bool
+
+// debugPort defines the port for profiling endpoint
+var debugPort int
 
 // mode defines the mode for tests
 var mode modeType
