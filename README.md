@@ -71,13 +71,13 @@ onprem:
     nodes: 2
 ```
 
- * `report_dir` specifies the location of the log files which are always collected during teardown or, manually, with `-report` command
+ * `report_dir` specifies an optional location of the log files which are always collected during teardown or, manually, with `-report` command
  * `cluster_name` specifies the name of the cluster (and domain) to create for tests
  * `ops_url` specifies the URL of an active Ops Center to run tests against (see note below on [Wizard mode](#wizard-mode))
- * `application` specifies the name of the application package to run tests with
- * `web_driver_url` specifies URL of the web driver to use, e.g. http://localhost:4444/wd/hub for selenium
+ * `application` specifies the name of the application package to run tests with (see note below on [Wizard mode](#wizard-mode))
+ * `web_driver_url` specifies an optional URL of the web driver to use, e.g. http://localhost:4444/wd/hub for selenium
   or http://localhost:9515 for chrome driver
- * `login` block specifies user details for authenticating to Ops Center
+ * `login` block specifies user details for authenticating to Ops Center (see note below on [Wizard mode](#wizard-mode))
  * `service_login` specifies details of a service user to use to programmatically access Ops Center from the command line. This can be a
   user specifically created for tests. The user will be used to connect to the Ops Center and query logs or export/import application packages
   as required by tests.
@@ -171,6 +171,12 @@ $ ./e2e.test -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
 any tests are run.
+
+In this mode, the installer creates and manages an ephemeral Ops Center instance - it is not mandatory to specify Ops Center URL in configuration.
+Just as with the Ops Center URL, the application to install is automatically discovered from the installer - `application` configuration option does
+not apply to wizard mode and is ignored.
+
+The `login` block for configuration is not necessary for the wizard mode as the installer has a built-in user that will automatically be used for login.
 
 
 ## Integration Tests
