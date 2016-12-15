@@ -17,7 +17,7 @@ const (
 	AgentServerTimeout = 5 * time.Minute
 
 	// InstallTimeout defines the amount of time to wait for installation to complete
-	InstallTimeout = 20 * time.Minute
+	InstallTimeout = 40 * time.Minute
 
 	// PollInterval defines the frequency of polling attempts
 	PollInterval = 10 * time.Second
