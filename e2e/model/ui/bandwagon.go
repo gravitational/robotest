@@ -15,13 +15,15 @@ import (
 )
 
 type Bandwagon struct {
-	page       *web.Page
-	domainName string
-	email      string
-	password   string
+	page         *web.Page
+	domainName   string
+	email        string
+	password     string
+	username     string
+	organization string
 }
 
-func OpenBandwagon(page *web.Page, domainName string, email string, password string) *Bandwagon {
+func OpenBandwagon(page *web.Page, domainName string, username string, password string, organization string, email string) *Bandwagon {
 	path := fmt.Sprintf("/web/site/%v", domainName)
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
@@ -35,7 +37,13 @@ func OpenBandwagon(page *web.Page, domainName string, email string, password str
 		BeFound(),
 		"should wait for bandwagon to load")
 
-	return &Bandwagon{page: page, email: email, password: password, domainName: domainName}
+	return &Bandwagon{page: page,
+		email:        email,
+		password:     password,
+		domainName:   domainName,
+		organization: organization,
+		username:     username,
+	}
 }
 
 func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
@@ -45,6 +53,19 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 	Expect(page.FindByName("email").Fill(b.email)).To(
 		Succeed(),
 		"should enter email")
+
+	if page.FindByName("name") != nil {
+		By("entering username")
+		Expect(page.FindByName("name").Fill(b.username)).To(
+			Succeed(),
+			"should enter username")
+	}
+	if page.FindByName("org") != nil {
+		By("entering organization name")
+		Expect(page.FindByName("org").Fill(b.organization)).To(
+			Succeed(),
+			"should enter org")
+	}
 
 	By("entering password")
 	Expect(page.FindByName("password").Fill(b.password)).To(

@@ -25,6 +25,27 @@ func VerifyOnpremInstall(f *framework.T) {
 			Username: defaults.BandwagonUsername,
 			Password: defaults.BandwagonPassword,
 		}
+
+		var bandwagonLogin = framework.BandwagonConfig{
+			Organization: defaults.BandwagonOrganization,
+			Username:     defaults.BandwagonUsername,
+			Password:     defaults.BandwagonPassword,
+			Email:        defaults.BandwagonEmail,
+		}
+
+		if ctx.Bandwagon.Organization != "" {
+			bandwagonLogin.Organization = ctx.Bandwagon.Organization
+		}
+		if ctx.Bandwagon.Username != "" {
+			bandwagonLogin.Username = ctx.Bandwagon.Username
+		}
+		if ctx.Bandwagon.Password != "" {
+			bandwagonLogin.Password = ctx.Bandwagon.Password
+		}
+		if ctx.Bandwagon.Email != "" {
+			bandwagonLogin.Email = ctx.Bandwagon.Email
+		}
+
 		// installNode is the node used to install application on
 		var installNode infra.Node
 
@@ -94,7 +115,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			endpoints := bandwagon.Complete(
 				f.Page,
 				domainName,
-				login,
+				bandwagonLogin,
 				enableRemoteAccess)
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}

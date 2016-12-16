@@ -23,6 +23,26 @@ func VerifyAWSInstall(f *framework.T) {
 			Password: defaults.BandwagonPassword,
 		}
 
+		var bandwagonLogin = framework.BandwagonConfig{
+			Organization: defaults.BandwagonOrganization,
+			Username:     defaults.BandwagonUsername,
+			Password:     defaults.BandwagonPassword,
+			Email:        defaults.BandwagonEmail,
+		}
+
+		if ctx.Bandwagon.Organization != "" {
+			bandwagonLogin.Organization = ctx.Bandwagon.Organization
+		}
+		if ctx.Bandwagon.Username != "" {
+			bandwagonLogin.Username = ctx.Bandwagon.Username
+		}
+		if ctx.Bandwagon.Password != "" {
+			bandwagonLogin.Password = ctx.Bandwagon.Password
+		}
+		if ctx.Bandwagon.Email != "" {
+			bandwagonLogin.Email = ctx.Bandwagon.Email
+		}
+
 		if ctx.Wizard {
 			Skip("this test cannot run in wizard mode")
 		}
@@ -75,7 +95,7 @@ func VerifyAWSInstall(f *framework.T) {
 			enableRemoteAccess := true
 			bandwagon.Complete(f.Page,
 				domainName,
-				login,
+				bandwagonLogin,
 				enableRemoteAccess)
 		}
 
