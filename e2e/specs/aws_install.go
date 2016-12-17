@@ -95,7 +95,7 @@ func VerifyAWSInstall(f *framework.T) {
 			enableRemoteAccess := true
 			bandwagon.Complete(f.Page,
 				domainName,
-				bandwagonLogin,
+				&bandwagonLogin,
 				enableRemoteAccess)
 		}
 

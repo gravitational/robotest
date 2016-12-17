@@ -115,7 +115,7 @@ func VerifyOnpremInstall(f *framework.T) {
 			endpoints := bandwagon.Complete(
 				f.Page,
 				domainName,
-				bandwagonLogin,
+				&bandwagonLogin,
 				enableRemoteAccess)
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}

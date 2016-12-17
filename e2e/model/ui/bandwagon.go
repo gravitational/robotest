@@ -15,15 +15,12 @@ import (
 )
 
 type Bandwagon struct {
-	page         *web.Page
-	domainName   string
-	email        string
-	password     string
-	username     string
-	organization string
+	*framework.BandwagonConfig
+	page       *web.Page
+	domainName string
 }
 
-func OpenBandwagon(page *web.Page, domainName string, username string, password string, organization string, email string) *Bandwagon {
+func OpenBandwagon(page *web.Page, domainName string, config *framework.BandwagonConfig) *Bandwagon {
 	path := fmt.Sprintf("/web/site/%v", domainName)
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
@@ -37,12 +34,10 @@ func OpenBandwagon(page *web.Page, domainName string, username string, password 
 		BeFound(),
 		"should wait for bandwagon to load")
 
-	return &Bandwagon{page: page,
-		email:        email,
-		password:     password,
-		domainName:   domainName,
-		organization: organization,
-		username:     username,
+	return &Bandwagon{
+		config,
+		page,
+		domainName,
 	}
 }
 
@@ -50,32 +45,37 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 	page := b.page
 
 	By("entering email")
-	Expect(page.FindByName("email").Fill(b.email)).To(
+	log.Infof("email: %s", b.Email)
+	Expect(page.FindByName("email").Fill(b.Email)).To(
 		Succeed(),
 		"should enter email")
 
 	if page.FindByName("name") != nil {
 		By("entering username")
-		Expect(page.FindByName("name").Fill(b.username)).To(
+		log.Infof("username: %s", b.Username)
+		Expect(page.FindByName("name").Fill(b.Username)).To(
 			Succeed(),
 			"should enter username")
 	}
-	if page.FindByName("org") != nil {
-		By("entering organization name")
-		Expect(page.FindByName("org").Fill(b.organization)).To(
-			Succeed(),
-			"should enter org")
-	}
 
 	By("entering password")
-	Expect(page.FindByName("password").Fill(b.password)).To(
+	log.Infof("password: %s", b.Password)
+	Expect(page.FindByName("password").Fill(b.Password)).To(
 		Succeed(),
 		"should enter password")
 
 	By("re-entering password")
-	Expect(page.FindByName("passwordConfirmed").Fill(b.password)).To(
+	Expect(page.FindByName("passwordConfirmed").Fill(b.Password)).To(
 		Succeed(),
 		"should re-enter password")
+
+	if page.FindByName("org") != nil {
+		By("entering organization name")
+		log.Infof("organization: %s", b.Organization)
+		Expect(page.FindByName("org").Fill(b.Organization)).To(
+			Succeed(),
+			"should enter org")
+	}
 
 	if remoteAccess {
 		By("enabling remote access")
