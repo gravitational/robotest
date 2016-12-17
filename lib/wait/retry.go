@@ -57,9 +57,9 @@ func Retry(period time.Duration, maxAttempts int, fn func() error) error {
 		case *AbortRetry:
 			return origErr.Err
 		case *ContinueRetry:
-			log.Infof("%v retry in %v", origErr.Message, period)
+			log.Debugf("%v retry in %v", origErr.Message, period)
 		default:
-			log.Infof("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), period)
+			log.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), period)
 		}
 		time.Sleep(period)
 	}

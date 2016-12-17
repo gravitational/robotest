@@ -26,7 +26,7 @@ func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluste
 	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 		session, err = installer.Connect()
 		if err != nil {
-			log.Warning(trace.DebugReport(err))
+			log.Debug(trace.DebugReport(err))
 		}
 		return trace.Wrap(err)
 	})
