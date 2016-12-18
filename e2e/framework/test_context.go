@@ -67,6 +67,9 @@ func ConfigureFlags() {
 		if testState.Application != nil {
 			TestContext.Application.Locator = testState.Application
 		}
+		if testState.Bandwagon != nil {
+			TestContext.Bandwagon = *testState.Bandwagon
+		}
 	}
 
 	if mode == wizardMode || TestContext.Wizard {
