@@ -29,22 +29,6 @@ func VerifyAWSInstall(f *framework.T) {
 			Email:        defaults.BandwagonEmail,
 		}
 
-		if ctx.Bandwagon.Organization != "" {
-			bandwagonConfig.Organization = ctx.Bandwagon.Organization
-		}
-
-		if ctx.Bandwagon.Username != "" {
-			bandwagonConfig.Username = ctx.Bandwagon.Username
-		}
-
-		if ctx.Bandwagon.Password != "" {
-			bandwagonConfig.Password = ctx.Bandwagon.Password
-		}
-
-		if ctx.Bandwagon.Email != "" {
-			bandwagonConfig.Email = ctx.Bandwagon.Email
-		}
-
 		if ctx.Wizard {
 			Skip("this test cannot run in wizard mode")
 		}
@@ -52,6 +36,23 @@ func VerifyAWSInstall(f *framework.T) {
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
 			siteURL = framework.SiteURL()
+
+			if ctx.Bandwagon.Organization != "" {
+				bandwagonConfig.Organization = ctx.Bandwagon.Organization
+			}
+
+			if ctx.Bandwagon.Username != "" {
+				bandwagonConfig.Username = ctx.Bandwagon.Username
+			}
+
+			if ctx.Bandwagon.Password != "" {
+				bandwagonConfig.Password = ctx.Bandwagon.Password
+			}
+
+			if ctx.Bandwagon.Email != "" {
+				bandwagonConfig.Email = ctx.Bandwagon.Email
+			}
+
 		})
 
 		shouldHandleNewDeploymentScreen := func() {
