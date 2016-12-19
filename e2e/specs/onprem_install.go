@@ -32,27 +32,27 @@ func VerifyOnpremInstall(f *framework.T) {
 			Email:        defaults.BandwagonEmail,
 		}
 
-		if ctx.Bandwagon.Organization != "" {
-			bandwagonConfig.Organization = ctx.Bandwagon.Organization
-		}
-
-		if ctx.Bandwagon.Username != "" {
-			bandwagonConfig.Username = ctx.Bandwagon.Username
-		}
-
-		if ctx.Bandwagon.Password != "" {
-			bandwagonConfig.Password = ctx.Bandwagon.Password
-		}
-
-		if ctx.Bandwagon.Email != "" {
-			bandwagonConfig.Email = ctx.Bandwagon.Email
-		}
-
 		// installNode is the node used to install application on
 		var installNode infra.Node
 
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
+
+			if ctx.Bandwagon.Organization != "" {
+				bandwagonConfig.Organization = ctx.Bandwagon.Organization
+			}
+
+			if ctx.Bandwagon.Username != "" {
+				bandwagonConfig.Username = ctx.Bandwagon.Username
+			}
+
+			if ctx.Bandwagon.Password != "" {
+				bandwagonConfig.Password = ctx.Bandwagon.Password
+			}
+
+			if ctx.Bandwagon.Email != "" {
+				bandwagonConfig.Email = ctx.Bandwagon.Email
+			}
 		})
 
 		shouldHandleNewDeploymentScreen := func() {
