@@ -40,8 +40,12 @@ const (
 	// InitializeTimeout is the amount of time between expand/shrink tests
 	InitializeTimeout = 20 * time.Second
 
+	// BandwagonOrganization specifies the name of the test organization or site to use in bandwagon form
+	BandwagonOrganization = "Robotest"
+	// BandwagonEmail specifies the email of the test user to use in bandwagon form
+	BandwagonEmail = "robotest@example.com"
 	// BandwagonUsername specifies the name of the test user to use in bandwagon form
-	BandwagonUsername = "robotest@example.com"
+	BandwagonUsername = "robotest"
 	// BandwagonPassword specifies the password to use in bandwagon form
 	BandwagonPassword = "r0b0t@st"
 

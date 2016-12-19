@@ -6,7 +6,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
-	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
+	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 
 	. "github.com/onsi/ginkgo"
@@ -21,6 +21,28 @@ func VerifyAWSInstall(f *framework.T) {
 		var login = framework.Login{
 			Username: defaults.BandwagonUsername,
 			Password: defaults.BandwagonPassword,
+		}
+		var bandwagonConfig = framework.BandwagonConfig{
+			Organization: defaults.BandwagonOrganization,
+			Username:     defaults.BandwagonUsername,
+			Password:     defaults.BandwagonPassword,
+			Email:        defaults.BandwagonEmail,
+		}
+
+		if ctx.Bandwagon.Organization != "" {
+			bandwagonConfig.Organization = ctx.Bandwagon.Organization
+		}
+
+		if ctx.Bandwagon.Username != "" {
+			bandwagonConfig.Username = ctx.Bandwagon.Username
+		}
+
+		if ctx.Bandwagon.Password != "" {
+			bandwagonConfig.Password = ctx.Bandwagon.Password
+		}
+
+		if ctx.Bandwagon.Email != "" {
+			bandwagonConfig.Email = ctx.Bandwagon.Email
 		}
 
 		if ctx.Wizard {
@@ -75,7 +97,7 @@ func VerifyAWSInstall(f *framework.T) {
 			enableRemoteAccess := true
 			bandwagon.Complete(f.Page,
 				domainName,
-				login,
+				bandwagonConfig,
 				enableRemoteAccess)
 		}
 

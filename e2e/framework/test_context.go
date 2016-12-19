@@ -67,6 +67,9 @@ func ConfigureFlags() {
 		if testState.Application != nil {
 			TestContext.Application.Locator = testState.Application
 		}
+		if testState.Bandwagon != nil {
+			TestContext.Bandwagon = *testState.Bandwagon
+		}
 	}
 
 	if mode == wizardMode || TestContext.Wizard {
@@ -185,8 +188,17 @@ type TestContextType struct {
 	AWS AWSConfig `json:"aws" yaml:"aws"`
 	// Onprem defines the test configuration for bare metal tests
 	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
+	// Bandwagon defines the test configuration for post-install setup in bandwagon
+	Bandwagon BandwagonConfig `json:"bandwagon" yaml:"bandwagon"`
 	// WebDriverURL specifies optional WebDriver URL to use
 	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" env:"ROBO_WEB_DRIVER_URL"`
+}
+
+type BandwagonConfig struct {
+	Organization string `json:"organization" yaml:"organization" env:"ROBO_BANDWAGON_ORGANIZATION"`
+	Username     string `json:"username" yaml:"username" env:"ROBO_BANDWAGON_USERNAME"`
+	Password     string `json:"password" yaml:"password" env:"ROBO_BANDWAGON_PASSWORD"`
+	Email        string `json:"email" yaml:"email" env:"ROBO_BANDWAGON_EMAIL"`
 }
 
 // Login defines Ops Center authentication parameters
@@ -309,6 +321,7 @@ func registerCommonFlags() {
 	flag.IntVar(&debugPort, "debug-port", 6060, "Profiling port")
 	flag.Var(&mode, "mode", "Run tests in specific mode. Supported modes: [`wizard`]")
 	flag.BoolVar(&teardownFlag, "destroy", false, "Destroy infrastructure after all tests")
+	flag.BoolVar(&outputFlag, "output", false, "Display current state only")
 	flag.BoolVar(&dumpFlag, "report", false, "Collect installation and operation logs into the report directory")
 	flag.StringVar(&provisionerName, "provisioner", "", "Provision nodes using this provisioner")
 }
@@ -565,6 +578,9 @@ var provisionerName string
 
 // teardownFlag defines if the cluster should be destroyed
 var teardownFlag bool
+
+// outputFlag defines if only current state should be output
+var outputFlag bool
 
 // dumpFlag defines whether to collect installation and operation logs
 var dumpFlag bool

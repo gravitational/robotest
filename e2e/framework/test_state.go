@@ -20,6 +20,8 @@ type TestState struct {
 	Login *Login `json:"login,omitempty"`
 	// ServiceLogin specifies optional service login to connect to the EntryURL.
 	ServiceLogin *ServiceLogin `json:"service_login,omitempty"`
+	// Bandwagon specifies bandwagon creation details
+	Bandwagon *BandwagonConfig `json:"bandwagon,omitempty"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner
 	Provisioner provisionerType `json:"provisioner,omitempty"`

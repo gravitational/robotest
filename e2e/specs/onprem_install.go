@@ -8,7 +8,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
-	bandwagon "github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
+	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
 	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 	"github.com/gravitational/robotest/infra"
 
@@ -25,6 +25,29 @@ func VerifyOnpremInstall(f *framework.T) {
 			Username: defaults.BandwagonUsername,
 			Password: defaults.BandwagonPassword,
 		}
+		var bandwagonConfig = framework.BandwagonConfig{
+			Organization: defaults.BandwagonOrganization,
+			Username:     defaults.BandwagonUsername,
+			Password:     defaults.BandwagonPassword,
+			Email:        defaults.BandwagonEmail,
+		}
+
+		if ctx.Bandwagon.Organization != "" {
+			bandwagonConfig.Organization = ctx.Bandwagon.Organization
+		}
+
+		if ctx.Bandwagon.Username != "" {
+			bandwagonConfig.Username = ctx.Bandwagon.Username
+		}
+
+		if ctx.Bandwagon.Password != "" {
+			bandwagonConfig.Password = ctx.Bandwagon.Password
+		}
+
+		if ctx.Bandwagon.Email != "" {
+			bandwagonConfig.Email = ctx.Bandwagon.Email
+		}
+
 		// installNode is the node used to install application on
 		var installNode infra.Node
 
@@ -94,12 +117,12 @@ func VerifyOnpremInstall(f *framework.T) {
 			endpoints := bandwagon.Complete(
 				f.Page,
 				domainName,
-				login,
+				bandwagonConfig,
 				enableRemoteAccess)
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
 			siteEntryURL := endpoints[0]
-			// TODO: for terraform, use public install node address
+			// For terraform, use public install node address
 			// terraform nodes are provisioned only with a single private network interface
 			if ctx.Provisioner == "terraform" {
 				siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
