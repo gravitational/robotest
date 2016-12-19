@@ -50,7 +50,8 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 		Succeed(),
 		"should enter email")
 
-	if page.FindByName("name") != nil {
+	count, _ := page.FindByName("name").Count()
+	if count > 0 {
 		By("entering username")
 		log.Infof("username: %s", b.Username)
 		Expect(page.FindByName("name").Fill(b.Username)).To(
@@ -69,7 +70,8 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 		Succeed(),
 		"should re-enter password")
 
-	if page.FindByName("org") != nil {
+	count, _ = page.FindByName("org").Count()
+	if count > 0 {
 		By("entering organization name")
 		log.Infof("organization: %s", b.Organization)
 		Expect(page.FindByName("org").Fill(b.Organization)).To(
