@@ -15,12 +15,12 @@ import (
 )
 
 type Bandwagon struct {
-	*framework.BandwagonConfig
+	framework.BandwagonConfig
 	page       *web.Page
 	domainName string
 }
 
-func OpenBandwagon(page *web.Page, domainName string, config *framework.BandwagonConfig) *Bandwagon {
+func OpenBandwagon(page *web.Page, domainName string, config framework.BandwagonConfig) Bandwagon {
 	path := fmt.Sprintf("/web/site/%v", domainName)
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
@@ -34,7 +34,7 @@ func OpenBandwagon(page *web.Page, domainName string, config *framework.Bandwago
 		BeFound(),
 		"should wait for bandwagon to load")
 
-	return &Bandwagon{
+	return Bandwagon{
 		config,
 		page,
 		domainName,
@@ -74,7 +74,7 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 		log.Infof("organization: %s", b.Organization)
 		Expect(page.FindByName("org").Fill(b.Organization)).To(
 			Succeed(),
-			"should enter org")
+			"should enter organization name")
 	}
 
 	if remoteAccess {
