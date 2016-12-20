@@ -19,7 +19,7 @@ func VerifyAWSInstall(f *framework.T) {
 		var domainName string
 		var siteURL string
 		var login = framework.Login{
-			Username: defaults.BandwagonUsername,
+			Username: defaults.BandwagonEmail,
 			Password: defaults.BandwagonPassword,
 		}
 		var bandwagonConfig = framework.BandwagonConfig{
@@ -47,10 +47,12 @@ func VerifyAWSInstall(f *framework.T) {
 
 			if ctx.Bandwagon.Password != "" {
 				bandwagonConfig.Password = ctx.Bandwagon.Password
+				login.Password = ctx.Bandwagon.Password
 			}
 
 			if ctx.Bandwagon.Email != "" {
 				bandwagonConfig.Email = ctx.Bandwagon.Email
+				login.Username = ctx.Bandwagon.Email
 			}
 
 		})

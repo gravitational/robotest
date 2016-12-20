@@ -22,7 +22,7 @@ func VerifyOnpremInstall(f *framework.T) {
 		ctx := framework.TestContext
 		var domainName string
 		var login = framework.Login{
-			Username: defaults.BandwagonUsername,
+			Username: defaults.BandwagonEmail,
 			Password: defaults.BandwagonPassword,
 		}
 		var bandwagonConfig = framework.BandwagonConfig{
@@ -48,10 +48,12 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			if ctx.Bandwagon.Password != "" {
 				bandwagonConfig.Password = ctx.Bandwagon.Password
+				login.Password = ctx.Bandwagon.Password
 			}
 
 			if ctx.Bandwagon.Email != "" {
 				bandwagonConfig.Email = ctx.Bandwagon.Email
+				login.Username = ctx.Bandwagon.Email
 			}
 		})
 
