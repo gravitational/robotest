@@ -1,4 +1,4 @@
-BINARY := e2e.test
+BINARY := robotest
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -w $(SRCDIR)
@@ -15,7 +15,7 @@ build: buildbox
 $(BINARY): clean
 	cd $(SRCDIR) && \
 		glide install && \
-		go test -c -i ./e2e
+		go test -c -i ./e2e -o $(BINARY)
 
 .PHONY: clean
 clean:
