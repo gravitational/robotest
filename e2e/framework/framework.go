@@ -209,39 +209,8 @@ func CoreDump() {
 		log.Infof("cluster inactive: skip CoreDump")
 		return
 	}
-	if TestContext.ServiceLogin.IsEmpty() {
-		log.Infof("no service login configured: skip CoreDump")
-		return
-	}
 
-	opsURL := TestContext.OpsCenterURL
-	err := ConnectToOpsCenter(opsURL, TestContext.ServiceLogin)
-	if err != nil {
-		// If connect to Ops Center fails, no site report can be collected
-		// so bail out
-		log.Errorf("failed to connect to the Ops Center %q: %v", opsURL, err)
-		return
-	}
-
-	tempOutput, err := ioutil.TempFile("", "crashreport")
-	Expect(err).NotTo(HaveOccurred(), "expected to create a temporary file")
-	defer func() {
-		tempOutput.Close()
-		if err := os.Remove(tempOutput.Name()); err != nil {
-			log.Warningf("failed to remove temporary report file %q: %v", tempOutput.Name(), err)
-		}
-	}()
-
-	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
-	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
-	opsURL = fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
-	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL, TestContext.ClusterName, tempOutput.Name())
-	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
-	if err != nil {
-		log.Errorf("failed to collect site report: %v", err)
-	} else {
-		Expect(system.CopyFile(output, tempOutput.Name())).To(Succeed())
-	}
+	fetchOpsCenterLogs()
 
 	if Cluster.Provisioner() == nil {
 		log.Infof("no provisioner: skip collecting provisioner logs")
@@ -270,6 +239,43 @@ func CoreDump() {
 			log.Errorf("failed to fetch agent log from %s: %v", node, errCopy)
 		}
 		// TODO: collect shrink operation agent logs
+	}
+}
+
+func fetchOpsCenterLogs() {
+	if TestContext.ServiceLogin.IsEmpty() {
+		log.Infof("service login not configured: skip fetchOpsCenterLogs")
+		return
+	}
+
+	opsURL := TestContext.OpsCenterURL
+	err := ConnectToOpsCenter(opsURL, TestContext.ServiceLogin)
+	if err != nil {
+		// If connect to Ops Center fails, no site report can be collected
+		// so bail out
+		log.Errorf("failed to connect to the Ops Center %q: %v", opsURL, err)
+		return
+	}
+
+	tempOutput, err := ioutil.TempFile("", "crashreport")
+	Expect(err).NotTo(HaveOccurred(), "expected to create a temporary file")
+	defer func() {
+		tempOutput.Close()
+		if err := os.Remove(tempOutput.Name()); err != nil {
+			log.Warningf("failed to remove temporary report file %q: %v", tempOutput.Name(), err)
+		}
+	}()
+
+	output := filepath.Join(TestContext.ReportDir, "crashreport.tar.gz")
+	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
+	opsURL = fmt.Sprintf("--ops-url=%v", Cluster.OpsCenterURL())
+	cmd := exec.Command("gravity", "--insecure", stateDir, "site", "report", opsURL,
+		TestContext.ClusterName, tempOutput.Name())
+	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
+	if err != nil {
+		log.Errorf("failed to collect site report: %v", err)
+	} else {
+		Expect(system.CopyFile(output, tempOutput.Name())).To(Succeed())
 	}
 }
 
