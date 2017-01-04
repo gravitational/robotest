@@ -34,7 +34,6 @@ func ConfigureFlags() {
 	initLogger(debugFlag)
 
 	if debugFlag {
-		// TODO: make port configurable
 		debug.StartProfiling(fmt.Sprintf("localhost:%v", debugPort))
 	}
 
