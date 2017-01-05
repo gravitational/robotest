@@ -72,7 +72,10 @@ type Infra interface {
 type Provisioner interface {
 	// Create provisions a new cluster and returns a reference
 	// to the node that can be used to run installation
-	Create() (installer Node, err error)
+	//
+	// withInstaller specifies if the provisioner should select an installer node.
+	// Installer node selection is provisioner-specific
+	Create(withInstaller bool) (installer Node, err error)
 	// Destroy the infrastructures created by Create.
 	// After the call to Destroy the provisioner is invalid and no
 	// other methods can be used
