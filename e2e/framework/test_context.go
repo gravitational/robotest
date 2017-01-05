@@ -73,8 +73,6 @@ func ConfigureFlags() {
 
 	if mode == wizardMode || TestContext.Wizard {
 		TestContext.Wizard = true
-	} else {
-		TestContext.Onprem.InstallerURL = ""
 	}
 
 	if provisionerName != "" {

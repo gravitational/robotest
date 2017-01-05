@@ -54,14 +54,14 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 	return v, nil
 }
 
-func (r *vagrant) Create() (installer infra.Node, err error) {
+func (r *vagrant) Create(withInstaller bool) (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
 	err = system.CopyFile(filepath.Join(r.stateDir, file), r.ScriptPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	err = r.boot()
+	err = r.boot(withInstaller)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -80,7 +80,8 @@ func (r *vagrant) Create() (installer infra.Node, err error) {
 	r.pool = infra.NewNodePool(nodes, nil)
 	r.Debugf("cluster: %#v", r.pool)
 
-	if r.InstallerURL == "" {
+	if !withInstaller {
+		// No need to pick installer node
 		return nil, nil
 	}
 
@@ -147,10 +148,12 @@ func (r *vagrant) State() infra.ProvisionerState {
 	}
 }
 
-func (r *vagrant) boot() error {
-	err := r.syncInstallerTarball()
-	if err != nil {
-		return trace.Wrap(err)
+func (r *vagrant) boot(withInstaller bool) error {
+	if withInstaller {
+		err := r.syncInstallerTarball()
+		if err != nil {
+			return trace.Wrap(err)
+		}
 	}
 	out, err := r.command(args("up"), system.SetEnv(
 		fmt.Sprintf("VAGRANT_VAGRANTFILE=%v", r.ScriptPath),

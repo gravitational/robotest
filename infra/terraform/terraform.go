@@ -57,7 +57,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 	return t, nil
 }
 
-func (r *terraform) Create() (installer infra.Node, err error) {
+func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error) {
 	err = system.CopyFile(filepath.Join(r.stateDir, "terraform.tf"), r.ScriptPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -68,7 +68,7 @@ func (r *terraform) Create() (installer infra.Node, err error) {
 		return nil, trace.Wrap(err)
 	}
 
-	if r.Config.InstallerURL != "" {
+	if withInstaller {
 		// find installer public IP
 		match := reInstallerIP.FindStringSubmatch(output)
 		if len(match) != 2 {

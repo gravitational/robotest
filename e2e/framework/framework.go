@@ -138,7 +138,8 @@ func InitializeCluster() {
 			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, TestContext.Provisioner)
 			Expect(err).NotTo(HaveOccurred())
 
-			installerNode, err = provisioner.Create()
+			withInstaller := TestContext.Onprem.InstallerURL != "" && TestContext.Wizard
+			installerNode, err = provisioner.Create(withInstaller)
 		}
 		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner
@@ -210,7 +211,10 @@ func CoreDump() {
 		return
 	}
 
-	fetchOpsCenterLogs()
+	err := fetchOpsCenterLogs()
+	if err != nil {
+		log.Errorf("failed to collect Ops Center logs: %v", err)
+	}
 
 	if Cluster.Provisioner() == nil {
 		log.Infof("no provisioner: skip collecting provisioner logs")
@@ -233,19 +237,20 @@ func CoreDump() {
 		agentLog, err := os.Create(filepath.Join(TestContext.ReportDir,
 			fmt.Sprintf("agent_%v.log", node.Addr())))
 		Expect(err).NotTo(HaveOccurred())
-		defer agentLog.Close()
 		errCopy := infra.ScpText(node, defaults.AgentLogPath, agentLog)
+		agentLog.Close()
 		if errCopy != nil {
 			log.Errorf("failed to fetch agent log from %s: %v", node, errCopy)
+			os.Remove(agentLog.Name())
 		}
 		// TODO: collect shrink operation agent logs
 	}
 }
 
-func fetchOpsCenterLogs() {
+func fetchOpsCenterLogs() error {
 	if TestContext.ServiceLogin.IsEmpty() {
 		log.Infof("service login not configured: skip fetchOpsCenterLogs")
-		return
+		return nil
 	}
 
 	opsURL := TestContext.OpsCenterURL
@@ -253,16 +258,17 @@ func fetchOpsCenterLogs() {
 	if err != nil {
 		// If connect to Ops Center fails, no site report can be collected
 		// so bail out
-		log.Errorf("failed to connect to the Ops Center %q: %v", opsURL, err)
-		return
+		return trace.Wrap(err, "failed to connect to the Ops Center %q", opsURL)
 	}
 
 	tempOutput, err := ioutil.TempFile("", "crashreport")
-	Expect(err).NotTo(HaveOccurred(), "expected to create a temporary file")
+	if err != nil {
+		return trace.Wrap(err, "failed to temporary file")
+	}
 	defer func() {
 		tempOutput.Close()
 		if err := os.Remove(tempOutput.Name()); err != nil {
-			log.Warningf("failed to remove temporary report file %q: %v", tempOutput.Name(), err)
+			log.Errorf("failed to remove temporary report file %q: %v", tempOutput.Name(), err)
 		}
 	}()
 
@@ -273,10 +279,11 @@ func fetchOpsCenterLogs() {
 		TestContext.ClusterName, tempOutput.Name())
 	err = system.Exec(cmd, io.MultiWriter(os.Stderr, GinkgoWriter))
 	if err != nil {
-		log.Errorf("failed to collect site report: %v", err)
-	} else {
-		Expect(system.CopyFile(output, tempOutput.Name())).To(Succeed())
+		return trace.Wrap(err, "failed to collect site report")
 	}
+
+	err = system.CopyFile(output, tempOutput.Name())
+	return trace.Wrap(err, "failed to copy crashreport as %v", tempOutput.Name())
 }
 
 // RoboDescribe is local wrapper function for ginkgo.Describe.
