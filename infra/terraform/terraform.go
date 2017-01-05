@@ -45,9 +45,15 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 		stateDir:    stateConfig.Dir,
 		installerIP: stateConfig.InstallerAddr,
 	}
-	if len(stateConfig.Nodes) != 0 {
+
+	if config.SSHKeyPath != "" {
+		t.Config.SSHKeyPath = config.SSHKeyPath
+	}
+
+	if config.SSHKeyPath == "" && len(stateConfig.Nodes) != 0 {
 		t.Config.SSHKeyPath = stateConfig.Nodes[0].KeyPath
 	}
+
 	nodes := make([]infra.Node, 0, len(stateConfig.Nodes))
 	for _, n := range stateConfig.Nodes {
 		nodes = append(nodes, &node{publicIP: n.Addr, owner: t})
