@@ -58,6 +58,8 @@ login:
 service_login:
     username: robotest@example.com
     password: robotest!
+extensions:
+    install_timeout: 1h
 aws:
     access_key: "access key"
     secret key: "secret key"
@@ -83,6 +85,7 @@ onprem:
   as required by tests.
  * `aws` specifies a [block](#aws-configuration) of parameters for AWS-based test scenarios.
  * `onprem` specifies a [block](#onprem-configuration) of parameters for bare metal tests.
+ * `extensions` specifies a [block](#step-configuration) of parameters for arbitrary test steps.
 
 
 ### Ops Center login
@@ -108,6 +111,13 @@ a path to a local tarball for `vagrant`. The `installer_url` is optional and is 
 The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
 Note the `flavor_label` paramater in the global configuration section - this parameter specifies the actual
 installation flavor which determines the number of nodes used for installation. The selected flavor should not exceed the number of `nodes`.
+
+### Step configuration
+
+Extensions block allows configuration of individual test steps.
+Currently it supports the following attributes:
+
+  * `install_timeout` - specifies the time allotted for the install operation to complete. It defaults to some value if unspecified.
 
 ## Creating infrastructure (bare metal tests)
 
