@@ -122,8 +122,10 @@ func InitializeCluster() {
 			break
 		}
 
-		TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
-		Expect(err).NotTo(HaveOccurred())
+		if TestContext.StateDir == "" {
+			TestContext.StateDir, err = newStateDir(TestContext.ClusterName)
+			Expect(err).NotTo(HaveOccurred())
+		}
 
 		// TestContext -> testState
 		testState = &TestState{
