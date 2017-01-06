@@ -193,6 +193,8 @@ type TestContextType struct {
 	Bandwagon BandwagonConfig `json:"bandwagon" yaml:"bandwagon"`
 	// WebDriverURL specifies optional WebDriver URL to use
 	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" env:"ROBO_WEB_DRIVER_URL"`
+	// Extensions groups arbitrary test step configuration
+	Extensions Extensions `json:"extensions,omitempty" yaml:"extensions,omitempty"`
 }
 
 type BandwagonConfig struct {
