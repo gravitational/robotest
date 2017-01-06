@@ -87,6 +87,10 @@ func ConfigureFlags() {
 		TestContext.DumpCore = dumpFlag
 	}
 
+	if stateDir != "" {
+		TestContext.StateDir = stateDir
+	}
+
 	if TestContext.Teardown || TestContext.DumpCore {
 		// Skip tests for this operation
 		config.GinkgoConfig.SkipString = ".*"
@@ -144,7 +148,7 @@ type TestContextType struct {
 	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
-	StateDir string `json:"-" yaml:"-"`
+	StateDir string `json:"state_dir" yaml:"state_dir" env:"ROBO_STATE_DIR"`
 	// Teardown specifies the command to destroy the infrastructure
 	Teardown bool `json:"-" yaml:"-"`
 	// ForceRemoteAccess explicitly enables the remote access for the installed site.
@@ -313,6 +317,7 @@ func registerCommonFlags() {
 	config.GinkgoConfig.EmitSpecProgress = true
 
 	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file to use")
+	flag.StringVar(&stateDir, "state-dir", "", "Directory to store state in")
 	flag.StringVar(&stateConfigFile, "state-file", "config.yaml.state", "State configuration file to use")
 	flag.BoolVar(&debugFlag, "debug", false, "Verbose mode")
 	flag.IntVar(&debugPort, "debug-port", 6060, "Profiling port")
@@ -581,3 +586,6 @@ var outputFlag bool
 
 // dumpFlag defines whether to collect installation and operation logs
 var dumpFlag bool
+
+// stateDir defines a user specified directory to store state in
+var stateDir string
