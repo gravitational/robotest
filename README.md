@@ -218,7 +218,8 @@ the specs to skip. Without this option, the default behavior is to execute **all
 
 ### Running in-between tests
 
-After the infrstructure has been prepared and the application installed, one can run a further set of tests that require an infrstructure and
+After the 
+structure has been prepared and the application installed, one can run a further set of tests that require an infrastructure and
 an application:
 
 ```
