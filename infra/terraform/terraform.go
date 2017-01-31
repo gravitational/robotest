@@ -148,7 +148,7 @@ func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {
-	return session.Start(installerCommand(r.Config))
+	return session.Start(installerCommand(r.Config.SSHUser))
 }
 
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
@@ -260,9 +260,9 @@ var (
 	rePublicIPs   = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
 )
 
-// installerCommand waits for the installer tarball to download, unpacks it and launches the installation
-func installerCommand(config Config) string {
+// installerCommand returns a shell command to fetch installer tarball, unpack it and launch the installation
+func installerCommand(username string) string {
 	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
                         tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
-                        /home/%[1]s/installer/install`, config.SSHUser)
+                        /home/%[1]s/installer/install`, username)
 }
