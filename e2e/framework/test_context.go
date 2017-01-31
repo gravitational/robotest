@@ -242,6 +242,8 @@ type AWSConfig struct {
 	// KeyPath specifies the location of the SSH key to use for remote access.
 	// Mandatory only with terraform provisioner
 	KeyPath string `json:"key_path" yaml:"key_path" env:"ROBO_AWS_KEY_PATH"`
+	// SSHUser defines SSH user used to connect to the provisioned machines
+	SSHUser string `json:"ssh_user" env:"ROBO_AWS_SSH_USER"`
 	// InstanceType defines the type of AWS EC2 instance to boot.
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
@@ -422,6 +424,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			SecretKey:    TestContext.AWS.SecretKey,
 			KeyPair:      TestContext.AWS.KeyPair,
 			SSHKeyPath:   TestContext.AWS.KeyPath,
+			SSHUser:      TestContext.AWS.SSHUser,
 			InstanceType: TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()
@@ -475,6 +478,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			SecretKey:    TestContext.AWS.SecretKey,
 			KeyPair:      TestContext.AWS.KeyPair,
 			SSHKeyPath:   TestContext.AWS.KeyPath,
+			SSHUser:      TestContext.AWS.SSHUser,
 			InstanceType: TestContext.AWS.InstanceType,
 		}
 		err := config.Validate()

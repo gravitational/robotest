@@ -144,17 +144,17 @@ func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return sshutils.Connect(fmt.Sprintf("%v:22", addrIP), "centos", keyFile)
+	return sshutils.Connect(fmt.Sprintf("%v:22", addrIP), r.Config.SSHUser, keyFile)
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {
-	return session.Start(installerCommand)
+	return session.Start(installerCommand(r.Config))
 }
 
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
-	return installerLogPath
+	return fmt.Sprintf("/home/%s/installer/gravity.log", r.Config.SSHUser)
 }
 
 func (r *terraform) State() infra.ProvisionerState {
@@ -225,6 +225,7 @@ func getVars(config Config) []string {
 		"instance_type": config.InstanceType,
 		"cluster_name":  config.ClusterName,
 		"nodes":         strconv.Itoa(config.NumNodes),
+		"ssh_user":      config.SSHUser,
 	}
 	if config.InstallerURL != "" {
 		variables["installer_url"] = config.InstallerURL
@@ -260,8 +261,8 @@ var (
 )
 
 // installerCommand waits for the installer tarball to download, unpacks it and launches the installation
-const installerCommand = `while [ ! -f /home/centos/installer.tar.gz ]; do sleep 5; done; \
-tar -xvf /home/centos/installer.tar.gz -C /home/centos/installer; \
-/home/centos/installer/install`
-
-const installerLogPath = "/home/centos/installer/gravity.log"
+func installerCommand(config Config) string {
+	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
+                        tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
+                        /home/%[1]s/installer/install`, config.SSHUser)
+}
