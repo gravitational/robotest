@@ -1,5 +1,6 @@
 variable "access_key" {}
 variable "secret_key" {}
+variable "ssh_user" {}
 variable "region" {
   default = "us-east-1"
 }
@@ -126,9 +127,9 @@ mount /var/lib/gravity/planet/etcd
 chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
-sudo -u centos mkdir -p /home/centos/installer
+sudo -u ${var.ssh_user} mkdir -p /home/${var.ssh_user}/installer
 yum install -y python; sudo easy_install awscli
-sudo -u centos AWS_ACCESS_KEY_ID=${var.access_key} AWS_SECRET_ACCESS_KEY=${var.secret_key} aws s3 cp ${var.installer_url} /home/centos/installer.tar.gz
+sudo -u ${var.ssh_user} AWS_ACCESS_KEY_ID=${var.access_key} AWS_SECRET_ACCESS_KEY=${var.secret_key} aws s3 cp ${var.installer_url} /home/${var.ssh_user}/installer.tar.gz
 EOF
 
     root_block_device {

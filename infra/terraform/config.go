@@ -19,6 +19,9 @@ func (r *Config) Validate() error {
 	if r.SSHKeyPath == "" {
 		errors = append(errors, trace.BadParameter("SSH key path is required"))
 	}
+	if r.SSHUser == "" {
+		errors = append(errors, trace.BadParameter("SSH user name is required"))
+	}
 	if r.ScriptPath == "" {
 		errors = append(errors, trace.BadParameter("script path is required"))
 	}
@@ -44,6 +47,8 @@ type Config struct {
 	KeyPair string `json:"key_pair" env:"ROBO_KEY_PAIR"`
 	// SSHKeyPath is the path to the private SSH key to connect to provisioned machines
 	SSHKeyPath string `json:"ssh_key_path" env:"ROBO_SSH_KEY_PATH"`
+	// SSHUser defines SSH user to connect to the provisioned machines
+	SSHUser string `json:"ssh_user" env:"ROBO_SSH_USER"`
 	// InstanceType is AWS instance type
 	InstanceType string `json:"instance_type" env:"ROBO_INSTANCE_TYPE"`
 	// ScriptPath is the path to the terraform script for provisioning
