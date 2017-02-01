@@ -65,6 +65,7 @@ aws:
     secret key: "secret key"
     region: us-east-1
     key_pair: test
+    ssh_user: centos
     vpc: "Create new"
     key_path: /path/to/SSH/key
 onprem:
