@@ -251,10 +251,15 @@ func (p *SiteServerPage) clickDeleteServer(hostname string) {
 	script := fmt.Sprintf(scriptTemplate, hostname)
 	page.RunScript(script, nil, &result)
 
-	buttonPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
-	Expect(page.Find(buttonPath).Click()).To(
+	actionsMenuPath := fmt.Sprintf(".grv-site-servers .grv-site-servers-actions:nth-child(%v)", result)
+	Expect(page.Find(actionsMenuPath).Click()).To(
 		Succeed(),
-		"should find and click on server delete button")
+		"should find and expand action menu")
+
+	deleteActionBtnPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
+	Expect(page.Find(deleteActionBtnPath).Click()).To(
+		Succeed(),
+		"should find and click on server delete action")
 }
 
 func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
