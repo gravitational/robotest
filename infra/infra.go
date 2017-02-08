@@ -8,8 +8,10 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/ssh"
+	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
@@ -155,8 +157,15 @@ func Distribute(command string, nodes ...Node) error {
 
 // Run executes the specified command on node and streams
 // session's Stdout/Stderr to the specified w
-func Run(node Node, command string, w io.Writer) error {
-	session, err := node.Connect()
+func Run(node Node, command string, w io.Writer) (err error) {
+	var session *ssh.Session
+	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+		session, err = node.Connect()
+		if err != nil {
+			log.Debug(trace.DebugReport(err))
+		}
+		return trace.Wrap(err)
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
