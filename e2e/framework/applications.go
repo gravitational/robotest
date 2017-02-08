@@ -62,6 +62,17 @@ func UpdateApplication() {
 	Distribute("gravity update", nodes[0])
 }
 
+// BackupApplication implements backup test by invoking gravity system backup command
+func BackupApplication() {
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
+	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
+	if len(nodes) == 0 {
+		Failf("expected active nodes in cluster, got none")
+	}
+	Distribute(fmt.Sprintf("gravity system backup %s %s", TestContext.Application.String(), "/tmp"), nodes[0])
+}
+
 // ConnectToOpsCenter connects to the Ops Center specified with opsCenterURL using
 // specified login
 func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {
