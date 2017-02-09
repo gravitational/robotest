@@ -207,7 +207,7 @@ func UpdateState() {
 
 func UpdateBackupState(addr string) {
 	if Cluster == nil || testState == nil {
-		log.Infof("cluster inactive: skip UpdateState")
+		log.Infof("cluster inactive: skip UpdateBackupState")
 		return
 	}
 	testState.BackupState = &BackupState{
