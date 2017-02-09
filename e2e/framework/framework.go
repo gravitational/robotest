@@ -205,6 +205,18 @@ func UpdateState() {
 	Expect(saveState(withBackup)).To(Succeed())
 }
 
+func UpdateBackupState(addr string) {
+	if Cluster == nil || testState == nil {
+		log.Infof("cluster inactive: skip UpdateState")
+		return
+	}
+	testState.BackupState = &BackupState{
+		Addr: addr,
+		Path: TestContext.Extensions.BackupPath,
+	}
+	Expect(saveState(withBackup)).To(Succeed())
+}
+
 // CoreDump collects diagnostic information into the specified report directory
 // after the tests
 func CoreDump() {

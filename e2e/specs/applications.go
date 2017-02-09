@@ -13,3 +13,12 @@ func VerifyBackup(f *framework.T) {
 		})
 	})
 }
+
+func VerifyRestore(f *framework.T) {
+	var _ = framework.RoboDescribe("Application Restore", func() {
+
+		It("should be able to restore application", func() {
+			framework.RestoreApplication()
+		})
+	})
+}

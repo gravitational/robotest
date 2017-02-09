@@ -9,6 +9,9 @@ type Extensions struct {
 	// InstallTimeout specifies the total time to wait for install operation to complete.
 	// Defaults to ui/defaults.InstallTimeout if unspecified
 	InstallTimeout duration `json:"install_timeout" yaml:"install_timeout" env:"ROBO_INSTALL_TIMEOUT"`
+	// BackupPath defines path where Backup will be stored. Path should be absolute.
+	// Also this path used for restore operation on node.
+	BackupPath string `json:"backup_path" yaml:"backup_path" env:"ROBO_BACKUP_PATH"`
 }
 
 // duration aliases time.Duration to support JSON/Env serialisation

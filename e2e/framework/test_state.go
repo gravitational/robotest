@@ -32,6 +32,17 @@ type TestState struct {
 	// StateDir specifies the location of temporary state used for a single test run
 	// (from bootstrapping to destroy)
 	StateDir string `json:"state_dir"`
+	// BackupState defines state of backup.
+	// Used for backup/restore operations.
+	BackupState *BackupState `json:"backup_state,omitempty"`
+}
+
+// BackupState defines state of backup.
+type BackupState struct {
+	// Addr is the address of a node where backup is storing
+	Addr string `json:"addr"`
+	// Path is an absolute path to the backup file
+	Path string `json:"path"`
 }
 
 func (r TestState) Validate() error {
