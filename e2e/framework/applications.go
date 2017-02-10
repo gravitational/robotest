@@ -62,6 +62,29 @@ func UpdateApplication() {
 	Distribute("gravity update", nodes[0])
 }
 
+// BackupApplication implements test for backup hook
+func BackupApplication() {
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
+	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
+	if len(nodes) == 0 {
+		Failf("expected active nodes in cluster, got none")
+	}
+	Distribute(fmt.Sprintf("sudo gravity planet enter -- --notty /usr/bin/gravity -- system backup %s %s", TestContext.Application.String(), TestContext.Extensions.BackupPath), nodes[0])
+	UpdateBackupState(nodes[0].Addr())
+}
+
+// RestoreApplication implements test for restore hook
+func RestoreApplication() {
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
+	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
+	if len(nodes) == 0 {
+		Failf("expected active nodes in cluster, got none")
+	}
+	Distribute(fmt.Sprintf("sudo gravity planet enter -- --notty /usr/bin/gravity -- system restore %s %s", TestContext.Application.String(), TestContext.Extensions.BackupPath), nodes[0])
+}
+
 // ConnectToOpsCenter connects to the Ops Center specified with opsCenterURL using
 // specified login
 func ConnectToOpsCenter(opsCenterURL string, login ServiceLogin) error {
