@@ -151,6 +151,10 @@ func (r *terraform) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand(r.Config.SSHUser))
 }
 
+func (r *terraform) UploadUpdate(session *ssh.Session) error {
+	return session.Start(uploadUpdateCommand(r.Config.SSHUser))
+}
+
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
@@ -265,4 +269,12 @@ func installerCommand(username string) string {
 	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
                         tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
                         /home/%[1]s/installer/install`, username)
+}
+
+// uploadUpdateCommand returns a shell command to fetch installer tarball, unpack it and launch
+// uploading new version of application
+func uploadUpdateCommand(username string) string {
+	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
+                        tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
+                        /home/%[1]s/installer/upload`, username)
 }
