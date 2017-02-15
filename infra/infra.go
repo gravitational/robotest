@@ -92,6 +92,9 @@ type Provisioner interface {
 	SelectInterface(installer Node, addrs []string) (int, error)
 	// StartInstall initiates installation in the specified session
 	StartInstall(session *ssh.Session) error
+	// UploadUpdate initiates uploading of new application version
+	// in the specified session
+	UploadUpdate(session *ssh.Session) error
 	// Pool returns a reference to the managing node pool
 	NodePool() NodePool
 	// InstallerLogPath returns remote path to the installer log file

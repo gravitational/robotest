@@ -123,6 +123,14 @@ func (r *vagrant) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
 
+func (r *vagrant) UploadUpdate(session *ssh.Session) error {
+	// upload new installer to all remote nodes
+	if err := r.rsyncStateDir(); err != nil {
+		return trace.Wrap(err)
+	}
+	return session.Start(uploadUpdateCommand)
+}
+
 func (r *vagrant) NodePool() infra.NodePool {
 	return r.pool
 }
@@ -174,6 +182,14 @@ func (r *vagrant) syncInstallerTarball() error {
 	err := system.CopyFile(target, r.InstallerURL)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
+	}
+	return nil
+}
+
+func (r *vagrant) rsyncStateDir() error {
+	_, err := r.command(args("rsync"))
+	if err != nil {
+		return trace.Wrap(err, "failed to rsync state folder to remote machine")
 	}
 	return nil
 }
@@ -376,5 +392,10 @@ const installerCommand = `
 mkdir -p /home/vagrant/installer; \
 tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
 /home/vagrant/installer/install`
+
+const uploadUpdateCommand = `
+mkdir -p /home/vagrant/installer; \
+tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/intaller; \
+/home/vagrant/installer/upload`
 
 const installerLogPath = "/home/vagrant/installer/gravity.log"
