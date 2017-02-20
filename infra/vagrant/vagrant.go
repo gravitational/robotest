@@ -186,8 +186,13 @@ func (r *vagrant) syncInstallerTarball() error {
 	return nil
 }
 
-func (r *vagrant) rsyncStateDir() error {
-	_, err := r.command(args("rsync"))
+func (r *vagrant) rsyncStateDir() (err error) {
+	err = r.syncInstallerTarball()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	_, err = r.command(args("rsync"))
 	if err != nil {
 		return trace.Wrap(err, "failed to rsync state folder to remote machine")
 	}
@@ -394,8 +399,8 @@ tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
 /home/vagrant/installer/install`
 
 const uploadUpdateCommand = `
-mkdir -p /home/vagrant/installer; \
-tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/intaller; \
-/home/vagrant/installer/upload`
+rm -rf /home/vagrant/installer; mkdir -p /home/vagrant/installer; \
+tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
+cd /home/vagrant/installer/; sudo ./upload`
 
 const installerLogPath = "/home/vagrant/installer/gravity.log"

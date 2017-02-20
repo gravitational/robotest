@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/defaults"
@@ -158,6 +159,7 @@ func InitializeCluster() {
 	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application.Locator = application
+		testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
