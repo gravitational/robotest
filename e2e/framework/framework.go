@@ -159,7 +159,9 @@ func InitializeCluster() {
 	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application.Locator = application
-		testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
+		if err != nil {
+			testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
+		}
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
