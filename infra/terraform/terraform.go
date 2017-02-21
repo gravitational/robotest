@@ -267,7 +267,7 @@ var (
 // installerCommand returns a shell command to fetch installer tarball, unpack it and launch the installation
 func installerCommand(username string) string {
 	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
-                        tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
+                        tar -xf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
                         /home/%[1]s/installer/install`, username)
 }
 
@@ -275,6 +275,7 @@ func installerCommand(username string) string {
 // uploading new version of application
 func uploadUpdateCommand(username string) string {
 	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
-                        tar -xvf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
-                        /home/%[1]s/installer/upload`, username)
+                        rm -rf /home/%[1]s/installer/*; \
+                        tar -xf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
+                        cd /home/%[1]s/installer/; sudo ./upload`, username)
 }
