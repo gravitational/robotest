@@ -23,57 +23,59 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// UpdateApplication implements site update test by downloading the application tarball,
+// FakeUpdateApplication implements site update test by downloading the application tarball,
 // incrementing the version and importing the same tarball with a new version.
 //
 // It downloads the update from one of the remote nodes before returning to ensure
 // that the application update is available
-func UpdateApplication() {
+func FakeUpdateApplication() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
 
-	if TestContext.Onprem.InstallerURL == "" {
-		Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
-
-		nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
-		if len(nodes) == 0 {
-			Failf("expected active nodes in cluster, got none")
-		}
-
-		stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
-		opsURL := fmt.Sprintf("--ops-url=%v", TestContext.OpsCenterURL)
-		outputPath := filepath.Join(TestContext.StateDir, "app.tar.gz")
-		cmd := exec.Command("gravity", "--insecure", stateDir, "package", "export",
-			opsURL, TestContext.Application.String(), outputPath)
-		Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
-
-		versionS := TestContext.Application.Version
-		if versionS == latestMetaversion {
-			var err error
-			versionS, err = getResourceVersion(outputPath)
-			Expect(err).NotTo(HaveOccurred(), "expected to query application package version from tarball")
-		}
-
-		version, err := semver.NewVersion(versionS)
-		Expect(err).NotTo(HaveOccurred(),
-			fmt.Sprintf("expected a version in semver format, got %q", TestContext.Application.Version))
-
-		bumpedVersion := fmt.Sprintf("--version=%v", bump(*version))
-		// Import the same package with a new version to emulate update
-		cmd = exec.Command("gravity", "--insecure", stateDir, "app", "import", opsURL, bumpedVersion, outputPath)
-		Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
-
-		Distribute("gravity update", nodes[0])
-	} else {
-		config := infra.Config{ClusterName: TestContext.ClusterName}
-		provisioner, err := provisionerFromState(config, *testState)
-		Expect(testState.ProvisionerState.InstallerAddr).NotTo(BeNil(), "expected a valid installer address")
-
-		installerNode, err := provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
-		Expect(err).NotTo(HaveOccurred(), "expected to get installer node from previous provisioner state")
-
-		err = infra.UploadUpdate(provisioner, installerNode)
-		Expect(err).NotTo(HaveOccurred(), "expected upload update operation to be completed")
+	nodes := Cluster.Provisioner().NodePool().AllocatedNodes()
+	if len(nodes) == 0 {
+		Failf("expected active nodes in cluster, got none")
 	}
+
+	stateDir := fmt.Sprintf("--state-dir=%v", TestContext.StateDir)
+	opsURL := fmt.Sprintf("--ops-url=%v", TestContext.OpsCenterURL)
+	outputPath := filepath.Join(TestContext.StateDir, "app.tar.gz")
+	cmd := exec.Command("gravity", "--insecure", stateDir, "package", "export",
+		opsURL, TestContext.Application.String(), outputPath)
+	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
+
+	versionS := TestContext.Application.Version
+	if versionS == latestMetaversion {
+		var err error
+		versionS, err = getResourceVersion(outputPath)
+		Expect(err).NotTo(HaveOccurred(), "expected to query application package version from tarball")
+	}
+
+	version, err := semver.NewVersion(versionS)
+	Expect(err).NotTo(HaveOccurred(),
+		fmt.Sprintf("expected a version in semver format, got %q", TestContext.Application.Version))
+
+	bumpedVersion := fmt.Sprintf("--version=%v", bump(*version))
+	// Import the same package with a new version to emulate update
+	cmd = exec.Command("gravity", "--insecure", stateDir, "app", "import", opsURL, bumpedVersion, outputPath)
+	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
+
+	Distribute("gravity update", nodes[0])
+}
+
+// UpdateApplicationWithInstaller impements site update via installer tarball
+func UpdateApplicationWithInstaller() {
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	config := infra.Config{ClusterName: TestContext.ClusterName}
+	provisioner, err := provisionerFromState(config, *testState)
+	Expect(testState.ProvisionerState.InstallerAddr).NotTo(BeNil(), "expected a valid installer address")
+
+	installerNode, err := provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
+	Expect(err).NotTo(HaveOccurred(), "expected to get installer node from previous provisioner state")
+
+	err = infra.UploadUpdate(provisioner, installerNode)
+	Expect(err).NotTo(HaveOccurred(), "expected upload update operation to be completed")
+
 }
 
 // BackupApplication implements test for backup hook

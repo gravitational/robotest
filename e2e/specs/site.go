@@ -22,9 +22,13 @@ func VerifySiteUpdate(f *framework.T) {
 		})
 
 		It("should update site to the latest version", func() {
-			// Upload a new version to Ops Center
-			// TODO: remove the fake version at cleanup/teardown
-			framework.UpdateApplication()
+			if ctx.Onprem.InstallerURL == "" {
+				// Upload a new version to Ops Center
+				// TODO: remove the fake version at cleanup/teardown
+				framework.FakeUpdateApplication()
+			} else {
+				framework.UpdateApplicationWithInstaller()
+			}
 
 			ui.EnsureUser(f.Page, siteURL, ctx.Login)
 

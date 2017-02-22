@@ -9,8 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// UploadUpdate started uploading new application update
-// on installer node
+// UploadUpdate uploads a new application version to the installer node
 func UploadUpdate(provisioner Provisioner, installer Node) (err error) {
 	var session *ssh.Session
 	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
