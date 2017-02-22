@@ -66,16 +66,14 @@ func FakeUpdateApplication() {
 // UpdateApplicationWithInstaller impements site update via installer tarball
 func UpdateApplicationWithInstaller() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
-	config := infra.Config{ClusterName: TestContext.ClusterName}
-	provisioner, err := provisionerFromState(config, *testState)
 	Expect(testState.ProvisionerState.InstallerAddr).NotTo(BeNil(), "expected a valid installer address")
 
+	provisioner := Cluster.Provisioner()
 	installerNode, err := provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
 	Expect(err).NotTo(HaveOccurred(), "expected to get installer node from previous provisioner state")
 
 	err = infra.UploadUpdate(provisioner, installerNode)
 	Expect(err).NotTo(HaveOccurred(), "expected upload update operation to be completed")
-
 }
 
 // BackupApplication implements test for backup hook
