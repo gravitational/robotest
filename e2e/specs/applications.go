@@ -22,12 +22,3 @@ func VerifyRestore(f *framework.T) {
 		})
 	})
 }
-
-func VerifyUpdate(f *framework.T) {
-	var _ = framework.RoboDescribe("Application Update", func() {
-
-		It("should be able to update application", func() {
-			framework.UpdateApplication()
-		})
-	})
-}
