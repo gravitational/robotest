@@ -128,7 +128,7 @@ func (r *vagrant) UploadUpdate(session *ssh.Session) error {
 	if err := r.rsyncStateDir(); err != nil {
 		return trace.Wrap(err)
 	}
-	return session.Start(uploadUpdateCommand)
+	return session.Run(uploadUpdateCommand)
 }
 
 func (r *vagrant) NodePool() infra.NodePool {
