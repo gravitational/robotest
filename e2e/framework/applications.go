@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
 
@@ -22,12 +23,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// UpdateApplication implements site update test by downloading the application tarball,
+// FakeUpdateApplication implements site update test by downloading the application tarball,
 // incrementing the version and importing the same tarball with a new version.
 //
 // It downloads the update from one of the remote nodes before returning to ensure
 // that the application update is available
-func UpdateApplication() {
+func FakeUpdateApplication() {
 	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
 	Expect(TestContext.Application.Locator).NotTo(BeNil(), "expected a valid application package")
 
@@ -60,6 +61,19 @@ func UpdateApplication() {
 	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
 
 	Distribute("gravity update", nodes[0])
+}
+
+// UpdateApplicationWithInstaller impements site update via installer tarball
+func UpdateApplicationWithInstaller() {
+	Expect(ConnectToOpsCenter(TestContext.OpsCenterURL, TestContext.ServiceLogin)).To(Succeed())
+	Expect(testState.ProvisionerState.InstallerAddr).NotTo(BeNil(), "expected a valid installer address")
+
+	provisioner := Cluster.Provisioner()
+	installerNode, err := provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
+	Expect(err).NotTo(HaveOccurred(), "expected to get installer node from previous provisioner state")
+
+	err = infra.UploadUpdate(provisioner, installerNode)
+	Expect(err).NotTo(HaveOccurred(), "expected upload update operation to be completed")
 }
 
 // BackupApplication implements test for backup hook

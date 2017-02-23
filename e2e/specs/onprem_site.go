@@ -30,7 +30,7 @@ func VerifyOnpremSite(f *framework.T) {
 
 			cluster := framework.Cluster
 
-			By("opening a site page")
+			By("opening a site servers page")
 			site := uisite.Open(f.Page, domainName)
 			site.NavigateToServers()
 			siteProvisioner := site.GetSiteServerPage()
