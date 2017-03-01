@@ -20,14 +20,13 @@ func UploadUpdate(provisioner Provisioner, installer Node) (err error) {
 		return trace.Wrap(err)
 	})
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer func() {
 		errClose := session.Close()
 		if errClose != nil {
 			log.Errorf("failed to close upload update SSH session: %v", errClose)
 		}
-	}()
+		return trace.Wrap(err)
+	}
+	defer session.Close()
 
 	// launch the upload update script
 	log.Debugf("starting uploading update process...")
