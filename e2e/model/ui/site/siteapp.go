@@ -39,6 +39,9 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 		"should click on update app confirmation button",
 	)
 
+}
+
+func (a *SiteAppPage) CheckUpdateApp(toVersion AppVersion) {
 	a.expectAppUpdateProgressIndicator()
 
 	Expect(a.page.Refresh()).To(Succeed())
@@ -76,18 +79,18 @@ func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 
 func (a *SiteAppPage) GetNewVersions() []AppVersion {
 	const expectDescriptionText = "should retrieve new versions"
-	const script = `    
-            var data = [];        
+	const script = `
+            var data = [];
             var items = document.querySelectorAll(".grv-site-app-new-ver .grv-site-app-label-version");
             items.forEach( (i, index) => {
                 var text = i.innerText;
                 var ver = text.split(" ")[1];
                 data.push({
-                    Index: index, 
+                    Index: index,
                     Version: ver.trim()
                 } )
             })
-                
+
             return JSON.stringify(data);
         `
 	var versions []AppVersion

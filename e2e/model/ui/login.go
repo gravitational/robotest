@@ -5,6 +5,8 @@ import (
 
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+
+	"github.com/gravitational/trace"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -35,6 +37,32 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 
 		PauseForComponentJs()
 	}
+}
+
+func IsLoginPageFound(page *web.Page, URL string, login framework.Login) error {
+	err := page.Navigate(URL)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	count, _ := page.FindByClass("grv-user-login").Count()
+
+	countProvider := 0
+	if count != 0 {
+		switch login.AuthProvider {
+		case WithEmail, WithNoProvider:
+			countProvider, _ = page.FindByClass("btn-primary").Count()
+		case WithGoogle:
+			countProvider, _ = page.FindByClass("btn-google").Count()
+		default:
+			framework.Failf("unknown auth type %q", login.AuthProvider)
+		}
+	}
+	if countProvider == 0 {
+		return trace.Errorf("login page with %s authprovider not found", login.AuthProvider)
+	}
+
+	return nil
 }
 
 func CreateUser(page *web.Page, email string, password string) User {
