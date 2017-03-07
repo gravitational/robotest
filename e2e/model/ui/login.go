@@ -45,21 +45,25 @@ func IsLoginPageFound(page *web.Page, URL string, login framework.Login) error {
 		return trace.Wrap(err)
 	}
 
+	countEmailProvider, countGoogleProvider, countToken := 0, 0, 0
 	count, _ := page.FindByClass("grv-user-login").Count()
-
-	countProvider := 0
 	if count != 0 {
-		switch login.AuthProvider {
-		case WithEmail, WithNoProvider:
-			countProvider, _ = page.FindByClass("btn-primary").Count()
-		case WithGoogle:
-			countProvider, _ = page.FindByClass("btn-google").Count()
-		default:
-			framework.Failf("unknown auth type %q", login.AuthProvider)
-		}
+		countEmailProvider, _ = page.FindByClass("btn-primary").Count()
+		countGoogleProvider, _ = page.FindByClass("btn-google").Count()
+		countToken, _ = page.FindByName("token").Count()
+
 	}
-	if countProvider == 0 {
-		return trace.Errorf("login page with %s authprovider not found", login.AuthProvider)
+	switch login.AuthProvider {
+	case WithEmail, WithNoProvider:
+		if countEmailProvider == 0 || countGoogleProvider != 0 || countToken != 0 {
+			return trace.Errorf("login page with %s auth provider not found", login.AuthProvider)
+		}
+	case WithGoogle:
+		if countEmailProvider != 0 || countGoogleProvider == 0 {
+			return trace.Errorf("login page with %s auth provider not found", login.AuthProvider)
+		}
+	default:
+		framework.Failf("unknown auth type %q", login.AuthProvider)
 	}
 
 	return nil
