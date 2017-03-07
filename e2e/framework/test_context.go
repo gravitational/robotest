@@ -426,6 +426,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			SSHKeyPath:   TestContext.AWS.KeyPath,
 			SSHUser:      TestContext.AWS.SSHUser,
 			InstanceType: TestContext.AWS.InstanceType,
+			Region:       TestContext.AWS.Region,
 		}
 		err := config.Validate()
 		if err != nil {
@@ -480,6 +481,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			SSHKeyPath:   TestContext.AWS.KeyPath,
 			SSHUser:      TestContext.AWS.SSHUser,
 			InstanceType: TestContext.AWS.InstanceType,
+			Region:       TestContext.AWS.Region,
 		}
 		err := config.Validate()
 		if err != nil {
