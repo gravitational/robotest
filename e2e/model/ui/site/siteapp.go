@@ -22,6 +22,7 @@ type AppVersion struct {
 	ReleaseNotes string
 }
 
+// UpdateApp starts update operation
 func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 	allButtons := a.page.All(".grv-site-app-new-ver .btn-primary")
 	button := allButtons.At(toVersion.Index)
@@ -41,6 +42,7 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 
 }
 
+// CheckUpdateApp checks progress of update operation
 func (a *SiteAppPage) CheckUpdateApp(toVersion AppVersion) {
 	a.expectAppUpdateProgressIndicator()
 
@@ -50,6 +52,7 @@ func (a *SiteAppPage) CheckUpdateApp(toVersion AppVersion) {
 		"current version should match to new one")
 }
 
+// GetCurrentVersion returns current installed version of application
 func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 	const expectDescriptionText = "should retrieve the current version"
 	const script = `
@@ -77,6 +80,7 @@ func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 	return version
 }
 
+// GetNewVersions returns array of available application updates
 func (a *SiteAppPage) GetNewVersions() []AppVersion {
 	const expectDescriptionText = "should retrieve new versions"
 	const script = `

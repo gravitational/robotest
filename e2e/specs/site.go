@@ -4,14 +4,11 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
-
-	libdefaults "github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
-	"github.com/gravitational/trace"
-
 	log "github.com/Sirupsen/logrus"
-
+	"github.com/gravitational/trace"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -51,18 +48,18 @@ func VerifySiteUpdate(f *framework.T) {
 			Expect(newVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
 			appPage.UpdateApp(newVersions[0])
 
-			By("check update is finished")
-			// Here have to login again, because update of gravity-site app will logout us
+			By("checking whether the update is finished")
+			// Here have to login again, because update of gravity-site app will log us out
 			// Check for right provider before login
 
-			err := wait.Retry(libdefaults.RetryDelay, libdefaults.RetryAttempts, func() error {
+			err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
 				err := ui.IsLoginPageFound(f.Page, siteURL, ctx.Login)
 				if err != nil {
 					log.Debug(trace.DebugReport(err))
 				}
 				return trace.Wrap(err)
 			})
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred(), "login page didn't load in timely fashion")
 
 			ui.EnsureUser(f.Page, siteURL, ctx.Login)
 
