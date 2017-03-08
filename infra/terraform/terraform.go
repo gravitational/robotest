@@ -266,7 +266,7 @@ var (
 
 // installerCommand returns a shell command to fetch installer tarball, unpack it and launch the installation
 func installerCommand(username string) string {
-	return fmt.Sprintf(`while [ ! -f /home/%[1]s/installer.tar.gz ]; do sleep 5; done; \
+	return fmt.Sprintf(`for i in {1..240}; do if [ -f /home/%[1]s/installer.tar.gz ]; then break; fi; sleep 5; done; \
                         tar -xf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
                         /home/%[1]s/installer/install`, username)
 }
