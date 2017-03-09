@@ -103,6 +103,7 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			for _, s := range agentServers {
 				s.SetIPByInfra(provisioner)
+				// s.SetDockerDevice("some_value")
 			}
 
 			By("starting an installation")
