@@ -5,6 +5,8 @@ import (
 
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/trace"
+
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -30,11 +32,41 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 		case WithGoogle:
 			user.LoginWithGoogle()
 		default:
-			framework.Failf("unknown auth type %q", login.AuthProvider)
+			trace.BadParameter("unknown auth type %q", login.AuthProvider)
 		}
 
 		PauseForComponentJs()
 	}
+}
+
+func IsLoginPageFound(page *web.Page, URL string, login framework.Login) error {
+	err := page.Navigate(URL)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	countEmailProvider, countGoogleProvider, countToken := 0, 0, 0
+	count, _ := page.FindByClass("grv-user-login").Count()
+	if count != 0 {
+		countEmailProvider, _ = page.FindByClass("btn-primary").Count()
+		countGoogleProvider, _ = page.FindByClass("btn-google").Count()
+		countToken, _ = page.FindByName("token").Count()
+
+	}
+	switch login.AuthProvider {
+	case WithEmail, WithNoProvider:
+		if countEmailProvider == 0 || countGoogleProvider != 0 || countToken != 0 {
+			return trace.NotFound("login page with %s auth provider not found", login.AuthProvider)
+		}
+	case WithGoogle:
+		if countEmailProvider != 0 || countGoogleProvider == 0 {
+			return trace.NotFound("login page with %s auth provider not found", login.AuthProvider)
+		}
+	default:
+		return trace.BadParameter("unknown auth type %q", login.AuthProvider)
+	}
+
+	return nil
 }
 
 func CreateUser(page *web.Page, email string, password string) User {

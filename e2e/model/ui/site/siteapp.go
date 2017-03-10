@@ -22,6 +22,7 @@ type AppVersion struct {
 	ReleaseNotes string
 }
 
+// UpdateApp starts update operation
 func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 	allButtons := a.page.All(".grv-site-app-new-ver .btn-primary")
 	button := allButtons.At(toVersion.Index)
@@ -39,6 +40,10 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 		"should click on update app confirmation button",
 	)
 
+}
+
+// CheckUpdateApp checks progress of update operation
+func (a *SiteAppPage) CheckUpdateApp(toVersion AppVersion) {
 	a.expectAppUpdateProgressIndicator()
 
 	Expect(a.page.Refresh()).To(Succeed())
@@ -47,6 +52,7 @@ func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
 		"current version should match to new one")
 }
 
+// GetCurrentVersion returns current installed version of application
 func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 	const expectDescriptionText = "should retrieve the current version"
 	const script = `
@@ -74,20 +80,21 @@ func (a *SiteAppPage) GetCurrentVersion() AppVersion {
 	return version
 }
 
+// GetNewVersions returns array of available application updates
 func (a *SiteAppPage) GetNewVersions() []AppVersion {
 	const expectDescriptionText = "should retrieve new versions"
-	const script = `    
-            var data = [];        
+	const script = `
+            var data = [];
             var items = document.querySelectorAll(".grv-site-app-new-ver .grv-site-app-label-version");
             items.forEach( (i, index) => {
                 var text = i.innerText;
                 var ver = text.split(" ")[1];
                 data.push({
-                    Index: index, 
+                    Index: index,
                     Version: ver.trim()
                 } )
             })
-                
+
             return JSON.stringify(data);
         `
 	var versions []AppVersion
