@@ -273,6 +273,9 @@ type OnpremConfig struct {
 	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
 	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_ONPREM_EXPAND_PROFILE"`
+	// DockerDevice specifies the device for docker with devicemapper driver
+	// With empty value docker will use loopback device
+	DockerDevice string `json:"docker_device" yaml:"docker_device" env:"ROBO_DOCKER_DEVICE"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
