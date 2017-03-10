@@ -34,6 +34,13 @@ func (a *AgentServer) SetIP(value string) {
 	utils.SetDropdownValue2(a.page, cssSelector, "", value)
 }
 
+func (a *AgentServer) SetDockerDevice(value string) {
+	cssSelector := fmt.Sprintf(`%v input[placeholder="loopback"]`, getServerCssSelector(a.index))
+	Expect(a.page.Find(cssSelector).Fill(value)).To(
+		Succeed(),
+		"should set a docker device value")
+}
+
 func (a *AgentServer) GetIPs() []string {
 	const scriptTemplate = `
             var result = [];

@@ -21,6 +21,8 @@ func VerifyOnpremInstall(f *framework.T) {
 	var _ = framework.RoboDescribe("Onprem Installation", func() {
 		ctx := framework.TestContext
 		var domainName string
+		// docker default device will be loopback
+		var dockerDevice string
 		var login = framework.Login{
 			Username: defaults.BandwagonEmail,
 			Password: defaults.BandwagonPassword,
@@ -37,6 +39,10 @@ func VerifyOnpremInstall(f *framework.T) {
 
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
+
+			if ctx.Onprem.DockerDevice != "" {
+				dockerDevice = ctx.Onprem.DockerDevice
+			}
 
 			if ctx.Bandwagon.Organization != "" {
 				bandwagonConfig.Organization = ctx.Bandwagon.Organization
@@ -103,6 +109,7 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			for _, s := range agentServers {
 				s.SetIPByInfra(provisioner)
+				s.SetDockerDevice(dockerDevice)
 			}
 
 			By("starting an installation")
