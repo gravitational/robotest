@@ -126,7 +126,7 @@ func (i *Installer) StartInstallation() {
 	button := i.page.Find(".grv-installer-footer .btn-primary")
 	Expect(button).To(BeFound())
 	Expect(button.Click()).To(Succeed())
-	Eventually(i.IsInProgressStep, defaults.FindTimeout).Should(BeTrue())
+	Eventually(i.IsInProgressStep, defaults.StartInstallTimeout).Should(BeTrue())
 }
 
 func (i *Installer) IsInstallCompleted() bool {
@@ -163,9 +163,9 @@ func (i *Installer) SelectFlavorByLabel(label string) int {
 func getServerCountFromSelectedProfile(page *web.Page) int {
 	const script = `
             var getter = [ ["installer_provision", "profilesToProvision"], profiles => {
-                return profiles.map(profile => {                
+                return profiles.map(profile => {
                     return {
-                        Nodes: profile.get("count"), 
+                        Nodes: profile.get("count"),
                     }
                 }).toJS();
             }];
