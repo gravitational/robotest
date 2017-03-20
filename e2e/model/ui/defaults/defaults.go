@@ -10,6 +10,10 @@ const (
 	// wait for the requirements screen after selecting a provisioner
 	ProvisionerSelectedTimeout = 5 * time.Minute
 
+	// StartInstallTimeout specifies the amount of time to
+	// wait for the install to start
+	StartInstallTimeout = 5 * time.Minute
+
 	// SelectionPollInterval specifies the frequency of polling for elements
 	SelectionPollInterval = 2 * time.Second
 
