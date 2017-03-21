@@ -162,7 +162,9 @@ func InitializeCluster() {
 		if err != nil {
 			// Update EntryURL in state, because it is nil in wizard mode
 			// but tests like update need it
-			testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
+			if Cluster != nil {
+				testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
+			}
 		}
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
