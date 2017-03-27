@@ -213,14 +213,14 @@ func UpdateState() {
 	Expect(saveState(withBackup)).To(Succeed())
 }
 
-func UpdateBackupState(addr string) {
+func UpdateBackupState() {
 	if Cluster == nil || testState == nil {
 		log.Infof("cluster inactive: skip UpdateBackupState")
 		return
 	}
 	testState.BackupState = &BackupState{
-		Addr: addr,
-		Path: TestContext.Extensions.BackupPath,
+		Addr: TestContext.Extensions.BackupConfig.Addr,
+		Path: TestContext.Extensions.BackupConfig.Path,
 	}
 	Expect(saveState(withBackup)).To(Succeed())
 }
