@@ -21,7 +21,7 @@ func WaitForComplete(page *web.Page, domainName string) {
 		installTimeout = framework.TestContext.Extensions.InstallTimeout.Duration()
 	}
 	Eventually(func() bool {
-		Expect(installer.IsInstallFailed()).Should(BeFalse())
+		Expect(installer.IsInstallFailed()).To(BeFalse())
 		return installer.IsInstallCompleted()
 	}, installTimeout, defaults.PollInterval).Should(BeTrue(), "wait until timeout or install success message")
 
