@@ -35,7 +35,7 @@ if host =~ /linux/
 end
 
 # RAM to use for nodes in MB
-$vm_node_mem = 2000
+$vm_node_mem = 2200
 
 # Box to boot
 $vm_box = ENV['ROBO_VAGRANT_BOX'] || 'centos/7'
@@ -54,13 +54,13 @@ Vagrant.configure(2) do |config|
     unless File.exist?(vdi_file)
        vb.customize ["createhd", "--filename", vdi_file, "--size", sizeMB * 1024]
     end
-    vb.customize ["storageattach", :id, "--storagectl", controller_name, "--port", port, 
+    vb.customize ["storageattach", :id, "--storagectl", controller_name, "--port", port,
                   "--device", 0, "--type", "hdd", "--medium", vdi_file]
   end
 
   def attach_libvirt_media(box, node_name, device, size)
     path = node_name + device + ".qcow2"
-    box.storage :file, :size => size, :path => path, :allow_existing => true
+    box.storage :file, :size => size, :path => path, :allow_existing => false
   end
 
   # mount a volume using the specified filesystem on the given device
@@ -73,7 +73,7 @@ Vagrant.configure(2) do |config|
           mkdir -p #{volume}
           rm -rf #{volume}/*
           mount /dev/#{device} #{volume}
-          if ! grep -q "#{fs}" /etc/fstab ; then 
+          if ! grep -q "#{fs}" /etc/fstab ; then
              echo "/dev/#{device} #{volume}  #{fs} defaults   0 0" >> /etc/fstab
           fi
       fi
