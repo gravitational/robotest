@@ -130,7 +130,6 @@ func (i *Installer) StartInstallation() {
 }
 
 func (i *Installer) IsInstallCompleted() bool {
-	Expect(i.IsInstallFailed()).To(BeFalse())
 	count, _ := i.page.Find(".grv-installer-progress-result .fa-check").Count()
 	return count != 0
 }
