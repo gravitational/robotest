@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
@@ -116,5 +117,12 @@ func (b *Bandwagon) GetEndpoints() (endpoints []string) {
             return endpoints; `
 
 	Expect(b.page.RunScript(scriptTemplate, nil, &endpoints)).To(Succeed())
-	return endpoints
+
+	var siteEndpoints []string
+	for _, v := range endpoints {
+		if strings.Contains(v, strconv.Itoa(defaults.GravityHTTPPort)) {
+			siteEndpoints = append(siteEndpoints, v)
+		}
+	}
+	return siteEndpoints
 }
