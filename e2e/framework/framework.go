@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/defaults"
@@ -159,19 +158,14 @@ func InitializeCluster() {
 	if mode == wizardMode {
 		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
 		TestContext.Application.Locator = application
-		if err != nil {
-			// Update EntryURL in state, because it is nil in wizard mode
-			// but tests like update need it
-			if Cluster != nil {
-				testState.EntryURL = strings.Replace(Cluster.OpsCenterURL(), "61009", "32009", -1)
-			}
-		}
 	} else {
 		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
 	Expect(err).NotTo(HaveOccurred())
+	testState.EntryURL = Cluster.OpsCenterURL()
 	TestContext.OpsCenterURL = Cluster.OpsCenterURL()
-
+	// Save state before starting installation
+	Expect(saveState(withoutBackup)).To(Succeed())
 }
 
 // Destroy destroys the infrastructure created previously in InitializeCluster
