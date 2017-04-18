@@ -155,18 +155,11 @@ func InitializeCluster() {
 	}
 
 	var application *loc.Locator
-	switch {
-	case mode == provisionMode:
-		return
-	case mode == wizardMode:
-		{
-			Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
-			TestContext.Application.Locator = application
-		}
-	default:
-		{
-			Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
-		}
+	if mode == wizardMode {
+		Cluster, application, err = infra.NewWizard(config, provisioner, installerNode)
+		TestContext.Application.Locator = application
+	} else {
+		Cluster, err = infra.New(config, TestContext.OpsCenterURL, provisioner)
 	}
 	Expect(err).NotTo(HaveOccurred())
 	testState.EntryURL = Cluster.OpsCenterURL()
