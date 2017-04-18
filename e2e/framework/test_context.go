@@ -75,6 +75,11 @@ func ConfigureFlags() {
 		TestContext.Wizard = true
 	}
 
+	if mode == provisionMode {
+		// Skip tests for this operation
+		config.GinkgoConfig.SkipString = ".*"
+	}
+
 	if provisionerName != "" {
 		TestContext.Provisioner = provisionerType(provisionerName)
 	}
@@ -328,7 +333,7 @@ func registerCommonFlags() {
 	flag.StringVar(&stateConfigFile, "state-file", "config.yaml.state", "State configuration file to use")
 	flag.BoolVar(&debugFlag, "debug", false, "Verbose mode")
 	flag.IntVar(&debugPort, "debug-port", 6060, "Profiling port")
-	flag.Var(&mode, "mode", "Run tests in specific mode. Supported modes: [`wizard`]")
+	flag.Var(&mode, "mode", "Run robotest in specific mode. Supported modes: [`wizard`,`provision`]")
 	flag.BoolVar(&teardownFlag, "destroy", false, "Destroy infrastructure after all tests")
 	flag.BoolVar(&outputFlag, "output", false, "Display current state only")
 	flag.BoolVar(&dumpFlag, "report", false, "Collect installation and operation logs into the report directory")
@@ -568,7 +573,8 @@ func (r *modeType) Set(value string) error {
 type modeType string
 
 const (
-	wizardMode modeType = "wizard"
+	wizardMode    modeType = "wizard"
+	provisionMode modeType = "provision"
 )
 
 // configFile defines the configuration file to use for the tests
