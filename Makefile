@@ -1,4 +1,5 @@
 BINARY := robotest
+VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)
@@ -7,9 +8,8 @@ BUILDBOX := robotest:buildbox
 GLIDE_VER := v0.12.3
 
 IMAGE_NAME := $(BINARY)-standalone
-TARBALL_NAME := $(IMAGE_NAME).tar
-IMAGE_VERSION ?= 0.0.1
-IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(IMAGE_VERSION)
+TARBALL_NAME := $(IMAGE_NAME)-$(VERSION).tar
+IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
 
 # Amazon S3
 BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/latest
@@ -52,16 +52,24 @@ docker-image:
 	cd $(TEMPDIR) && docker build --rm=true -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 
-.PHONY: publish-docker-image
-publish-docker-image:
-	docker push $(IMAGE)
+.PHONY: docker-save
+docker-save:
+	docker save --output $(TARBALL_NAME) $(IMAGE)
 
 .PHONY: print-image
 print-image:
 	echo $(IMAGE)
+
+.PHONY: publish
+publish: publish-docker-image publish-into-s3
+
+.PHONY: publish-docker-image
+publish-docker-image:
+	docker push $(IMAGE)
 
 .PHONY: publish-into-s3
 publish-into-s3:
 	ifeq (, $(shell which aws))
 	$(error "No aws command in $(PATH)")
 	endif
+	aws s3 cp $(NAME).tar $(BUILD_BUCKET_URL)/$(TARBALL_NAME)
