@@ -243,7 +243,7 @@ type AWSConfig struct {
 	// Mandatory only with terraform provisioner
 	KeyPath string `json:"key_path" yaml:"key_path" env:"ROBO_AWS_KEY_PATH"`
 	// SSHUser defines SSH user used to connect to the provisioned machines
-	SSHUser string `json:"ssh_user" env:"ROBO_AWS_SSH_USER"`
+	SSHUser string `json:"ssh_user" yaml:"ssh_user" env:"ROBO_AWS_SSH_USER"`
 	// InstanceType defines the type of AWS EC2 instance to boot.
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
