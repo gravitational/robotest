@@ -26,8 +26,8 @@ RUN apt-get update && \
 
 RUN adduser chromedriver --uid=995 --disabled-password --system
 
-RUN mkdir -p /robotest/workdir
-WORKDIR /robotest/workdir
+RUN mkdir -p /robotest
+WORKDIR /robotest
 COPY entrypoint.sh /entrypoint.sh
 COPY build/robotest /usr/bin/robotest
 
