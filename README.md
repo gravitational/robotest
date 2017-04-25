@@ -66,7 +66,7 @@ extensions:
     install_timeout: 1h
     backup_config:
         addr: 192.168.0.2
-        path: /var/lib/backup
+        path: /var/lib/backup/backup.tar.gz
 aws:
     access_key: "access key"
     secret key: "secret key"
