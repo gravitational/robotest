@@ -274,7 +274,7 @@ application: gravitational.io/k8s-aws:0.0.0+latest
 license: "application license"
 web_driver_url: http://localhost:9515  # local chromedriver instance
 flavor_label: "2 nodes"
-provisioner: vagrant
+provisioner: terraform
 login:
     username: user
     password: password
