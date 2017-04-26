@@ -15,6 +15,12 @@ IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
 BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/latest
 S3_OPTS := --region us-east-1
 
+ifeq ($(shell git rev-parse --abbrev-ref HEAD),version/1.x)
+PUBLISH_VERSION := 1.x
+else
+PUBLISH_VERSION := latest
+endif
+
 .PHONY: all
 all: clean build
 
@@ -61,15 +67,20 @@ print-image:
 	echo $(IMAGE)
 
 .PHONY: publish
-publish: publish-docker-image publish-into-s3
+publish: publish-image publish-image-into-s3 publish-binary-into-s3
 
-.PHONY: publish-docker-image
-publish-docker-image:
+.PHONY: publish-image
+publish-image:
 	docker push $(IMAGE)
 
-.PHONY: publish-into-s3
-publish-into-s3:
+.PHONY: publish-image-into-s3
+publish-image-into-s3:
 	ifeq (, $(shell which aws))
 	$(error "No aws command in $(PATH)")
 	endif
 	aws s3 cp $(NAME).tar $(BUILD_BUCKET_URL)/$(TARBALL_NAME)
+
+.PHONY: publish-binary-into-s3
+publish-binary-into-s3:
+	aws s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/e2e.test
+	aws s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/robotest
