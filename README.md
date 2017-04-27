@@ -266,6 +266,66 @@ $ ./robotest -destroy
 This is only relevant for bare metal configurations. The automatically provisioned AWS clusters can only cleaned up by running the `uninstall` test.
 
 
+## Usage of Docker image
+
+Docker image includes `robotest`, `terraform` and `chromedriver` binaries. Robotest inside docker image can work only with `terraform` provider
+and only with config in YAML or JSON format.
+How to use it:
+
+``` shell
+docker run -v /path/to/working/directory/:/robotest/ \
+    -v /path/to/gravity/binary:/usr/bin/gravity \
+    -v /tmp/robotest-report/:/tmp/robotest-report/ \
+     quay.io/gravitational/robotest-standalone:1.0.0 -config /robotest/config/config.yaml + other robotest tool flags
+```
+
+Working directory on host(`/path/to/working/directory`) will contain test state and should have specific structure:
+
+```
+workdir/
+├── config
+│   ├── config.yaml or config.json
+│   ├── terraform.tf
+│   └── ssh.key
+└── state
+```
+
+Example of `config.yaml` for that file structure:
+
+``` yaml
+report_dir: /tmp/robotest-reports
+state_dir: /robotest/state
+cluster_name: test
+ops_url: https://localhost:33009
+application: gravitational.io/k8s-aws:0.0.0+latest
+license: "application license"
+web_driver_url: http://localhost:9515  # local chromedriver instance
+flavor_label: "2 nodes"
+provisioner: terraform
+login:
+    username: user
+    password: password
+    auth_provider: google
+service_login:
+    username: robotest@example.com
+    password: robotest!
+extensions:
+    install_timeout: 1h
+aws:
+    access_key: "access key"
+    secret key: "secret key"
+    region: us-east-1
+    key_pair: test
+    ssh_user: centos
+    vpc: "Create new"
+    key_path: /robotest/config/ssh.key
+onprem:
+    script_path: /robotest/config/terraform.tf
+    installer_url: s3://infra.example.com/installers/v0.0.1/installer.tar.gz
+    nodes: 2
+    docker_device: /dev/xvdb
+```
+
 ## Browser-based testing
 
 Currently set of test specs are all browser-based and require a [WebDriver]-compatible implementation ([selenium] or [chrome-driver] are two examples).
@@ -276,7 +336,7 @@ If no web driver has been configured, [chrome-driver] will be used.
 
 [WebDriver]: https://w3c.github.io/webdriver/webdriver-spec.html
 [selenium]: http://www.seleniumhq.org/
-[chrome-driver]: https://sites.google.com/a/chromium.org/chromedriver/
+[chromedriver]: https://sites.google.com/a/chromium.org/chromedriver/
 [terraform]: https://www.terraform.io/
 [vagrant]: https://www.vagrantup.com/
 [ginkgo]: https://onsi.github.io/ginkgo/
