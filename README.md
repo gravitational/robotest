@@ -4,8 +4,8 @@
 It is implemented as a testing package that is built as a binary with custom command-line to drive test execution:
 
 ```shell
-$ ./e2e.test -h
-Usage of ./e2e.test:
+$ ./robotest -h
+Usage of ./robotest:
   ...
   -config string
     	Configuration file to use (default "config.yaml")
@@ -13,12 +13,14 @@ Usage of ./e2e.test:
     	Verbose mode
   -destroy
     	Destroy infrastructure after all tests
-  -report
-    	Collect installation and operation logs into the report directory
+  -output
+        Display current state only
   -provisioner string
     	Provision nodes using this provisioner
+  -report
+    	Collect installation and operation logs into the report directory
   -mode wizard
-    	Run tests in specified mode. Supported modes are [wizard]
+    	Run robotest in specific mode. Supported modes: [wizard,`provision`]
   ...
   -ginkgo.focus string
     	If set, ginkgo will only run specs that match this regular expression.
@@ -45,12 +47,14 @@ Here's an example configuration:
 
 ```yaml
 report_dir: /tmp/robotest-reports
+state_dir: /tmp/state-dir
 cluster_name: test
 ops_url: https://localhost:33009
 application: gravitational.io/k8s-aws:0.0.0+latest
 license: "application license"
-web_driver_url: http://localhost:4444/wd/hub  # use running selenium
+web_driver_url: http://localhost:9515  # chromedriver instance
 flavor_label: "2 nodes"
+provisioner: vagrant
 login:
     username: user
     password: password
@@ -60,6 +64,9 @@ service_login:
     password: robotest!
 extensions:
     install_timeout: 1h
+    backup_config:
+        addr: 192.168.0.2
+        path: /var/lib/backup/backup.tar.gz
 aws:
     access_key: "access key"
     secret key: "secret key"
@@ -72,9 +79,12 @@ onprem:
     script_path: /home/robotest/assets/vagrant/Vagrantfile
     installer_url: /home/robotest/assets/installer/installer.tar.gz
     nodes: 2
+    docker_device: /dev/sdb
 ```
 
  * `report_dir` specifies an optional location of the log files which are always collected during teardown or, manually, with `-report` command
+ * `state_dir` specifies the location for test-specific data. For example, terraform state files.
+ * `provisioner` specifies the type of provisioner to use
  * `cluster_name` specifies the name of the cluster (and domain) to create for tests
  * `ops_url` specifies the URL of an active Ops Center to run tests against (see note below on [Wizard mode](#wizard-mode))
  * `application` specifies the name of the application package to run tests with (see note below on [Wizard mode](#wizard-mode))
@@ -109,6 +119,8 @@ run tests from an installer tarball. See below on details about the [Wizard mode
 The `installer_url` specifies either the URL of the installer tarball to download (as required by the `terraform` provisioner) or
 a path to a local tarball for `vagrant`. The `installer_url` is optional and is only required for [Wizard mode](#wizard-mode).
 
+The `docker_device` specifies the device for docker with devicemapper driver. With empty value for this param docker will use loopback device, which is not recommended for prodaction usage.
+
 The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
 Note the `flavor_label` paramater in the global configuration section - this parameter specifies the actual
 installation flavor which determines the number of nodes used for installation. The selected flavor should not exceed the number of `nodes`.
@@ -118,7 +130,10 @@ installation flavor which determines the number of nodes used for installation. 
 Extensions block allows configuration of individual test steps.
 Currently it supports the following attributes:
 
-  * `install_timeout` - specifies the time allotted for the install operation to complete. It defaults to some value if unspecified.
+  * `install_timeout` specifies the time allotted for the install operation to complete. It defaults to some value if unspecified.
+  * `backup_config` specifies configuration for backup/restore tests. `backup_config` supports two attributes:
+    * `addr` specifies address of node, where backup/restore test will be executed.
+    * `path` specifies path on node with `addr`, where backup file is stored. For restore test - robotest will read file on that path.
 
 ## Creating infrastructure (bare metal tests)
 
@@ -148,10 +163,11 @@ onprem:
     script_path: /home/robotest/assets/terraform/terraform.tf
     installer_url: s3://infra.example.com/installers/v0.0.1/installer.tar.gz
     nodes: 1
+    docker_device: /dev/xvdb
 ```
 
 ```shell
-$ ./e2e.test -provisioner=terraform -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus=`Onprem Install`
 ```
 
 ### Creating infrastructure (vagrant)
@@ -163,12 +179,21 @@ onprem:
     script_path: /home/robotest/assets/vagrant/Vagrantfile
     installer_url: /home/robotest/assets/installer/installer.tar.gz
     nodes: 2
+    docker_device: /dev/sdb
 ```
 
 ```shell
-$ ./e2e.test -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Install`
 ```
 
+
+## Provision mode
+
+To only provision infrastructure invoke the tool with additional `-mode=provision` flag.
+
+```shell
+$ ./robotest -provisioner=vagrant -config=config.yaml -mode=provision -ginkgo.skip=`.*`
+```
 
 ## Wizard mode
 
@@ -177,7 +202,7 @@ If the tests are to be run against an installer tarball of a particular applicat
 
 
 ```shell
-$ ./e2e.test -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`Onprem Install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
@@ -204,12 +229,12 @@ These two test specs should be used to bootstrap a test - i.e. create an infrast
 So every test run should start with either:
 
 ```
-$ ./e2e.test -ginkgo.focus='Onprem Install' ...
+$ ./robotest -ginkgo.focus='Onprem Install' ...
 ```
 or
 
 ```
-$ ./e2e.test -ginkgo.focus='AWS Install' ...
+$ ./robotest -ginkgo.focus='AWS Install' ...
 ```
 
 to setup the cluster for further tests.
@@ -219,13 +244,15 @@ the specs to skip. Without this option, the default behavior is to execute **all
 
 ### Running in-between tests
 
-After the 
+After the
 structure has been prepared and the application installed, one can run a further set of tests that require an infrastructure and
 an application:
 
 ```
-$ ./e2e.test -gingko.focus='Site Update'
-$ ./e2e.test -gingko.focus='Site Servers'
+$ ./robotest -gingko.focus='Site Update'
+$ ./robotest -gingko.focus='Site Servers'
+$ ./robotest -gingko.focus='Application Backup Test'
+$ ./robotest -gingko.focus='Application Restore Test'
 ```
 
 ### Test cleanup
@@ -233,7 +260,7 @@ $ ./e2e.test -gingko.focus='Site Servers'
 After executing all tests, the infrastructure can be destroyed by invoking the test binary with `-destroy`:
 
 ```
-$ ./e2e.test -destroy
+$ ./robotest -destroy
 ```
 
 This is only relevant for bare metal configurations. The automatically provisioned AWS clusters can only cleaned up by running the `uninstall` test.
