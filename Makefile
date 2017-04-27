@@ -11,15 +11,16 @@ IMAGE_NAME := $(BINARY)-standalone
 TARBALL_NAME := $(IMAGE_NAME)-$(VERSION).tar
 IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
 
-# Amazon S3
-BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/latest
-S3_OPTS := --region us-east-1
-
 ifeq ($(shell git rev-parse --abbrev-ref HEAD),version/1.x)
 PUBLISH_VERSION := 1.x
 else
 PUBLISH_VERSION := latest
 endif
+
+# Amazon S3
+BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)
+S3_OPTS := --region us-east-1
+
 
 .PHONY: all
 all: clean build
@@ -78,9 +79,12 @@ publish-image-into-s3:
 	ifeq (, $(shell which aws))
 	$(error "No aws command in $(PATH)")
 	endif
-	aws s3 cp $(NAME).tar $(BUILD_BUCKET_URL)/$(TARBALL_NAME)
+	aws $(S3_OPTS) s3 cp $(NAME).tar $(BUILD_BUCKET_URL)/$(TARBALL_NAME)
 
 .PHONY: publish-binary-into-s3
 publish-binary-into-s3:
-	aws s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/e2e.test
-	aws s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/robotest
+	ifeq (, $(shell which aws))
+	$(error "No aws command in $(PATH)")
+	endif
+	aws $(S3_OPTS) s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/e2e.test
+	aws $(S3_OPTS) s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/robotest
