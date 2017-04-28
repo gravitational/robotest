@@ -55,7 +55,7 @@ docker-image:
 	  echo "TEMPDIR is not set"; exit 1; \
 	fi;
 	mkdir -p $(TEMPDIR)/build
-	BUILDDIR=$(TEMPDIR)/build $(MAKE) build
+	cp -a build/$(BINARY) $(TEMPDIR)/build/
 	cp -r docker/* $(TEMPDIR)/
 	cd $(TEMPDIR) && docker build --rm=true -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
