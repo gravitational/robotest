@@ -7,7 +7,7 @@ DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/
 BUILDBOX := robotest:buildbox
 GLIDE_VER := v0.12.3
 
-IMAGE_NAME := $(BINARY)-standalone
+IMAGE_NAME := $(BINARY)
 TARBALL_NAME := $(IMAGE_NAME)-$(VERSION).tar
 IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
 
@@ -38,6 +38,7 @@ $(BINARY): clean
 .PHONY: clean
 clean:
 	@rm -rf $(BUILDDIR)/$(BINARY)
+	@rm -f $(TARBALL_NAME)
 
 .PHONY: test
 test:
@@ -48,7 +49,7 @@ buildbox:
 		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) .
 
 .PHONY: docker-image
-docker-image:
+docker-image: build
 	$(eval TEMPDIR = "$(shell mktemp -d)")
 	if [ -z "$(TEMPDIR)" ]; then \
 	  echo "TEMPDIR is not set"; exit 1; \
@@ -59,32 +60,20 @@ docker-image:
 	cd $(TEMPDIR) && docker build --rm=true -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 
-.PHONY: docker-save
-docker-save:
-	docker save --output $(TARBALL_NAME) $(IMAGE)
-
 .PHONY: print-image
 print-image:
 	echo $(IMAGE)
 
 .PHONY: publish
-publish: publish-image publish-image-into-s3 publish-binary-into-s3
+publish: docker-image publish-image publish-binary-into-s3
 
 .PHONY: publish-image
 publish-image:
 	docker push $(IMAGE)
 
-.PHONY: publish-image-into-s3
-publish-image-into-s3:
-	ifeq (, $(shell which aws))
-	$(error "No aws command in $(PATH)")
-	endif
-	aws $(S3_OPTS) s3 cp $(NAME).tar $(BUILD_BUCKET_URL)/$(TARBALL_NAME)
-
 .PHONY: publish-binary-into-s3
 publish-binary-into-s3:
-	ifeq (, $(shell which aws))
+ifeq (, $(shell which aws))
 	$(error "No aws command in $(PATH)")
-	endif
-	aws $(S3_OPTS) s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/e2e.test
-	aws $(S3_OPTS) s3 cp ./build/robotest s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)/robotest
+endif
+	aws $(S3_OPTS) s3 cp ./build/robotest $(BUILD_BUCKET_URL)/robotest
