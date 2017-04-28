@@ -10,6 +10,7 @@ GLIDE_VER := v0.12.3
 IMAGE_NAME := $(BINARY)
 TARBALL_NAME := $(IMAGE_NAME)-$(VERSION).tar
 IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
+LATEST_IMAGE := quay.io/gravitational/$(IMAGE_NAME):latest
 
 ifeq ($(shell git rev-parse --abbrev-ref HEAD),version/1.x)
 PUBLISH_VERSION := 1.x
@@ -69,7 +70,9 @@ publish: docker-image publish-image publish-binary-into-s3
 
 .PHONY: publish-image
 publish-image:
+	docker tag $(IMAGE) $(LATEST_IMAGE)
 	docker push $(IMAGE)
+	docker push $(LATEST_IMAGE)
 
 .PHONY: publish-binary-into-s3
 publish-binary-into-s3:
