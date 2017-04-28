@@ -276,7 +276,7 @@ How to use it:
 docker run -v /path/to/working/directory/:/robotest/ \
     -v /path/to/gravity/binary:/usr/bin/gravity \
     -v /tmp/robotest-report/:/tmp/robotest-report/ \
-     quay.io/gravitational/robotest-standalone:1.0.0 -config /robotest/config/config.yaml + other robotest tool flags
+     quay.io/gravitational/robotest:latest -config /robotest/config/config.yaml + other robotest tool flags
 ```
 
 Working directory on host(`/path/to/working/directory`) will contain test state and should have specific structure:
