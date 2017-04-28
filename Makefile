@@ -49,7 +49,7 @@ buildbox:
 		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) .
 
 .PHONY: docker-image
-docker-image: build
+docker-image:
 	$(eval TEMPDIR = "$(shell mktemp -d)")
 	if [ -z "$(TEMPDIR)" ]; then \
 	  echo "TEMPDIR is not set"; exit 1; \
