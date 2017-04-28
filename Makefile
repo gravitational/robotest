@@ -57,7 +57,7 @@ docker-image:
 	mkdir -p $(TEMPDIR)/build
 	cp -a build/$(BINARY) $(TEMPDIR)/build/
 	cp -r docker/* $(TEMPDIR)/
-	cd $(TEMPDIR) && docker build --rm=true -t $(IMAGE) .
+	cd $(TEMPDIR) && docker build --rm=true --pull -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 
 .PHONY: print-image
