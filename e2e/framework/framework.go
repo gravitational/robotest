@@ -345,8 +345,17 @@ func saveState(withBackup backupFlag) error {
 
 func newPage() (*web.Page, error) {
 	if TestContext.WebDriverURL != "" {
-		capabilities := web.NewCapabilities().Browser("chrome").Platform("linux").With("javascriptEnabled")
-		return web.NewPage(TestContext.WebDriverURL, web.Desired(capabilities))
+		return web.NewPage(TestContext.WebDriverURL, web.Desired(web.Capabilities{
+			"chromeOptions": map[string][]string{
+				"args": []string{
+					// There is no GPU inside docker box!
+					"disable-gpu",
+					// Sandbox requires namespace permissions that we don't have on a container
+					"no-sandbox",
+				},
+			},
+			"javascriptEnabled": true,
+		}))
 	}
 	return driver.NewPage()
 }
