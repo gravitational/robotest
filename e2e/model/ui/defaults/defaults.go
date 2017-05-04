@@ -38,6 +38,9 @@ const (
 	// Waiting time for operation to be completed (Expand and Application Update operations)
 	OperationTimeout = 10 * time.Minute
 
+	// SlowOperationTimeout defines how long to wait on slow operations
+	SlowOperationTimeout = 30 * time.Minute
+
 	// DeleteTimeout specifies the amount of time allotted to a site delete operation
 	DeleteTimeout = 5 * time.Minute
 
