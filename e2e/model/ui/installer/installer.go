@@ -146,6 +146,20 @@ func (i *Installer) SelectFlavorByIndex(index int) {
 	Expect(elem.Click()).To(Succeed())
 }
 
+func (i *Installer) WaitForComplete() {
+	Expect(i.IsInProgressStep()).To(BeTrue(), "should be in progress")
+	installTimeout := defaults.InstallTimeout
+	if framework.TestContext.Extensions.InstallTimeout != 0 {
+		installTimeout = framework.TestContext.Extensions.InstallTimeout.Duration()
+	}
+	Eventually(func() bool {
+		return i.IsInstallCompleted() || i.IsInstallFailed()
+	}, installTimeout, defaults.PollInterval).Should(BeTrue(), "wait until timeout or install success/fail message")
+
+	Expect(i.IsInstallFailed()).To(BeFalse(), "should not fail")
+	Expect(i.IsInstallCompleted()).To(BeTrue(), "should be completed")
+}
+
 func (i *Installer) SelectFlavorByLabel(label string) int {
 	labels := i.page.All(".grv-slider-value-desc span")
 	Expect(labels).To(BeFound())
