@@ -112,7 +112,7 @@ func (a *SiteAppPage) expectAppUpdateProgressIndicator() {
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-app-progres-indicator"), defaults.OperationTimeout).ShouldNot(
+	Eventually(page.FindByClass("grv-site-app-progres-indicator"), defaults.SlowOperationTimeout).ShouldNot(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 
