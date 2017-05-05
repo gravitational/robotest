@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gravitational/robotest/e2e/model/ui/agent"
 	. "github.com/onsi/gomega"
@@ -12,7 +13,7 @@ import (
 type OnPremProfile struct {
 	Command string
 	Label   string
-	Count   string
+	Count   int
 	index   int
 	page    *agouti.Page
 }
@@ -62,8 +63,11 @@ func createProfile(page *agouti.Page, index int) OnPremProfile {
 	child := page.Find(cssSelector)
 	Expect(child).To(am.BeFound())
 
-	nodeCount, _ := child.Text()
-	Expect(nodeCount).NotTo(BeEmpty())
+	nodeCountText, _ := child.Text()
+	Expect(nodeCountText).NotTo(BeEmpty())
+
+	nodeCount, err := strconv.Atoi(nodeCountText)
+	Expect(err).NotTo(HaveOccurred(), "unable to convert node count text field to number")
 
 	profile := OnPremProfile{Command: command, page: page, Count: nodeCount}
 	return profile

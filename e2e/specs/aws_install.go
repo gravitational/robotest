@@ -6,8 +6,6 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	"github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
-	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -93,15 +91,21 @@ func VerifyAWSInstall(f *framework.T) {
 		}
 
 		shouldHandleInProgressScreen := func() {
-			validation.WaitForComplete(f.Page, domainName)
+			By("waiting until install is completed or failed")
+			installer := installermodel.OpenWithSite(f.Page, domainName)
+			installer.WaitForComplete()
+
+			By("clicking on continue")
+			installer.ProceedToSite()
 		}
 
 		shouldHandleBandwagonScreen := func() {
 			enableRemoteAccess := true
-			bandwagon.Complete(f.Page,
-				domainName,
-				bandwagonConfig,
-				enableRemoteAccess)
+			By("opening bandwagon page")
+			bandwagon := ui.OpenBandwagon(f.Page, domainName, bandwagonConfig)
+			By("submitting bandwagon form")
+			endpoints := bandwagon.SubmitForm(enableRemoteAccess)
+			Expect(len(endpoints)).To(BeNumerically(">", 0))
 		}
 
 		shouldNavigateToSite := func() {

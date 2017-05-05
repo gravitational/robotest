@@ -21,6 +21,23 @@ type Bandwagon struct {
 	domainName string
 }
 
+func NeedsBandwagon(page *web.Page, domainName string) bool {
+	needsBandwagon := false
+	const jsTemplate = `		            
+		var ver1x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "final_install_step", "service_name"]);
+		var ver3x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "setupEndpoints"]);
+
+		if(ver3x || ver1x){
+			return true;
+		}
+
+		return false;			                        
+	`
+	js := fmt.Sprintf(jsTemplate, domainName)
+	Expect(page.RunScript(js, nil, &needsBandwagon)).To(Succeed(), "should detect if bandwagon is required")
+	return needsBandwagon
+}
+
 func OpenBandwagon(page *web.Page, domainName string, config framework.BandwagonConfig) Bandwagon {
 	path := fmt.Sprintf("/web/site/%v", domainName)
 	url, err := page.URL()
