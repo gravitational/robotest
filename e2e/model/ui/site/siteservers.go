@@ -60,7 +60,8 @@ func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 	Expect(err).NotTo(HaveOccurred())
 
 	for index, _ := range elements {
-		agentServers = append(agentServers, agent.CreateAgentServer(p.page, index))
+		cssAgentServerSelector := fmt.Sprintf(".grv-provision-req-server:nth-child(%v)", index)
+		agentServers = append(agentServers, agent.CreateAgentServer(p.page, cssAgentServerSelector))
 	}
 
 	return agentServers

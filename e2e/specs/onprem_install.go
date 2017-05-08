@@ -117,15 +117,16 @@ func VerifyOnpremInstall(f *framework.T) {
 			By("waiting until install is completed")
 			installer := installermodel.OpenWithSite(f.Page, domainName)
 			installer.WaitForComplete()
-
-			By("clicking on continue")
-			installer.ProceedToSite()
 		}
 
 		shouldHandleBandwagonScreen := func() {
+			installer := installermodel.OpenWithSite(f.Page, domainName)
 			if ui.NeedsBandwagon(f.Page, domainName) == false {
 				return
 			}
+
+			By("clicking on continue")
+			installer.ProceedToSite()
 
 			// Use the first allocated node to access the local site
 			allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
