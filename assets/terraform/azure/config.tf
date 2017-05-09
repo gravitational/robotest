@@ -2,20 +2,20 @@
 # Uses Azure Resource Manager provider
 #   https://www.terraform.io/docs/providers/azurerm
 # 
-variable "azure_subscription_id"{ }
-variable "azure_client_id"      { }
-variable "azure_client_secret"  { }
-variable "azure_tenant_id"      { }
+variable "subscription_id"{ }
+variable "client_id"      { }
+variable "client_secret"  { }
+variable "tenant_id"      { }
 
-variable "azure_resource_group" { default = "robotest-${uuid()}" }
+variable "azure_resource_group" { default = "robotest-2" }
 
-variable "azure_location"       { }
-variable "azure_vm_type"        { }
+variable "location"       { }
+variable "vm_type"        { }
 
-variable "ssh_key_path"         { }
+variable "ssh_authorized_keys_path"  { }
 variable "ssh_user"				{ default = "robotest" }
 
-variable "nodes"				{ default = 2 }
+variable "nodes"				{ }
 
 # 
 # Access credentials:
@@ -34,5 +34,5 @@ provider "azurerm" {
 # 
 resource "azurerm_resource_group" "robotest" {
   name     = "${var.azure_resource_group}"
-  location = "${var.azure_location}"
+  location = "${var.location}"
 }

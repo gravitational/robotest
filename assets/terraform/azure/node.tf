@@ -3,17 +3,17 @@
 #
 
 resource "azurerm_public_ip" "node" {
-  count                        = "${var.node_count}"
+  count                        = "${var.nodes}"
   name                         = "node-${count.index}"
-  location                     = "${var.azure_location}"
+  location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.robotest.name}"
   public_ip_address_allocation = "dynamic"
 }
 
 resource "azurerm_network_interface" "node" {
-  count                = "${var.node_count}"
+  count                = "${var.nodes}"
   name                 = "node-${count.index}"
-  location             = "${var.azure_location}"
+  location             = "${var.location}"
   resource_group_name  = "${azurerm_resource_group.robotest.name}"
   enable_ip_forwarding = "true"
   network_security_group_id = "${azurerm_network_security_group.robotest.id}"
@@ -27,12 +27,15 @@ resource "azurerm_network_interface" "node" {
 }
 
 resource "azurerm_virtual_machine" "node" {
-  count                 = "${var.node_count}"
+  count                 = "${var.nodes}"
   name                  = "node-${count.index}"
-  location              = "${var.azure_location}"
+  location              = "${var.location}"
   resource_group_name   = "${azurerm_resource_group.robotest.name}"
   network_interface_ids = ["${azurerm_network_interface.node.*.id[count.index]}"]
-  vm_size               = "${var.azure_vm_type}"
+  vm_size               = "${var.vm_type}"
+
+  delete_os_disk_on_termination    = "true"
+  delete_data_disks_on_termination = "true"
 
   storage_image_reference {
     publisher = "${var.os["publisher"]}"
@@ -49,6 +52,7 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   os_profile {
+    custom_data    = "${file("./bootstrap.sh")}"
     computer_name  = "node-${count.index}"
     # REQUIRED ...
     admin_username = "${var.ssh_user}"
@@ -59,8 +63,16 @@ resource "azurerm_virtual_machine" "node" {
     disable_password_authentication = true    
     ssh_keys = {
         path = "/home/${var.ssh_user}/.ssh/authorized_keys"
-        key_data = "${file("${var.ssh_key_path}")}"
+        key_data = "${file("${var.ssh_authorized_keys_path}")}"
     }
+  }
+
+  storage_data_disk {
+    name              = "node-data-${count.index}"
+    managed_disk_type = "Premium_LRS"
+    create_option     = "Empty"
+    lun               = 0
+    disk_size_gb      = "1023"
   }
 
 }

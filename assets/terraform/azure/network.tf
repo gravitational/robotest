@@ -4,7 +4,7 @@
 
 resource "azurerm_network_security_group" "robotest" {
   name                = "robotest"
-  location            = "${var.azure_location}"
+  location            = "${var.location}"
   resource_group_name = "${azurerm_resource_group.robotest.name}"
   
   #
@@ -50,7 +50,7 @@ resource "azurerm_network_security_group" "robotest" {
 resource "azurerm_virtual_network" "robotest" {
   name                = "robotest"
   address_space       = ["10.40.0.0/16"]
-  location            = "${var.azure_location}"
+  location            = "${var.location}"
   resource_group_name = "${azurerm_resource_group.robotest.name}"
 }
 
