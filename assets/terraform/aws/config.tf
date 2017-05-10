@@ -5,9 +5,7 @@ variable "region" {}
 
 variable "key_pair" {}
 
-variable "cluster_name" {
-  default = "robotest-denis-2"
-}
+variable "cluster_name" { }
 
 variable "nodes" {}
 

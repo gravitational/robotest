@@ -20,9 +20,9 @@ func (r *Config) Validate() error {
 type Config struct {
 	infra.Config
 	// ScriptPath is the path to the Vagrantfile for provisioning
-	ScriptPath string `json:"script_path" env:"ROBO_SCRIPT_PATH"`
+	ScriptPath string `json:"script_path"`
 	// InstallerURL is a path to the installer
-	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL"`
+	InstallerURL string `json:"installer_url"`
 	// NumNodes defines the capacity of the cluster to provision
-	NumNodes int `json:"nodes" env:"ROBO_NUM_NODES"`
+	NumNodes int `json:"nodes"`
 }

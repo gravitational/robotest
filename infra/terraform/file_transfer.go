@@ -8,6 +8,20 @@ import (
 	"github.com/gravitational/trace"
 )
 
+/*
+ FIXME: there are still few fundamental issues with this approach to SSH,
+ and it need be replaced with command by command execution
+
+ 1. ability to kill hung remote command (i.e. ./gravity wizard)
+    otherwise robotest completes but node is unsusable as there's still background process running
+
+ 2. waiting for boostrap script to complete (or maybe replacing its behind-the-scenes with more explicit preparation here)
+
+ 3. being sure which command exactly failed and avoiding monstrous && style pipelining
+
+ 4. support for SCP for local tarballs
+*/
+
 // TransferFile takes file URL which may be S3 or HTTP or local file and transfers it to the machine
 // fileUrl - file to download, could be S3:// or http(s)://
 // command - to run out of installer package
@@ -50,12 +64,15 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 		return "", fmt.Errorf("Unsupported URL schema %s", fileUrl)
 	}
 
-	cmd := fmt.Sprintf(`test -f /var/lib/bootstrap_complete && \
-		rm -rf %[1]s/installer/* && %[2]s && \
-		mkdir -p %[1]s/installer && \
-		tar -xvf %[3]s -C %[1]s/installer && \
-		cd %[1]s/installer && %[4]s`, homeDir, fetchCmd, outFile, command)
+	cmd := fmt.Sprintf(`echo Testing if bootstrap completed && test -f /var/lib/bootstrap_complete && \
+		echo Cleaning up && rm -rf %[1]s/installer/* 
+		echo Downloading installer %[5]s ... && %[2]s && \
+		echo Creating installer dir && mkdir -p %[1]s/installer && \
+		echo Unpacking installer && tar -xvf %[3]s -C %[1]s/installer && \
+		echo Launching command %[4]s && cd %[1]s/installer && %[4]s`, homeDir, fetchCmd, outFile, command, fileUrl)
 
-	fmt.Println(cmd)
+	// cmd = fmt.Sprintf(`echo Launching command %[4]s && cd %[1]s/installer && %[4]s`,
+	//	homeDir, fetchCmd, outFile, command, fileUrl)
+
 	return cmd, nil
 }

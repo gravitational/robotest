@@ -150,13 +150,13 @@ type TestContextType struct {
 	// Wizard specifies whether wizard was used to bootstrap cluster
 	Wizard bool `json:"-" yaml:"-"`
 	// Provisioner defines the type of provisioner to use
-	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_PROVISIONER"`
+	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" `
 	// ProvisionTo defines cloud to deploy
 	ProvisionTo string `json:"provision_to" yaml:"provision_to" validate:"omitempty,eq=aws|eq=azure"`
 	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
-	StateDir string `json:"state_dir" yaml:"state_dir" env:"ROBO_STATE_DIR"`
+	StateDir string `json:"state_dir" yaml:"state_dir" `
 	// Teardown specifies the command to destroy the infrastructure
 	Teardown bool `json:"-" yaml:"-"`
 	// ForceRemoteAccess explicitly enables the remote access for the installed site.
@@ -165,25 +165,25 @@ type TestContextType struct {
 	//  - in wizard mode remote access is disabled
 	//
 	// TODO: automatically determine when to enable remote access
-	ForceRemoteAccess bool `json:"remote_access,omitempty" yaml:"remote_access,omitempty" env:"ROBO_REMOTE_ACCESS"`
+	ForceRemoteAccess bool `json:"remote_access,omitempty" yaml:"remote_access,omitempty" `
 	// ForceLocalEndpoint specifies whether to use the local application endpoint
 	// instead of Ops Center to control the installed site
 	//
 	// TODO: automatically determine when to use local endpoint
-	ForceLocalEndpoint bool `json:"local_endpoint,omitempty" yaml:"local_endpoint,omitempty" env:"ROBO_LOCAL_ENDPOINT"`
+	ForceLocalEndpoint bool `json:"local_endpoint,omitempty" yaml:"local_endpoint,omitempty" `
 	// ReportDir defines location to store the results of the test
-	ReportDir string `json:"report_dir" yaml:"report_dir" env:"ROBO_REPORT_DIR"`
+	ReportDir string `json:"report_dir" yaml:"report_dir" `
 	// ClusterName defines the name to use for domain name or state directory
-	ClusterName string `json:"cluster_name" yaml:"cluster_name" env:"ROBO_CLUSTER_NAME"`
+	ClusterName string `json:"cluster_name" yaml:"cluster_name" `
 	// License specifies the application license
-	License string `json:"license" yaml:"license" env:"ROBO_APP_LICENSE"`
+	License string `json:"license" yaml:"license" `
 	// OpsCenterURL specifies the Ops Center to use for tests.
 	// OpsCenterURL is mandatory when running tests on an existing Ops Center.
 	// In wizard mode, this is automatically populated by the wizard (incl. Application, see below)
-	OpsCenterURL string `json:"ops_url" yaml:"ops_url" env:"ROBO_OPS_URL"`
+	OpsCenterURL string `json:"ops_url" yaml:"ops_url" `
 	// Application defines the application package to test.
 	// In wizard mode, this is automatically set by the wizard
-	Application LocatorRef `json:"application" yaml:"application" env:"ROBO_APP"`
+	Application LocatorRef `json:"application" yaml:"application"`
 	// Login defines the login details to access existing Ops Center.
 	// Mandatory only in non-wizard mode
 	Login Login `json:"login" yaml:"login"`
@@ -191,7 +191,7 @@ type TestContextType struct {
 	ServiceLogin ServiceLogin `json:"service_login" yaml:"service_login"`
 	// FlavorLabel specifies the installation flavor label to use for the test.
 	// This is application-specific, e.g. `3 nodes` or `medium`
-	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" env:"ROBO_FLAVOR_LABEL"`
+	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" `
 
 	// AWS defines the AWS-specific test configuration
 	AWS *infra.AWSConfig `json:"aws" yaml:"aws"`
@@ -203,25 +203,25 @@ type TestContextType struct {
 	// Bandwagon defines the test configuration for post-install setup in bandwagon
 	Bandwagon BandwagonConfig `json:"bandwagon" yaml:"bandwagon"`
 	// WebDriverURL specifies optional WebDriver URL to use
-	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" env:"ROBO_WEB_DRIVER_URL"`
+	WebDriverURL string `json:"web_driver_url,omitempty" yaml:"web_driver_url,omitempty" `
 	// Extensions groups arbitrary test step configuration
 	Extensions Extensions `json:"extensions,omitempty" yaml:"extensions,omitempty"`
 }
 
 type BandwagonConfig struct {
-	Organization string `json:"organization" yaml:"organization" env:"ROBO_BANDWAGON_ORGANIZATION"`
-	Username     string `json:"username" yaml:"username" env:"ROBO_BANDWAGON_USERNAME"`
-	Password     string `json:"password" yaml:"password" env:"ROBO_BANDWAGON_PASSWORD"`
-	Email        string `json:"email" yaml:"email" env:"ROBO_BANDWAGON_EMAIL"`
+	Organization string `json:"organization" yaml:"organization" `
+	Username     string `json:"username" yaml:"username" `
+	Password     string `json:"password" yaml:"password" `
+	Email        string `json:"email" yaml:"email" `
 }
 
 // Login defines Ops Center authentication parameters
 type Login struct {
-	Username string `json:"username" yaml:"username" env:"ROBO_USERNAME"`
-	Password string `json:"password" yaml:"password" env:"ROBO_PASSWORD"`
+	Username string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
 	// AuthProvider specifies the authentication provider to use for login.
 	// Available providers are `email` and `gogole`
-	AuthProvider string `json:"auth_provider,omitempty" yaml:"auth_provider,omitempty" env:"ROBO_AUTH_PROVIDER"`
+	AuthProvider string `json:"auth_provider,omitempty" yaml:"auth_provider,omitempty"`
 }
 
 func (r Login) IsEmpty() bool {
@@ -230,8 +230,8 @@ func (r Login) IsEmpty() bool {
 
 // ServiceLogin defines authentication options for Ops Center service access
 type ServiceLogin struct {
-	Username string `json:"username" yaml:"username" env:"ROBO_SERVICE_USERNAME"`
-	Password string `json:"password" yaml:"password" env:"ROBO_SERVICE_PASSWORD"`
+	Username string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
 }
 
 func (r ServiceLogin) IsEmpty() bool {
@@ -243,19 +243,19 @@ type OnpremConfig struct {
 	// Onprem
 	// NumNodes defines the total cluster capacity.
 	// This is a total number of nodes to provision
-	NumNodes int `json:"nodes" yaml:"nodes" env:"ROBO_NUM_NODES"`
+	NumNodes int `json:"nodes" yaml:"nodes"`
 	// InstallerURL defines the location of the installer tarball.
 	// Depending on the provisioner - this can be either a URL or local path
-	InstallerURL string `json:"installer_url" yaml:"installer_url" env:"ROBO_INSTALLER_URL"`
+	InstallerURL string `json:"installer_url" yaml:"installer_url"`
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
-	ScriptPath string `json:"script_path" yaml:"script_path" env:"ROBO_SCRIPT_PATH"`
+	ScriptPath string `json:"script_path" yaml:"script_path"`
 	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
 	// If the profile is unspecified, the test will use the first available.
-	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_ONPREM_EXPAND_PROFILE"`
+	ExpandProfile string `json:"expand_profile" yaml:"expand_profile"`
 	// DockerDevice specifies the device for docker with devicemapper driver
 	// With empty value docker will use loopback device
-	DockerDevice string `json:"docker_device" yaml:"docker_device" env:"ROBO_DOCKER_DEVICE"`
+	DockerDevice string `json:"docker_device" yaml:"docker_device"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {

@@ -37,9 +37,9 @@ type Config struct {
 	Azure *infra.AzureConfig
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
-	ScriptPath string `json:"script_path" env:"ROBO_SCRIPT_PATH" validate:"required"`
+	ScriptPath string `json:"script_path" validate:"required"`
 	// NumNodes defines the capacity of the cluster to provision
-	NumNodes int `json:"nodes" env:"ROBO_NUM_NODES" validate:"gte=1"`
+	NumNodes int `json:"nodes" validate:"gte=1"`
 	// InstallerURL is AWS S3 URL with the installer
-	InstallerURL string `json:"installer_url" env:"ROBO_INSTALLER_URL" validate:"required,url`
+	InstallerURL string `json:"installer_url" validate:"required,url`
 }
