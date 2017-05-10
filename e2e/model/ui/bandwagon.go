@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
@@ -59,7 +58,7 @@ func OpenBandwagon(page *web.Page, domainName string, config framework.Bandwagon
 	}
 }
 
-func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
+func (b *Bandwagon) SubmitForm(remoteAccess bool) {
 	page := b.page
 
 	By("entering email")
@@ -114,32 +113,14 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) (endpoints []string) {
 		Succeed(),
 		"should click submit button")
 
-	Eventually(page.FindByClass("my-page-section-endpoints"), defaults.FindTimeout).Should(
-		BeFound(),
-		"should find endpoints")
+	PauseForPageJs()
 
-	endpoints = b.GetEndpoints()
-	log.Infof("endpoints: %q", endpoints)
-	Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at a single application endpoint")
-
-	return endpoints
-}
-
-func (b *Bandwagon) GetEndpoints() (endpoints []string) {
-	const scriptTemplate = `
-            var endpoints = [];
-            var cssSelector = ".my-page-section-endpoints-item a";
-            var children = document.querySelectorAll(cssSelector);
-            children.forEach(endpoint => endpoints.push(endpoint.text));
-            return endpoints; `
-
-	Expect(b.page.RunScript(scriptTemplate, nil, &endpoints)).To(Succeed())
-
-	var siteEndpoints []string
-	for _, v := range endpoints {
-		if strings.Contains(v, strconv.Itoa(defaults.GravityHTTPPort)) {
-			siteEndpoints = append(siteEndpoints, v)
-		}
-	}
-	return siteEndpoints
+	Eventually(
+		func() bool {
+			element := page.Find(".my-page-btn-submit .fa-spin")
+			count, _ := element.Count()
+			return count == 0
+		},
+		defaults.PollInterval,
+	).Should(BeTrue())
 }

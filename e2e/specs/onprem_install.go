@@ -7,7 +7,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
-	"github.com/gravitational/robotest/e2e/model/ui/site"
+	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
@@ -135,8 +135,12 @@ func VerifyOnpremInstall(f *framework.T) {
 			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
 			bandwagon := ui.OpenBandwagon(f.Page, domainName, bandwagonConfig)
 			By("submitting bandwagon form")
-			endpoints := bandwagon.SubmitForm(enableRemoteAccess)
-			Expect(len(endpoints)).To(BeNumerically(">", 0))
+			bandwagon.SubmitForm(enableRemoteAccess)
+
+			By("navigating to a site and reading endpoints")
+			site := sitemodel.Open(f.Page, domainName)
+			endpoints := site.GetEndpoints()
+			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
@@ -152,7 +156,7 @@ func VerifyOnpremInstall(f *framework.T) {
 		shouldNavigateToSite := func() {
 			By("opening a site page")
 			ui.EnsureUser(f.Page, framework.SiteURL(), login)
-			site.Open(f.Page, domainName)
+			sitemodel.Open(f.Page, domainName)
 		}
 
 		It("should install an application", func() {
