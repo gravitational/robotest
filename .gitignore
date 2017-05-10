@@ -19,3 +19,4 @@ config.yaml
 robotest
 /build
 wd
+run.sh
