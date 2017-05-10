@@ -7,7 +7,7 @@ variable "client_id"      { }
 variable "client_secret"  { }
 variable "tenant_id"      { }
 
-variable "azure_resource_group" { default = "robotest-2" }
+variable "azure_resource_group" { }
 
 variable "location"       { }
 variable "vm_type"        { }

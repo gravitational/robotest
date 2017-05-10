@@ -22,6 +22,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 // ConfigureFlags registers common command line flags, parses the command line
@@ -150,6 +151,8 @@ type TestContextType struct {
 	Wizard bool `json:"-" yaml:"-"`
 	// Provisioner defines the type of provisioner to use
 	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" env:"ROBO_PROVISIONER"`
+	// ProvisionTo defines cloud to deploy
+	ProvisionTo string `json:"provision_to" yaml:"provision_to" validate:"omitempty,eq=aws|eq=azure"`
 	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
@@ -191,7 +194,10 @@ type TestContextType struct {
 	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" env:"ROBO_FLAVOR_LABEL"`
 
 	// AWS defines the AWS-specific test configuration
-	AWS AWSConfig `json:"aws" yaml:"aws"`
+	AWS *infra.AWSConfig `json:"aws" yaml:"aws"`
+	// Azure defines Azure cloud specific parameters
+	Azure *infra.AzureConfig `yaml:"azure"`
+
 	// Onprem defines the test configuration for bare metal tests
 	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
 	// Bandwagon defines the test configuration for post-install setup in bandwagon
@@ -232,40 +238,9 @@ func (r ServiceLogin) IsEmpty() bool {
 	return r.Username == "" && r.Password == ""
 }
 
-// AWSConfig describes AWS EC2 test configuration
-type AWSConfig struct {
-	AccessKey string `json:"access_key" yaml:"access_key" env:"ROBO_AWS_ACCESS_KEY"`
-	SecretKey string `json:"secret_key" yaml:"secret_key" env:"ROBO_AWS_SECRET_KEY"`
-	// Region specifies the EC2 region to install into
-	Region string `json:"region" yaml:"region" env:"ROBO_AWS_REGION"`
-	// KeyPair specifies the name of the SSH key pair to use for provisioning
-	// nodes
-	KeyPair string `json:"key_pair" yaml:"key_pair" env:"ROBO_AWS_KEY_PAIR"`
-	// VPC defines the Amazon VPC to install into.
-	// Specify "Create new" to create a new VPC for this test run
-	VPC string `json:"vpc" yaml:"vpc" env:"ROBO_AWS_VPC"`
-	// KeyPath specifies the location of the SSH key to use for remote access.
-	// Mandatory only with terraform provisioner
-	KeyPath string `json:"key_path" yaml:"key_path" env:"ROBO_AWS_KEY_PATH"`
-	// SSHUser defines SSH user used to connect to the provisioned machines
-	SSHUser string `json:"ssh_user" yaml:"ssh_user" env:"ROBO_AWS_SSH_USER"`
-	// InstanceType defines the type of AWS EC2 instance to boot.
-	// Relevant only with terraform provisioner.
-	// Defaults are specific to the terraform script used (if any)
-	InstanceType string `json:"instance_type" yaml:"instance_type" env:"ROBO_AWS_INSTANCE_TYPE"`
-	// ExpandProfile specifies an optional name of the server profile for AWS expand operation.
-	// If the profile is unspecified, the test will use the first available.
-	ExpandProfile string `json:"expand_profile" yaml:"expand_profile" env:"ROBO_AWS_EXPAND_PROFILE"`
-	// ExpandAwsInstanceType specifies an optional instance type for AWS expand operation
-	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type" env:"ROBO_AWS_EXPAND_INSTANCE_TYPE"`
-}
-
-func (r AWSConfig) IsEmpty() bool {
-	return r.AccessKey == "" && r.SecretKey == ""
-}
-
 // OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
+	// Onprem
 	// NumNodes defines the total cluster capacity.
 	// This is a total number of nodes to provision
 	NumNodes int `json:"nodes" yaml:"nodes" env:"ROBO_NUM_NODES"`
@@ -353,8 +328,9 @@ func initTestContext(confFile string) error {
 
 	err = TestContext.Validate()
 	if err != nil {
-		return trace.Wrap(err, "failed to validate configuration")
+		return trace.Wrap(err, "config validation failed")
 	}
+
 	return nil
 }
 
@@ -375,7 +351,22 @@ func newContextConfig(configFile string) error {
 		return trace.Wrap(err)
 	}
 
-	return trace.Wrap(yaml.Unmarshal(configBytes, &TestContext))
+	err = yaml.Unmarshal(configBytes, &TestContext)
+	if err != nil {
+		return trace.Wrap(err, "Error parsing config file")
+	}
+
+	err = validator.New().Struct(TestContext)
+	if err == nil {
+		return nil
+	}
+
+	log.Errorf("Configuration file %s has errors", configFile)
+	for _, fieldError := range err.(validator.ValidationErrors) {
+		log.Errorf("   Field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
+	}
+
+	return trace.Errorf("Configuration file fails validation test")
 }
 
 func initTestState(configFile string) error {
@@ -420,27 +411,39 @@ func initLogger(debug bool) {
 	log.SetLevel(level)
 }
 
+func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, err error) {
+	if TestContext.ProvisionTo == "" {
+		return nil, trace.Errorf("provision_to parameter is required for Terraform")
+	}
+
+	config = &terraform.Config{
+		Config:       infraConfig,
+		ScriptPath:   TestContext.Onprem.ScriptPath,
+		InstallerURL: TestContext.Onprem.InstallerURL,
+		NumNodes:     TestContext.Onprem.NumNodes,
+
+		ProvisionTo: TestContext.ProvisionTo,
+		AWS:         TestContext.AWS,
+		Azure:       TestContext.Azure,
+	}
+
+	err = config.Validate()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return config, nil
+}
+
 func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisionerName provisionerType) (provisioner infra.Provisioner, err error) {
 	switch provisionerName {
 	case provisionerTerraform:
-		config := terraform.Config{
-			Config:       infraConfig,
-			ScriptPath:   TestContext.Onprem.ScriptPath,
-			InstallerURL: TestContext.Onprem.InstallerURL,
-			NumNodes:     TestContext.Onprem.NumNodes,
-			AccessKey:    TestContext.AWS.AccessKey,
-			SecretKey:    TestContext.AWS.SecretKey,
-			KeyPair:      TestContext.AWS.KeyPair,
-			SSHKeyPath:   TestContext.AWS.KeyPath,
-			SSHUser:      TestContext.AWS.SSHUser,
-			InstanceType: TestContext.AWS.InstanceType,
-			Region:       TestContext.AWS.Region,
-		}
-		err := config.Validate()
+		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = terraform.New(stateDir, config)
+
+		provisioner, err = terraform.New(stateDir, *config)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -478,24 +481,11 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 	}
 	switch testState.Provisioner {
 	case provisionerTerraform:
-		config := terraform.Config{
-			Config:       infraConfig,
-			ScriptPath:   TestContext.Onprem.ScriptPath,
-			InstallerURL: TestContext.Onprem.InstallerURL,
-			NumNodes:     numNodes,
-			AccessKey:    TestContext.AWS.AccessKey,
-			SecretKey:    TestContext.AWS.SecretKey,
-			KeyPair:      TestContext.AWS.KeyPair,
-			SSHKeyPath:   TestContext.AWS.KeyPath,
-			SSHUser:      TestContext.AWS.SSHUser,
-			InstanceType: TestContext.AWS.InstanceType,
-			Region:       TestContext.AWS.Region,
-		}
-		err := config.Validate()
+		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = terraform.NewFromState(config, *testState.ProvisionerState)
+		provisioner, err = terraform.NewFromState(*config, *testState.ProvisionerState)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -522,8 +512,8 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 }
 
 func outputSensitiveConfig(testConfig TestContextType) {
-	testConfig.AWS.AccessKey = mask
-	testConfig.AWS.SecretKey = mask
+	testConfig.AWS = nil
+	testConfig.Azure = nil
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
 	var buf bytes.Buffer

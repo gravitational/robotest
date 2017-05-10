@@ -17,7 +17,7 @@ resource "azurerm_network_security_group" "robotest" {
     access                     = "Allow"
     protocol                   = "TCP"
     source_port_range          = "*"
-    destination_port_range     = 3209
+    destination_port_range     = 32009
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }

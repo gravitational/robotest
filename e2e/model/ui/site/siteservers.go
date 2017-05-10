@@ -9,6 +9,7 @@ import (
 	utils "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/agent"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/infra"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -129,7 +130,7 @@ func (p *SiteServerPage) InitOnPremOperation(config framework.OnpremConfig) stri
 	return command
 }
 
-func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
+func (p *SiteServerPage) AddAWSServer(config *infra.AWSConfig) *SiteServer {
 	page := p.page
 
 	currentServerItems := p.GetSiteServers()
@@ -184,15 +185,15 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 	return newItem
 }
 
-func (p *SiteServerPage) DeleteAWSServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
-	p.deleteServer(itemToDelete, &awsConfig)
+func (p *SiteServerPage) DeleteAWSServer(awsConfig *infra.AWSConfig, itemToDelete *SiteServer) {
+	p.deleteServer(itemToDelete, awsConfig)
 }
 
 func (p *SiteServerPage) DeleteOnPremServer(itemToDelete *SiteServer) {
 	p.deleteServer(itemToDelete, nil)
 }
 
-func (p *SiteServerPage) deleteServer(server *SiteServer, config *framework.AWSConfig) {
+func (p *SiteServerPage) deleteServer(server *SiteServer, config *infra.AWSConfig) {
 	p.clickDeleteServer(server.Hostname)
 
 	if config != nil {

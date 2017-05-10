@@ -56,7 +56,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 
 func (r *vagrant) Create(withInstaller bool) (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
-	err = system.CopyFile(filepath.Join(r.stateDir, file), r.ScriptPath)
+	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -179,7 +179,7 @@ func (r *vagrant) syncInstallerTarball() error {
 	}
 	target := filepath.Join(r.stateDir, "installer.tar.gz")
 	log.Debugf("copy %v -> %v", r.InstallerURL, target)
-	err := system.CopyFile(target, r.InstallerURL)
+	err := system.CopyFile(r.InstallerURL, target)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
 	}

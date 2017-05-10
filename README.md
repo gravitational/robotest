@@ -167,7 +167,7 @@ onprem:
 ```
 
 ```shell
-$ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus='Onprem Install'
 ```
 
 ### Creating infrastructure (vagrant)
@@ -183,7 +183,7 @@ onprem:
 ```
 
 ```shell
-$ ./robotest -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -ginkgo.focus='Onprem Install'
 ```
 
 

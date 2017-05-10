@@ -14,15 +14,16 @@ import (
 
 // CopyFile copies contents of src to dst atomically
 // using SharedReadWriteMask as permissions.
-func CopyFile(dst, src string) error {
-	return CopyFileWithPerms(dst, src, constants.SharedReadWriteMask)
+func CopyFile(src, dst string) error {
+	log.Debugf("CopyFile %s %s", src, dst)
+	return CopyFileWithPerms(src, dst, constants.SharedReadWriteMask)
 }
 
 // CopyFileWithPerms copies the contents from src to dst atomically.
 // If dst does not exist, CopyFile creates it with permissions perm.
 // If the copy fails, CopyFile aborts and dst is preserved.
 // Adopted with modifications from https://go-review.googlesource.com/#/c/1591/9/src/io/ioutil/ioutil.go
-func CopyFileWithPerms(dst, src string, perm os.FileMode) error {
+func CopyFileWithPerms(src, dst string, perm os.FileMode) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -60,6 +61,72 @@ func CopyFileWithPerms(dst, src string, perm os.FileMode) error {
 		cleanup()
 		return trace.ConvertSystemError(err)
 	}
+	return nil
+}
+
+// Recursively copy
+// dst must always be a directory
+// src may be either a dir or a file
+func CopyAll(src, dst string) (err error, fileCount uint) {
+	fileCount = 0
+	err = copyAll(src, dst, &fileCount)
+	return err, fileCount
+}
+
+func copyAll(src, dst string, fileCount *uint) (err error) {
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	log.Debugf("CopyAll %s %s", src, dst)
+	si, err := os.Stat(src)
+	if err != nil {
+		return trace.ConvertSystemError(err)
+	}
+	if si.Mode().IsRegular() {
+		*fileCount++
+		return CopyFile(src, filepath.Join(dst, filepath.Base(src)))
+	}
+
+	_, err = os.Stat(dst)
+	if err != nil && !os.IsNotExist(err) {
+		return trace.ConvertSystemError(err)
+	}
+
+	if err != nil && os.IsNotExist(err) {
+		err = os.MkdirAll(dst, si.Mode())
+		if err != nil {
+			return trace.ConvertSystemError(err)
+		}
+	}
+
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return trace.ConvertSystemError(err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			err = copyAll(srcPath, dstPath, fileCount)
+			if err != nil {
+				return err
+			}
+		}
+
+		if entry.Mode()&os.ModeSymlink != 0 {
+			log.Warning("Symlinks are not copied: %s", srcPath)
+			continue
+		}
+
+		err = CopyFile(srcPath, dstPath)
+		if err != nil {
+			return err
+		}
+		*fileCount++
+	}
+
 	return nil
 }
 
