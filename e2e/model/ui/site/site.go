@@ -2,6 +2,8 @@ package site
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
 	ui "github.com/gravitational/robotest/e2e/model/ui"
@@ -49,6 +51,32 @@ func (s *Site) NavigateToServers() {
 		"waiting for servers to load")
 
 	ui.PauseForPageJs()
+}
+
+func (s *Site) GetEndpoints() (endpoints []string) {
+	const scriptTemplate = `
+		var urls = [];
+		var endpoints = window.reactor.evaluate(['site_current', 'endpoints']);
+		if(!endpoints){
+			return urls;
+		}
+
+		endpoints = endpoints.toJS();
+		for( var i = 0; i < endpoints.length; i ++){
+			var addressess = endpoints[i].addresses || []
+			addressess.forEach( a => urls.push(a))
+		}            
+		return urls; `
+
+	Expect(s.page.RunScript(scriptTemplate, nil, &endpoints)).To(Succeed())
+
+	var siteEndpoints []string
+	for _, v := range endpoints {
+		if strings.Contains(v, strconv.Itoa(defaults.GravityHTTPPort)) {
+			siteEndpoints = append(siteEndpoints, v)
+		}
+	}
+	return siteEndpoints
 }
 
 func VerifySiteNavigation(page *web.Page, URL string) {

@@ -5,9 +5,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
-	"github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
-	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
+	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -93,21 +91,31 @@ func VerifyAWSInstall(f *framework.T) {
 		}
 
 		shouldHandleInProgressScreen := func() {
-			validation.WaitForComplete(f.Page, domainName)
+			By("waiting until install is completed or failed")
+			installer := installermodel.OpenWithSite(f.Page, domainName)
+			installer.WaitForComplete()
+
+			By("clicking on continue")
+			installer.ProceedToSite()
 		}
 
 		shouldHandleBandwagonScreen := func() {
 			enableRemoteAccess := true
-			bandwagon.Complete(f.Page,
-				domainName,
-				bandwagonConfig,
-				enableRemoteAccess)
+			By("opening bandwagon page")
+			bandwagon := ui.OpenBandwagon(f.Page, domainName, bandwagonConfig)
+			By("submitting bandwagon form")
+			bandwagon.SubmitForm(enableRemoteAccess)
+
+			By("navigating to a site and reading endpoints")
+			site := sitemodel.Open(f.Page, domainName)
+			endpoints := site.GetEndpoints()
+			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 		}
 
 		shouldNavigateToSite := func() {
 			By("opening a site page")
 			ui.EnsureUser(f.Page, framework.SiteURL(), login)
-			site.Open(f.Page, domainName)
+			sitemodel.Open(f.Page, domainName)
 		}
 
 		It("should handle installation", func() {

@@ -7,10 +7,7 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
-	"github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/e2e/specs/asserts/bandwagon"
-	validation "github.com/gravitational/robotest/e2e/specs/asserts/installer"
-	"github.com/gravitational/robotest/infra"
+	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
@@ -33,9 +30,6 @@ func VerifyOnpremInstall(f *framework.T) {
 			Password:     defaults.BandwagonPassword,
 			Email:        defaults.BandwagonEmail,
 		}
-
-		// installNode is the node used to install application on
-		var installNode infra.Node
 
 		BeforeEach(func() {
 			domainName = ctx.ClusterName
@@ -78,38 +72,41 @@ func VerifyOnpremInstall(f *framework.T) {
 
 			By("selecting a flavor")
 			numInstallNodes := installer.SelectFlavorByLabel(ctx.FlavorLabel)
+			profiles := installermodel.FindOnPremProfiles(f.Page)
+			Expect(len(profiles)).NotTo(Equal(0))
 
+			By("allocating nodes")
+			log.Infof("allocating %v nodes", numInstallNodes)
 			provisioner := framework.Cluster.Provisioner()
 			Expect(provisioner).NotTo(BeNil(), "expected valid provisioner for onprem installation")
-			log.Infof("allocating %v nodes", numInstallNodes)
-
-			var err error
-			var allocated []infra.Node
-			allocated, err = provisioner.NodePool().Allocate(numInstallNodes)
+			allocatedNodes, err := provisioner.NodePool().Allocate(numInstallNodes)
 			Expect(err).NotTo(HaveOccurred(), "expected to allocate node(s)")
-			Expect(allocated).To(HaveLen(numInstallNodes),
+			Expect(allocatedNodes).To(HaveLen(numInstallNodes),
 				fmt.Sprintf("expected to allocated %v nodes", numInstallNodes))
 
-			// Use the first allocated node to access the local site
-			installNode = allocated[0]
-
-			By("veryfing requirements")
-			profiles := installermodel.FindOnPremProfiles(f.Page)
-			Expect(len(profiles)).To(Equal(1))
-
 			By("executing the command on servers")
-			framework.RunAgentCommand(profiles[0].Command)
+			index := 0
+			for _, p := range profiles {
+				nodesForProfile := allocatedNodes[index:p.Count]
+				framework.RunAgentCommand(p.Command, nodesForProfile...)
+				index = index + p.Count
+			}
 
 			By("waiting for agent report with the servers")
-			Eventually(profiles[0].GetAgentServers, defaults.AgentServerTimeout).Should(
-				HaveLen(numInstallNodes))
+			for _, p := range profiles {
+				Eventually(p.GetAgentServers, defaults.AgentServerTimeout).Should(
+					HaveLen(p.Count))
+			}
 
 			By("configuring the servers with IPs")
-			agentServers := profiles[0].GetAgentServers()
-
-			for _, s := range agentServers {
-				s.SetIPByInfra(provisioner)
-				s.SetDockerDevice(dockerDevice)
+			for _, p := range profiles {
+				agentServers := p.GetAgentServers()
+				for _, s := range agentServers {
+					s.SetIPByInfra(provisioner)
+					if s.NeedsDockerDevice() {
+						s.SetDockerDevice(dockerDevice)
+					}
+				}
 			}
 
 			By("starting an installation")
@@ -117,17 +114,34 @@ func VerifyOnpremInstall(f *framework.T) {
 		}
 
 		shouldHandleInProgressScreen := func() {
-			validation.WaitForComplete(f.Page, domainName)
+			By("waiting until install is completed")
+			installer := installermodel.OpenWithSite(f.Page, domainName)
+			installer.WaitForComplete()
 		}
 
 		shouldHandleBandwagonScreen := func() {
+			installer := installermodel.OpenWithSite(f.Page, domainName)
+			if ui.NeedsBandwagon(f.Page, domainName) == false {
+				return
+			}
+
+			By("clicking on continue")
+			installer.ProceedToSite()
+
+			// Use the first allocated node to access the local site
+			allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
+			installNode := allocatedNodes[0]
+
 			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
-			// useLocalEndpoint := ctx.ForceLocalEndpoint || ctx.Wizard
-			endpoints := bandwagon.Complete(
-				f.Page,
-				domainName,
-				bandwagonConfig,
-				enableRemoteAccess)
+			bandwagon := ui.OpenBandwagon(f.Page, domainName, bandwagonConfig)
+			By("submitting bandwagon form")
+			bandwagon.SubmitForm(enableRemoteAccess)
+
+			By("navigating to a site and reading endpoints")
+			site := sitemodel.Open(f.Page, domainName)
+			endpoints := site.GetEndpoints()
+			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
+
 			By("using local application endpoint")
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
 			siteEntryURL := endpoints[0]
@@ -142,7 +156,7 @@ func VerifyOnpremInstall(f *framework.T) {
 		shouldNavigateToSite := func() {
 			By("opening a site page")
 			ui.EnsureUser(f.Page, framework.SiteURL(), login)
-			site.Open(f.Page, domainName)
+			sitemodel.Open(f.Page, domainName)
 		}
 
 		It("should install an application", func() {
