@@ -11,17 +11,11 @@ IMAGE_NAME := $(BINARY)
 TARBALL_NAME := $(IMAGE_NAME)-$(VERSION).tar
 IMAGE := quay.io/gravitational/$(IMAGE_NAME):$(VERSION)
 LATEST_IMAGE := quay.io/gravitational/$(IMAGE_NAME):latest
-
-ifeq ($(shell git rev-parse --abbrev-ref HEAD),version/1.x)
-PUBLISH_VERSION := 1.x
-else
 PUBLISH_VERSION := latest
-endif
 
 # Amazon S3
 BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)
 S3_OPTS := --region us-east-1
-
 
 .PHONY: all
 all: clean build
@@ -80,3 +74,8 @@ ifeq (, $(shell which aws))
 	$(error "No aws command in $(PATH)")
 endif
 	aws $(S3_OPTS) s3 cp ./build/robotest $(BUILD_BUCKET_URL)/robotest
+
+.PHONY: what-version
+what-version:
+	@echo $(VERSION)
+
