@@ -113,6 +113,7 @@ func copyAll(src, dst string, fileCount *uint) (err error) {
 			if err != nil {
 				return trace.Wrap(err)
 			}
+			continue
 		}
 
 		if entry.Mode()&os.ModeSymlink != 0 {
