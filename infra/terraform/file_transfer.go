@@ -8,20 +8,6 @@ import (
 	"github.com/gravitational/trace"
 )
 
-/*
- FIXME: there are still few fundamental issues with this approach to SSH,
- and it need be replaced with command by command execution
-
- 1. ability to kill hung remote command (i.e. ./gravity wizard)
-    otherwise robotest completes but node is unsusable as there's still background process running
-
- 2. waiting for boostrap script to complete (or maybe replacing its behind-the-scenes with more explicit preparation here)
-
- 3. being sure which command exactly failed and avoiding monstrous && style pipelining
-
- 4. support for SCP for local tarballs
-*/
-
 // TransferFile takes file URL which may be S3 or HTTP or local file and transfers it to the machine
 // fileUrl - file to download, could be S3:// or http(s)://
 // command - to run out of installer package
@@ -31,7 +17,6 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 		return "", trace.Wrap(err, "Parsing %s", fileUrl)
 	}
 
-	var fetchCmd string
 	var homeDir = fmt.Sprintf("/home/%s", t.sshUser)
 	var outFile string
 	if strings.HasSuffix(fileUrl, ".tar.gz") {
@@ -39,9 +24,10 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 	} else if strings.HasSuffix(fileUrl, ".tar") {
 		outFile = fmt.Sprintf("%s/installer.tar", homeDir)
 	} else {
-		return "", trace.Errorf("Unsupported installer packaging %s", fileUrl)
+		return "", trace.Errorf("only .tar and .tar.gz installers supported, got %s", fileUrl)
 	}
 
+	var fetchCmd string
 	switch u.Scheme {
 	case "s3":
 		if t.Config.AWS == nil {
@@ -61,18 +47,21 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 	case "gs":
 	default:
 		// TODO : implement SCP and GCLOUD methods
-		return "", fmt.Errorf("Unsupported URL schema %s", fileUrl)
+		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	cmd := fmt.Sprintf(`echo Testing if bootstrap completed && test -f /var/lib/bootstrap_complete && \
-		echo Cleaning up && rm -rf %[1]s/installer/* 
+	// FIXME: migrate to ssh sequential command execution interface
+	cmd := fmt.Sprintf(`echo Testing if bootstrap completed && \
+		for i in {1..10} ; \
+			do test -f /var/lib/bootstrap_complete && break || \
+			echo Waiting for bootstrap to complete && sleep 15 ; \
+		done &&  \
+		echo Cleaning up && rm -rf %[1]s/installer/* && 
 		echo Downloading installer %[5]s ... && %[2]s && \
 		echo Creating installer dir && mkdir -p %[1]s/installer && \
 		echo Unpacking installer && tar -xvf %[3]s -C %[1]s/installer && \
-		echo Launching command %[4]s && cd %[1]s/installer && %[4]s`, homeDir, fetchCmd, outFile, command, fileUrl)
-
-	// cmd = fmt.Sprintf(`echo Launching command %[4]s && cd %[1]s/installer && %[4]s`,
-	//	homeDir, fetchCmd, outFile, command, fileUrl)
+		echo Launching command %[4]s && cd %[1]s/installer && %[4]s`,
+		homeDir, fetchCmd, outFile, command, fileUrl)
 
 	return cmd, nil
 }

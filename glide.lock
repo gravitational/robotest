@@ -20,7 +20,7 @@ imports:
   subpackages:
   - cstrings
 - name: github.com/gravitational/trace
-  version: 6e153c7add15eb07e311f892779fb294373c4cfa
+  version: a81b26cd14cab7e5045b9391fe77662c00a7e438
 - name: github.com/hashicorp/go-version
   version: e96d3840402619007766590ecea8dd7af1292276
 - name: github.com/jonboulle/clockwork

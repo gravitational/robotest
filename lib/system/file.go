@@ -15,7 +15,7 @@ import (
 // CopyFile copies contents of src to dst atomically
 // using SharedReadWriteMask as permissions.
 func CopyFile(src, dst string) error {
-	log.Debugf("CopyFile %s %s", src, dst)
+	log.Debugf("copy %s -> %s", src, dst)
 	return CopyFileWithPerms(src, dst, constants.SharedReadWriteMask)
 }
 
@@ -67,17 +67,17 @@ func CopyFileWithPerms(src, dst string, perm os.FileMode) error {
 // Recursively copy
 // dst must always be a directory
 // src may be either a dir or a file
-func CopyAll(src, dst string) (err error, fileCount uint) {
+func CopyAll(src, dst string) (fileCount uint, err error) {
 	fileCount = 0
 	err = copyAll(src, dst, &fileCount)
-	return err, fileCount
+	return fileCount, err
 }
 
 func copyAll(src, dst string, fileCount *uint) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
-	log.Debugf("CopyAll %s %s", src, dst)
+	log.Debugf("copy %s -> %s", src, dst)
 	si, err := os.Stat(src)
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -111,18 +111,18 @@ func copyAll(src, dst string, fileCount *uint) (err error) {
 		if entry.IsDir() {
 			err = copyAll(srcPath, dstPath, fileCount)
 			if err != nil {
-				return err
+				return trace.Wrap(err)
 			}
 		}
 
 		if entry.Mode()&os.ModeSymlink != 0 {
-			log.Warning("Symlinks are not copied: %s", srcPath)
+			log.Warningf("Symlinks are not copied: %s", srcPath)
 			continue
 		}
 
 		err = CopyFile(srcPath, dstPath)
 		if err != nil {
-			return err
+			return trace.Wrap(err)
 		}
 		*fileCount++
 	}

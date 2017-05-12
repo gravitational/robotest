@@ -151,8 +151,8 @@ type TestContextType struct {
 	Wizard bool `json:"-" yaml:"-"`
 	// Provisioner defines the type of provisioner to use
 	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" `
-	// ProvisionTo defines cloud to deploy
-	ProvisionTo string `json:"provision_to" yaml:"provision_to" validate:"omitempty,eq=aws|eq=azure"`
+	// CloudProvider defines cloud to deploy
+	CloudProvider string `json:"cloud_provider" yaml:"cloud_provider" validate:"omitempty,eq=aws|eq=azure"`
 	// DumpCore specifies a command to collect all installation/operation logs
 	DumpCore bool `json:"-" yaml:"-"`
 	// StateDir specifies the location for test-specific temporary data
@@ -362,11 +362,13 @@ func newContextConfig(configFile string) error {
 	}
 
 	log.Errorf("Configuration file %s has errors", configFile)
-	for _, fieldError := range err.(validator.ValidationErrors) {
-		log.Errorf("   Field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
+	if validationErrors, ok := err.(validator.ValidationErrors); ok {
+		for _, fieldError := range validationErrors {
+			log.Errorf("   field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
+		}
 	}
 
-	return trace.Errorf("Configuration file fails validation test")
+	return trace.Errorf("configuration file fails validation test")
 }
 
 func initTestState(configFile string) error {
@@ -412,8 +414,8 @@ func initLogger(debug bool) {
 }
 
 func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, err error) {
-	if TestContext.ProvisionTo == "" {
-		return nil, trace.Errorf("provision_to parameter is required for Terraform")
+	if TestContext.CloudProvider == "" {
+		return nil, trace.Errorf("cloud_provider parameter is required for Terraform")
 	}
 
 	config = &terraform.Config{
@@ -422,9 +424,9 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		InstallerURL: TestContext.Onprem.InstallerURL,
 		NumNodes:     TestContext.Onprem.NumNodes,
 
-		ProvisionTo: TestContext.ProvisionTo,
-		AWS:         TestContext.AWS,
-		Azure:       TestContext.Azure,
+		CloudProvider: TestContext.CloudProvider,
+		AWS:           TestContext.AWS,
+		Azure:         TestContext.Azure,
 	}
 
 	err = config.Validate()

@@ -37,7 +37,9 @@ type StateNode struct {
 
 // AWSConfig describes AWS EC2 test configuration
 type AWSConfig struct {
+	// AccessKey http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
 	AccessKey string `json:"access_key" yaml:"access_key" validate:"required"`
+	// SecretKey http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
 	SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
 	// Region specifies the EC2 region to install into
 	Region string `json:"region" yaml:"region" validate:"required"`
@@ -71,13 +73,15 @@ func (r *AWSConfig) IsEmpty() bool {
 }
 
 // AzureConfig specifies Azure cloud specific parameters
-// see https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
-// to obtain subscription_id, client_id, client_secret and tenant_id
 type AzureConfig struct {
+	// SubscriptionId https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
 	SubscriptionId string `json:"subscription_id" yaml:"subscription_id" validate:"required"`
-	ClientId       string `json:"client_id" yaml:"client_id" validate:"required"`
-	ClientSecret   string `json:"client_secret" yaml:"client_secret" validate:"required"`
-	TenantId       string `json:"tenant_id" yaml:"tenant_id" validate:"required"`
+	// ClientId https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
+	ClientId string `json:"client_id" yaml:"client_id" validate:"required"`
+	// ClientSecret https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
+	ClientSecret string `json:"client_secret" yaml:"client_secret" validate:"required"`
+	// TenantId https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
+	TenantId string `json:"tenant_id" yaml:"tenant_id" validate:"required"`
 
 	// Resource Group defines logical grouping of resources, and makes it easy to wipe them once not needed
 	ResourceGroup string `json:"azure_resource_group" yaml:"resource_group" validate:"required"`

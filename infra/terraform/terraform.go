@@ -74,7 +74,7 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 	ctx, cancel := context.WithTimeout(context.Background(), terraformTimeout)
 	defer cancel()
 
-	err, nfiles := system.CopyAll(r.ScriptPath, r.stateDir)
+	nfiles, err := system.CopyAll(r.ScriptPath, r.stateDir)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -85,7 +85,7 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {
-		err, retry := r.terraform()
+		err := r.terraform()
 		if err == nil {
 			if withInstaller {
 				nodes := r.pool.Nodes()
@@ -98,30 +98,32 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 			return nil, nil
 		}
 
-		if !retry {
+		if !trace.IsRetryError(err) {
 			return nil, trace.Wrap(err, "Terraform creation failed")
 		}
+		log.Warningf("terraform experienced transient error %s, will retry in %v",
+			err.Error(), terraformRepeatAfter)
+
 		select {
 		case <-ctx.Done():
 			return nil, trace.Wrap(err, "Terraform creation timed out")
 		case <-time.After(terraformRepeatAfter):
-			continue
 		}
 	}
 
 }
 
-func (r *terraform) terraform() (err error, retry bool) {
+func (r *terraform) terraform() (err error) {
 	output, err := r.boot()
 	if err != nil {
-		return trace.Wrap(err), false
+		return trace.Wrap(err)
 	}
 
 	// find all nodes' private IPs
 	match := rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return trace.NotFound(
-			"failed to extract private IPs from terraform output: %v", match), false
+			"failed to extract private IPs from terraform output: %v", match)
 	}
 	privateIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
@@ -130,14 +132,15 @@ func (r *terraform) terraform() (err error, retry bool) {
 	if len(match) != 2 {
 		// one of the reasons is that public IP allocation is incomplete yet
 		// which happens for Azure; we will just repeat boot process once again
-		return trace.NotFound(
-			"failed to extract public IPs from terraform output: %v", match), true
+		return trace.Retry(
+			trace.NotFound("failed to extract public IPs from terraform output: %v", match),
+			"terraform may not be able to acquire values of every parameter on create")
 	}
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
 	if len(privateIPs) != len(publicIPs) {
-		return trace.BadParameter(
-			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs)), true
+		return trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
+			len(privateIPs), len(publicIPs))
 	}
 
 	nodes := make([]infra.Node, 0, len(publicIPs))
@@ -147,7 +150,7 @@ func (r *terraform) terraform() (err error, retry bool) {
 	r.pool = infra.NewNodePool(nodes, nil)
 
 	r.Debugf("cluster: %#v", nodes)
-	return nil, false
+	return nil
 }
 
 func (r *terraform) Destroy() error {
@@ -176,6 +179,7 @@ func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
 	return sshutils.Connect(fmt.Sprintf("%v:22", addrIP), r.sshUser, keyFile)
 }
 
@@ -269,13 +273,13 @@ func (r *terraform) command(args []string, opts ...system.CommandOptionSetter) (
 // serializes terraform vars into given file as JSON
 func (r *terraform) saveVarsJSON(varFile string) error {
 	var config interface{}
-	switch r.Config.ProvisionTo {
+	switch r.Config.CloudProvider {
 	case "aws":
 		config = r.Config.AWS
 	case "azure":
 		config = r.Config.Azure
 	default:
-		return trace.Errorf("No configuration for cloud %s", r.Config.ProvisionTo)
+		return trace.Errorf("No configuration for cloud %s", r.Config.CloudProvider)
 	}
 
 	f, err := os.OpenFile(varFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 440)
@@ -295,6 +299,7 @@ type terraform struct {
 	Config
 
 	sshUser, sshKeyPath string
+	sshClient           *ssh.Client
 
 	pool        infra.NodePool
 	stateDir    string

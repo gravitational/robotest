@@ -7,16 +7,16 @@ import (
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	if (c.ProvisionTo == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != "") ||
-		(c.ProvisionTo == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != "") {
+	if (c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != "") ||
+		(c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != "") {
 		return nil
 	}
 
-	return trace.Errorf("Missing or invalid configuration for cloud %s", c.ProvisionTo)
+	return trace.Errorf("Missing or invalid configuration for cloud %s", c.CloudProvider)
 }
 
 func (c Config) sshConfig() (user, keypath string) {
-	switch c.ProvisionTo {
+	switch c.CloudProvider {
 	case "aws":
 		return c.AWS.SSHUser, c.AWS.SSHKeyPath
 	case "azure":
@@ -30,7 +30,7 @@ type Config struct {
 	infra.Config
 
 	// DeployTo defines cloud to deploy to
-	ProvisionTo string `validate:"required,eq=aws|eq=azure"`
+	CloudProvider string `validate:"required,eq=aws|eq=azure"`
 	// AWS defines AWS connection parameters
 	AWS *infra.AWSConfig
 	// Azure defines Azure connection parameters
