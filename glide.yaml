@@ -15,3 +15,4 @@ import:
   subpackages:
   - ssh
 - package: gopkg.in/alecthomas/kingpin.v2
+- package: gopkg.in/go-playground/validator.v9

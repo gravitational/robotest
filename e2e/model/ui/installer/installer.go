@@ -7,6 +7,7 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/infra"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -56,7 +57,7 @@ func (i *Installer) FillOutLicenseIfRequired(license string) {
 	}
 }
 
-func (i *Installer) CreateAWSSite(domainName string, config framework.AWSConfig) string {
+func (i *Installer) CreateAWSSite(domainName string, config *infra.AWSConfig) string {
 	By("setting domain name")
 	page := i.page
 	specifyDomainName(page, domainName)

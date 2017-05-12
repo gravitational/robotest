@@ -298,7 +298,7 @@ func fetchOpsCenterLogs() error {
 		return trace.Wrap(err, "failed to collect site report")
 	}
 
-	err = system.CopyFile(output, tempOutput.Name())
+	err = system.CopyFile(tempOutput.Name(), output)
 	return trace.Wrap(err, "failed to copy crashreport as %v", tempOutput.Name())
 }
 
@@ -322,7 +322,7 @@ func saveState(withBackup backupFlag) error {
 	if withBackup {
 		filename := fmt.Sprintf("%vbackup", filepath.Base(stateConfigFile))
 		stateConfigBackup := filepath.Join(filepath.Dir(stateConfigFile), filename)
-		err := system.CopyFile(stateConfigBackup, stateConfigFile)
+		err := system.CopyFile(stateConfigFile, stateConfigBackup)
 		if err != nil {
 			log.Errorf("failed to make a backup of state file %q: %v", stateConfigFile, err)
 		}

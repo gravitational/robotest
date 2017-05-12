@@ -41,7 +41,8 @@ test:
 
 buildbox:
 	docker build --pull --tag $(BUILDBOX) \
-		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) .
+		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) \
+		- < Dockerfile 
 
 .PHONY: docker-image
 docker-image:
