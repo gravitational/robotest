@@ -42,7 +42,7 @@ test:
 buildbox:
 	docker build --pull --tag $(BUILDBOX) \
 		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) \
-		- < Dockerfile 
+		docker/build
 
 .PHONY: docker-image
 docker-image:
@@ -52,7 +52,7 @@ docker-image:
 	fi;
 	mkdir -p $(TEMPDIR)/build
 	cp -a build/$(BINARY) $(TEMPDIR)/build/
-	cp -r docker/* $(TEMPDIR)/
+	cp -r docker/ui-tests/* $(TEMPDIR)/
 	cd $(TEMPDIR) && docker build --rm=true --pull -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 

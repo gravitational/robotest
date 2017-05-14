@@ -65,6 +65,8 @@ type AWSConfig struct {
 	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type"`
 	// ClusterName defines tagging and placement group for resources allocated
 	ClusterName string `json:"cluster_name" yaml:"cluster_name" validate:"required"`
+	// OS defines OS flavor, ubuntu | redhat | centos | debian
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 }
 
 // FIXME : replace with embedded validation rules
@@ -97,4 +99,6 @@ type AzureConfig struct {
 	AuthorizedKeysPath string `json:"ssh_authorized_keys_path" yaml:"authorized_keys_path" validate:"required"`
 	// SSHUser defines SSH user used to connect to the provisioned machines
 	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
+	// OS defines OS flavor, ubuntu | redhat | centos | debian
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 }

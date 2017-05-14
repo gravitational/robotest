@@ -73,6 +73,24 @@ func CopyAll(src, dst string) (fileCount uint, err error) {
 	return fileCount, err
 }
 
+/*
+// recreates symlink; only same level depth links are allowed
+func copySymlink(srcPath, dstDir) error {
+	link, err := os.Readlink(srcPath)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	log.Debugf("copy symlink %s -> %s", srcPath, link)
+
+	if filepath.Dir(srcPath) != filepath(link) {
+		return trace.Wrap(err, "only same level symlinks are allowed, won't copy %s(%s)", srcPath, link)
+	}
+
+	os.Symlink(oldname, newname)
+}
+*/
+
 func copyAll(src, dst string, fileCount *uint) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
@@ -113,11 +131,6 @@ func copyAll(src, dst string, fileCount *uint) (err error) {
 			if err != nil {
 				return trace.Wrap(err)
 			}
-			continue
-		}
-
-		if entry.Mode()&os.ModeSymlink != 0 {
-			log.Warningf("Symlinks are not copied: %s", srcPath)
 			continue
 		}
 
