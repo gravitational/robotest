@@ -116,11 +116,6 @@ func copyAll(src, dst string, fileCount *uint) (err error) {
 			continue
 		}
 
-		if entry.Mode()&os.ModeSymlink != 0 {
-			log.Warningf("Symlinks are not copied: %s", srcPath)
-			continue
-		}
-
 		err = CopyFile(srcPath, dstPath)
 		if err != nil {
 			return trace.Wrap(err)

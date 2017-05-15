@@ -94,7 +94,8 @@ onprem:
  * `service_login` specifies details of a service user to use to programmatically access Ops Center from the command line. This can be a
   user specifically created for tests. The user will be used to connect to the Ops Center and query logs or export/import application packages
   as required by tests.
- * `aws` specifies a [block](#aws-configuration) of parameters for AWS-based test scenarios.
+ * `aws` specifies a [block](#aws-configuration) of parameters for AWS deployment.
+ * `azure` specifies a [block](#azure-configuration) of parameters for Azure deployment. 
  * `onprem` specifies a [block](#onprem-configuration) of parameters for bare metal tests.
  * `extensions` specifies a [block](#step-configuration) of parameters for arbitrary test steps.
 
@@ -104,12 +105,21 @@ onprem:
 This section specifies parameters to login into Ops Center using a browser.
 The `auth_provider` is one of [`google`, `email`].
 
-
 ### AWS configuration
 
-All parameters in this section should be self-explanatory.
-The `vpc` parameter specifies whether to use an existing or create a new VPC.
-The valid values are names of VPCs or a special value `Create new` to indicate the fact that a new VPC is to be created.
+  - `access_key` and `secret_key` : see [AWS access credentials](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html).
+  - `ssh_user`: cannot be configured on AWS images, and should correspond to the one assigned by distribution - i.e. ubuntu, redhat, centos, debian. 
+  - `key_path` path to SSH private key 
+  - `key_pair` you should place public part of SSH key into [AWS key-pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) and provide its nickname here. 
+  - `region` AWS EC2 region
+  - `vpc` should be `Create new`
+  - `cluster_name` defines [AWS placement](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) group for resources created
+  - `os` parameter should be either ubuntu, redhat, centos or debian
+
+### Azure configuration
+ - Currently CentOS / RHEL [do not support cloud-init on Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init), and you need provision VMs first, then manually run bootstrap script.
+ - See [access credentials](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) documentation.
+ - `os` parameter should be either ubuntu, redhat, centos or debian
 
 ### Onprem configuration
 
@@ -165,6 +175,8 @@ onprem:
     nodes: 1
     docker_device: /dev/xvdb
 ```
+
+When using `s3:` type URLs, you should fill in `aws:` configuration section.
 
 ```shell
 $ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus='Onprem Install'
@@ -330,6 +342,7 @@ onprem:
 
 Currently set of test specs are all browser-based and require a [WebDriver]-compatible implementation ([selenium] or [chrome-driver] are two examples).
 If no web driver has been configured, [chrome-driver] will be used.
+
 
 
 [//]: # (Footnotes and references)
