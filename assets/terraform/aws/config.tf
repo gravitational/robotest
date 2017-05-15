@@ -7,7 +7,13 @@ variable "key_pair" {}
 
 variable "cluster_name" { }
 
-variable "nodes" {}
+variable "nodes" {
+	description = "number of nodes in cluster"
+}
+
+variable "os" { 
+	description = "ubuntu | redhat | centos | debian"
+}
 
 variable "instance_type" {
   default = "c3.xlarge"

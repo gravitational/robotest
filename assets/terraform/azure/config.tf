@@ -17,6 +17,10 @@ variable "ssh_user"				{ default = "robotest" }
 
 variable "nodes"				{ }
 
+variable "os" { 
+	description = "ubuntu | redhat | centos | debian"
+}
+
 # 
 # Access credentials:
 #   https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal

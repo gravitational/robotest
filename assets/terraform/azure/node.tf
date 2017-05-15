@@ -38,10 +38,10 @@ resource "azurerm_virtual_machine" "node" {
   delete_data_disks_on_termination = "true"
 
   storage_image_reference {
-    publisher = "${var.os["publisher"]}"
-    offer     = "${var.os["offer"]}"
-    sku       = "${var.os["sku"]}"
-    version   = "${var.os["version"]}"
+    publisher = "${lookup(var.os_publisher, var.os)}"
+    offer     = "${lookup(var.os_offer,     var.os)}"
+    sku       = "${lookup(var.os_sku,       var.os)}"
+    version   = "${lookup(var.os_version,   var.os)}"
   }
 
   storage_os_disk {
@@ -52,7 +52,7 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   os_profile {
-    custom_data    = "${file("./bootstrap.sh")}"
+    custom_data    = "${file("./bootstrap/${var.os}.sh")}"
     computer_name  = "node-${count.index}"
     # REQUIRED ...
     admin_username = "${var.ssh_user}"
@@ -68,11 +68,11 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   storage_data_disk {
-    name              = "node-data-${count.index}"
+    name              = "node-etcd-${count.index}"
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 0
-    disk_size_gb      = "100"
+    disk_size_gb      = "30"
   }
 
   storage_data_disk {
@@ -80,7 +80,7 @@ resource "azurerm_virtual_machine" "node" {
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 1
-    disk_size_gb      = "100"
+    disk_size_gb      = "80"
   }
 
 }
