@@ -3,8 +3,8 @@ package sshutils
 import (
 	"bufio"
 	"context"
-	"io"
-	"io/ioutil"
+	"flag"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -16,12 +16,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var sshTestHost = flag.String("host", "", "SSH test host address")
+var sshTestUser = flag.String("user", "robotest", "SSH test user")
+var sshTestKeyPath = flag.String("key", "", "Path to SSH private key")
+
 func TestParse(t *testing.T) {
-	keyFile, err := os.Open("/Users/denismishin/.ssh/id_rsa")
+	flag.Parse()
+
+	require.NotEmpty(t, *sshTestHost, "ssh host")
+	require.NotEmpty(t, *sshTestKeyPath, "ssh key")
+	require.NotEmpty(t, *sshTestUser, "ssh user")
+
+	keyFile, err := os.Open(*sshTestKeyPath)
 	require.NoError(t, err, "SSH file")
 	defer keyFile.Close()
 
-	client, err := Client("52.228.36.57:22", "robotest", keyFile)
+	client, err := Client(fmt.Sprintf("%s:22", *sshTestHost), *sshTestUser, keyFile)
 	require.NoError(t, err, "ssh client")
 
 	t.Run("environment", func(t *testing.T) {
@@ -39,50 +49,57 @@ func TestParse(t *testing.T) {
 		testExitErr(t, client)
 	})
 
+	t.Run("test file", func(t *testing.T) {
+		t.Parallel()
+		testFile(t, client)
+	})
+
 }
 
 func testEnv(t *testing.T, client *ssh.Client) {
-	session, err := client.NewSession()
-	require.NoError(t, err)
-
-	out, err := RunAndParse(context.Background(),
+	out, exit, err := RunAndParse(context.Background(),
 		t.Logf,
-		session,
+		client,
 		"echo $AWS_SECURE_KEY",
+		// NOTE: add `AcceptEnv AWS_*` to /etc/ssh/sshd.conf
 		map[string]string{"AWS_SECURE_KEY": "SECUREKEY"},
 		func(r *bufio.Reader) (interface{}, error) {
 			return r.ReadString('\n')
 		})
 	assert.NoError(t, err)
+	assert.Zero(t, exit, "exit code")
 	assert.Equal(t, "SECUREKEY\n", out)
 }
 
 func testTimeout(t *testing.T, client *ssh.Client) {
-	session, err := client.NewSession()
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	_, err = RunAndParse(ctx,
+	_, exit, err := RunAndParse(ctx,
 		t.Logf,
-		session,
+		client,
 		"sleep 100",
 		nil,
-		parseDiscard)
-	assert.NoError(t, err)
+		ParseDiscard)
+	assert.Error(t, err)
+	assert.Equal(t, exitStatusUndefined, exit)
 }
 
 func testExitErr(t *testing.T, client *ssh.Client) {
-	session, err := client.NewSession()
-	require.NoError(t, err)
-
-	_, err = RunAndParse(context.Background(), t.Logf, session, "ls /nosuchcommand", nil, parseDiscard)
-	assert.Error(t, err)
-	assert.IsType(t, &trace.TraceErr{}, err)
+	_, exit, err := RunAndParse(context.Background(), t.Logf, client, "ls /nosuchdir", nil, ParseDiscard)
+	assert.NoError(t, err)
+	assert.NotZero(t, exit, "ls error")
 }
 
-func parseDiscard(r *bufio.Reader) (interface{}, error) {
-	io.Copy(ioutil.Discard, r)
-	return nil, nil
+func testFile(t *testing.T, client *ssh.Client) {
+	ctx := context.Background()
+
+	err := TestFile(ctx, t.Logf, client, "/", TestDir)
+	assert.NoError(t, err, TestDir)
+
+	err = TestFile(ctx, t.Logf, client, "/nosuchfile", TestRegularFile)
+	assert.True(t, trace.IsNotFound(err))
+
+	err = TestFile(ctx, t.Logf, client, "/", "-nosuchflag")
+	assert.True(t, err != nil && !trace.IsNotFound(err), "invalid flag")
 }
