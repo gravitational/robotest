@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,7 +9,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
@@ -162,7 +162,7 @@ func Distribute(command string, nodes ...Node) error {
 // session's Stdout/Stderr to the specified w
 func Run(node Node, command string, w io.Writer) (err error) {
 	var session *ssh.Session
-	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+	err = wait.Retry(context.TODO(), func() error {
 		session, err = node.Connect()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))

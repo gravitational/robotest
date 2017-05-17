@@ -2,6 +2,7 @@ package infra
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
@@ -23,7 +23,7 @@ import (
 
 func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluster, err error) {
 	var session *ssh.Session
-	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+	err = wait.Retry(context.TODO(), func() error {
 		session, err = installer.Connect()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))

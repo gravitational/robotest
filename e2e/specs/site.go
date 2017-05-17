@@ -1,10 +1,11 @@
 package specs
 
 import (
+	"context"
+
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/model/ui"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
 	log "github.com/Sirupsen/logrus"
@@ -52,7 +53,7 @@ func VerifySiteUpdate(f *framework.T) {
 			// Here have to login again, because update of gravity-site app will log us out
 			// Check for right provider before login
 
-			err := wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+			err := wait.Retry(context.TODO(), func() error {
 				err := ui.IsLoginPageFound(f.Page, siteURL, ctx.Login)
 				if err != nil {
 					log.Debug(trace.DebugReport(err))
