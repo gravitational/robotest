@@ -21,6 +21,7 @@ type Gravity interface {
 	OfflineUpdate(ctx context.Context, installerUrl string) error
 	Join(ctx context.Context, peerAddr, token, role string) error
 	Node() infra.Node
+	Client() *ssh.Client
 }
 
 // install parameters passed to first node
@@ -53,10 +54,11 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	node       infra.Node
-	logFn      sshutils.LogFnType
-	installDir string
-	ssh        *ssh.Client
+	node          infra.Node
+	logFn         sshutils.LogFnType
+	installDir    string
+	installParams InstallCmd
+	ssh           *ssh.Client
 }
 
 const retrySSH = time.Second * 10
@@ -91,18 +93,23 @@ func (g *gravity) Node() infra.Node {
 	return g.node
 }
 
+func (g *gravity) Client() *ssh.Client {
+	return g.ssh
+}
+
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
-	cmd := fmt.Sprintf("%s/gravity install --advertise-addr=%s --token=%s --docker-device=%s",
-		g.installDir, g.node.PrivateAddr(), "TODO_GENERATEGUID", param.DockerVolume)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --advertise-addr=%s --token=%s --docker-device=%s",
+		g.installDir, g.node.PrivateAddr(), param.Token, param.DockerVolume)
 
+	g.installParams = param
 	err := sshutils.Run(ctx, g.logFn, g.ssh,
 		cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("%s/gravity status")
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity status")
 	status, exit, err := sshutils.RunAndParse(ctx, g.logFn, g.ssh,
 		cmd, nil, parseStatus)
 
@@ -122,8 +129,8 @@ func (g *gravity) OfflineUpdate(ctx context.Context, installerUrl string) error 
 }
 
 func (g *gravity) Join(ctx context.Context, peerAddr, token, role string) error {
-	cmd := fmt.Sprintf("%s/gravity join %s --advertise-addr=%s --token=%s --role=%s",
-		g.installDir, peerAddr, g.node.PrivateAddr(), token, role)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity join %s --advertise-addr=%s --token=%s --role=%s --docker-device=%s",
+		g.installDir, peerAddr, g.node.PrivateAddr(), token, role, g.installParams.DockerVolume)
 
 	err := sshutils.Run(ctx, g.logFn, g.ssh,
 		cmd, nil)

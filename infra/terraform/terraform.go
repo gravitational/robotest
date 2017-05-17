@@ -249,6 +249,7 @@ func (r *terraform) boot() (output string, err error) {
 	out, err := r.command([]string{
 		"apply",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
+		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	})
 	if err != nil {

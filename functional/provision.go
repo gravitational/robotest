@@ -23,19 +23,20 @@ import (
 
 type Config struct {
 	// DeployTo defines cloud to deploy to
-	CloudProvider string `validate:"required,eq=aws|eq=azure"`
+	CloudProvider string `yaml:"cloud_provider" validate:"required,eq=aws|eq=azure"`
 	// AWS defines AWS connection parameters
-	AWS *infra.AWSConfig
+	AWS *infra.AWSConfig `yaml:"aws"`
 	// Azure defines Azure connection parameters
-	Azure *infra.AzureConfig
+	Azure *infra.AzureConfig `yaml:"azure"`
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
-	ScriptPath string `json:"script_path" validate:"required"`
+	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL is AWS S3 URL with the installer
-	InstallerURL string `json:"installer_url" validate:"required,url`
+	InstallerURL string `yaml:"installer_url" validate:"required,url`
 }
 
 func LoadConfig(t *testing.T, configFile string) *Config {
+	require.NotEmpty(t, configFile, "config file")
 	f, err := os.Open(configFile)
 	require.NoError(t, err, configFile)
 	defer f.Close()
@@ -67,15 +68,23 @@ type DestroyFn func() error
 
 // Provision gets VMs up, running and ready to use
 func Provision(ctx context.Context, t *testing.T, config *Config, tag, stateDir string, nodeCount int, os string) ([]gravity.Gravity, DestroyFn, error) {
+	aws := *config.AWS
+	azure := *config.Azure
+
+	aws.ClusterName = tag
+	azure.ResourceGroup = tag
+
 	pConfig := terraform.Config{
 		CloudProvider: config.CloudProvider,
-		AWS:           config.AWS,
-		Azure:         config.Azure,
+		AWS:           &aws,
+		Azure:         &azure,
 		ScriptPath:    config.ScriptPath,
 		NumNodes:      nodeCount,
 		OS:            os,
 	}
 
+	logFn := Logf(t, "provision")
+	logFn("Starting Terraform tag=%s, stateDir=%s, nodes=%d, os=%s", tag, stateDir, nodeCount, os)
 	p, err := terraform.New(filepath.Join(stateDir, tag, "tf"), pConfig)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
@@ -99,41 +108,36 @@ func Provision(ctx context.Context, t *testing.T, config *Config, tag, stateDir 
 	}
 
 	nodes := p.NodePool().Nodes()
-	errCh := make(chan error, len(nodes)+1)
-	resultCh := make(chan gravity.Gravity, len(nodes)+1)
+	errCh := make(chan error, len(nodes))
+	resultCh := make(chan gravity.Gravity, len(nodes))
 	for _, node := range nodes {
 		go func(n infra.Node) {
-			err := ConfigureNode(ctx, t, n, config.InstallerURL, installDir, env)
-			if err != nil {
-				errCh <- trace.Wrap(err)
-				return
-			}
-			g, err := gravity.FromNode(ctx, t.Logf, node, installDir)
-			if err != nil {
-				errCh <- trace.Wrap(err)
-				return
-			}
-			errCh <- nil
+			g, err := ConfigureNode(ctx, logFn, n, config.InstallerURL, installDir, env)
 			resultCh <- g
+			errCh <- trace.Wrap(err)
 		}(node)
 	}
 
-	for _, _ = range nodes {
+	gravityNodes := make([]gravity.Gravity, 0, len(nodes))
+	errors := []error{}
+	for i := 0; i < 2*len(nodes); i++ {
 		select {
 		case <-ctx.Done():
-			return nil, nil, trace.Errorf("timed out waiting for nodes")
+			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
 		case err = <-errCh:
 			if err != nil {
-				return nil, nil, trace.Wrap(err)
+				errors = append(errors, err)
 			}
+		case g := <-resultCh:
+			gravityNodes = append(gravityNodes, g)
 		}
 	}
 
-	gravityNodes := make([]gravity.Gravity, 0, len(nodes))
-	for g := range resultCh {
-		gravityNodes = append(gravityNodes, g)
+	if len(errors) != 0 {
+		return nil, p.Destroy, trace.NewAggregate(errors...)
 	}
 
+	logFn("Provisioned %d nodes, OS=%s, tag=%s, stateDir=%s", len(gravityNodes), os, tag, stateDir)
 	return gravityNodes, p.Destroy, nil
 }
 
@@ -144,38 +148,44 @@ const (
 var cloudInitWait = time.Second * 10
 
 // ConfigureNode is used to configure a provisioned node - i.e. run bootstrap commands, load installer, etc.
-func ConfigureNode(ctx context.Context, t *testing.T, node infra.Node, installerUrl, installDir string, env map[string]string) error {
-	client, err := node.Client()
-	return trace.Wrap(err, "node %s ssh %v", node.Addr(), err)
-
-	err = sshutil.WaitForFile(ctx, t.Logf, client,
-		cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+func ConfigureNode(ctx context.Context, logFn sshutil.LogFnType, node infra.Node, installerUrl, installDir string, env map[string]string) (gravity.Gravity, error) {
+	g, err := gravity.FromNode(ctx, logFn, node, installDir)
 	if err != nil {
-		return trace.Wrap(err, "waiting for %s", cloudInitCompleteFile)
+		return nil, trace.Wrap(err)
 	}
 
-	err = sshutil.TestFile(ctx, t.Logf,
-		client, installDir, sshutil.TestDir)
+	err = sshutil.WaitForFile(ctx, logFn, g.Client(),
+		cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	if err != nil {
+		return nil, trace.Wrap(err, "waiting for %s", cloudInitCompleteFile)
+	}
+
+	configCompleteFile := filepath.Join(installDir, "config_complete")
+
+	err = sshutil.TestFile(ctx, logFn,
+		g.Client(), configCompleteFile, sshutil.TestRegularFile)
 
 	if err == nil {
-		t.Logf("node %s has install dir, skipping", node.Addr())
-		return nil
+		logFn("node %v was already configured", node.Addr())
+		return g, nil
 	}
 
 	if !trace.IsNotFound(err) {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	tgz, err := sshutil.TransferFile(ctx, t.Logf, client, installerUrl, installDir, env)
+	tgz, err := sshutil.TransferFile(ctx, logFn, g.Client(), installerUrl, installDir, env)
 	if err != nil {
-		return trace.Wrap(err, installerUrl)
+		return nil, trace.Wrap(err, installerUrl)
 	}
 
-	cmd := fmt.Sprintf("tar -xvf %s -C %s", tgz, installDir)
-	err = sshutil.Run(ctx, t.Logf, client, cmd, nil)
+	err = sshutil.RunCommands(ctx, logFn, g.Client(), []sshutil.Cmd{
+		{fmt.Sprintf("tar -xvf %s -C %s", tgz, installDir), nil},
+		{fmt.Sprintf("touch %s", configCompleteFile), nil},
+	})
 	if err != nil {
-		return trace.Wrap(err, cmd)
+		return nil, trace.Wrap(err)
 	}
 
-	return nil
+	return g, nil
 }

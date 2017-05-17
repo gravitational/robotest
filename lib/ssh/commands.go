@@ -21,12 +21,11 @@ type Cmd struct {
 func RunCommands(ctx context.Context, logFn LogFnType, client *ssh.Client, commands []Cmd) error {
 	for _, cmd := range commands {
 		_, exit, err := RunAndParse(ctx, logFn, client, cmd.Command, cmd.Env, ParseDiscard)
-		logFn("%s exit=%d, error=%v", cmd.Command, exit, err)
 		if err != nil {
 			return trace.Wrap(err, cmd.Command)
 		}
 		if exit != 0 {
-			return trace.Errorf("%s returned %d", cmd.Command, exit)
+			return trace.Errorf("[%v] %s returned %d", client.RemoteAddr(), cmd.Command, exit)
 		}
 	}
 	return nil

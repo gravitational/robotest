@@ -64,7 +64,7 @@ type AWSConfig struct {
 	// ExpandAwsInstanceType specifies an optional instance type for AWS expand operation
 	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type"`
 	// ClusterName defines tagging and placement group for resources allocated
-	ClusterName string `json:"cluster_name" yaml:"cluster_name" validate:"required"`
+	ClusterName string `json:"cluster_name" yaml:"cluster_name"`
 }
 
 // FIXME : replace with embedded validation rules
@@ -84,7 +84,7 @@ type AzureConfig struct {
 	TenantId string `json:"tenant_id" yaml:"tenant_id" validate:"required"`
 
 	// Resource Group defines logical grouping of resources, and makes it easy to wipe them once not needed
-	ResourceGroup string `json:"azure_resource_group" yaml:"resource_group" validate:"required"`
+	ResourceGroup string `json:"azure_resource_group" yaml:"resource_group"`
 	// Location specifies the datacenter region to install into
 	// https://azure.microsoft.com/en-ca/regions/
 	Location string `json:"location" yaml:"location" validate:"required"`

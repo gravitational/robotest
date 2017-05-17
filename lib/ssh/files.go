@@ -36,10 +36,8 @@ func TransferFile(ctx context.Context, logFn LogFnType, client *ssh.Client, file
 		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	baseDir := filepath.Dir(u.Path)
-
 	err = RunCommands(ctx, logFn, client, []Cmd{
-		{fmt.Sprintf("mkdir -p %s", baseDir), nil},
+		{fmt.Sprintf("mkdir -p %s", dstDir), nil},
 		{cmd, env},
 	})
 	if err == nil {
@@ -76,7 +74,7 @@ func TestFile(ctx context.Context, logFn LogFnType, client *ssh.Client, path, te
 	case 1:
 		return trace.NotFound(path)
 	default:
-		return trace.Errorf("%s returned exit code %d", cmd, exit)
+		return trace.Errorf("[%v] %s returned exit code %d", client.RemoteAddr(), cmd, exit)
 	}
 }
 
@@ -87,10 +85,10 @@ func WaitForFile(ctx context.Context, logFn LogFnType, client *ssh.Client, path,
 			client, path, test)
 
 		if trace.IsNotFound(err) {
-			logFn("waiting for %s, will retry in %v", path, sleepDuration)
+			logFn("[%v] waiting for %s, will retry in %v", client.RemoteAddr(), path, sleepDuration)
 			select {
 			case <-ctx.Done():
-				return trace.Errorf("timed out waiting for %s", path)
+				return trace.Errorf("[%v] timed out waiting for %s", client.RemoteAddr(), path)
 			case <-time.After(sleepDuration):
 				continue
 			}
@@ -100,6 +98,6 @@ func WaitForFile(ctx context.Context, logFn LogFnType, client *ssh.Client, path,
 			return nil
 		}
 
-		return trace.Wrap(err, "waiting for %s", path)
+		return trace.Wrap(err, "[%v] waiting for %s", client.RemoteAddr(), path)
 	}
 }

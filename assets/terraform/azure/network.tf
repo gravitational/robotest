@@ -8,10 +8,10 @@ resource "azurerm_network_security_group" "robotest" {
   resource_group_name = "${azurerm_resource_group.robotest.name}"
 
   security_rule {
-    name                       = "DenyVirtualNetwork"
+    name                       = "AllowVirtualNetwork"
     priority                   = 200
     direction                  = "Inbound"
-    access                     = "Deny"
+    access                     = "Allow"
     protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = "*"

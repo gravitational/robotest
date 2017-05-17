@@ -6,6 +6,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,32 +15,36 @@ const (
 )
 
 func testOfflineInstall(ctx context.Context, t *testing.T, nodes []gravity.Gravity) {
-	require.True(t, len(nodes) >= 2, "at least 2 nodes")
+	require.NotZero(t, len(nodes), "at least 1 node")
 
 	master := nodes[0]
 	token := "ROBOTEST"
-	err := master.Install(ctx, gravity.InstallCmd{
-		Token: token,
-	})
-	require.NoError(t, err, "gravity master installer")
 
-	errs := make(chan error)
+	errs := make(chan error, len(nodes))
+	go func() {
+		errs <- master.Install(ctx, gravity.InstallCmd{
+			DockerVolume: "/dev/sdd",
+			Token:        token,
+		})
+	}()
+
 	for _, node := range nodes[1:] {
-		go func() {
+		go func(n gravity.Gravity) {
 			// TODO: how to properly define node role ?
-			errs <- node.Join(ctx, master.Node().PrivateAddr(), token, defaultRole)
-		}()
+			errs <- n.Join(ctx, master.Node().PrivateAddr(), token, defaultRole)
+		}(node)
 	}
 
-	for _, node := range nodes[1:] {
-		err = <-errs
-		require.NoError(t, err, "joining cluster")
+	for range nodes {
+		assert.NoError(t, <-errs)
 	}
 
 	// ensure all nodes see each other
+	logFn := Logf(t, "offlineInstall")
 	for _, node := range nodes {
 		status, err := node.Status(ctx)
 		require.NoError(t, err, "node status")
+		logFn("node %s status=%+v", node.Node().Addr(), status)
 		// TODO: how to properly verify?
 	}
 }
