@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"time"
 
 	"github.com/gravitational/trace"
 
@@ -13,33 +14,38 @@ import (
 
 // TransferFile takes file URL which may be S3 or HTTP or local file and transfers it to remote the machine
 // fileUrl - file to download, could be S3:// or http(s)://
-func TransferFile(ctx context.Context, logFn LogFnType, client *ssh.Client, fileUrl, dst string, env map[string]string) error {
+func TransferFile(ctx context.Context, logFn LogFnType, client *ssh.Client, fileUrl, dstDir string, env map[string]string) (path string, err error) {
 	u, err := url.Parse(fileUrl)
 	if err != nil {
-		return trace.Wrap(err, "parsing %s", fileUrl)
+		return "", trace.Wrap(err, "parsing %s", fileUrl)
 	}
 
+	fname := filepath.Base(u.Path)
+	dstPath := filepath.Join(dstDir, fname)
 	var cmd string
 	switch u.Scheme {
 	case "s3":
-		cmd = fmt.Sprintf(`aws s3 cp %s - > %s`, fileUrl, dst)
+		cmd = fmt.Sprintf(`aws s3 cp %s - > %s`, fileUrl, dstPath)
 	case "http":
 	case "https":
-		cmd = fmt.Sprintf("wget %s -O %s/", fileUrl, dst)
+		cmd = fmt.Sprintf("wget %s -O %s/", fileUrl, dstPath)
 	case "":
 	case "gs":
 	default:
 		// TODO : implement SCP and GCLOUD methods
-		return fmt.Errorf("unsupported URL schema %s", fileUrl)
+		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	baseDir := filepath.Dir(dst)
+	baseDir := filepath.Dir(u.Path)
 
 	err = RunCommands(ctx, logFn, client, []Cmd{
 		{fmt.Sprintf("mkdir -p %s", baseDir), nil},
 		{cmd, env},
 	})
-	return trace.Wrap(err)
+	if err == nil {
+		return dstPath, nil
+	}
+	return "", trace.Wrap(err)
 }
 
 const (
@@ -71,5 +77,29 @@ func TestFile(ctx context.Context, logFn LogFnType, client *ssh.Client, path, te
 		return trace.NotFound(path)
 	default:
 		return trace.Errorf("%s returned exit code %d", cmd, exit)
+	}
+}
+
+// WaitForFile waits for a test to become true against a remote file (or context to expire)
+func WaitForFile(ctx context.Context, logFn LogFnType, client *ssh.Client, path, test string, sleepDuration time.Duration) error {
+	for {
+		err := TestFile(ctx, logFn,
+			client, path, test)
+
+		if trace.IsNotFound(err) {
+			logFn("waiting for %s, will retry in %v", path, sleepDuration)
+			select {
+			case <-ctx.Done():
+				return trace.Errorf("timed out waiting for %s", path)
+			case <-time.After(sleepDuration):
+				continue
+			}
+		}
+
+		if err == nil {
+			return nil
+		}
+
+		return trace.Wrap(err, "waiting for %s", path)
 	}
 }

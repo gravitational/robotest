@@ -15,7 +15,7 @@ func (c *Config) Validate() error {
 	return trace.Errorf("Missing or invalid configuration for cloud %s", c.CloudProvider)
 }
 
-func (c Config) sshConfig() (user, keypath string) {
+func (c Config) SSHConfig() (user, keypath string) {
 	switch c.CloudProvider {
 	case "aws":
 		return c.AWS.SSHUser, c.AWS.SSHKeyPath
@@ -35,6 +35,8 @@ type Config struct {
 	AWS *infra.AWSConfig
 	// Azure defines Azure connection parameters
 	Azure *infra.AzureConfig
+	// OS defines OS flavor, ubuntu | redhat | centos | debian
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `json:"script_path" validate:"required"`

@@ -31,7 +31,7 @@ const (
 )
 
 func New(stateDir string, config Config) (*terraform, error) {
-	user, keypath := config.sshConfig()
+	user, keypath := config.SSHConfig()
 
 	return &terraform{
 		Entry: log.WithFields(log.Fields{
@@ -59,7 +59,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 		installerIP: stateConfig.InstallerAddr,
 	}
 
-	t.sshUser, t.sshKeyPath = config.sshConfig()
+	t.sshUser, t.sshKeyPath = config.SSHConfig()
 
 	nodes := make([]infra.Node, 0, len(stateConfig.Nodes))
 	for _, n := range stateConfig.Nodes {
@@ -163,6 +163,7 @@ func (r *terraform) Destroy() error {
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
 	_, err := r.command([]string{
 		"destroy", "-force",
+		"-var", fmt.Sprintf("os=", r.Config.OS),
 		fmt.Sprintf("-var-file=%s", tfVarsFile),
 	})
 	return trace.Wrap(err)
@@ -175,12 +176,22 @@ func (r *terraform) SelectInterface(installer infra.Node, addrs []string) (int, 
 
 // Connect establishes an SSH connection to the specified address
 func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
+	client, err := r.Client(addrIP)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return client.NewSession()
+}
+
+// Client establishes an SSH connection to the specified address
+func (r *terraform) Client(addrIP string) (*ssh.Client, error) {
 	keyFile, err := os.Open(r.sshKeyPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return sshutils.Connect(fmt.Sprintf("%v:22", addrIP), r.sshUser, keyFile)
+	return sshutils.Client(fmt.Sprintf("%v:22", addrIP), r.sshUser, keyFile)
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {
@@ -226,18 +237,6 @@ func (r *terraform) State() infra.ProvisionerState {
 func (r *terraform) Write(p []byte) (int, error) {
 	fmt.Fprint(os.Stderr, string(p))
 	return len(p), nil
-}
-
-func (r *node) Addr() string {
-	return r.publicIP
-}
-
-func (r *node) Connect() (*ssh.Session, error) {
-	return r.owner.Connect(r.publicIP)
-}
-
-func (r node) String() string {
-	return fmt.Sprintf("node(addr=%v)", r.publicIP)
 }
 
 func (r *terraform) boot() (output string, err error) {
@@ -304,12 +303,6 @@ type terraform struct {
 	pool        infra.NodePool
 	stateDir    string
 	installerIP string
-}
-
-type node struct {
-	owner     *terraform
-	publicIP  string
-	privateIP string
 }
 
 var (

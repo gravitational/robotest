@@ -1,18 +1,23 @@
-package suite
+package functional
 
 import (
+	"context"
 	"testing"
+
+	"github.com/gravitational/robotest/infra/gravity"
+
+	"github.com/stretchr/testify/require"
 )
 
-func testExpand(t *testing.T, current, extra []Node) {
-	joinAddr := current[0].PrivateAddr()
-	status, err := current[0].Status()
+func testExpand(ctx context.Context, t *testing.T, current, extra []gravity.Gravity) {
+	joinAddr := current[0].Node().PrivateAddr()
+	status, err := current[0].Status(ctx)
 	require.NoError(t, err, "cluster status")
 
 	errs := make(chan error)
 	for _, node := range extra {
 		go func() {
-			errs <- node.Gravity().Join(joinAddr, status.Token, defaultRole)
+			errs <- node.Join(ctx, joinAddr, status.Token, defaultRole)
 		}()
 	}
 
@@ -20,12 +25,16 @@ func testExpand(t *testing.T, current, extra []Node) {
 		require.NoError(t, <-errs, "cluster join")
 	}
 
-	all := append([]Node{}, current)
+	all := append([]gravity.Gravity{}, current)
 	all = append(all, extra)
 
 	for _, node := range all {
-		status, err := node.Gravity().Status()
+		status, err := node.Status(ctx)
 		require.NoError(t, err, "node status")
-		requireNodes(t, status, nodes)
+		// TODO: proper assertion here
 	}
+}
+
+func testShrink(ctx context.Context, t *testing.T, nodesKeep, nodesRemove []gravity.Gravity) {
+	t.Skip()
 }

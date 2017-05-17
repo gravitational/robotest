@@ -17,6 +17,22 @@ type LogFnType func(format string, args ...interface{})
 
 const exitStatusUndefined = -1
 
+// Run is a simple method to run external program and don't care about its output or exit status
+func Run(ctx context.Context, logFn LogFnType, client *ssh.Client, cmd string, env map[string]string) error {
+	_, exit, err := RunAndParse(ctx, logFn, client,
+		cmd, env, ParseDiscard)
+
+	if err != nil {
+		return trace.Wrap(err, cmd)
+	}
+
+	if exit != 0 {
+		return trace.Errorf("%s returned %d", cmd, exit)
+	}
+
+	return nil
+}
+
 // RunAndParse runs remote SSH command with environment variables set by `env`
 // exitStatus is -1 if undefined
 func RunAndParse(ctx context.Context, logFn LogFnType, client *ssh.Client, cmd string, env map[string]string, parse OutputParseFn) (out interface{}, exitStatus int, err error) {

@@ -1,25 +1,24 @@
-package suite
+package functional
 
 import (
-	"sync"
+	"context"
 	"testing"
 
-	. "github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/gravity"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestOfflineInstall(t *testing.T) {
-	nodes, err := ProvisionNodes()
-	require.NoError(t, err, "provision nodes")
-}
+const (
+	defaultRole = "worker"
+)
 
-func testOfflineInstall(t *testing.T, nodes []Node) {
+func testOfflineInstall(ctx context.Context, t *testing.T, nodes []gravity.Gravity) {
 	require.True(t, len(nodes) >= 2, "at least 2 nodes")
 
 	master := nodes[0]
-	token := makeUUID()
-	err := master.Gravity().Install(InstallCmd{
+	token := "ROBOTEST"
+	err := master.Install(ctx, gravity.InstallCmd{
 		Token: token,
 	})
 	require.NoError(t, err, "gravity master installer")
@@ -27,7 +26,8 @@ func testOfflineInstall(t *testing.T, nodes []Node) {
 	errs := make(chan error)
 	for _, node := range nodes[1:] {
 		go func() {
-			errs <- node.Gravity().Join(master.PrivateAddr(), token, defaultRole)
+			// TODO: how to properly define node role ?
+			errs <- node.Join(ctx, master.Node().PrivateAddr(), token, defaultRole)
 		}()
 	}
 
@@ -38,8 +38,8 @@ func testOfflineInstall(t *testing.T, nodes []Node) {
 
 	// ensure all nodes see each other
 	for _, node := range nodes {
-		status, err := node.Gravity().Status()
+		status, err := node.Status(ctx)
 		require.NoError(t, err, "node status")
-		requireNodes(t, status, nodes)
+		// TODO: how to properly verify?
 	}
 }
