@@ -57,7 +57,7 @@ type AWSConfig struct {
 	// InstanceType defines the type of AWS EC2 instance to boot.
 	// Relevant only with terraform provisioner.
 	// Defaults are specific to the terraform script used (if any)
-	InstanceType string `json:"omitempty,instance_type" yaml:"instance_type"`
+	InstanceType string `json:"instance_type,omitempty" yaml:"instance_type"`
 	// ExpandProfile specifies an optional name of the server profile for AWS expand operation.
 	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile"`
