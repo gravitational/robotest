@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,9 +19,9 @@ var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
 var testTimeout = time.Minute * 30
 
 func TestBasic(t *testing.T) {
-	config := LoadConfig(t, *configFile)
+	config := gravity.LoadConfig(t, *configFile)
 
-	logFn := Logf(t, "")
+	logFn := gravity.Logf(t, "")
 
 	var err error
 	var dir = *stateDir

@@ -4,11 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gravitational/robotest/infra/gravity"
+
 	"github.com/stretchr/testify/require"
 )
 
-func testOfflineBasic(ctx context.Context, t *testing.T, os string, config *Config, tag, dir string) {
-	nodes, destroyFn, err := Provision(ctx, t, config, tag, dir, 6, os)
+func testOfflineBasic(ctx context.Context, t *testing.T, os string, config *gravity.ProvisionerConfig, tag, dir string) {
+	nodes, destroyFn, err := gravity.Provision(ctx, t, config, tag, dir, 6, os)
 	require.NoError(t, err, "provision nodes")
 	require.Len(t, nodes, 6)
 
@@ -22,7 +24,7 @@ func testOfflineBasic(ctx context.Context, t *testing.T, os string, config *Conf
 	ok := t.Run("installOffline 3 nodes", func(t *testing.T) {
 		testOfflineInstall(ctx, t, nodes[0:3])
 	})
-	require.True(t, ok, "installOffline 1 node")
+	require.True(t, ok, "installOffline 3 node")
 	return
 
 	ok = t.Run("expandOffline to 6 nodes", func(t *testing.T) {

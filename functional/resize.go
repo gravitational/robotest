@@ -15,12 +15,15 @@ func testExpand(ctx context.Context, t *testing.T, current, extra []gravity.Grav
 	status, err := current[0].Status(ctx)
 	require.NoError(t, err, "cluster status")
 
-	logFn := Logf(t, "testExpand")
+	logFn := gravity.Logf(t, "testExpand")
 
 	errs := make(chan error)
 	for _, node := range extra {
 		go func(n gravity.Gravity) {
-			errs <- n.Join(ctx, joinAddr, status.Token, defaultRole)
+			errs <- n.Join(ctx, gravity.JoinCmd{
+				PeerAddr: joinAddr,
+				Token:    status.Token,
+				Role:     defaultRole})
 		}(node)
 	}
 

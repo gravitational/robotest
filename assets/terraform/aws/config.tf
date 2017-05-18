@@ -1,9 +1,11 @@
 variable "access_key" {}
 variable "secret_key" {}
 variable "ssh_user" {}
-variable "region" {}
-
 variable "key_pair" {}
+variable "region" {}
+variable "docker_device" {
+	description = "block device used by docker"
+}
 
 variable "cluster_name" { }
 

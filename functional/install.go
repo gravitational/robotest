@@ -23,15 +23,17 @@ func testOfflineInstall(ctx context.Context, t *testing.T, nodes []gravity.Gravi
 	errs := make(chan error, len(nodes))
 	go func() {
 		errs <- master.Install(ctx, gravity.InstallCmd{
-			DockerVolume: "/dev/sdd",
-			Token:        token,
+			Token: token,
 		})
 	}()
 
 	for _, node := range nodes[1:] {
 		go func(n gravity.Gravity) {
 			// TODO: how to properly define node role ?
-			errs <- n.Join(ctx, master.Node().PrivateAddr(), token, defaultRole)
+			errs <- n.Join(ctx, gravity.JoinCmd{
+				PeerAddr: master.Node().PrivateAddr(),
+				Token:    token,
+				Role:     defaultRole})
 		}(node)
 	}
 
@@ -40,7 +42,7 @@ func testOfflineInstall(ctx context.Context, t *testing.T, nodes []gravity.Gravi
 	}
 
 	// ensure all nodes see each other
-	logFn := Logf(t, "offlineInstall")
+	logFn := gravity.Logf(t, "offlineInstall")
 	for _, node := range nodes {
 		status, err := node.Status(ctx)
 		require.NoError(t, err, "node status")

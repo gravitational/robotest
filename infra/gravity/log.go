@@ -1,4 +1,4 @@
-package functional
+package gravity
 
 import (
 	"fmt"

@@ -29,7 +29,7 @@ resource "aws_instance" "node" {
     ebs_block_device = {
         volume_type = "gp2"
         volume_size = "80"
-        device_name = "/dev/xvdb"
+        device_name = "${var.docker_device}"
         delete_on_termination = true
     }
 
