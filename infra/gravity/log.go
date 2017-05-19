@@ -15,6 +15,6 @@ func init() {
 func Logf(t *testing.T, prefix string) sshutils.LogFnType {
 	return func(format string, args ...interface{}) {
 		t.Logf(format, args...)
-		log.Printf(fmt.Sprintf("[%s %s] %s", t.Name(), prefix, format), args...)
+		log.Printf(fmt.Sprintf("[%s] %s", prefix, format), args...)
 	}
 }

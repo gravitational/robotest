@@ -327,6 +327,10 @@ func (r *node) Addr() string {
 	return r.addrIP
 }
 
+func (r *node) PrivateAddr() string {
+	return r.addrIP
+}
+
 func (r *node) Connect() (*ssh.Session, error) {
 	client, err := r.Client()
 	if err != nil {
@@ -337,6 +341,8 @@ func (r *node) Connect() (*ssh.Session, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
+	return session, nil
 }
 
 func (r *node) Client() (*ssh.Client, error) {

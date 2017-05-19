@@ -3,16 +3,29 @@ package terraform
 import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/trace"
+
+	"gopkg.in/go-playground/validator.v9"
 )
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	if (c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != "") ||
-		(c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != "") {
-		return nil
+	errors := []error{}
+
+	err := validator.New().Struct(c)
+	if validationErrors, ok := err.(validator.ValidationErrors); err != nil && ok {
+		for _, fieldError := range validationErrors {
+			errors = append(errors,
+				trace.Errorf(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag()))
+		}
 	}
 
-	return trace.Errorf("Missing or invalid configuration for cloud %s", c.CloudProvider)
+	if (c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != "") ||
+		(c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != "") == false {
+		errors = append(errors,
+			trace.Errorf("SSH configuration missing for %s", c.CloudProvider))
+	}
+
+	return trace.NewAggregate(errors...)
 }
 
 func (c Config) SSHConfig() (user, keypath string) {

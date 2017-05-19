@@ -29,8 +29,8 @@ RUN adduser chromedriver --uid=995 --disabled-password --system
 RUN mkdir -p /robotest
 WORKDIR /robotest
 COPY entrypoint.sh /entrypoint.sh
-COPY build/robotest /usr/bin/robotest
+COPY build/robotest-e2e /usr/bin/robotest-e2e
 
-RUN chmod +x /usr/bin/robotest
+RUN chmod +x /usr/bin/robotest-e2e
 
 ENTRYPOINT ["/entrypoint.sh"]
