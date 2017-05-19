@@ -47,12 +47,11 @@ endif
 #
 
 .PHONY: $(TARGETS)
-$(TARGETS): clean 
+$(TARGETS): clean vendor
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
-.PHONY: deps
-deps:
+vendor:
 	cd $(SRCDIR) && glide install
 
 .PHONY: clean
