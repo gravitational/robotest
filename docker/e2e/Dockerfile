@@ -1,7 +1,7 @@
 FROM quay.io/gravitational/debian-grande:0.0.1
 
-ENV TERRAFORM_VERSION=0.9.3
-ENV CHROMEDRIVER_VERSION=2.29
+ARG TERRAFORM_VERSION
+ARG CHROMEDRIVER_VERSION
 
 RUN apt-get update && \
     apt-get install -y curl && \
@@ -29,8 +29,8 @@ RUN adduser chromedriver --uid=995 --disabled-password --system
 RUN mkdir -p /robotest
 WORKDIR /robotest
 COPY entrypoint.sh /entrypoint.sh
-COPY build/robotest /usr/bin/robotest
+COPY build/robotest-e2e /usr/bin/robotest-e2e
 
-RUN chmod +x /usr/bin/robotest
+RUN chmod +x /usr/bin/robotest-e2e
 
 ENTRYPOINT ["/entrypoint.sh"]

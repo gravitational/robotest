@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"io/ioutil"
+	"net"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -14,10 +15,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// Connect creates a new connection to the remote system specified with
+// Client creates a new SSH client specified by
 // addr and user. keyInput defines the SSH key to use for authentication.
-// Returns a new session object if successful.
-func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
+// Returns a SSH client
+func Client(addr, user string, keyInput io.Reader) (*ssh.Client, error) {
 	keyBytes, err := ioutil.ReadAll(keyInput)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -33,9 +34,17 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 			ssh.PublicKeys(key),
 		},
 		Timeout: defaults.SSHConnectTimeout,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
 	}
 
-	client, err := ssh.Dial("tcp", addr, conf)
+	return ssh.Dial("tcp", addr, conf)
+}
+
+// Connect connects to remote SSH server and returns new session
+func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
+	client, err := Client(addr, user, keyInput)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -45,7 +54,6 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	log.Infof("connected to %v@%v", user, addr)
 	return session, nil
 }
 

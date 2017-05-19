@@ -253,9 +253,10 @@ type OnpremConfig struct {
 	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
 	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile"`
-	// DockerDevice specifies the device for docker with devicemapper driver
-	// With empty value docker will use loopback device
-	DockerDevice string `json:"docker_device" yaml:"docker_device"`
+	// OS defines OS flavor, ubuntu | redhat | centos | debian
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
+	// DockerDevice block device for docker data - set to /dev/xvdb
+	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
@@ -419,11 +420,11 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 	}
 
 	config = &terraform.Config{
-		Config:       infraConfig,
-		ScriptPath:   TestContext.Onprem.ScriptPath,
-		InstallerURL: TestContext.Onprem.InstallerURL,
-		NumNodes:     TestContext.Onprem.NumNodes,
-
+		Config:        infraConfig,
+		ScriptPath:    TestContext.Onprem.ScriptPath,
+		InstallerURL:  TestContext.Onprem.InstallerURL,
+		NumNodes:      TestContext.Onprem.NumNodes,
+		OS:            TestContext.Onprem.OS,
 		CloudProvider: TestContext.CloudProvider,
 		AWS:           TestContext.AWS,
 		Azure:         TestContext.Azure,

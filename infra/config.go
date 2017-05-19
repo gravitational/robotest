@@ -64,9 +64,9 @@ type AWSConfig struct {
 	// ExpandAwsInstanceType specifies an optional instance type for AWS expand operation
 	ExpandAWSInstanceType string `json:"expand_instance_type" yaml:"expand_instance_type"`
 	// ClusterName defines tagging and placement group for resources allocated
-	ClusterName string `json:"cluster_name" yaml:"cluster_name" validate:"required"`
-	// OS defines OS flavor, ubuntu | redhat | centos | debian
-	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
+	ClusterName string `json:"cluster_name" yaml:"cluster_name"`
+	// DockerDevice block device for docker data - set to /dev/xvdb
+	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }
 
 // FIXME : replace with embedded validation rules
@@ -84,9 +84,8 @@ type AzureConfig struct {
 	ClientSecret string `json:"client_secret" yaml:"client_secret" validate:"required"`
 	// TenantId https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
 	TenantId string `json:"tenant_id" yaml:"tenant_id" validate:"required"`
-
 	// Resource Group defines logical grouping of resources, and makes it easy to wipe them once not needed
-	ResourceGroup string `json:"azure_resource_group" yaml:"resource_group" validate:"required"`
+	ResourceGroup string `json:"azure_resource_group" yaml:"resource_group"`
 	// Location specifies the datacenter region to install into
 	// https://azure.microsoft.com/en-ca/regions/
 	Location string `json:"location" yaml:"location" validate:"required"`
@@ -99,6 +98,6 @@ type AzureConfig struct {
 	AuthorizedKeysPath string `json:"ssh_authorized_keys_path" yaml:"authorized_keys_path" validate:"required"`
 	// SSHUser defines SSH user used to connect to the provisioned machines
 	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
-	// OS defines OS flavor, ubuntu | redhat | centos | debian
-	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
+	// DockerDevice block device for docker data - set to /dev/sdd
+	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }
