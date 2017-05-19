@@ -117,7 +117,7 @@ The `auth_provider` is one of [`google`, `email`].
   - `os` parameter should be either ubuntu, redhat, centos or debian
 
 ### Azure configuration
- - Currently CentOS / RHEL [do not support cloud-init on Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init), and you need provision VMs first, then manually run bootstrap script.
+ - Currently CentOS / RHEL [do not support cloud-init on Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init), and you need to provision VMs first, then manually run bootstrap script.
  - See [access credentials](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) documentation.
  - `os` parameter should be either ubuntu, redhat, centos or debian
 
@@ -129,10 +129,10 @@ run tests from an installer tarball. See below on details about the [Wizard mode
 The `installer_url` specifies either the URL of the installer tarball to download (as required by the `terraform` provisioner) or
 a path to a local tarball for `vagrant`. The `installer_url` is optional and is only required for [Wizard mode](#wizard-mode).
 
-The `docker_device` specifies the device for docker with devicemapper driver. With empty value for this param docker will use loopback device, which is not recommended for prodaction usage.
+The `docker_device` specifies the device for docker with the `devicemapper` storage driver. If unspecified, docker will use loopback device, which is not recommended for production usage.
 
-The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
-Note the `flavor_label` paramater in the global configuration section - this parameter specifies the actual
+The `nodes` parameter specifies the total cluster capacity (e.g. the total number of nodes to provision).
+Note the `flavor_label` parameter in the global configuration section - this parameter specifies the actual
 installation flavor which determines the number of nodes used for installation. The selected flavor should not exceed the number of `nodes`.
 
 ### Step configuration
@@ -232,7 +232,7 @@ The `login` block for configuration is not necessary for the wizard mode as the 
 The package uses [ginkgo] as a test runner. The tests are split into [specs] (independent pieces that can be tested individually and in arbitrary order).
 We differentiate the tests in two directions: AWS and bare metal.
 
-Here're the relevant top-level test specs:
+List of relevant top-level test specs:
 
   * `Onprem Installation` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
   * `AWS Installation` specifies the context for installing an application on AWS cloud (using automatic provisioning)
@@ -281,7 +281,7 @@ This is only relevant for bare metal configurations. The automatically provision
 ## Usage of Docker image
 
 Docker image includes `robotest`, `terraform` and `chromedriver` binaries. Robotest inside docker image can work only with `terraform` provider
-and only with config in YAML or JSON format.
+and only with configuration in YAML or JSON format.
 How to use it:
 
 ``` shell
