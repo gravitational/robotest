@@ -361,8 +361,8 @@ func newContextConfig(configFile string) error {
 		return nil
 	}
 
-	log.Errorf("Configuration file %s has errors", configFile)
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
+		log.Errorf("configuration file %s has errors", configFile)
 		for _, fieldError := range validationErrors {
 			log.Errorf("   field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
 		}

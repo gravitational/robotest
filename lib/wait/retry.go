@@ -1,28 +1,23 @@
 package wait
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/trace"
 )
 
-const (
-	// exponentialRetryInitialDelay is the interval between the first and second retry attempts
-	exponentialRetryInitialDelay = 5 * time.Second
-	// exponentialRetryMaxDelay is the maximum delay between retry attempts
-	exponentialRetryMaxDelay = 30 * time.Second
-)
-
 // Abort causes Retry function to stop with error
-func Abort(err error) *AbortRetry {
-	return &AbortRetry{Err: err}
+func Abort(err error) AbortRetry {
+	return AbortRetry{err}
 }
 
 // Continue causes Retry function to continue trying and logging message
-func Continue(message string) *ContinueRetry {
-	return &ContinueRetry{Message: message}
+func Continue(message string) ContinueRetry {
+	return ContinueRetry{message}
 }
 
 // AbortRetry if returned from Retry, will lead to retries to be stopped,
@@ -31,8 +26,8 @@ type AbortRetry struct {
 	Err error
 }
 
-func (a *AbortRetry) Error() string {
-	return fmt.Sprintf("Abort(%v)", a.Err)
+func (r AbortRetry) Error() string {
+	return fmt.Sprintf("Abort(%v)", r.Err)
 }
 
 // ContinueRetry if returned from Retry, will be lead to retry next time
@@ -40,29 +35,60 @@ type ContinueRetry struct {
 	Message string
 }
 
-func (s *ContinueRetry) Error() string {
-	return fmt.Sprintf("ContinueRetry(%v)", s.Message)
+func (r ContinueRetry) Error() string {
+	return fmt.Sprintf("ContinueRetry(%v)", r.Message)
 }
 
-// Retry attempts to execute fn up to maxAttempts sleepig for period between attempts.
-// fn can return an instance of Abort to abort or Continue to continue the execution.
-func Retry(period time.Duration, maxAttempts int, fn func() error) error {
-	var err error
-	for i := 1; i <= maxAttempts; i += 1 {
+// Retry attempts to execute fn with default delay retrying it for a default number of attempts.
+// fn can return AbortRetry to abort or ContinueRetry to continue the execution.
+func Retry(ctx context.Context, fn func() error) error {
+	r := Retryer{
+		Delay:    defaults.RetryDelay,
+		Attempts: defaults.RetryAttempts,
+	}
+	return r.Do(ctx, fn)
+}
+
+// Do retries the given function fn for the configured number of attempts until it succeeds
+// or all attempts have been exhausted
+func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
+	if r.Entry == nil {
+		r.Entry = log.NewEntry(log.StandardLogger())
+	}
+
+	for i := 1; i <= r.Attempts; i += 1 {
 		err = fn()
 		if err == nil {
 			return nil
 		}
+
 		switch origErr := err.(type) {
-		case *AbortRetry:
+		case AbortRetry:
 			return origErr.Err
-		case *ContinueRetry:
-			log.Debugf("%v retry in %v", origErr.Message, period)
+		case ContinueRetry:
+			r.Debugf("%v retry in %v", origErr.Message, r.Delay)
 		default:
-			log.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), period)
+			r.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), r.Delay)
 		}
-		time.Sleep(period)
+
+		select {
+		case <-time.After(r.Delay):
+		case <-ctx.Done():
+			r.Error("timed out")
+			return err
+		}
 	}
-	log.Errorf("all attempts failed:\n%v", trace.DebugReport(err))
+	r.Errorf("all attempts failed:\n%v", trace.DebugReport(err))
 	return err
+}
+
+// Retryer is a process that can retry a function
+type Retryer struct {
+	// Delay specifies the interval between retry attempts
+	Delay time.Duration
+	// Attempts specifies the number of attempts to execute before failing.
+	// Should be >= 1, zero value is not useful
+	Attempts int
+	// Entry specifies the log sink
+	*log.Entry
 }

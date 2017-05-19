@@ -1,7 +1,8 @@
 package infra
 
 import (
-	"github.com/gravitational/robotest/lib/defaults"
+	"context"
+
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 	"golang.org/x/crypto/ssh"
@@ -12,7 +13,7 @@ import (
 // UploadUpdate uploads a new application version to the installer node
 func UploadUpdate(provisioner Provisioner, installer Node) (err error) {
 	var session *ssh.Session
-	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+	err = wait.Retry(context.TODO(), func() error {
 		session, err = installer.Connect()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))
