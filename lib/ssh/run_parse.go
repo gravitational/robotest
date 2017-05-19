@@ -71,7 +71,7 @@ func RunAndParse(ctx context.Context, logFn LogFnType, client *ssh.Client, cmd s
 		}
 	}()
 
-	outCh := make(chan interface{}, 2)
+	outCh := make(chan interface{}, 1)
 	go func() {
 		out, err := parse(bufio.NewReader(
 			&readLogger{fmt.Sprintf("[%v] %s [stdout]", client.RemoteAddr(), cmd), logFn, stdout}))
@@ -82,7 +82,7 @@ func RunAndParse(ctx context.Context, logFn LogFnType, client *ssh.Client, cmd s
 		}
 	}()
 
-	runCh := make(chan error, 2)
+	runCh := make(chan error, 1)
 	go func() {
 		logFn("[%v] (starting) %s", client.RemoteAddr(), cmd)
 		runCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
@@ -90,9 +90,10 @@ func RunAndParse(ctx context.Context, logFn LogFnType, client *ssh.Client, cmd s
 
 	select {
 	case <-ctx.Done():
+		err := session.Signal(ssh.SIGTERM)
 		return nil, exitStatusUndefined,
 			trace.Errorf("[%v] %s timed out, sending SIGTERM: %v",
-				client.RemoteAddr(), cmd, session.Signal(ssh.SIGTERM))
+				client.RemoteAddr(), cmd, err)
 	case err = <-runCh:
 		if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
 			logFn("[%v] (exit=%d) %s", client.RemoteAddr(), exitErr.ExitStatus(), cmd)

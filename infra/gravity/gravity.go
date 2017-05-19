@@ -14,19 +14,23 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-/*
- Gravity is interface to remote gravity CLI
-*/
+// Gravity is interface to remote gravity CLI
 type Gravity interface {
+	// Install operates on initial master node
 	Install(ctx context.Context, param InstallCmd) error
+	// Retrieve status
 	Status(ctx context.Context) (*GravityStatus, error)
+	// OfflineUpdate tries to upgrade application version
 	OfflineUpdate(ctx context.Context, installerUrl string) error
+	// Join asks to join existing cluster (or installation in progress)
 	Join(ctx context.Context, param JoinCmd) error
+	// Node returns underlying VM instance
 	Node() infra.Node
+	// Client returns SSH client to VM instance
 	Client() *ssh.Client
 }
 
-// install parameters passed to first node
+// InstallCmd install parameters passed to first node
 type InstallCmd struct {
 	// Token is required to join cluster
 	Token string
@@ -110,8 +114,8 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --advertise-addr=%s --token=%s --docker-device=%s",
-		g.installDir, g.node.PrivateAddr(), param.Token, g.dockerDevice)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s",
+		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice)
 
 	err := sshutils.Run(ctx, g.logFn, g.ssh,
 		cmd, nil)

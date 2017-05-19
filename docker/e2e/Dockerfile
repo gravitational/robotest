@@ -1,7 +1,7 @@
 FROM quay.io/gravitational/debian-grande:0.0.1
 
-ENV TERRAFORM_VERSION=0.9.3
-ENV CHROMEDRIVER_VERSION=2.29
+ARG TERRAFORM_VERSION
+ARG CHROMEDRIVER_VERSION
 
 RUN apt-get update && \
     apt-get install -y curl && \

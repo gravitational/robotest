@@ -22,6 +22,8 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+// ProvisionerConfig defines parameters required to provision hosts
+// CloudProvider, AWS, Azure, ScriptPath and InstallerURL
 type ProvisionerConfig struct {
 	// DeployTo defines cloud to deploy to
 	CloudProvider string `yaml:"cloud_provider" validate:"required,eq=aws|eq=azure"`
@@ -34,9 +36,19 @@ type ProvisionerConfig struct {
 	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL is AWS S3 URL with the installer
 	InstallerURL string `yaml:"installer_url" validate:"required,url`
+
+	// Tag will group provisioned resources under for easy removal afterwards
+	Tag string `validate:"required"`
+	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
+	StateDir string `validate:"required"`
+	// NodeCount defines amount of nodes to be provisioned
+	NodeCount uint `validate:"gte=1"`
+	// OS defines one of supported operating systems
+	OS string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
 }
 
-func LoadConfig(t *testing.T, configFile string) *ProvisionerConfig {
+// LoadConfig loads essential parameters from YAML
+func LoadConfig(t *testing.T, configFile string) ProvisionerConfig {
 	require.NotEmpty(t, configFile, "config file")
 	f, err := os.Open(configFile)
 	require.NoError(t, err, configFile)
@@ -49,24 +61,25 @@ func LoadConfig(t *testing.T, configFile string) *ProvisionerConfig {
 	err = yaml.Unmarshal(configBytes, &cfg)
 	require.NoError(t, err, configFile)
 
-	err = validator.New().Struct(&cfg)
+	return cfg
+}
+
+// validateConfig checks that key parameters are present
+func validateConfig(t *testing.T, config ProvisionerConfig) {
+	err := validator.New().Struct(&config)
 	if err == nil {
-		return &cfg
+		return
 	}
 
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		t.Errorf("Config %s has errors:", configFile)
 		for _, fieldError := range validationErrors {
 			t.Errorf(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag())
 		}
-		require.FailNow(t, "Fix config")
+		require.FailNow(t, "Fix ProvisionerConfig")
 	}
-
-	// never reached
-	return nil
 }
 
-// function which will destroy previously created remote resources
+// DestroyFn function which will destroy previously created remote resources
 type DestroyFn func() error
 
 // scheduleDestroy will register resource (placement) group for destruction with external service
@@ -87,7 +100,7 @@ type cloudDynamicParams struct {
 }
 
 // makeDynamicParams takes base config, validates it and returns TerraformConfig
-func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig, tag, os string, nodeCount int) *cloudDynamicParams {
+func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamicParams {
 	require.NotNil(t, baseConfig)
 
 	param := &cloudDynamicParams{}
@@ -102,8 +115,8 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig, tag, os stri
 		"centos": "centos",
 	}
 
-	param.user, ok = osUsernames[os]
-	require.True(t, ok, os)
+	param.user, ok = osUsernames[baseConfig.OS]
+	require.True(t, ok, baseConfig.OS)
 
 	param.installerUrl = baseConfig.InstallerURL
 	require.NotEmpty(t, param.installerUrl, "InstallerUrl")
@@ -113,13 +126,14 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig, tag, os stri
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      nodeCount,
-		OS:            os,
+		NumNodes:      int(baseConfig.NodeCount),
+		OS:            baseConfig.OS,
 	}
 
 	if baseConfig.AWS != nil {
-		param.tf.AWS = &(*baseConfig.AWS)
-		param.tf.AWS.ClusterName = tag
+		aws := *baseConfig.AWS
+		param.tf.AWS = &aws
+		param.tf.AWS.ClusterName = baseConfig.Tag
 		param.tf.AWS.SSHUser = param.user
 
 		param.dockerDevice = param.tf.AWS.DockerDevice
@@ -132,8 +146,9 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig, tag, os stri
 	}
 
 	if baseConfig.Azure != nil {
-		param.tf.Azure = &(*baseConfig.Azure)
-		param.tf.Azure.ResourceGroup = tag
+		azure := *baseConfig.Azure
+		param.tf.Azure = &azure
+		param.tf.Azure.ResourceGroup = baseConfig.Tag
 		param.tf.Azure.SSHUser = param.user
 
 		param.dockerDevice = param.tf.Azure.DockerDevice
@@ -144,17 +159,17 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig, tag, os stri
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig, tag, stateDir string, nodeCount int, os string) ([]Gravity, DestroyFn, error) {
-	params := makeDynamicParams(t, baseConfig, tag, os, nodeCount)
+func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	validateConfig(t, baseConfig)
+	params := makeDynamicParams(t, baseConfig)
 
 	logFn := Logf(t, "provision")
-	logFn("Terraform tag=%s, stateDir=%s, nodes=%d, os=%s", tag, stateDir, nodeCount, os)
-	p, err := terraform.New(filepath.Join(stateDir, tag, "tf"), params.tf)
+	p, err := terraform.New(filepath.Join(baseConfig.StateDir, baseConfig.Tag, "tf"), params.tf)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	scheduleDestroy(ctx, baseConfig.CloudProvider, tag)
+	scheduleDestroy(ctx, baseConfig.CloudProvider, baseConfig.Tag)
 
 	_, err = p.Create(false)
 	if err != nil {
@@ -162,28 +177,32 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig,
 	}
 
 	nodes := p.NodePool().Nodes()
-	errCh := make(chan error, len(nodes))
-	resultCh := make(chan Gravity, len(nodes))
+	type result struct {
+		gravity Gravity
+		err     error
+	}
+	resultCh := make(chan *result, len(nodes))
+
 	for _, node := range nodes {
 		go func(n infra.Node) {
-			g, err := PrepareGravity(ctx, logFn, n, params)
-			resultCh <- g
-			errCh <- trace.Wrap(err)
+			var res result
+			res.gravity, res.err = PrepareGravity(ctx, logFn, n, params)
+			resultCh <- &res
 		}(node)
 	}
 
 	gravityNodes := make([]Gravity, 0, len(nodes))
 	errors := []error{}
-	for i := 0; i < 2*len(nodes); i++ {
+	for range nodes {
 		select {
 		case <-ctx.Done():
 			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
-		case err = <-errCh:
+		case res := <-resultCh:
 			if err != nil {
-				errors = append(errors, err)
+				errors = append(errors, res.err)
+			} else {
+				gravityNodes = append(gravityNodes, res.gravity)
 			}
-		case g := <-resultCh:
-			gravityNodes = append(gravityNodes, g)
 		}
 	}
 
@@ -191,7 +210,6 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig,
 		return nil, p.Destroy, trace.NewAggregate(errors...)
 	}
 
-	logFn("Provisioned %d nodes, OS=%s, tag=%s, stateDir=%s", len(gravityNodes), os, tag, stateDir)
 	return gravityNodes, p.Destroy, nil
 }
 
@@ -199,7 +217,7 @@ const (
 	cloudInitCompleteFile = "/var/lib/bootstrap_complete"
 )
 
-var cloudInitWait = time.Second * 10
+const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
 func bootstrap(ctx context.Context, logFn sshutil.LogFnType, client *ssh.Client, param *cloudDynamicParams) error {

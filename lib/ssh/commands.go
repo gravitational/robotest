@@ -17,7 +17,7 @@ type Cmd struct {
 	Env map[string]string
 }
 
-// RunCommands execute commands sequentially
+// RunCommands executes commands sequentially
 func RunCommands(ctx context.Context, logFn LogFnType, client *ssh.Client, commands []Cmd) error {
 	for _, cmd := range commands {
 		_, exit, err := RunAndParse(ctx, logFn, client, cmd.Command, cmd.Env, ParseDiscard)

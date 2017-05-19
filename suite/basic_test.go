@@ -42,12 +42,15 @@ func TestBasic(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), testTimeout)
 
 	for _, os := range []string{"ubuntu"} {
-		rmTag := fmt.Sprintf("%s-offline-basic-%s", runTag, os)
-		t.Run(rmTag,
+		cfg := config
+		cfg.Tag = fmt.Sprintf("%s-offline-basic-%s", runTag, os)
+		cfg.OS = os
+		cfg.StateDir = dir
+
+		t.Run(cfg.Tag,
 			func(t *testing.T) {
 				t.Parallel()
-				testOfflineBasic(ctx, t, os, config,
-					rmTag, dir)
+				testOfflineBasic(ctx, t, config)
 			})
 	}
 }

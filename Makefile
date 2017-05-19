@@ -4,6 +4,8 @@ SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
+
+
 GLIDE_VER := v0.12.3
 
 # Amazon S3
@@ -29,16 +31,16 @@ buildbox:
 .PHONY: publish
 publish: docker-images publish-binary-into-s3
 
-.PHONY: docker-images
-docker-images:
-	cd docker && $(MAKE) publish
+.PHONY: publish-docker-images
+publish-docker-images:
+	cd docker && $(MAKE) -j publish-images
 
 .PHONY: publish-binary-into-s3
 publish-binary-into-s3:
-	ifeq (, $(shell which aws))
-		$(error "No aws command in $(PATH)")
-	endif
-		aws $(S3_OPTS) s3 cp ./build $(BUILD_BUCKET_URL) --recursive
+ifeq (, $(shell which aws))
+	$(error "No aws command in $(PATH)")
+endif
+	aws $(S3_OPTS) s3 cp ./build $(BUILD_BUCKET_URL) --recursive
 
 #
 # Runs inside build container
@@ -59,4 +61,4 @@ clean:
 
 .PHONY: test
 test:
-	go test -cover -race -v ./infra/...
+	docker run $(DOCKERFLAGS) $(BUILDBOX) go test -cover -race -v ./infra/...

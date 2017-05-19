@@ -86,9 +86,9 @@ func testTimeout(t *testing.T, client *ssh.Client) {
 }
 
 func testExitErr(t *testing.T, client *ssh.Client) {
-	_, exit, err := RunAndParse(context.Background(), t.Logf, client, "ls /nosuchdir", nil, ParseDiscard)
+	_, exit, err := RunAndParse(context.Background(), t.Logf, client, "false", nil, ParseDiscard)
 	assert.NoError(t, err)
-	assert.NotZero(t, exit, "ls error")
+	assert.NotZero(t, exit)
 }
 
 func testFile(t *testing.T, client *ssh.Client) {

@@ -1,6 +1,6 @@
 FROM quay.io/gravitational/debian-grande:0.0.1
 
-ENV TERRAFORM_VERSION=0.9.3
+ARG TERRAFORM_VERSION
 
 RUN apt-get update && \
     apt-get install -y curl unzip

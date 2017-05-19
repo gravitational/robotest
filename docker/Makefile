@@ -3,6 +3,10 @@ DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 LATEST := latest
 
+TERRAFORM_VERSION := 0.9.5
+CHROMEDRIVER_VERSION := 2.29
+BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) --build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
+
 .PHONY: all
 all: $(TARGETS)
 
@@ -21,7 +25,7 @@ $(TARGETS): $(BINARIES)
 	mkdir -p $(TEMPDIR)/build
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
-	cd $(TEMPDIR) && docker build --rm=true --pull -t $(IMAGE) .
+	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true --pull -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 	@echo Built $(IMAGE)
 
