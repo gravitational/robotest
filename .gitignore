@@ -20,4 +20,4 @@ robotest
 /build
 wd
 wd_suite
-run.sh
+run_*.sh
