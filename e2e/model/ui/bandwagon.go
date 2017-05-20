@@ -15,29 +15,11 @@ import (
 )
 
 type Bandwagon struct {
-	framework.BandwagonConfig
 	page       *web.Page
 	domainName string
 }
 
-func NeedsBandwagon(page *web.Page, domainName string) bool {
-	needsBandwagon := false
-	const jsTemplate = `		            
-		var ver1x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "final_install_step", "service_name"]);
-		var ver3x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "setupEndpoints"]);
-
-		if(ver3x || ver1x){
-			return true;
-		}
-
-		return false;			                        
-	`
-	js := fmt.Sprintf(jsTemplate, domainName)
-	Expect(page.RunScript(js, nil, &needsBandwagon)).To(Succeed(), "should detect if bandwagon is required")
-	return needsBandwagon
-}
-
-func OpenBandwagon(page *web.Page, domainName string, config framework.BandwagonConfig) Bandwagon {
+func OpenBandwagon(page *web.Page, domainName string) Bandwagon {
 	path := fmt.Sprintf("/web/site/%v", domainName)
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
@@ -52,51 +34,65 @@ func OpenBandwagon(page *web.Page, domainName string, config framework.Bandwagon
 		"should wait for bandwagon to load")
 
 	return Bandwagon{
-		config,
 		page,
 		domainName,
 	}
 }
 
-func (b *Bandwagon) SubmitForm(remoteAccess bool) {
-	page := b.page
+func (b *Bandwagon) SubmitForm(config framework.BandwagonConfig) {
+	if config.Organization == "" {
+		config.Organization = defaults.BandwagonOrganization
+	}
 
+	if config.Username == "" {
+		config.Username = defaults.BandwagonUsername
+	}
+
+	if config.Password == "" {
+		config.Password = defaults.BandwagonPassword
+	}
+
+	if config.Email == "" {
+		config.Email = defaults.BandwagonEmail
+	}
+
+	page := b.page
 	By("entering email")
-	log.Infof("email: %s", b.Email)
-	Expect(page.FindByName("email").Fill(b.Email)).To(
+	log.Infof("email: %s", config.Email)
+	Expect(page.FindByName("email").Fill(config.Email)).To(
 		Succeed(),
 		"should enter email")
 
 	count, _ := page.FindByName("name").Count()
 	if count > 0 {
 		By("entering username")
-		log.Infof("username: %s", b.Username)
-		Expect(page.FindByName("name").Fill(b.Username)).To(
+		log.Infof("username: %s", config.Username)
+		Expect(page.FindByName("name").Fill(config.Username)).To(
 			Succeed(),
 			"should enter username")
 	}
 
 	By("entering password")
-	log.Infof("password: %s", b.Password)
-	Expect(page.FindByName("password").Fill(b.Password)).To(
+	log.Infof("password: %s", config.Password)
+	Expect(page.FindByName("password").Fill(config.Password)).To(
 		Succeed(),
 		"should enter password")
 
 	By("re-entering password")
-	Expect(page.FindByName("passwordConfirmed").Fill(b.Password)).To(
+	Expect(page.FindByName("passwordConfirmed").Fill(config.Password)).To(
 		Succeed(),
 		"should re-enter password")
 
 	count, _ = page.FindByName("org").Count()
 	if count > 0 {
 		By("entering organization name")
-		log.Infof("organization: %s", b.Organization)
-		Expect(page.FindByName("org").Fill(b.Organization)).To(
+		log.Infof("organization: %s", config.Organization)
+		Expect(page.FindByName("org").Fill(config.Organization)).To(
 			Succeed(),
 			"should enter organization name")
 	}
 
-	if remoteAccess {
+	if config.RemoteAccess {
 		By("enabling remote access")
 		SelectRadio(page, ".my-page-section .grv-control-radio", func(value string) bool {
 			return strings.HasPrefix(value, "Enable remote")
@@ -121,6 +117,6 @@ func (b *Bandwagon) SubmitForm(remoteAccess bool) {
 			count, _ := element.Count()
 			return count == 0
 		},
-		defaults.PollInterval,
+		defaults.BandwagonSubmitFormTimeout,
 	).Should(BeTrue())
 }

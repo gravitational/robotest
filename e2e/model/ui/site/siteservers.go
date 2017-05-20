@@ -11,12 +11,11 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
 
 	. "github.com/onsi/gomega"
-	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
 type SiteServerPage struct {
-	page *web.Page
+	site *Site
 }
 
 type SiteServer struct {
@@ -46,7 +45,7 @@ func (p *SiteServerPage) GetSiteServers() []SiteServer {
 	var items []SiteServer
 	var result string
 
-	p.page.RunScript(script, nil, &result)
+	p.site.page.RunScript(script, nil, &result)
 	Expect(json.Unmarshal([]byte(result), &items)).To(Succeed())
 
 	return items
@@ -54,38 +53,38 @@ func (p *SiteServerPage) GetSiteServers() []SiteServer {
 
 func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
-	s := p.page.All(".grv-provision-req-server")
+	s := p.site.page.All(".grv-provision-req-server")
 
 	elements, err := s.Elements()
 	Expect(err).NotTo(HaveOccurred())
 
 	for index, _ := range elements {
-		cssAgentServerSelector := fmt.Sprintf(".grv-provision-req-server:nth-child(%v)", index)
-		agentServers = append(agentServers, agent.CreateAgentServer(p.page, cssAgentServerSelector))
+		cssAgentServerSelector := fmt.Sprintf(".grv-provision-req-server:nth-child(%v)", index+1)
+		agentServers = append(agentServers, agent.CreateAgentServer(p.site.page, cssAgentServerSelector))
 	}
 
 	return agentServers
 }
 
-func (p *SiteServerPage) StartOnPremOperation() *SiteServer {
+func (p *SiteServerPage) startOnPremAddServerOperation() SiteServer {
 	currentItems := p.GetSiteServers()
 
-	Expect(p.page.FindByClass("grv-site-servers-btn-start").Click()).To(
+	Expect(p.site.page.FindByClass("grv-site-servers-btn-start").Click()).To(
 		Succeed(),
 		"should start expand operation")
 
-	p.expectProgressIndicator()
+	p.waitForOperationCompletion()
 
 	updatedItems := p.GetSiteServers()
 
-	var newItem *SiteServer
+	var newItem SiteServer
 
 	for i, item := range updatedItems {
 		for _, existingItem := range currentItems {
 			if item.AdvertiseIP == existingItem.AdvertiseIP {
 				break
 			}
-			newItem = &updatedItems[i]
+			newItem = updatedItems[i]
 		}
 	}
 
@@ -96,42 +95,48 @@ func (p *SiteServerPage) StartOnPremOperation() *SiteServer {
 	return newItem
 }
 
-func (p *SiteServerPage) InitOnPremOperation(config framework.OnpremConfig) string {
-	page := p.page
-
-	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(
-		Succeed(),
-		"should click on Add Existing button")
+func (p *SiteServerPage) AddOnPremServer() SiteServer {
+	page := p.site.page
+	config := framework.TestContext.Onprem
+	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(Succeed(), "should click on Add Existing button")
 
 	utils.PauseForComponentJs()
-
 	p.selectOnPremProfile(config.ExpandProfile)
-
 	utils.PauseForComponentJs()
 
-	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
-		Succeed(),
-		"should click on continue button")
-
+	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(Succeed(), "should click on continue button")
 	utils.PauseForComponentJs()
 
 	element := page.Find(".grv-installer-server-instruction span")
+	Eventually(element, defaults.AjaxCallTimeout).Should(BeFound(), "should find a command")
 
-	Eventually(element, defaults.AjaxCallTimeout).Should(
-		BeFound(),
-		"should find a command")
+	agentCommand, _ := element.Text()
+	Expect(agentCommand).NotTo(BeEmpty(), "command must be defined")
 
-	command, _ := element.Text()
+	nodes, err := framework.Cluster.Provisioner().NodePool().Allocate(1)
+	Expect(err).NotTo(HaveOccurred(), "should allocate a new node")
+	framework.RunAgentCommand(agentCommand, nodes[0])
 
-	Expect(command).NotTo(
-		BeEmpty(),
-		"command must be defined")
+	Eventually(p.GetAgentServers, defaults.AgentServerTimeout).Should(HaveLen(1), "should wait for the agent server")
+	provisioner := framework.Cluster.Provisioner()
+	ctx := framework.TestContext
+	// TODO: store private IPs for terraform in state
+	// to avoid this check
+	if ctx.Provisioner != "terraform" {
+		agentServers := p.GetAgentServers()
+		for _, s := range agentServers {
+			s.SetIPByInfra(provisioner)
+		}
+	}
 
-	return command
+	newServer := p.startOnPremAddServerOperation()
+	Expect(newServer).NotTo(BeNil(), "new server should appear in the server table")
+	return newServer
 }
 
-func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
-	page := p.page
+func (p *SiteServerPage) AddAWSServer() SiteServer {
+	config := framework.TestContext.AWS
+	page := p.site.page
 
 	currentServerItems := p.GetSiteServers()
 
@@ -164,17 +169,17 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 		Succeed(),
 		"should click on start button")
 
-	p.expectProgressIndicator()
+	p.waitForOperationCompletion()
 
 	updatedItems := p.GetSiteServers()
-	var newItem *SiteServer
+	var newItem SiteServer
 	for i, item := range updatedItems {
 		for _, existingItem := range currentServerItems {
 			if item.AdvertiseIP == existingItem.AdvertiseIP {
 				break
 			}
 
-			newItem = &updatedItems[i]
+			newItem = updatedItems[i]
 		}
 	}
 
@@ -185,34 +190,20 @@ func (p *SiteServerPage) AddAWSServer(config framework.AWSConfig) *SiteServer {
 	return newItem
 }
 
-func (p *SiteServerPage) DeleteAWSServer(awsConfig framework.AWSConfig, itemToDelete *SiteServer) {
-	p.deleteServer(itemToDelete, &awsConfig)
-}
-
-func (p *SiteServerPage) DeleteOnPremServer(itemToDelete *SiteServer) {
-	p.deleteServer(itemToDelete, nil)
-}
-
-func (p *SiteServerPage) deleteServer(server *SiteServer, config *framework.AWSConfig) {
-	p.clickDeleteServer(server.Hostname)
-
-	if config != nil {
-		utils.FillOutAWSKeys(p.page, config.AccessKey, config.SecretKey)
-	}
-
-	Expect(p.page.Find(".modal-dialog .btn-danger").Click()).To(
+func (p *SiteServerPage) DeleteServer(server SiteServer) {
+	p.clickDeleteServer(server.AdvertiseIP)
+	Expect(p.site.page.Find(".modal-dialog .btn-danger").Click()).To(
 		Succeed(),
 		"should click on confirmation button",
 	)
 
-	p.expectProgressIndicator()
-
-	Eventually(p.serverInList(server)).ShouldNot(
+	p.waitForOperationCompletion()
+	Eventually(p.hasServer(server), defaults.SiteServerListRefreshAfterShrinkTimeout).ShouldNot(
 		BeTrue(),
 		"verify that the server disappeared from the list")
 }
 
-func (p *SiteServerPage) serverInList(server *SiteServer) func() bool {
+func (p *SiteServerPage) hasServer(server SiteServer) func() bool {
 	return func() bool {
 		for _, existingServer := range p.GetSiteServers() {
 			if existingServer.Hostname == server.Hostname {
@@ -223,23 +214,23 @@ func (p *SiteServerPage) serverInList(server *SiteServer) func() bool {
 	}
 }
 
-func (p *SiteServerPage) expectProgressIndicator() {
-	page := p.page
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.ElementTimeout).Should(
+func (p *SiteServerPage) waitForOperationCompletion() {
+	page := p.site.page
+	Eventually(page.Find(".grv-site-nav-top-indicator.--processing"), defaults.ElementTimeout).Should(
 		BeFound(),
 		"should find progress indicator")
 
-	Eventually(page.FindByClass("grv-site-servers-operation-progress"), defaults.OperationTimeout).ShouldNot(
+	Eventually(page.Find(".grv-site-nav-top-indicator.--ready"), defaults.SiteOperationTimeout).Should(
 		BeFound(),
 		"should wait for progress indicator to disappear")
 
 	utils.PauseForServerListRefresh()
 }
 
-func (p *SiteServerPage) clickDeleteServer(hostname string) {
+func (p *SiteServerPage) clickDeleteServer(serverId string) {
 	const scriptTemplate = `
             var targetIndex = -1;
-            var rows = document.querySelectorAll(".grv-site-servers .grv-table tr");
+            var rows = document.querySelectorAll(".grv-site-servers .grv-table .dropdown-toggle");
             rows.forEach( (z, index) => {
                 if( z.innerText.indexOf("%v") !== -1) targetIndex = index; 
             })
@@ -247,17 +238,18 @@ func (p *SiteServerPage) clickDeleteServer(hostname string) {
             return targetIndex;
         `
 	var result int
-	page := p.page
+	page := p.site.page
 
-	script := fmt.Sprintf(scriptTemplate, hostname)
+	script := fmt.Sprintf(scriptTemplate, serverId)
 	page.RunScript(script, nil, &result)
 
-	actionsMenuPath := fmt.Sprintf(".grv-site-servers .grv-site-servers-actions:nth-child(%v)", result)
+	result = result + 1
+	actionsMenuPath := fmt.Sprintf(".grv-site-servers tr:nth-child(%v) .dropdown-toggle", result)
 	Expect(page.Find(actionsMenuPath).Click()).To(
 		Succeed(),
 		"should find and expand action menu")
 
-	deleteActionBtnPath := fmt.Sprintf(".grv-site-servers .grv-table tr:nth-child(%v) .fa-trash", result)
+	deleteActionBtnPath := fmt.Sprintf(".grv-site-servers tr:nth-child(%v) .dropdown-menu .fa-trash", result)
 	Expect(page.Find(deleteActionBtnPath).Click()).To(
 		Succeed(),
 		"should find and click on server delete action")
@@ -271,7 +263,7 @@ func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
 		return items.length > 0 ? items[0].text : "";  			
 	`
 
-	Expect(p.page.RunScript(js, nil, &instanceType)).To(
+	Expect(p.site.page.RunScript(js, nil, &instanceType)).To(
 		Succeed(),
 		"should retrieve first available instance type")
 
@@ -282,44 +274,44 @@ func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
 
 func (p *SiteServerPage) selectOnPremProfile(profileName string) {
 	if profileName == "" {
-		Expect(p.page.FindByClass("grv-control-radio-indicator").Click()).To(
+		Expect(p.site.page.FindByClass("grv-control-radio-indicator").Click()).To(
 			Succeed(),
 			"should select first available profile")
 		return
 	}
 
 	profileLabel := p.getProfileLabel(profileName)
-	utils.SelectRadio(p.page, ".grv-control-radio", func(value string) bool {
+	utils.SelectRadio(p.site.page, ".grv-control-radio", func(value string) bool {
 		return strings.HasPrefix(value, profileLabel)
 	})
 }
 
 func (p *SiteServerPage) getProfileLabel(profileName string) string {
 	var profileLabel string
+	siteName := p.site.domainName
 	const jsTemplate = `
 		var profileName = "%v";
-		var server = null;
-		
-		var allServers = reactor.evaluate(["sites"])
-			.first()
-			.getIn(["app", "manifest", "installer", "servers"]);
+		var server = null;		
+		var nodeProfilers = reactor.evaluate(["sites", "%v", "app", "manifest", "nodeProfiles"])
+			.toJS()
+			.reduce( (r, item) => { r[item.name] = item; return r;}, {});
 			
 		if(profileName !== ""){
-			server = allServers.get(profileName);								
+			server = nodeProfilers[profileName];								
 		}else{
-			server = allServers.first();
+			server = nodeProfilers[0];
 		}
 
 		if(!server){
 			return "";
 		}
 
-		return server.get("description") || server.get("service_role")
+		return server.description || server.serviceRole
 	`
 
-	js := fmt.Sprintf(jsTemplate, profileName)
+	js := fmt.Sprintf(jsTemplate, profileName, siteName)
 
-	Expect(p.page.RunScript(js, nil, &profileLabel)).To(
+	Expect(p.site.page.RunScript(js, nil, &profileLabel)).To(
 		Succeed(),
 		fmt.Sprintf("should run js script to retrieve a label for %v profile", profileName))
 

@@ -135,8 +135,7 @@ func PauseForServerListRefresh() {
 }
 
 func Pause(params ...time.Duration) {
-	timeInterval := defaults.PauseTimeout
-
+	timeInterval := 100 * time.Millisecond
 	if len(params) != 0 {
 		timeInterval = params[0]
 	}

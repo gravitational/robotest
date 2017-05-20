@@ -39,34 +39,9 @@ func EnsureUser(page *web.Page, URL string, login framework.Login) {
 	}
 }
 
-func IsLoginPageFound(page *web.Page, URL string, login framework.Login) error {
-	err := page.Navigate(URL)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	countEmailProvider, countGoogleProvider, countToken := 0, 0, 0
+func IsLoginPage(page *web.Page) bool {
 	count, _ := page.FindByClass("grv-user-login").Count()
-	if count != 0 {
-		countEmailProvider, _ = page.FindByClass("btn-primary").Count()
-		countGoogleProvider, _ = page.FindByClass("btn-google").Count()
-		countToken, _ = page.FindByName("token").Count()
-
-	}
-	switch login.AuthProvider {
-	case WithEmail, WithNoProvider:
-		if countEmailProvider == 0 || countGoogleProvider != 0 || countToken != 0 {
-			return trace.NotFound("login page with %s auth provider not found", login.AuthProvider)
-		}
-	case WithGoogle:
-		if countEmailProvider != 0 || countGoogleProvider == 0 {
-			return trace.NotFound("login page with %s auth provider not found", login.AuthProvider)
-		}
-	default:
-		return trace.BadParameter("unknown auth type %q", login.AuthProvider)
-	}
-
-	return nil
+	return count > 0
 }
 
 func CreateUser(page *web.Page, email string, password string) User {

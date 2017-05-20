@@ -17,20 +17,6 @@ type AWSProfile struct {
 	page  *web.Page
 }
 
-func FindAWSProfiles(page *web.Page) []AWSProfile {
-	var profiles []AWSProfile
-
-	reqs := page.All(".grv-installer-provision-reqs-item")
-	elements, err := reqs.Elements()
-	Expect(err).NotTo(HaveOccurred())
-
-	for i := range elements {
-		profiles = append(profiles, createAWSProfile(page, i))
-	}
-
-	return profiles
-}
-
 func (p *AWSProfile) SetInstanceType(instanceType string) {
 	Expect(instanceType).NotTo(BeEmpty(), "should have a valid instance type")
 	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(p.index))

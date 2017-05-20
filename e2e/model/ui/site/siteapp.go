@@ -23,7 +23,7 @@ type AppVersion struct {
 }
 
 // UpdateApp starts update operation
-func (a *SiteAppPage) UpdateApp(toVersion AppVersion) {
+func (a *SiteAppPage) StartUpdateOperation(toVersion AppVersion) {
 	allButtons := a.page.All(".grv-site-app-new-ver .btn-primary")
 	button := allButtons.At(toVersion.Index)
 

@@ -2,13 +2,12 @@ package site
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
 	ui "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
-
+	"github.com/gravitational/trace"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -27,11 +26,12 @@ func Open(page *web.Page, domainName string) Site {
 }
 
 func (s *Site) GetSiteAppPage() SiteAppPage {
+	s.NavigateToSiteApp()
 	return SiteAppPage{page: s.page}
 }
 
 func (s *Site) GetSiteServerPage() SiteServerPage {
-	return SiteServerPage{page: s.page}
+	return SiteServerPage{site: s}
 }
 
 func (s *Site) NavigateToSiteApp() {
@@ -46,11 +46,39 @@ func (s *Site) NavigateToServers() {
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
 		return count > 0
-	}, defaults.ServerLoadTimeout).Should(
+	}, defaults.AjaxCallTimeout).Should(
 		BeTrue(),
 		"waiting for servers to load")
 
 	ui.PauseForPageJs()
+}
+
+func (s *Site) UpdateToLatestVersion() {
+	ctx := framework.TestContext
+	siteURL := framework.SiteURL()
+
+	appPage := s.GetSiteAppPage()
+	newVersions := appPage.GetNewVersions()
+	Expect(newVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
+	appPage.StartUpdateOperation(newVersions[0])
+
+	// Here have to login again, because update of gravity-site app will log us out
+	Eventually(func() bool {
+		err := s.page.Refresh()
+		if err != nil {
+			log.Debug(trace.DebugReport(err))
+			return false
+		}
+
+		return ui.IsLoginPage(s.page)
+	}, defaults.SiteLogoutAfterUpdateTimeout, defaults.SiteLogoutAfterUpdatePollInterval).Should(BeTrue(), "login page didn't load in timely fashion")
+
+	ui.EnsureUser(s.page, siteURL, ctx.Login)
+	appPage = s.GetSiteAppPage()
+
+	Eventually(appPage.GetCurrentVersion, defaults.FindTimeout).Should(
+		BeEquivalentTo(newVersions[0]),
+		"current version should match to new one")
 }
 
 func (s *Site) GetEndpoints() (endpoints []string) {
@@ -69,14 +97,7 @@ func (s *Site) GetEndpoints() (endpoints []string) {
 		return urls; `
 
 	Expect(s.page.RunScript(scriptTemplate, nil, &endpoints)).To(Succeed())
-
-	var siteEndpoints []string
-	for _, v := range endpoints {
-		if strings.Contains(v, strconv.Itoa(defaults.GravityHTTPPort)) {
-			siteEndpoints = append(siteEndpoints, v)
-		}
-	}
-	return siteEndpoints
+	return endpoints
 }
 
 func VerifySiteNavigation(page *web.Page, URL string) {

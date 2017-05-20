@@ -207,6 +207,7 @@ type BandwagonConfig struct {
 	Username     string `json:"username" yaml:"username" env:"ROBO_BANDWAGON_USERNAME"`
 	Password     string `json:"password" yaml:"password" env:"ROBO_BANDWAGON_PASSWORD"`
 	Email        string `json:"email" yaml:"email" env:"ROBO_BANDWAGON_EMAIL"`
+	RemoteAccess bool
 }
 
 // Login defines Ops Center authentication parameters

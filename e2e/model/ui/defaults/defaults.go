@@ -3,49 +3,42 @@ package defaults
 import "time"
 
 const (
+	// AjaxCallTimeout specifies the amount of time needed to complete AJAX request
+	AjaxCallTimeout = 20 * time.Second
+	ElementTimeout  = 20 * time.Second
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 1 * time.Minute
+	// EventuallyPollInterval defines the frequency of Eventually polling attempts
+	EventuallyPollInterval = 300 * time.Millisecond
 
-	// ProvisionerSelectedTimeout specifies the amount of time to
-	// wait for the requirements screen after selecting a provisioner
+	// ProvisionerSelectedTimeout specifies the amount of time to wait for the requirements screen after selecting a provisioner
 	ProvisionerSelectedTimeout = 5 * time.Minute
-
-	// StartInstallTimeout specifies the amount of time to
-	// wait for the install to start
-	StartInstallTimeout = 5 * time.Minute
-
-	// SelectionPollInterval specifies the frequency of polling for elements
-	SelectionPollInterval = 2 * time.Second
-
-	// AgentTimeout defines the amount of time to wait for agents to connect
+	// AgentServerTimeout defines the amount of time to wait for agents to connect
 	AgentServerTimeout = 5 * time.Minute
 
+	// InstallStartTimeout specifies the amount of time to wait for the install to start
+	InstallStartTimeout = 5 * time.Minute
 	// InstallTimeout defines the amount of time to wait for installation to complete
 	InstallTimeout = 40 * time.Minute
+	// InstallSuccessMessagePollInterval defines the frequency of polling attempts to retrieve installation state
+	InstallSuccessMessagePollInterval = time.Second
 
-	// PollInterval defines the frequency of polling attempts
-	PollInterval = 10 * time.Second
-
-	// Amount of time needed to refresh server list table on Site Server page
+	// SiteServerListRefreshTimeout defines amount of time needed to refresh server list table on Site Server page
 	SiteServerListRefreshTimeout = 5 * time.Second
-
-	PauseTimeout = 100 * time.Millisecond
-
-	AjaxCallTimeout   = 20 * time.Second
-	ServerLoadTimeout = 20 * time.Second
-	ElementTimeout    = 20 * time.Second
-
-	// Waiting time for operation to be completed (Expand and Application Update operations)
-	OperationTimeout = 10 * time.Minute
+	// SiteServerListRefreshAfterShrinkTimeout defines amount of time needed to unregister server from all places
+	SiteServerListRefreshAfterShrinkTimeout = 2 * time.Minute
+	// SiteLogoutAfterUpdateTimeout defines amount of time needed to redirect a user to login page after update operation
+	SiteLogoutAfterUpdateTimeout = 5 * time.Minute
+	// SiteLogoutAfterUpdatePollInterval defines the frequency of polling attempts to check if a user has been logged out after update operation
+	SiteLogoutAfterUpdatePollInterval = 5 * time.Second
+	// SiteOperationTimeout time for operation to be completed (Expand and Application Update operations)
+	SiteOperationTimeout = 10 * time.Minute
 
 	// SlowOperationTimeout defines how long to wait on slow operations
 	SlowOperationTimeout = 30 * time.Minute
 
-	// DeleteTimeout specifies the amount of time allotted to a site delete operation
-	DeleteTimeout = 5 * time.Minute
-
-	// InitializeTimeout is the amount of time between expand/shrink tests
-	InitializeTimeout = 20 * time.Second
+	// OpsCenterDeleteSiteTimeout specifies the amount of time allotted to a site delete operation
+	OpsCenterDeleteSiteTimeout = 5 * time.Minute
 
 	// BandwagonOrganization specifies the name of the test organization or site to use in bandwagon form
 	BandwagonOrganization = "Robotest"
@@ -55,6 +48,8 @@ const (
 	BandwagonUsername = "robotest"
 	// BandwagonPassword specifies the password to use in bandwagon form
 	BandwagonPassword = "r0b0t@st"
+	// BandwagonSubmitFormTimeout defines timeout for submit form request
+	BandwagonSubmitFormTimeout = 10 * time.Second
 
 	// GravityHTTPPort specifies the port used by the local gravity site HTTP endpoint
 	// to speed up testing (by avoiding the wait for the Load Balancer to come online)

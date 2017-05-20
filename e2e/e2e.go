@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/e2e/framework"
+	uidefaults "github.com/gravitational/robotest/e2e/model/ui/defaults"
 	"github.com/gravitational/robotest/lib/constants"
 
 	log "github.com/Sirupsen/logrus"
@@ -23,6 +24,7 @@ func RunE2ETests(t *testing.T) {
 		}
 		log.Infof("report directory: %q", framework.TestContext.ReportDir)
 	}
+	gomega.SetDefaultEventuallyPollingInterval(uidefaults.EventuallyPollInterval)
 	ginkgo.RunSpecs(t, "Robotest e2e suite")
 }
 
