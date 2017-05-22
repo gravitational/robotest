@@ -56,7 +56,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 
 func (r *vagrant) Create(withInstaller bool) (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
-	err = system.CopyFile(filepath.Join(r.stateDir, file), r.ScriptPath)
+	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -119,6 +119,14 @@ func (r *vagrant) Connect(addrIP string) (*ssh.Session, error) {
 	return node.Connect()
 }
 
+func (r *vagrant) Client(addrIP string) (*ssh.Client, error) {
+	node, err := r.pool.Node(addrIP)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return node.Client()
+}
+
 func (r *vagrant) StartInstall(session *ssh.Session) error {
 	return session.Start(installerCommand)
 }
@@ -179,7 +187,7 @@ func (r *vagrant) syncInstallerTarball() error {
 	}
 	target := filepath.Join(r.stateDir, "installer.tar.gz")
 	log.Debugf("copy %v -> %v", r.InstallerURL, target)
-	err := system.CopyFile(target, r.InstallerURL)
+	err := system.CopyFile(r.InstallerURL, target)
 	if err != nil {
 		return trace.Wrap(err, "failed to copy installer tarball %q to %q", r.InstallerURL, target)
 	}
@@ -319,13 +327,31 @@ func (r *node) Addr() string {
 	return r.addrIP
 }
 
+func (r *node) PrivateAddr() string {
+	return r.addrIP
+}
+
 func (r *node) Connect() (*ssh.Session, error) {
+	client, err := r.Client()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return session, nil
+}
+
+func (r *node) Client() (*ssh.Client, error) {
 	keyFile, err := os.Open(r.identityFile)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 	defer keyFile.Close()
-	return sshutils.Connect(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
+	return sshutils.Client(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
 }
 
 func (r node) String() string {

@@ -1,32 +1,85 @@
-hash: d055620b9c1ea31b03d5b11a542441c3e1afba3b87bd814ab617f9d394fa3e35
-updated: 2016-12-06T13:22:54.744396446+01:00
+hash: 5ce47733b1627d07b1671b07e47f0669af94f58746f867a6c43da9113f0a45d7
+updated: 2017-05-18T19:00:00.376246276Z
 imports:
+- name: camlistore.org
+  version: 174d6789286b78ccadd4a678eb21bfce476c7a38
+  subpackages:
+  - pkg/blob
+  - pkg/constants
+  - pkg/googlestorage
+- name: cloud.google.com/go
+  version: 6eaafcdb7105e6bad0ed40aa3d434c7bf3d64890
+  subpackages:
+  - compute/metadata
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
   subpackages:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/davecgh/go-spew
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  subpackages:
+  - spew
+- name: github.com/gin-gonic/gin
+  version: d5b353c5d5a560322e6d96121c814115562501f7
+  subpackages:
+  - binding
+- name: github.com/go-playground/ansi
+  version: fd5b8faa557e2cef2a634378fd623e74097adb5c
+- name: github.com/go-playground/form
+  version: 20d04065dbc6f79aac03bbfd49b6a9e0658f5842
+- name: github.com/go-playground/locales
+  version: 1e5f1161c6416a5ff48840eb8724a394e48cc534
+  subpackages:
+  - currency
+  - en
+  - en_CA
+  - fr
+  - nl
+- name: github.com/go-playground/pure
+  version: bc0108cb680dfa8bbe42c1657f7bef93e062c5bd
+  subpackages:
+  - examples/middleware/logging-recovery
+- name: github.com/go-playground/universal-translator
+  version: 71201497bace774495daed26a3874fd339e0b538
 - name: github.com/go-yaml/yaml
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+- name: github.com/golang/protobuf
+  version: fec3b39b059c0f88fa6b20f5ed012b1aa203a8b4
+  subpackages:
+  - proto
+  - ptypes/any
 - name: github.com/gravitational/configure
   version: 4e0f2df8846ee9557b5c88307a769ff2f85e89cd
   subpackages:
   - cstrings
+  - test
 - name: github.com/gravitational/trace
-  version: 6e153c7add15eb07e311f892779fb294373c4cfa
+  version: a81b26cd14cab7e5045b9391fe77662c00a7e438
 - name: github.com/hashicorp/go-version
   version: e96d3840402619007766590ecea8dd7af1292276
 - name: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
 - name: github.com/kr/pretty
   version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
+- name: github.com/kr/pty
+  version: 2c10821df3c3cf905230d078702dfbe9404c9b23
 - name: github.com/kr/text
   version: 7cafcd837844e784b526369c9bce262804aebc60
+  subpackages:
+  - colwriter
 - name: github.com/onsi/ginkgo
   version: 00054c0bb96fc880d4e0be1b90937fad438c5290
   subpackages:
   - config
+  - extensions/table
+  - ginkgo/convert
+  - ginkgo/interrupthandler
+  - ginkgo/nodot
+  - ginkgo/testrunner
+  - ginkgo/testsuite
+  - ginkgo/watch
   - internal/codelocation
   - internal/containernode
   - internal/failer
@@ -46,8 +99,15 @@ imports:
   version: f1f0f388b31eca4e2cbe7a6dd8a3a1dfddda5b1c
   subpackages:
   - format
+  - gbytes
+  - gexec
+  - ghttp
+  - ghttp/protobuf
+  - gstruct
+  - gstruct/errors
   - internal/assertion
   - internal/asyncassertion
+  - internal/fakematcher
   - internal/oraclematcher
   - internal/testingtsupport
   - matchers
@@ -56,38 +116,207 @@ imports:
   - matchers/support/goraph/node
   - matchers/support/goraph/util
   - types
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
 - name: github.com/sclevine/agouti
   version: da6ce95d89acab048b648c71fb45b57622d3457e
   subpackages:
   - api
   - api/internal/bus
+  - api/internal/mocks
   - api/internal/service
+  - api/mobile
+  - appium
   - internal/element
+  - internal/matchers
+  - internal/mocks
   - internal/target
   - matchers
   - matchers/internal
   - matchers/internal/colorparser
+  - matchers/internal/mocks
 - name: github.com/Sirupsen/logrus
   version: d26492970760ca5d33129d2d799e34be5c4782eb
+- name: github.com/stretchr/testify
+  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
+  subpackages:
+  - assert
+  - require
 - name: github.com/tebeka/selenium
   version: 05506c8ee6422108475198b2c9b888b7b96c5c24
+- name: github.com/xeipuuv/gojsonpointer
+  version: 6fe8760cad3569743d51ddbb243b26f8456742dc
+- name: github.com/xeipuuv/gojsonreference
+  version: e02fc20de94c78484cd5ffb007f8af96be030a45
+- name: github.com/xeipuuv/gojsonschema
+  version: a55c211c418162597a32c74c7230f81adb5ad616
+- name: go4.org
+  version: 16ace784e4b16df1d51c3435223b1d602cd43bfa
+  subpackages:
+  - readerutil
+  - syncutil/singleflight
 - name: golang.org/x/crypto
   version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
   subpackages:
+  - acme
+  - blowfish
+  - cast5
+  - chacha20poly1305/internal/chacha20
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
+  - hkdf
+  - nacl/secretbox
+  - openpgp
+  - openpgp/armor
+  - openpgp/elgamal
+  - openpgp/errors
+  - openpgp/packet
+  - openpgp/s2k
+  - pbkdf2
+  - pkcs12/internal/rc2
+  - poly1305
+  - ripemd160
+  - salsa20/salsa
   - ssh
+  - ssh/agent
+  - ssh/terminal
+  - ssh/testdata
 - name: golang.org/x/net
   version: 569280fa63be4e201b975e5411e30a92178f0118
   subpackages:
+  - bpf
   - context
+  - context/ctxhttp
+  - html
+  - html/atom
+  - http2
+  - http2/hpack
+  - icmp
+  - idna
+  - internal/iana
+  - internal/netreflect
+  - internal/nettest
+  - internal/timeseries
+  - ipv4
+  - ipv6
+  - lex/httplex
+  - trace
+  - webdav/internal/xml
+  - websocket
+- name: golang.org/x/oauth2
+  version: f047394b6d14284165300fd82dad67edb3a4d7f6
+  subpackages:
+  - google
+  - internal
+  - jws
+  - jwt
 - name: golang.org/x/sys
   version: c200b10b5d5e122be351b67af224adc6128af5bf
   subpackages:
+  - plan9
   - unix
+  - windows
+  - windows/registry
+  - windows/svc
+  - windows/svc/debug
+  - windows/svc/eventlog
+  - windows/svc/mgr
+- name: golang.org/x/text
+  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/htmlindex
+  - encoding/internal
+  - encoding/internal/identifier
+  - encoding/japanese
+  - encoding/korean
+  - encoding/simplifiedchinese
+  - encoding/traditionalchinese
+  - encoding/unicode
+  - internal/tag
+  - internal/utf8internal
+  - language
+  - runes
+  - transform
+  - unicode/cldr
+- name: google.golang.org/api
+  version: 1377dd16e29553e6d668e68fd207a75a66574646
+  subpackages:
+  - compute/v1
+  - gensupport
+  - googleapi
+  - googleapi/internal/uritemplates
+  - storage/v1
+- name: google.golang.org/appengine
+  version: 170382fa85b10b94728989dfcf6cc818b335c952
+  subpackages:
+  - internal
+  - internal/app_identity
+  - internal/base
+  - internal/datastore
+  - internal/log
+  - internal/modules
+  - internal/remote_api
+  - internal/urlfetch
+  - urlfetch
+- name: google.golang.org/genproto
+  version: bb3573be0c484136831138976d444b8754777aff
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: 11d93ecdb918872ee841ba3a2dc391aa6d4f57c3
+  subpackages:
+  - codes
+  - credentials
+  - grpclb/grpc_lb_v1
+  - grpclog
+  - internal
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - stats
+  - status
+  - tap
+  - transport
+- name: gopkg.in/airbrake/gobrake.v2
+  version: 668876711219e8b0206e2994bf0a59d889c775aa
 - name: gopkg.in/alecthomas/kingpin.v2
   version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+- name: gopkg.in/check.v1
+  version: 20d25e2804050c1cd24a7eea1e7a6447dd0e74ec
+- name: gopkg.in/gemnasium/logrus-airbrake-hook.v2
+  version: bfee1239d796830ca346767650cce5ba90d58c57
+- name: gopkg.in/go-playground/validator.v8
+  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
+- name: gopkg.in/go-playground/validator.v9
+  version: 6d8c18553ea1ac493d049edd6f102f52e618f085
+  subpackages:
+  - translations/en
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
-testImports: []
+testImports:
+- name: github.com/alecthomas/assert
+  version: 561411bbb7e98b005e520f4c0f491c2d23782048
+- name: github.com/alecthomas/colour
+  version: 60882d9e27213e8552dcff6328914fe4c2b44bc9
+- name: github.com/alecthomas/repr
+  version: d44565ca483f0ed23c2ac9cda62c966b116e77a3
+- name: github.com/gravitational/log
+  version: 8e1bbf1bba0515719dbb17adf1da20b5390ac8da
+- name: github.com/kylelemons/godebug
+  version: a616ab194758ae0a11290d87ca46ee8c440117b0
+  subpackages:
+  - diff
+- name: github.com/mattn/go-isatty
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+- name: github.com/sergi/go-diff
+  version: feef008d51ad2b3778f85d387ccf91735543008d
+  subpackages:
+  - diffmatchpatch
+- name: gopkg.in/go-playground/assert.v1
+  version: 4f4dfbc7d1c48336cf93399deae81aa9067e88af

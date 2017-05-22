@@ -2,14 +2,16 @@ package terraform
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -22,7 +24,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const (
+	tfVarsFile           = "robotest.tfvars.json"
+	terraformTimeout     = time.Minute * 15 // longest operation is node creation, but it's parallelized
+	terraformRepeatAfter = time.Second * 5
+)
+
 func New(stateDir string, config Config) (*terraform, error) {
+	user, keypath := config.SSHConfig()
+
 	return &terraform{
 		Entry: log.WithFields(log.Fields{
 			constants.FieldProvisioner: "terraform",
@@ -32,6 +42,9 @@ func New(stateDir string, config Config) (*terraform, error) {
 		stateDir: stateDir,
 		// pool will be reset in Create
 		pool: infra.NewNodePool(nil, nil),
+
+		sshUser:    user,
+		sshKeyPath: keypath,
 	}, nil
 }
 
@@ -46,13 +59,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 		installerIP: stateConfig.InstallerAddr,
 	}
 
-	if config.SSHKeyPath != "" {
-		t.Config.SSHKeyPath = config.SSHKeyPath
-	}
-
-	if config.SSHKeyPath == "" && len(stateConfig.Nodes) != 0 {
-		t.Config.SSHKeyPath = stateConfig.Nodes[0].KeyPath
-	}
+	t.sshUser, t.sshKeyPath = config.SSHConfig()
 
 	nodes := make([]infra.Node, 0, len(stateConfig.Nodes))
 	for _, n := range stateConfig.Nodes {
@@ -64,30 +71,58 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 }
 
 func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error) {
-	err = system.CopyFile(filepath.Join(r.stateDir, "terraform.tf"), r.ScriptPath)
+	ctx, cancel := context.WithTimeout(context.Background(), terraformTimeout)
+	defer cancel()
+
+	nfiles, err := system.CopyAll(r.ScriptPath, r.stateDir)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	if nfiles == 0 {
+		return nil, trace.Errorf("No Terraform configs at %s", r.ScriptPath)
+	}
 
+	// sometimes terraform cannot receive all required params
+	// most often public IPs take time to allocate (on Azure)
+	for {
+		err := r.terraform()
+		if err == nil {
+			if withInstaller {
+				nodes := r.pool.Nodes()
+				if len(nodes) == 0 { // should not happen, and doesn't make sense to retry
+					return nil, trace.Errorf("Zero nodes were allocated")
+				}
+				r.installerIP = nodes[0].Addr()
+				return nodes[0], nil
+			}
+			return nil, nil
+		}
+
+		if !trace.IsRetryError(err) {
+			return nil, trace.Wrap(err, "Terraform creation failed")
+		}
+		log.Warningf("terraform experienced transient error %s, will retry in %v",
+			err.Error(), terraformRepeatAfter)
+
+		select {
+		case <-ctx.Done():
+			return nil, trace.Wrap(err, "Terraform creation timed out")
+		case <-time.After(terraformRepeatAfter):
+		}
+	}
+
+}
+
+func (r *terraform) terraform() (err error) {
 	output, err := r.boot()
 	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	if withInstaller {
-		// find installer public IP
-		match := reInstallerIP.FindStringSubmatch(output)
-		if len(match) != 2 {
-			return nil, trace.NotFound(
-				"failed to extract installer IP from terraform output: %v", match)
-		}
-		r.installerIP = strings.TrimSpace(match[1])
+		return trace.Wrap(err)
 	}
 
 	// find all nodes' private IPs
 	match := rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
-		return nil, trace.NotFound(
+		return trace.NotFound(
 			"failed to extract private IPs from terraform output: %v", match)
 	}
 	privateIPs := strings.Split(strings.TrimSpace(match[1]), " ")
@@ -95,14 +130,17 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 	// find all nodes' public IPs
 	match = rePublicIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
-		return nil, trace.NotFound(
-			"failed to extract public IPs from terraform output: %v", match)
+		// one of the reasons is that public IP allocation is incomplete yet
+		// which happens for Azure; we will just repeat boot process once again
+		return trace.Retry(
+			trace.NotFound("failed to extract public IPs from terraform output: %v", match),
+			"terraform may not be able to acquire values of every parameter on create")
 	}
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
 	if len(privateIPs) != len(publicIPs) {
-		return nil, trace.BadParameter(
-			"number of private IPs is different than public IPs: %v != %v", len(privateIPs), len(publicIPs))
+		return trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
+			len(privateIPs), len(publicIPs))
 	}
 
 	nodes := make([]infra.Node, 0, len(publicIPs))
@@ -112,24 +150,22 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 	r.pool = infra.NewNodePool(nodes, nil)
 
 	r.Debugf("cluster: %#v", nodes)
-
-	if r.installerIP != "" {
-		node, err := r.pool.Node(r.installerIP)
-		if err != nil {
-			return nil, trace.Wrap(err)
-		}
-		return node, nil
-	}
-	return nil, nil
+	return nil
 }
 
 func (r *terraform) Destroy() error {
+	// FIXME : i'm not sure its safe as it may potentially wipe out everything on shared cloud account
+	//
+	// within Azure, all resources are grouped within resource group, and deleting a specific
+	// resource group is a safe mechanism
+	return nil
+
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
-	// Pass secrets via environment variables
-	accessKeyVar := fmt.Sprintf("TF_VAR_access_key=%v", r.Config.AccessKey)
-	secretKeyVar := fmt.Sprintf("TF_VAR_secret_key=%v", r.Config.SecretKey)
-	args := append([]string{"destroy", "-force"}, getVars(r.Config)...)
-	_, err := r.command(args, system.SetEnv(accessKeyVar, secretKeyVar))
+	_, err := r.command([]string{
+		"destroy", "-force",
+		"-var", fmt.Sprintf("os=", r.Config.OS),
+		fmt.Sprintf("-var-file=%s", tfVarsFile),
+	})
 	return trace.Wrap(err)
 }
 
@@ -140,31 +176,50 @@ func (r *terraform) SelectInterface(installer infra.Node, addrs []string) (int, 
 
 // Connect establishes an SSH connection to the specified address
 func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
-	keyFile, err := os.Open(r.SSHKeyPath)
+	client, err := r.Client(addrIP)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return sshutils.Connect(fmt.Sprintf("%v:22", addrIP), r.Config.SSHUser, keyFile)
+
+	return client.NewSession()
+}
+
+// Client establishes an SSH connection to the specified address
+func (r *terraform) Client(addrIP string) (*ssh.Client, error) {
+	keyFile, err := os.Open(r.sshKeyPath)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return sshutils.Client(fmt.Sprintf("%v:22", addrIP), r.sshUser, keyFile)
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {
-	return session.Start(installerCommand(r.Config.SSHUser))
+	cmd, err := r.makeRemoteCommand(r.Config.InstallerURL, "./install")
+	if err != nil {
+		return trace.Wrap(err, "Installer")
+	}
+	return session.Start(cmd)
 }
 
 func (r *terraform) UploadUpdate(session *ssh.Session) error {
-	return session.Run(uploadUpdateCommand(r.Config.SSHUser))
+	cmd, err := r.makeRemoteCommand(r.Config.InstallerURL, "./upload")
+	if err != nil {
+		return trace.Wrap(err, "Updater")
+	}
+	return session.Run(cmd)
 }
 
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
-	return fmt.Sprintf("/home/%s/installer/gravity.log", r.Config.SSHUser)
+	return fmt.Sprintf("/home/%s/installer/gravity.log", r.sshUser)
 }
 
 func (r *terraform) State() infra.ProvisionerState {
 	nodes := make([]infra.StateNode, 0, r.pool.Size())
 	for _, n := range r.pool.Nodes() {
-		nodes = append(nodes, infra.StateNode{Addr: n.(*node).publicIP, KeyPath: r.Config.SSHKeyPath})
+		nodes = append(nodes, infra.StateNode{Addr: n.(*node).publicIP, KeyPath: r.sshKeyPath})
 	}
 	allocated := make([]string, 0, r.pool.SizeAllocated())
 	for _, node := range r.pool.AllocatedNodes() {
@@ -184,24 +239,19 @@ func (r *terraform) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (r *node) Addr() string {
-	return r.publicIP
-}
-
-func (r *node) Connect() (*ssh.Session, error) {
-	return r.owner.Connect(r.publicIP)
-}
-
-func (r node) String() string {
-	return fmt.Sprintf("node(addr=%v)", r.publicIP)
-}
-
 func (r *terraform) boot() (output string, err error) {
-	args := append([]string{"apply"}, getVars(r.Config)...)
-	// Pass secrets via environment variables
-	accessKeyVar := fmt.Sprintf("TF_VAR_access_key=%v", r.Config.AccessKey)
-	secretKeyVar := fmt.Sprintf("TF_VAR_secret_key=%v", r.Config.SecretKey)
-	out, err := r.command(args, system.SetEnv(accessKeyVar, secretKeyVar))
+	varsPath := filepath.Join(r.stateDir, tfVarsFile)
+	err = r.saveVarsJSON(varsPath)
+	if err != nil {
+		return "", trace.Wrap(err, "failed to store Terraform vars")
+	}
+
+	out, err := r.command([]string{
+		"apply",
+		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
+		"-var", fmt.Sprintf("os=%s", r.OS),
+		fmt.Sprintf("-var-file=%s", varsPath),
+	})
 	if err != nil {
 		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
@@ -220,61 +270,43 @@ func (r *terraform) command(args []string, opts ...system.CommandOptionSetter) (
 	return out.Bytes(), nil
 }
 
-// getVars returns a list of variables to provide to terraform apply/destroy commands
-// extracted from the config
-func getVars(config Config) []string {
-	variables := map[string]string{
-		"region":        config.Region,
-		"key_pair":      config.KeyPair,
-		"instance_type": config.InstanceType,
-		"cluster_name":  config.ClusterName,
-		"nodes":         strconv.Itoa(config.NumNodes),
-		"ssh_user":      config.SSHUser,
+// serializes terraform vars into given file as JSON
+func (r *terraform) saveVarsJSON(varFile string) error {
+	var config interface{}
+	switch r.Config.CloudProvider {
+	case "aws":
+		config = r.Config.AWS
+	case "azure":
+		config = r.Config.Azure
+	default:
+		return trace.Errorf("No configuration for cloud %s", r.Config.CloudProvider)
 	}
-	if config.InstallerURL != "" {
-		variables["installer_url"] = config.InstallerURL
+
+	f, err := os.OpenFile(varFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 440)
+	if err != nil {
+		return trace.Wrap(err, "Cannot save Terraform Vars file %s", varFile)
 	}
-	var args []string
-	for k, v := range variables {
-		if strings.TrimSpace(v) != "" {
-			args = append(args, "-var", fmt.Sprintf("%v=%v", k, v))
-		}
-	}
-	return args
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent(" ", " ")
+	log.Debug(config)
+	return trace.Wrap(enc.Encode(config))
 }
 
 type terraform struct {
 	*log.Entry
 	Config
 
+	sshUser, sshKeyPath string
+	sshClient           *ssh.Client
+
 	pool        infra.NodePool
 	stateDir    string
 	installerIP string
 }
 
-type node struct {
-	owner     *terraform
-	publicIP  string
-	privateIP string
-}
-
 var (
-	reInstallerIP = regexp.MustCompile("(?m:^ *installer_ip *= *([0-9\\.]+))")
-	rePrivateIPs  = regexp.MustCompile("(?m:^ *private_ips *= *([0-9\\. ]+))")
-	rePublicIPs   = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
+	rePrivateIPs = regexp.MustCompile("(?m:^ *private_ips *= *([0-9\\. ]+))")
+	rePublicIPs  = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
 )
-
-// installerCommand returns a shell command to fetch installer tarball, unpack it and launch the installation
-func installerCommand(username string) string {
-	return fmt.Sprintf(`for i in {1..240}; do if [ -f /home/%[1]s/installer.tar.gz ]; then break; fi; sleep 5; done; \
-                        tar -xf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
-                        /home/%[1]s/installer/install`, username)
-}
-
-// uploadUpdateCommand returns a shell command to fetch installer tarball, unpack it and start
-// uploading the update
-func uploadUpdateCommand(username string) string {
-	return fmt.Sprintf(`rm -rf /home/%[1]s/installer/*; \
-                        tar -xf /home/%[1]s/installer.tar.gz -C /home/%[1]s/installer; \
-                        cd /home/%[1]s/installer/; sudo ./upload`, username)
-}

@@ -137,9 +137,7 @@ func (p *SiteServerPage) AddOnPremServer() SiteServer {
 func (p *SiteServerPage) AddAWSServer() SiteServer {
 	config := framework.TestContext.AWS
 	page := p.site.page
-
 	currentServerItems := p.GetSiteServers()
-
 	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).To(
 		Succeed(),
 		"should click on Provision new button")

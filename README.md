@@ -94,7 +94,8 @@ onprem:
  * `service_login` specifies details of a service user to use to programmatically access Ops Center from the command line. This can be a
   user specifically created for tests. The user will be used to connect to the Ops Center and query logs or export/import application packages
   as required by tests.
- * `aws` specifies a [block](#aws-configuration) of parameters for AWS-based test scenarios.
+ * `aws` specifies a [block](#aws-configuration) of parameters for AWS deployment.
+ * `azure` specifies a [block](#azure-configuration) of parameters for Azure deployment. 
  * `onprem` specifies a [block](#onprem-configuration) of parameters for bare metal tests.
  * `extensions` specifies a [block](#step-configuration) of parameters for arbitrary test steps.
 
@@ -104,12 +105,21 @@ onprem:
 This section specifies parameters to login into Ops Center using a browser.
 The `auth_provider` is one of [`google`, `email`].
 
-
 ### AWS configuration
 
-All parameters in this section should be self-explanatory.
-The `vpc` parameter specifies whether to use an existing or create a new VPC.
-The valid values are names of VPCs or a special value `Create new` to indicate the fact that a new VPC is to be created.
+  - `access_key` and `secret_key` : see [AWS access credentials](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html).
+  - `ssh_user`: cannot be configured on AWS images, and should correspond to the one assigned by distribution - i.e. ubuntu, redhat, centos, debian. 
+  - `key_path` path to SSH private key 
+  - `key_pair` you should place public part of SSH key into [AWS key-pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) and provide its nickname here. 
+  - `region` AWS EC2 region
+  - `vpc` should be `Create new`
+  - `cluster_name` defines [AWS placement](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) group for resources created
+  - `os` parameter should be either ubuntu, redhat, centos or debian
+
+### Azure configuration
+ - Currently CentOS / RHEL [do not support cloud-init on Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init), and you need to provision VMs first, then manually run bootstrap script.
+ - See [access credentials](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) documentation.
+ - `os` parameter should be either ubuntu, redhat, centos or debian
 
 ### Onprem configuration
 
@@ -119,10 +129,10 @@ run tests from an installer tarball. See below on details about the [Wizard mode
 The `installer_url` specifies either the URL of the installer tarball to download (as required by the `terraform` provisioner) or
 a path to a local tarball for `vagrant`. The `installer_url` is optional and is only required for [Wizard mode](#wizard-mode).
 
-The `docker_device` specifies the device for docker with devicemapper driver. With empty value for this param docker will use loopback device, which is not recommended for prodaction usage.
+The `docker_device` specifies the device for docker with the `devicemapper` storage driver. If unspecified, docker will use loopback device, which is not recommended for production usage.
 
-The `nodes` parameter specifies the total cluster capacity (e.g. the number of total nodes to provision).
-Note the `flavor_label` paramater in the global configuration section - this parameter specifies the actual
+The `nodes` parameter specifies the total cluster capacity (e.g. the total number of nodes to provision).
+Note the `flavor_label` parameter in the global configuration section - this parameter specifies the actual
 installation flavor which determines the number of nodes used for installation. The selected flavor should not exceed the number of `nodes`.
 
 ### Step configuration
@@ -166,8 +176,10 @@ onprem:
     docker_device: /dev/xvdb
 ```
 
+When using `s3:` type URLs, you should fill in `aws:` configuration section.
+
 ```shell
-$ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=terraform -config=config.yaml -ginkgo.focus='Onprem Install'
 ```
 
 ### Creating infrastructure (vagrant)
@@ -183,7 +195,7 @@ onprem:
 ```
 
 ```shell
-$ ./robotest -provisioner=vagrant -config=config.yaml -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -ginkgo.focus='Onprem Install'
 ```
 
 
@@ -220,7 +232,7 @@ The `login` block for configuration is not necessary for the wizard mode as the 
 The package uses [ginkgo] as a test runner. The tests are split into [specs] (independent pieces that can be tested individually and in arbitrary order).
 We differentiate the tests in two directions: AWS and bare metal.
 
-Here're the relevant top-level test specs:
+List of relevant top-level test specs:
 
   * `Onprem Installation` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
   * `AWS Installation` specifies the context for installing an application on AWS cloud (using automatic provisioning)
@@ -269,7 +281,7 @@ This is only relevant for bare metal configurations. The automatically provision
 ## Usage of Docker image
 
 Docker image includes `robotest`, `terraform` and `chromedriver` binaries. Robotest inside docker image can work only with `terraform` provider
-and only with config in YAML or JSON format.
+and only with configuration in YAML or JSON format.
 How to use it:
 
 ``` shell
@@ -330,6 +342,7 @@ onprem:
 
 Currently set of test specs are all browser-based and require a [WebDriver]-compatible implementation ([selenium] or [chrome-driver] are two examples).
 If no web driver has been configured, [chrome-driver] will be used.
+
 
 
 [//]: # (Footnotes and references)

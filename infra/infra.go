@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,7 +9,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
@@ -85,6 +85,9 @@ type Provisioner interface {
 	// Connect connects to the node identified with addr and returns
 	// a new session object that can be used to execute remote commands
 	Connect(addr string) (*ssh.Session, error)
+	// Client connects to the node identified with addr and returns
+	// a new ssh client that can be used to execute remote commands
+	Client(addr string) (*ssh.Client, error)
 	// SelectInterface returns the index (in addrs) of network address to use for
 	// installation.
 	// installerNode should be the result of calling Provisioner.Create
@@ -126,11 +129,16 @@ type NodePool interface {
 
 // Node defines an interface to a remote node
 type Node interface {
-	// Addr returns the address of the node
+	// Addr returns public address of the node
 	Addr() string
+	// PrivateAddr returns the private address of the node
+	PrivateAddr() string
 	// Connect connects to this node and returns a new session object
 	// that can be used to execute remote commands
 	Connect() (*ssh.Session, error)
+	// Client connects to this node and returns a new SSH Client object
+	// that can be used to execute remote commands
+	Client() (*ssh.Client, error)
 }
 
 // Distribute executes the specified command on given nodes
@@ -162,7 +170,7 @@ func Distribute(command string, nodes ...Node) error {
 // session's Stdout/Stderr to the specified w
 func Run(node Node, command string, w io.Writer) (err error) {
 	var session *ssh.Session
-	err = wait.Retry(defaults.RetryDelay, defaults.RetryAttempts, func() error {
+	err = wait.Retry(context.TODO(), func() error {
 		session, err = node.Connect()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))
