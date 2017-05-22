@@ -51,6 +51,8 @@ $(TARGETS): clean vendor
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
+
+.PHONY: vendor
 vendor:
 	cd $(SRCDIR) && glide install
 
