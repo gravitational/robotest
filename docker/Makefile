@@ -7,8 +7,8 @@ TERRAFORM_VERSION := 0.9.3
 CHROMEDRIVER_VERSION := 2.29
 BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) --build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
 
-.PHONY: all
-all: $(TARGETS)
+.PHONY: containers
+containers: $(TARGETS)
 
 BINARIES := $(addprefix ../build/robotest-,$(TARGETS))
 
@@ -23,6 +23,7 @@ $(TARGETS): $(BINARIES)
 	  echo "TEMPDIR is not set"; exit 1; \
 	fi;
 	mkdir -p $(TEMPDIR)/build
+	cp -r ../assets/terraform $(TEMPDIR)
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true --pull -t $(IMAGE) .

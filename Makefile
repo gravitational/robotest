@@ -23,6 +23,9 @@ buildbox:
 		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) \
 		docker/build
 
+.PHONY: containers
+containers:
+	cd docker && $(MAKE) -j containers
 .PHONY: publish
 publish:
 	cd docker && $(MAKE) -j publish
