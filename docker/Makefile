@@ -38,9 +38,9 @@ publish: $(DOCKER_IMG)
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
-	echo docker push $@:$(VERSION)
-	echo docker tag $@:$(VERSION) $@:$(LATEST)
-	echo docker push $@:$(LATEST)
+	docker push $@:$(VERSION)
+	docker tag $@:$(VERSION) $@:$(LATEST)
+	docker push $@:$(LATEST)
 
 .PHONY: what-version
 what-version:
