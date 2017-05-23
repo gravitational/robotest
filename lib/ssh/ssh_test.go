@@ -20,7 +20,7 @@ var sshTestHost = flag.String("host", "", "SSH test host address")
 var sshTestUser = flag.String("user", "robotest", "SSH test user")
 var sshTestKeyPath = flag.String("key", "", "Path to SSH private key")
 
-func TestParse(t *testing.T) {
+func TestSshUtils(t *testing.T) {
 	flag.Parse()
 
 	require.NotEmpty(t, *sshTestHost, "ssh host")
@@ -36,6 +36,7 @@ func TestParse(t *testing.T) {
 
 	t.Run("environment", func(t *testing.T) {
 		t.Parallel()
+		t.Skip() // this requires setup on sshd side, and we no longer use this method
 		testEnv(t, client)
 	})
 
@@ -54,6 +55,17 @@ func TestParse(t *testing.T) {
 		testFile(t, client)
 	})
 
+	t.Run("scp", func(t *testing.T) {
+		t.Parallel()
+		testPutFile(t, client)
+	})
+}
+
+func testPutFile(t *testing.T, client *ssh.Client) {
+	p, err := PutFile(context.Background(), t.Logf, client,
+		"/bin/echo", "/tmp")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "/tmp/echo", p, "path")
 }
 
 func testEnv(t *testing.T, client *ssh.Client) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
+	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/trace"
 
 	"golang.org/x/crypto/ssh"
@@ -24,11 +25,30 @@ type Gravity interface {
 	OfflineUpdate(ctx context.Context, installerUrl string) error
 	// Join asks to join existing cluster (or installation in progress)
 	Join(ctx context.Context, param JoinCmd) error
+	// Leave requests current node leave a cluster
+	Leave(ctx context.Context, graceful bool) error
+	// Remove requests cluster to evict a given node
+	Remove(ctx context.Context, node string, graceful bool) error
+	// Uninstall will wipe gravity installation from node
+	Uninstall(ctx context.Context) error
+	// Poweroff will power off the node
+	PowerOff(ctx context.Context, graceful bool) error
+	// Reboot will reboot this node and wait until it will become available again
+	Reboot(ctx context.Context, graceful bool) error
 	// Node returns underlying VM instance
 	Node() infra.Node
 	// Client returns SSH client to VM instance
 	Client() *ssh.Client
+	// Text representation
+	String() string
 }
+
+const (
+	// Force an operation
+	Force = false
+	// Graceful completion of operation
+	Graceful = true
+)
 
 // InstallCmd install parameters passed to first node
 type InstallCmd struct {
@@ -69,7 +89,7 @@ type GravityStatus struct {
 
 type gravity struct {
 	node         infra.Node
-	logFn        sshutils.LogFnType
+	logFn        utils.LogFnType
 	installDir   string
 	dockerDevice string
 	ssh          *ssh.Client
@@ -77,8 +97,26 @@ type gravity struct {
 
 const retrySSH = time.Second * 10
 
+// waits for SSH to be up on node and returns client
+func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+	for {
+		client, err := node.Client()
+
+		if err == nil {
+			return client, nil
+		}
+
+		logFn("waiting for SSH on %s, retry in %v", node.Addr(), retrySSH)
+		select {
+		case <-ctx.Done():
+			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
+		case <-time.After(retrySSH):
+		}
+	}
+}
+
 // FromNode takes a provisioned and set up Node and makes Gravity control interface
-func fromNode(ctx context.Context, logFn sshutils.LogFnType, node infra.Node, installDir, dockerDevice string) (Gravity, error) {
+func fromNode(ctx context.Context, logFn utils.LogFnType, node infra.Node, installDir, dockerDevice string) (Gravity, error) {
 	g := gravity{
 		node:         node,
 		logFn:        logFn,
@@ -86,22 +124,17 @@ func fromNode(ctx context.Context, logFn sshutils.LogFnType, node infra.Node, in
 		dockerDevice: dockerDevice,
 	}
 
-	// node might be provisioned, but SSH daemon not up just yet
-	for {
-		client, err := node.Client()
-
-		if err == nil {
-			g.ssh = client
-			return &g, nil
-		}
-
-		logFn("error SSH %s, retry in %v", node.Addr(), retrySSH)
-		select {
-		case <-ctx.Done():
-			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
-		case <-time.After(retrySSH):
-		}
+	client, err := sshClient(ctx, logFn, g.node)
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
+
+	g.ssh = client
+	return &g, nil
+}
+
+func (g *gravity) String() string {
+	return g.node.PrivateAddr()
 }
 
 func (g *gravity) Node() infra.Node {
@@ -123,7 +156,7 @@ func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
 }
 
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity status")
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
 	status, exit, err := sshutils.RunAndParse(ctx, g.logFn, g.ssh,
 		cmd, nil, parseStatus)
 
@@ -132,7 +165,8 @@ func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	}
 
 	if exit != 0 {
-		return nil, trace.Errorf("%s returned %d", cmd, exit)
+		return nil, trace.Errorf("[%s/%s] %s returned %d",
+			g.Node().PrivateAddr(), g.Node().Addr(), cmd, exit)
 	}
 
 	return status.(*GravityStatus), nil
@@ -142,17 +176,20 @@ func (g *gravity) OfflineUpdate(ctx context.Context, installerUrl string) error 
 	return nil
 }
 
+// autoVals are set by command itself based on configuration
+type autoVals struct{ InstallDir, PrivateAddr, DockerDevice string }
+
+// cmdEx are extended parameters passed to gravity
+type cmdEx struct {
+	P   autoVals
+	Cmd interface{}
+}
+
 var joinCmdTemplate = template.Must(
 	template.New("gravity_join").Parse(
 		`cd {{.P.InstallDir}} && sudo ./gravity join {{.Cmd.PeerAddr}} \
 		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} \
 		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}}`))
-
-type autoVals struct{ InstallDir, PrivateAddr, DockerDevice string }
-type cmdEx struct {
-	P   autoVals
-	Cmd interface{}
-}
 
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer
@@ -166,4 +203,70 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 
 	err = sshutils.Run(ctx, g.logFn, g.ssh, buf.String(), nil)
 	return trace.Wrap(err, cmd)
+}
+
+// Leave makes given node leave the cluster
+func (g *gravity) Leave(ctx context.Context, graceful bool) error {
+	var cmd string
+	if graceful {
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.installDir)
+	} else {
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.installDir)
+	}
+
+	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	return trace.Wrap(err, cmd)
+}
+
+// Remove ejects node from cluster
+func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
+	var cmd string
+	if graceful {
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --confirm %s`, g.installDir, node)
+	} else {
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --confirm --force %s`, g.installDir, node)
+	}
+	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	return trace.Wrap(err, cmd)
+}
+
+// Uninstall removes gravity installation. It requires Leave beforehand
+func (g *gravity) Uninstall(ctx context.Context) error {
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
+	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	return trace.Wrap(err, cmd)
+}
+
+// PowerOff forcibly halts a machine
+func (g *gravity) PowerOff(ctx context.Context, graceful bool) error {
+	var cmd string
+	if graceful {
+		cmd = "sudo shutdown -h now"
+	} else {
+		cmd = "sudo poweroff -f"
+	}
+
+	sshutils.RunAndParse(ctx, g.logFn, g.ssh, cmd, nil, nil)
+	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
+	return nil
+}
+
+// Reboot gracefully restarts a machine and waits for it to become available again
+func (g *gravity) Reboot(ctx context.Context, graceful bool) error {
+	var cmd string
+	if graceful {
+		cmd = "sudo shutdown -r now"
+	} else {
+		cmd = "sudo reboot -f"
+	}
+	sshutils.RunAndParse(ctx, g.logFn, g.ssh, cmd, nil, nil)
+	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
+
+	client, err := sshClient(ctx, g.logFn, g.Node())
+	if err != nil {
+		return trace.Wrap(err, "SSH reconnect")
+	}
+
+	g.ssh = client
+	return nil
 }

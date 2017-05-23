@@ -5,12 +5,7 @@ BUILDDIR ?= $(abspath build)
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
 
-
 GLIDE_VER := v0.12.3
-
-# Amazon S3
-BUILD_BUCKET_URL := s3://clientbuilds.gravitational.io/gravity/$(PUBLISH_VERSION)
-S3_OPTS := --region us-east-1
 
 # Rules below run on host
 
@@ -29,18 +24,8 @@ buildbox:
 		docker/build
 
 .PHONY: publish
-publish: docker-images publish-binary-into-s3
-
-.PHONY: publish-docker-images
-publish-docker-images:
-	cd docker && $(MAKE) -j publish-images
-
-.PHONY: publish-binary-into-s3
-publish-binary-into-s3:
-ifeq (, $(shell which aws))
-	$(error "No aws command in $(PATH)")
-endif
-	aws $(S3_OPTS) s3 cp ./build $(BUILD_BUCKET_URL) --recursive
+publish:
+	cd docker && $(MAKE) -j publish
 
 #
 # Runs inside build container
@@ -51,8 +36,10 @@ $(TARGETS): clean vendor
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
-vendor:
+vendor: glide.yaml
 	cd $(SRCDIR) && glide install
+
+glide.yaml:
 
 .PHONY: clean
 clean:

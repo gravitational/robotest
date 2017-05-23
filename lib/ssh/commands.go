@@ -3,6 +3,8 @@ package sshutils
 import (
 	"context"
 
+	"github.com/gravitational/robotest/lib/utils"
+
 	"github.com/gravitational/trace"
 
 	"golang.org/x/crypto/ssh"
@@ -18,7 +20,7 @@ type Cmd struct {
 }
 
 // RunCommands executes commands sequentially
-func RunCommands(ctx context.Context, logFn LogFnType, client *ssh.Client, commands []Cmd) error {
+func RunCommands(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, commands []Cmd) error {
 	for _, cmd := range commands {
 		_, exit, err := RunAndParse(ctx, logFn, client, cmd.Command, cmd.Env, ParseDiscard)
 		if err != nil {
@@ -29,4 +31,18 @@ func RunCommands(ctx context.Context, logFn LogFnType, client *ssh.Client, comma
 		}
 	}
 	return nil
+}
+
+const tmpDir = "/tmp"
+
+// RunScript will run a .sh script on remote host
+// if script should not be executed it should have internal flag files and terminate
+func RunScript(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, scriptPath string, sudo bool) error {
+	remotePath, err := PutFile(ctx, logFn, client, scriptPath, tmpDir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = Run(ctx, logFn, client, remotePath, nil)
+	return trace.Wrap(err)
 }

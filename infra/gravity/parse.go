@@ -9,11 +9,11 @@ import (
 )
 
 // i.e. "Status: active"
-var rStatusKV = regexp.MustCompile(`^(?P<key>[\w\s]+)\:\s*(?P<val>[\w\d\_\-]+),*.*$`)
-var rStatusNodeIp = regexp.MustCompile(`^[\s\w\-\d]+\((?P<ip>[\d\.]+)\).*$`)
+var rStatusKV = regexp.MustCompile(`^(?P<key>[\w\s]+)\:\s*(?P<val>[\w\d\_\-]+),*.*`)
+var rStatusNodeIp = regexp.MustCompile(`^[\s\w\-\d]+\((?P<ip>[\d\.]+)\).*`)
 
 // parse `gravity status`
-func parseStatus(r *bufio.Reader) (out interface{}, err error) {
+func parseStatus(r *bufio.Reader) (interface{}, error) {
 	status := &GravityStatus{
 		Nodes: []string{},
 	}
@@ -21,7 +21,7 @@ func parseStatus(r *bufio.Reader) (out interface{}, err error) {
 	for {
 		line, err := r.ReadString('\n')
 		if err == io.EOF {
-			return out, nil
+			return status, nil
 		}
 		if err != nil {
 			return nil, trace.Wrap(err)
@@ -38,6 +38,7 @@ func parseStatus(r *bufio.Reader) (out interface{}, err error) {
 			status.Nodes = append(status.Nodes, vars[1])
 			continue
 		}
+
 	}
 
 	return status, nil
@@ -54,7 +55,6 @@ func populateStatus(key, value string, status *GravityStatus) error {
 	case "Status":
 		status.Status = value
 	default:
-		return trace.Errorf("unknown %s:%s", key, value)
 	}
 	return nil
 }
