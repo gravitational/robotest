@@ -47,7 +47,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			installer.StartInstallation()
 
 			By("waiting until install is completed")
-			installer.WaitForComplete()
+			installer.WaitForCompletion()
 
 			By("checking for bandwagon step")
 			if installer.NeedsBandwagon(domainName) == false {

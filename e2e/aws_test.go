@@ -44,7 +44,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 			installer.StartInstallation()
 
 			By("waiting until install is completed or failed")
-			installer.WaitForComplete()
+			installer.WaitForCompletion()
 
 			if installer.NeedsBandwagon(domainName) == true {
 				By("navigating to bandwagon step")

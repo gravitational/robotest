@@ -267,8 +267,8 @@ func (i *Installer) SelectFlavorByLabel(label string) int {
 	return 0 // unreachable
 }
 
-// WaitForComplete waits for ongoing install operation to be completed
-func (i *Installer) WaitForComplete() {
+// WaitForCompletion waits for ongoing install operation to be completed
+func (i *Installer) WaitForCompletion() {
 	Expect(i.IsInProgressStep()).To(BeTrue(), "should be in progress")
 	installTimeout := defaults.InstallTimeout
 	if framework.TestContext.Extensions.InstallTimeout != 0 {
@@ -276,7 +276,7 @@ func (i *Installer) WaitForComplete() {
 	}
 	Eventually(func() bool {
 		return i.IsInstallCompleted() || i.IsInstallFailed()
-	}, installTimeout, defaults.InstallSuccessMessagePollInterval).Should(BeTrue(), "wait until timeout or install success/fail message")
+	}, installTimeout, defaults.InstallCompletionPollInterval).Should(BeTrue(), "wait until timeout or install success/fail message")
 
 	Expect(i.IsInstallFailed()).To(BeFalse(), "should not fail")
 	Expect(i.IsInstallCompleted()).To(BeTrue(), "should be completed")

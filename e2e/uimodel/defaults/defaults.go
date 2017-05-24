@@ -21,8 +21,8 @@ const (
 	InstallStartTimeout = 5 * time.Minute
 	// InstallTimeout defines the amount of time to wait for installation to complete
 	InstallTimeout = 40 * time.Minute
-	// InstallSuccessMessagePollInterval defines the frequency of polling attempts to retrieve installation state
-	InstallSuccessMessagePollInterval = time.Second
+	// InstallCompletionPollInterval defines poll interval for checking install completion status
+	InstallCompletionPollInterval = 5 * time.Second
 
 	// SiteServerListRefreshTimeout defines amount of time needed to refresh server list table on Site Server page
 	SiteServerListRefreshTimeout = 5 * time.Second
