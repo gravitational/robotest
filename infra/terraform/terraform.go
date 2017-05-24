@@ -154,17 +154,13 @@ func (r *terraform) terraform() (err error) {
 }
 
 func (r *terraform) Destroy() error {
-	// FIXME : i'm not sure its safe as it may potentially wipe out everything on shared cloud account
-	//
-	// within Azure, all resources are grouped within resource group, and deleting a specific
-	// resource group is a safe mechanism
-	return nil
-
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
+	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	_, err := r.command([]string{
 		"destroy", "-force",
-		"-var", fmt.Sprintf("os=", r.Config.OS),
-		fmt.Sprintf("-var-file=%s", tfVarsFile),
+		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
+		"-var", fmt.Sprintf("os=%s", r.OS),
+		fmt.Sprintf("-var-file=%s", varsPath),
 	})
 	return trace.Wrap(err)
 }
