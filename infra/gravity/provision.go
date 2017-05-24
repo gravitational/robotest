@@ -2,85 +2,35 @@ package gravity
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
-
-	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
+	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
 
-	"github.com/go-yaml/yaml"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/go-playground/validator.v9"
 )
-
-// ProvisionerConfig defines parameters required to provision hosts
-// CloudProvider, AWS, Azure, ScriptPath and InstallerURL
-type ProvisionerConfig struct {
-	// DeployTo defines cloud to deploy to
-	CloudProvider string `yaml:"cloud_provider" validate:"required,eq=aws|eq=azure"`
-	// AWS defines AWS connection parameters
-	AWS *infra.AWSConfig `yaml:"aws"`
-	// Azure defines Azure connection parameters
-	Azure *infra.AzureConfig `yaml:"azure"`
-
-	// ScriptPath is the path to the terraform script or directory for provisioning
-	ScriptPath string `yaml:"script_path" validate:"required"`
-	// InstallerURL is AWS S3 URL with the installer
-	InstallerURL string `yaml:"installer_url" validate:"required,url`
-
-	// Tag will group provisioned resources under for easy removal afterwards
-	Tag string `validate:"required"`
-	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
-	StateDir string `validate:"required"`
-	// NodeCount defines amount of nodes to be provisioned
-	NodeCount uint `validate:"gte=1"`
-	// OS defines one of supported operating systems
-	OS string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
-}
-
-// LoadConfig loads essential parameters from YAML
-func LoadConfig(t *testing.T, configFile string) ProvisionerConfig {
-	require.NotEmpty(t, configFile, "config file")
-	f, err := os.Open(configFile)
-	require.NoError(t, err, configFile)
-	defer f.Close()
-
-	configBytes, err := ioutil.ReadAll(f)
-	require.NoError(t, err)
-
-	cfg := ProvisionerConfig{}
-	err = yaml.Unmarshal(configBytes, &cfg)
-	require.NoError(t, err, configFile)
-
-	return cfg
-}
-
-// validateConfig checks that key parameters are present
-func validateConfig(t *testing.T, config ProvisionerConfig) {
-	err := validator.New().Struct(&config)
-	if err == nil {
-		return
-	}
-
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for _, fieldError := range validationErrors {
-			t.Errorf(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag())
-		}
-		require.FailNow(t, "Fix ProvisionerConfig")
-	}
-}
 
 // DestroyFn function which will destroy previously created remote resources
 type DestroyFn func() error
+
+var keepResources = flag.Bool("keepresources", true, "do not destroy resources after test runs")
+
+func Destroy(t *testing.T, destroy DestroyFn) {
+	if *keepResources {
+		return
+	}
+
+	destroy()
+}
 
 // scheduleDestroy will register resource (placement) group for destruction with external service
 // based on Context expiration deadline. This would only be used in continuous operation (i.e. part of CLI)
@@ -90,6 +40,7 @@ func scheduleDestroy(ctx context.Context, cloud, tag string) {
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
+	fromConfig   *ProvisionerConfig
 	dockerDevice string
 	user         string
 	os           string
@@ -99,11 +50,11 @@ type cloudDynamicParams struct {
 	env          map[string]string
 }
 
-// makeDynamicParams takes base config, validates it and returns TerraformConfig
-func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamicParams {
+// makeDynamicParams takes base config, validates it and returns cloudDynamicParams
+func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynamicParams {
 	require.NotNil(t, baseConfig)
 
-	param := &cloudDynamicParams{}
+	param := &cloudDynamicParams{fromConfig: baseConfig}
 
 	// OS name is cloud-init script specific
 	// enforce compatible values
@@ -115,8 +66,8 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamic
 		"centos": "centos",
 	}
 
-	param.user, ok = osUsernames[baseConfig.OS]
-	require.True(t, ok, baseConfig.OS)
+	param.user, ok = osUsernames[baseConfig.os]
+	require.True(t, ok, baseConfig.os)
 
 	param.installerUrl = baseConfig.InstallerURL
 	require.NotEmpty(t, param.installerUrl, "InstallerUrl")
@@ -126,14 +77,14 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamic
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      int(baseConfig.NodeCount),
-		OS:            baseConfig.OS,
+		NumNodes:      int(baseConfig.nodeCount),
+		OS:            baseConfig.os,
 	}
 
 	if baseConfig.AWS != nil {
 		aws := *baseConfig.AWS
 		param.tf.AWS = &aws
-		param.tf.AWS.ClusterName = baseConfig.Tag
+		param.tf.AWS.ClusterName = baseConfig.tag
 		param.tf.AWS.SSHUser = param.user
 
 		param.dockerDevice = param.tf.AWS.DockerDevice
@@ -148,7 +99,7 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamic
 	if baseConfig.Azure != nil {
 		azure := *baseConfig.Azure
 		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.Tag
+		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
 
 		param.dockerDevice = param.tf.Azure.DockerDevice
@@ -159,17 +110,19 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) *cloudDynamic
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
-	logFn := Logf(t, "provision")
-	p, err := terraform.New(filepath.Join(baseConfig.StateDir, baseConfig.Tag, "tf"), params.tf)
+	logFn := utils.Logf(t, baseConfig.Tag())
+	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+
+	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	scheduleDestroy(ctx, baseConfig.CloudProvider, baseConfig.Tag)
+	scheduleDestroy(ctx, baseConfig.CloudProvider, baseConfig.tag)
 
 	_, err = p.Create(false)
 	if err != nil {
@@ -186,7 +139,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) 
 	for _, node := range nodes {
 		go func(n infra.Node) {
 			var res result
-			res.gravity, res.err = PrepareGravity(ctx, logFn, n, params)
+			res.gravity, res.err = PrepareGravity(ctx, t, n, params)
 			resultCh <- &res
 		}(node)
 	}
@@ -210,7 +163,26 @@ func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) 
 		return nil, p.Destroy, trace.NewAggregate(errors...)
 	}
 
-	return gravityNodes, p.Destroy, nil
+	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	for _, node := range nodes {
+		logFn("\t%v", node)
+	}
+
+	return sorted(gravityNodes), p.Destroy, nil
+}
+
+// sort Interface implementation
+type byPrivateAddr []Gravity
+
+func (g byPrivateAddr) Len() int      { return len(g) }
+func (g byPrivateAddr) Swap(i, j int) { g[i], g[j] = g[j], g[i] }
+func (g byPrivateAddr) Less(i, j int) bool {
+	return g[i].Node().PrivateAddr() < g[j].Node().PrivateAddr()
+}
+
+func sorted(nodes []Gravity) []Gravity {
+	sort.Sort(byPrivateAddr(nodes))
+	return nodes
 }
 
 const (
@@ -220,11 +192,15 @@ const (
 const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
-func bootstrap(ctx context.Context, logFn sshutil.LogFnType, client *ssh.Client, param *cloudDynamicParams) error {
+func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error {
+	err := sshutil.Run(ctx, g, "sudo whoami", nil)
+	if err != nil {
+		return trace.Wrap(err, "sudo check")
+	}
+
 	// TODO: implement simple line-by-line execution of existing .sh scripts
 	// Azure doesn't support cloud-init for RHEL/CentOS so need migrate them here
-	return sshutil.WaitForFile(ctx, logFn, client,
-		cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
 }
 
 // ConfigureNode is used to configure a provisioned node
@@ -232,24 +208,32 @@ func bootstrap(ctx context.Context, logFn sshutil.LogFnType, client *ssh.Client,
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func PrepareGravity(ctx context.Context, logFn sshutil.LogFnType, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
-	g, err := fromNode(ctx, logFn, node, param.installDir, param.dockerDevice)
+func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
+	g := &gravity{
+		node:         node,
+		installDir:   param.installDir,
+		dockerDevice: param.dockerDevice,
+		logFn:        t.Logf,
+		fromConfig:   param.fromConfig,
+	}
+
+	client, err := sshClient(ctx, g.Logf, g.node)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	g.ssh = client
 
-	err = bootstrap(ctx, logFn, g.Client(), param)
+	err = bootstrap(ctx, g, param)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	configCompleteFile := filepath.Join(param.installDir, "config_complete")
 
-	err = sshutil.TestFile(ctx, logFn,
-		g.Client(), configCompleteFile, sshutil.TestRegularFile)
+	err = sshutil.TestFile(ctx, g, configCompleteFile, sshutil.TestRegularFile)
 
 	if err == nil {
-		logFn("node %v was already configured", node.Addr())
+		g.Logf("already configured")
 		return g, nil
 	}
 
@@ -257,13 +241,12 @@ func PrepareGravity(ctx context.Context, logFn sshutil.LogFnType, node infra.Nod
 		return nil, trace.Wrap(err)
 	}
 
-	tgz, err := sshutil.TransferFile(ctx, logFn, g.Client(),
-		param.installerUrl, param.installDir, param.env)
+	tgz, err := sshutil.TransferFile(ctx, g, param.installerUrl, param.installDir, param.env)
 	if err != nil {
 		return nil, trace.Wrap(err, param.installerUrl)
 	}
 
-	err = sshutil.RunCommands(ctx, logFn, g.Client(), []sshutil.Cmd{
+	err = sshutil.RunCommands(ctx, g, []sshutil.Cmd{
 		{fmt.Sprintf("tar -xvf %s -C %s", tgz, param.installDir), nil},
 		{fmt.Sprintf("touch %s", configCompleteFile), nil},
 	})

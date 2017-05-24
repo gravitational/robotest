@@ -20,6 +20,7 @@ RUN mkdir -p /robotest
 WORKDIR /robotest
 COPY entrypoint.sh /entrypoint.sh
 COPY build/robotest-suite /usr/bin/robotest-suite
+COPY terraform /robotest/terraform
 
 RUN chmod +x /usr/bin/robotest-suite
 

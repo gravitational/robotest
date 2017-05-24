@@ -3,17 +3,17 @@ DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 LATEST := latest
 
-TERRAFORM_VERSION := 0.9.5
+TERRAFORM_VERSION := 0.9.3
 CHROMEDRIVER_VERSION := 2.29
 BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) --build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
 
-.PHONY: all
-all: $(TARGETS)
+.PHONY: containers
+containers: $(TARGETS)
 
 BINARIES := $(addprefix ../build/robotest-,$(TARGETS))
 
 $(BINARIES):
-	cd .. && make build
+	cd .. && $(MAKE) -j build
 
 .PHONY: $(TARGETS)
 $(TARGETS): $(BINARIES)
@@ -23,6 +23,7 @@ $(TARGETS): $(BINARIES)
 	  echo "TEMPDIR is not set"; exit 1; \
 	fi;
 	mkdir -p $(TEMPDIR)/build
+	cp -r ../assets/terraform $(TEMPDIR)
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true --pull -t $(IMAGE) .
@@ -38,8 +39,8 @@ publish: $(DOCKER_IMG)
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
-	docker tag $@:$(VERSION) $@:$(LATEST)
 	docker push $@:$(VERSION)
+	docker tag $@:$(VERSION) $@:$(LATEST)
 	docker push $@:$(LATEST)
 
 .PHONY: what-version
