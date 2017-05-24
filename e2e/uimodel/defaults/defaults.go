@@ -29,7 +29,7 @@ const (
 	// SiteServerListRefreshAfterShrinkTimeout defines amount of time needed to unregister server from all places
 	SiteServerListRefreshAfterShrinkTimeout = 2 * time.Minute
 	// SiteLogoutAfterUpdateTimeout defines amount of time needed to redirect a user to login page after update operation
-	SiteLogoutAfterUpdateTimeout = 5 * time.Minute
+	SiteLogoutAfterUpdateTimeout = 30 * time.Minute
 	// SiteLogoutAfterUpdatePollInterval defines the frequency of polling attempts to check if a user has been logged out after update operation
 	SiteLogoutAfterUpdatePollInterval = 7 * time.Second
 	// SiteOperationEndTimeout time for operation to be completed (Expand and Application Update operations)

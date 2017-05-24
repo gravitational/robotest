@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	uidefaults "github.com/gravitational/robotest/e2e/model/ui/defaults"
+	uidefaults "github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/lib/constants"
 
 	log "github.com/Sirupsen/logrus"

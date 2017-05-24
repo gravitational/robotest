@@ -3,7 +3,7 @@ package installer
 import (
 	"fmt"
 
-	"github.com/gravitational/robotest/e2e/model/ui/utils"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"

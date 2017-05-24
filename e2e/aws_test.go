@@ -3,8 +3,8 @@ package e2e
 import (
 	"github.com/gravitational/robotest/e2e/framework"
 
-	"github.com/gravitational/robotest/e2e/model/ui"
-	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
+	"github.com/gravitational/robotest/e2e/uimodel"
+	sitemodel "github.com/gravitational/robotest/e2e/uimodel/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -14,17 +14,17 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
 
-	var uic ui.UI
+	var ui uimodel.UI
 
 	BeforeEach(func() {
-		uic = ui.Init(f.Page)
+		ui = uimodel.Init(f.Page)
 	})
 
 	framework.RoboDescribe("Provisioning a new cluster [provisioner:aws][install]", func() {
 		It("should provision a new cluster", func() {
 			domainName := ctx.ClusterName
-			uic.EnsureUser(framework.InstallerURL())
-			installer := uic.GoToInstaller(framework.InstallerURL())
+			ui.EnsureUser(framework.InstallerURL())
+			installer := ui.GoToInstaller(framework.InstallerURL())
 
 			By("filling out license text field if required")
 			installer.ProcessLicenseStepIfRequired(ctx.License)
@@ -48,14 +48,14 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 
 			if installer.NeedsBandwagon(domainName) == true {
 				By("navigating to bandwagon step")
-				bandwagon := uic.GoToBandwagon(domainName)
+				bandwagon := ui.GoToBandwagon(domainName)
 				By("submitting bandwagon form")
 				enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
 				ctx.Bandwagon.RemoteAccess = enableRemoteAccess
 				bandwagon.SubmitForm(ctx.Bandwagon)
 
 				By("navigating to a site and reading endpoints")
-				site := uic.GoToSite(domainName)
+				site := ui.GoToSite(domainName)
 				endpoints := site.GetEndpoints()
 				Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 			} else {
@@ -70,8 +70,8 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 		var site = sitemodel.Site{}
 
 		BeforeEach(func() {
-			uic.EnsureUser(framework.SiteURL())
-			site = uic.GoToSite(ctx.ClusterName)
+			ui.EnsureUser(framework.SiteURL())
+			site = ui.GoToSite(ctx.ClusterName)
 		})
 
 		It("should add a new server [expand]", func() {
@@ -88,7 +88,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	framework.RoboDescribe("Site delete operation [provisioner:aws][delete]", func() {
 		It("should delete site", func() {
 			By("openning opscenter")
-			opscenter := uic.GoToOpsCenter(framework.Cluster.OpsCenterURL())
+			opscenter := ui.GoToOpsCenter(framework.Cluster.OpsCenterURL())
 			By("trying to delete a site")
 			opscenter.DeleteSite(ctx.ClusterName)
 		})

@@ -6,8 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/defaults"
-	"github.com/gravitational/robotest/e2e/model/ui/utils"
+	"github.com/gravitational/robotest/e2e/uimodel/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -33,11 +33,10 @@ func (i *Installer) ProcessLicenseStepIfRequired(license string) {
 	if count > 0 {
 		Expect(license).NotTo(BeEmpty(), "should have a valid license")
 		Expect(elems.SendKeys(license)).To(Succeed())
-		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed(),
-			"should input the license text")
-		Eventually(i.page.FindByClass("grv-installer-warning"),
-			defaults.FindTimeout).ShouldNot(BeFound(),
-			"should not see an error about an invalid license")
+		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).
+			To(Succeed(), "should input the license text")
+		Eventually(i.page.FindByClass("grv-installer-warning"), defaults.FindTimeout).
+			ShouldNot(BeFound(), "should not see an error about an invalid license")
 	}
 }
 

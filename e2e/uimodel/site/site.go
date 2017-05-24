@@ -5,9 +5,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/defaults"
-	"github.com/gravitational/robotest/e2e/model/ui/user"
-	"github.com/gravitational/robotest/e2e/model/ui/utils"
+	"github.com/gravitational/robotest/e2e/uimodel/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel/user"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 	"github.com/gravitational/trace"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"

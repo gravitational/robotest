@@ -7,10 +7,10 @@ import (
 
 	"github.com/gravitational/robotest/e2e/framework"
 
-	"github.com/gravitational/robotest/e2e/model/ui"
-	uidefaults "github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel"
+	uidefaults "github.com/gravitational/robotest/e2e/uimodel/defaults"
 
-	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
+	sitemodel "github.com/gravitational/robotest/e2e/uimodel/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,19 +19,19 @@ import (
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
-	var uic ui.UI
+	var ui uimodel.UI
 	var domainName string
 
 	BeforeEach(func() {
 		domainName = ctx.ClusterName
-		uic = ui.Init(f.Page)
+		ui = uimodel.Init(f.Page)
 	})
 
 	framework.RoboDescribe("Provisioning a new cluster [provisioner:onprem][install]", func() {
 		It("should provision a new cluster", func() {
 			By("navigating to installer step")
-			uic.EnsureUser(framework.InstallerURL())
-			installer := uic.GoToInstaller(framework.InstallerURL())
+			ui.EnsureUser(framework.InstallerURL())
+			installer := ui.GoToInstaller(framework.InstallerURL())
 
 			By("filling out license text field if required")
 			installer.ProcessLicenseStepIfRequired(ctx.License)
@@ -51,20 +51,20 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 
 			By("checking for bandwagon step")
 			if installer.NeedsBandwagon(domainName) == false {
-				uic.GoToSite(domainName)
+				ui.GoToSite(domainName)
 				return
 			}
 
 			By("navigating to bandwagon step")
 			installer.ProceedToSite()
-			bandwagon := uic.GoToBandwagon(domainName)
+			bandwagon := ui.GoToBandwagon(domainName)
 			By("submitting bandwagon form")
 			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
 			ctx.Bandwagon.RemoteAccess = enableRemoteAccess
 			bandwagon.SubmitForm(ctx.Bandwagon)
 
 			By("navigating to a site and reading endpoints")
-			site := uic.GoToSite(domainName)
+			site := ui.GoToSite(domainName)
 			endpoints := site.GetEndpoints()
 			endpoints = filterGravityEndpoints(endpoints)
 			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
@@ -88,8 +88,8 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			By("login in with bandwagon user credentials")
 			framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 			// login using local cluster endpoint
-			uic.EnsureUser(framework.SiteURL())
-			uic.GoToSite(domainName)
+			ui.EnsureUser(framework.SiteURL())
+			ui.GoToSite(domainName)
 		})
 	})
 
@@ -98,8 +98,8 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		var site = sitemodel.Site{}
 
 		BeforeEach(func() {
-			uic.EnsureUser(framework.SiteURL())
-			site = uic.GoToSite(domainName)
+			ui.EnsureUser(framework.SiteURL())
+			site = ui.GoToSite(domainName)
 		})
 
 		It("should add a new server", func() {
@@ -126,8 +126,8 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			}
 
 			By("trying to update the site to the latest application version")
-			uic.EnsureUser(siteURL)
-			site := uic.GoToSite(domainName)
+			ui.EnsureUser(siteURL)
+			site := ui.GoToSite(domainName)
 			site.UpdateWithLatestVersion()
 		})
 	})

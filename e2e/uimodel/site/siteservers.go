@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/agent"
-	"github.com/gravitational/robotest/e2e/model/ui/defaults"
-	"github.com/gravitational/robotest/e2e/model/ui/utils"
+	"github.com/gravitational/robotest/e2e/uimodel/agent"
+	"github.com/gravitational/robotest/e2e/uimodel/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
 	. "github.com/onsi/gomega"
 	. "github.com/sclevine/agouti/matchers"

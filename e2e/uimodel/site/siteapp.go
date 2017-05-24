@@ -3,7 +3,7 @@ package site
 import (
 	"encoding/json"
 
-	"github.com/gravitational/robotest/e2e/model/ui/utils"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
 	. "github.com/onsi/gomega"
 	. "github.com/sclevine/agouti/matchers"

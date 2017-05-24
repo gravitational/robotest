@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gravitational/robotest/e2e/model/ui/agent"
+	"github.com/gravitational/robotest/e2e/uimodel/agent"
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"
 	am "github.com/sclevine/agouti/matchers"

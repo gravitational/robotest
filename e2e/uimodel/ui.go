@@ -1,11 +1,11 @@
-package ui
+package uimodel
 
 import (
-	"github.com/gravitational/robotest/e2e/model/ui/bandwagon"
-	"github.com/gravitational/robotest/e2e/model/ui/installer"
-	"github.com/gravitational/robotest/e2e/model/ui/opscenter"
-	"github.com/gravitational/robotest/e2e/model/ui/site"
-	"github.com/gravitational/robotest/e2e/model/ui/user"
+	"github.com/gravitational/robotest/e2e/uimodel/bandwagon"
+	"github.com/gravitational/robotest/e2e/uimodel/installer"
+	"github.com/gravitational/robotest/e2e/uimodel/opscenter"
+	"github.com/gravitational/robotest/e2e/uimodel/site"
+	"github.com/gravitational/robotest/e2e/uimodel/user"
 	web "github.com/sclevine/agouti"
 )
 
