@@ -1,4 +1,4 @@
-package ui
+package utils
 
 import (
 	"fmt"
@@ -12,6 +12,35 @@ import (
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
+
+func IsErrorPage(page *web.Page) bool {
+	return checkIfExists(page, ".grv-msg-page")
+}
+
+func IsInstaller(page *web.Page) bool {
+	return checkIfExists(page, ".grv-installer")
+}
+
+func HasValidationErrors(page *web.Page) bool {
+	return checkIfExists(page, "label.error")
+}
+
+func IsLoginPage(page *web.Page) bool {
+	count, _ := page.FindByClass("grv-user-login").Count()
+	return count > 0
+}
+
+func checkIfExists(page *web.Page, className string) bool {
+	el := page.Find(className)
+	count, _ := el.Count()
+	return count > 0
+}
+
+func FormatUrl(page *web.Page, prefix string) string {
+	url, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	return framework.URLPathFromString(url, prefix)
+}
 
 func SetDropdownValue(page *web.Page, classPath string, value string) {
 	const scriptTemplate = `

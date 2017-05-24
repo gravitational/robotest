@@ -3,13 +3,14 @@ package installer
 import (
 	"fmt"
 
-	"github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/utils"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
+// AWSProfile is ui model for aws server profile
 type AWSProfile struct {
 	Label string
 	Count string
@@ -17,18 +18,15 @@ type AWSProfile struct {
 	page  *web.Page
 }
 
+// SetInstanceType sets instance type on this profile
 func (p *AWSProfile) SetInstanceType(instanceType string) {
 	Expect(instanceType).NotTo(BeEmpty(), "should have a valid instance type")
-	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCssSelector(p.index))
-	ui.SetDropdownValue(p.page, cssSelector, instanceType)
-}
-
-func getAWSProfileCssSelector(index int) string {
-	return fmt.Sprintf(".grv-installer-provision-reqs-item:nth-child(%v)", index+1)
+	cssSelector := fmt.Sprintf("%v .grv-installer-aws-instance-type", getProfileCSSSelector(p.index))
+	utils.SetDropdownValue(p.page, cssSelector, instanceType)
 }
 
 func createAWSProfile(page *web.Page, index int) AWSProfile {
-	cssSelector := fmt.Sprintf("%v .grv-installer-provision-node-count h2", getProfileCssSelector(index))
+	cssSelector := fmt.Sprintf("%v .grv-installer-provision-node-count h2", getProfileCSSSelector(index))
 
 	child := page.Find(cssSelector)
 	Expect(child).To(BeFound())
@@ -36,7 +34,7 @@ func createAWSProfile(page *web.Page, index int) AWSProfile {
 	nodeCount, _ := child.Text()
 	Expect(nodeCount).NotTo(BeEmpty())
 
-	cssSelector = fmt.Sprintf("%v .grv-installer-provision-node-desc h3", getProfileCssSelector(index))
+	cssSelector = fmt.Sprintf("%v .grv-installer-provision-node-desc h3", getProfileCSSSelector(index))
 	Expect(child).To(BeFound())
 	nodeLabel, _ := child.Text()
 

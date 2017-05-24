@@ -10,7 +10,6 @@ import (
 	"github.com/gravitational/robotest/e2e/model/ui"
 	uidefaults "github.com/gravitational/robotest/e2e/model/ui/defaults"
 
-	installermodel "github.com/gravitational/robotest/e2e/model/ui/installer"
 	sitemodel "github.com/gravitational/robotest/e2e/model/ui/site"
 
 	. "github.com/onsi/ginkgo"
@@ -20,28 +19,28 @@ import (
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
+	var uic ui.UI
 	var domainName string
 
 	BeforeEach(func() {
 		domainName = ctx.ClusterName
+		uic = ui.Init(f.Page)
 	})
 
 	framework.RoboDescribe("Provisioning a new cluster [provisioner:onprem][install]", func() {
 		It("should provision a new cluster", func() {
 			By("navigating to installer step")
-			ui.EnsureUser(f.Page, framework.InstallerURL(), ctx.Login)
-			installer := installermodel.Open(f.Page, framework.InstallerURL())
+			uic.EnsureUser(framework.InstallerURL())
+			installer := uic.GoToInstaller(framework.InstallerURL())
 
 			By("filling out license text field if required")
 			installer.ProcessLicenseStepIfRequired(ctx.License)
 
 			By("selecting a provisioner")
-			installer.CreateOnPremNewSite(domainName)
+			installer.CreateSiteWithOnPrem(domainName)
 
 			By("selecting a flavor and allocating the nodes")
 			installer.SelectFlavorByLabel(ctx.FlavorLabel)
-			profiles := installermodel.FindOnPremProfiles(f.Page)
-			Expect(len(profiles)).NotTo(Equal(0))
 			installer.PrepareOnPremNodes(ctx.Onprem.DockerDevice)
 
 			By("starting an installation")
@@ -51,21 +50,21 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			installer.WaitForComplete()
 
 			By("checking for bandwagon step")
-			if installer.NeedsBandwagon() == false {
-				sitemodel.Open(f.Page, domainName)
+			if installer.NeedsBandwagon(domainName) == false {
+				uic.GoToSite(domainName)
 				return
 			}
 
 			By("navigating to bandwagon step")
 			installer.ProceedToSite()
-			bandwagon := ui.OpenBandwagon(f.Page, domainName)
+			bandwagon := uic.GoToBandwagon(domainName)
 			By("submitting bandwagon form")
 			enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
 			ctx.Bandwagon.RemoteAccess = enableRemoteAccess
 			bandwagon.SubmitForm(ctx.Bandwagon)
 
 			By("navigating to a site and reading endpoints")
-			site := sitemodel.Open(f.Page, domainName)
+			site := uic.GoToSite(domainName)
 			endpoints := site.GetEndpoints()
 			endpoints = filterGravityEndpoints(endpoints)
 			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
@@ -88,8 +87,9 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
 			By("login in with bandwagon user credentials")
 			framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
-			ui.EnsureUser(f.Page, framework.SiteURL(), ctx.Login)
-			sitemodel.Open(f.Page, domainName)
+			// login using local cluster endpoint
+			uic.EnsureUser(framework.SiteURL())
+			uic.GoToSite(domainName)
 		})
 	})
 
@@ -98,18 +98,17 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		var site = sitemodel.Site{}
 
 		BeforeEach(func() {
-			ui.EnsureUser(f.Page, framework.SiteURL(), ctx.Login)
-			site = sitemodel.Open(f.Page, domainName)
-			site.NavigateToServers()
+			uic.EnsureUser(framework.SiteURL())
+			site = uic.GoToSite(domainName)
 		})
 
 		It("should add a new server", func() {
-			siteServerPage := site.GetSiteServerPage()
+			siteServerPage := site.GoToServers()
 			siteServer = siteServerPage.AddOnPremServer()
 		})
 
 		It("should remove a new server", func() {
-			siteServerPage := site.GetSiteServerPage()
+			siteServerPage := site.GoToServers()
 			siteServerPage.DeleteServer(siteServer)
 		})
 	})
@@ -127,9 +126,9 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			}
 
 			By("trying to update the site to the latest application version")
-			ui.EnsureUser(f.Page, siteURL, ctx.Login)
-			site := sitemodel.Open(f.Page, domainName)
-			site.UpdateToLatestVersion()
+			uic.EnsureUser(siteURL)
+			site := uic.GoToSite(domainName)
+			site.UpdateWithLatestVersion()
 		})
 	})
 })

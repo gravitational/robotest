@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	utils "github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/model/ui/utils"
 	"github.com/gravitational/robotest/infra"
 
 	. "github.com/onsi/gomega"

@@ -22,6 +22,12 @@ func InstallerURL() string {
 	return URLPath(path)
 }
 
+// SiteInstallURL returns URL of current cluster installation
+func SiteInstallURL(clusterName string) string {
+	path := fmt.Sprintf("web/installer/site/%v/", clusterName)
+	return URLPath(path)
+}
+
 // URLPath returns a new URL from the configured entry URL using path as new URL path
 func URLPath(path string) string {
 	url, err := url.Parse(TestContext.OpsCenterURL)

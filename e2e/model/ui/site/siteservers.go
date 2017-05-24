@@ -6,18 +6,20 @@ import (
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	utils "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/agent"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/model/ui/utils"
 
 	. "github.com/onsi/gomega"
 	. "github.com/sclevine/agouti/matchers"
 )
 
-type SiteServerPage struct {
+// ServerPage is cluster server page ui model
+type ServerPage struct {
 	site *Site
 }
 
+// SiteServer is cluster server
 type SiteServer struct {
 	AdvertiseIP string `json:"AdvertiseIP"`
 	PublicIP    string `json:"PublicIP"`
@@ -26,7 +28,8 @@ type SiteServer struct {
 	InstaceType string
 }
 
-func (p *SiteServerPage) GetSiteServers() []SiteServer {
+// GetSiteServers returns this cluster servers
+func (p *ServerPage) GetSiteServers() []SiteServer {
 	const script = `
             var getter = [ ["site_servers"], serverList => {
                 return serverList.map(srvMap => {                
@@ -47,11 +50,11 @@ func (p *SiteServerPage) GetSiteServers() []SiteServer {
 
 	p.site.page.RunScript(script, nil, &result)
 	Expect(json.Unmarshal([]byte(result), &items)).To(Succeed())
-
 	return items
 }
 
-func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
+// GetAgentServers returns agent servers
+func (p *ServerPage) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
 	s := p.site.page.All(".grv-provision-req-server")
 
@@ -66,36 +69,8 @@ func (p *SiteServerPage) GetAgentServers() []agent.AgentServer {
 	return agentServers
 }
 
-func (p *SiteServerPage) startOnPremAddServerOperation() SiteServer {
-	currentItems := p.GetSiteServers()
-
-	Expect(p.site.page.FindByClass("grv-site-servers-btn-start").Click()).To(
-		Succeed(),
-		"should start expand operation")
-
-	p.waitForOperationCompletion()
-
-	updatedItems := p.GetSiteServers()
-
-	var newItem SiteServer
-
-	for i, item := range updatedItems {
-		for _, existingItem := range currentItems {
-			if item.AdvertiseIP == existingItem.AdvertiseIP {
-				break
-			}
-			newItem = updatedItems[i]
-		}
-	}
-
-	Expect(newItem).ToNot(
-		BeNil(),
-		"should find a new server in the server list")
-
-	return newItem
-}
-
-func (p *SiteServerPage) AddOnPremServer() SiteServer {
+// AddOnPremServer returns to onprem servers for expand operation
+func (p *ServerPage) AddOnPremServer() SiteServer {
 	page := p.site.page
 	config := framework.TestContext.Onprem
 	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(Succeed(), "should click on Add Existing button")
@@ -120,8 +95,7 @@ func (p *SiteServerPage) AddOnPremServer() SiteServer {
 	Eventually(p.GetAgentServers, defaults.AgentServerTimeout).Should(HaveLen(1), "should wait for the agent server")
 	provisioner := framework.Cluster.Provisioner()
 	ctx := framework.TestContext
-	// TODO: store private IPs for terraform in state
-	// to avoid this check
+	// TODO: store private IPs for terraform in state to avoid this check
 	if ctx.Provisioner != "terraform" {
 		agentServers := p.GetAgentServers()
 		for _, s := range agentServers {
@@ -134,24 +108,20 @@ func (p *SiteServerPage) AddOnPremServer() SiteServer {
 	return newServer
 }
 
-func (p *SiteServerPage) AddAWSServer() SiteServer {
+// AddAWSServer returns to aws servers for expand operation
+func (p *ServerPage) AddAWSServer() SiteServer {
 	config := framework.TestContext.AWS
 	page := p.site.page
 	currentServerItems := p.GetSiteServers()
-	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).To(
-		Succeed(),
-		"should click on Provision new button")
+	Expect(page.FindByClass("grv-site-servers-provisioner-add-new").Click()).
+		To(Succeed(), "should click on Provision new button")
 
 	utils.PauseForComponentJs()
 	utils.FillOutAWSKeys(page, config.AccessKey, config.SecretKey)
-
-	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(
-		Succeed(),
-		"click on continue")
-
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.ElementTimeout).Should(
-		BeFound(),
-		"should display profile and instance type")
+	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).
+		To(Succeed(), "click on continue")
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.AppLoadTimeout).
+		Should(BeFound(), "should display profile and instance type")
 
 	profileLabel := p.getProfileLabel(config.ExpandProfile)
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-profile", "", profileLabel)
@@ -162,12 +132,10 @@ func (p *SiteServerPage) AddAWSServer() SiteServer {
 	}
 
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-instance-type", "", instanceType)
+	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).
+		To(Succeed(), "should click on start button")
 
-	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).To(
-		Succeed(),
-		"should click on start button")
-
-	p.waitForOperationCompletion()
+	p.site.WaitForOperationCompletion()
 
 	updatedItems := p.GetSiteServers()
 	var newItem SiteServer
@@ -188,20 +156,41 @@ func (p *SiteServerPage) AddAWSServer() SiteServer {
 	return newItem
 }
 
-func (p *SiteServerPage) DeleteServer(server SiteServer) {
+// DeleteServer deletes given server
+func (p *ServerPage) DeleteServer(server SiteServer) {
 	p.clickDeleteServer(server.AdvertiseIP)
-	Expect(p.site.page.Find(".modal-dialog .btn-danger").Click()).To(
-		Succeed(),
-		"should click on confirmation button",
-	)
+	Expect(p.site.page.Find(".modal-dialog .btn-danger").Click()).
+		To(Succeed(), "should click on confirmation button")
 
-	p.waitForOperationCompletion()
-	Eventually(p.hasServer(server), defaults.SiteServerListRefreshAfterShrinkTimeout).ShouldNot(
-		BeTrue(),
-		"verify that the server disappeared from the list")
+	p.site.WaitForOperationCompletion()
+	Eventually(p.hasServer(server), defaults.SiteServerListRefreshAfterShrinkTimeout).
+		ShouldNot(BeTrue(), "verify that the server disappeared from the list")
 }
 
-func (p *SiteServerPage) hasServer(server SiteServer) func() bool {
+func (p *ServerPage) startOnPremAddServerOperation() SiteServer {
+	currentItems := p.GetSiteServers()
+	Expect(p.site.page.FindByClass("grv-site-servers-btn-start").Click()).
+		To(Succeed(), "should start expand operation")
+
+	p.site.WaitForOperationCompletion()
+	utils.PauseForServerListRefresh()
+	updatedItems := p.GetSiteServers()
+
+	var newItem SiteServer
+	for i, item := range updatedItems {
+		for _, existingItem := range currentItems {
+			if item.AdvertiseIP == existingItem.AdvertiseIP {
+				break
+			}
+			newItem = updatedItems[i]
+		}
+	}
+
+	Expect(newItem).ToNot(BeNil(), "should find a new server in the server list")
+	return newItem
+}
+
+func (p *ServerPage) hasServer(server SiteServer) func() bool {
 	return func() bool {
 		for _, existingServer := range p.GetSiteServers() {
 			if existingServer.Hostname == server.Hostname {
@@ -212,20 +201,7 @@ func (p *SiteServerPage) hasServer(server SiteServer) func() bool {
 	}
 }
 
-func (p *SiteServerPage) waitForOperationCompletion() {
-	page := p.site.page
-	Eventually(page.Find(".grv-site-nav-top-indicator.--processing"), defaults.ElementTimeout).Should(
-		BeFound(),
-		"should find progress indicator")
-
-	Eventually(page.Find(".grv-site-nav-top-indicator.--ready"), defaults.SiteOperationTimeout).Should(
-		BeFound(),
-		"should wait for progress indicator to disappear")
-
-	utils.PauseForServerListRefresh()
-}
-
-func (p *SiteServerPage) clickDeleteServer(serverId string) {
+func (p *ServerPage) clickDeleteServer(serverId string) {
 	const scriptTemplate = `
             var targetIndex = -1;
             var rows = document.querySelectorAll(".grv-site-servers .grv-table .dropdown-toggle");
@@ -253,7 +229,7 @@ func (p *SiteServerPage) clickDeleteServer(serverId string) {
 		"should find and click on server delete action")
 }
 
-func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
+func (p *ServerPage) getFirstAvailableAWSInstanceType() string {
 	var instanceType string
 	const js = `
 		var cssSelector = ".grv-site-servers-provisioner-new-instance-type li a"; 
@@ -270,7 +246,7 @@ func (p *SiteServerPage) getFirstAvailableAWSInstanceType() string {
 	return instanceType
 }
 
-func (p *SiteServerPage) selectOnPremProfile(profileName string) {
+func (p *ServerPage) selectOnPremProfile(profileName string) {
 	if profileName == "" {
 		Expect(p.site.page.FindByClass("grv-control-radio-indicator").Click()).To(
 			Succeed(),
@@ -284,7 +260,7 @@ func (p *SiteServerPage) selectOnPremProfile(profileName string) {
 	})
 }
 
-func (p *SiteServerPage) getProfileLabel(profileName string) string {
+func (p *ServerPage) getProfileLabel(profileName string) string {
 	var profileLabel string
 	siteName := p.site.domainName
 	const jsTemplate = `

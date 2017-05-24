@@ -55,12 +55,12 @@ func FakeUpdateApplication() {
 	Expect(err).NotTo(HaveOccurred(),
 		fmt.Sprintf("expected a version in semver format, got %q", TestContext.Application.Version))
 
-	bumpedVersion := fmt.Sprintf("--version=%v", bump(*version))
+	bumpedVersion := bump(*version)
+	bumpedVersionParam := fmt.Sprintf("--version=%v", bumpedVersion)
 	// Import the same package with a new version to emulate update
-	cmd = exec.Command("gravity", "--insecure", stateDir, "app", "import", opsURL, bumpedVersion, outputPath)
+	cmd = exec.Command("gravity", "--insecure", stateDir, "app", "import", opsURL, bumpedVersionParam, outputPath)
 	Expect(system.Exec(cmd, os.Stderr)).To(Succeed())
-
-	Distribute("gravity update", nodes[0])
+	testState.Application.Version = bumpedVersion
 }
 
 // UpdateApplicationWithInstaller impements site update via installer tarball

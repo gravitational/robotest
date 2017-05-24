@@ -5,19 +5,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
-	ui "github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/model/ui/user"
+	"github.com/gravitational/robotest/e2e/model/ui/utils"
 	"github.com/gravitational/trace"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
 
+// Site is cluster ui model
 type Site struct {
 	domainName string
 	page       *web.Page
 }
 
+// Open navigates to cluster URL and returns its ui model
 func Open(page *web.Page, domainName string) Site {
 	site := Site{page: page, domainName: domainName}
 	url := site.formatUrl("")
@@ -25,62 +28,64 @@ func Open(page *web.Page, domainName string) Site {
 	return site
 }
 
-func (s *Site) GetSiteAppPage() SiteAppPage {
-	s.NavigateToSiteApp()
-	return SiteAppPage{page: s.page}
-}
-
-func (s *Site) GetSiteServerPage() SiteServerPage {
-	return SiteServerPage{site: s}
-}
-
-func (s *Site) NavigateToSiteApp() {
+// GoToIndex navigates to cluster index page
+func (s *Site) GoToIndex() AppPage {
 	url := s.formatUrl("")
 	VerifySiteNavigation(s.page, url)
+	return AppPage{site: s}
 }
 
-func (s *Site) NavigateToServers() {
+// GoToServers navigates to cluster server page
+func (s *Site) GoToServers() ServerPage {
 	url := s.formatUrl("servers")
 	VerifySiteNavigation(s.page, url)
 
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
 		return count > 0
-	}, defaults.AjaxCallTimeout).Should(
-		BeTrue(),
-		"waiting for servers to load")
+	}, defaults.AjaxCallTimeout).Should(BeTrue(), "waiting for servers to load")
 
-	ui.PauseForPageJs()
+	utils.PauseForPageJs()
+
+	return ServerPage{site: s}
 }
 
-func (s *Site) UpdateToLatestVersion() {
-	ctx := framework.TestContext
-	siteURL := framework.SiteURL()
+// UpdateWithLatestVersion updates this cluster with the new version
+func (s *Site) UpdateWithLatestVersion() {
+	log.Infof("looking for available versions")
+	appPage := s.GoToIndex()
+	allNewVersions := appPage.GetNewVersions()
+	Expect(allNewVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
 
-	appPage := s.GetSiteAppPage()
-	newVersions := appPage.GetNewVersions()
-	Expect(newVersions).NotTo(BeEmpty(), "should have at least 1 new version available")
-	appPage.StartUpdateOperation(newVersions[0])
-
-	// Here have to login again, because update of gravity-site app will log us out
+	log.Infof("starting an update operation")
+	newVersion := allNewVersions[len(allNewVersions)-1]
+	appPage.StartUpdateOperation(newVersion)
 	Eventually(func() bool {
+		log.Infof("checking if update operation has been completed")
+		// Check for login since update operation may cause a logout
+		if utils.IsLoginPage(s.page) || s.IsReady() {
+			return true
+		}
+
 		err := s.page.Refresh()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))
-			return false
 		}
 
-		return ui.IsLoginPage(s.page)
-	}, defaults.SiteLogoutAfterUpdateTimeout, defaults.SiteLogoutAfterUpdatePollInterval).Should(BeTrue(), "login page didn't load in timely fashion")
+		return false
 
-	ui.EnsureUser(s.page, siteURL, ctx.Login)
-	appPage = s.GetSiteAppPage()
+	}, defaults.SiteLogoutAfterUpdateTimeout, defaults.SiteLogoutAfterUpdatePollInterval).
+		Should(BeTrue(), "update operation didn't finish in timely fashion")
 
-	Eventually(appPage.GetCurrentVersion, defaults.FindTimeout).Should(
-		BeEquivalentTo(newVersions[0]),
-		"current version should match to new one")
+	log.Infof("checking if app version has been updated correctly")
+	siteURL := framework.SiteURL()
+	user.EnsureUser(s.page, siteURL)
+	appPage = s.GoToIndex()
+	curVer := appPage.GetCurrentVersion()
+	Expect(curVer.Version).To(BeEquivalentTo(newVersion.Version), "should display the new version")
 }
 
+// GetEndpoints returns cluster endpoints
 func (s *Site) GetEndpoints() (endpoints []string) {
 	const scriptTemplate = `
 		var urls = [];
@@ -100,15 +105,48 @@ func (s *Site) GetEndpoints() (endpoints []string) {
 	return endpoints
 }
 
+// WaitForOperationCompletion waits for cluster ongoing operation to be completed
+func (s *Site) WaitForOperationCompletion() {
+	s.WaitForBusyState()
+	s.WaitForReadyState()
+}
+
+// WaitForReadyState waits until cluster is ready
+func (s *Site) WaitForReadyState() {
+	Eventually(s.IsReady, defaults.SiteOperationEndTimeout).
+		Should(BeTrue(), "should wait for progress indicator to disappear")
+}
+
+// WaitForBusyState waits until cluster is busy
+func (s *Site) WaitForBusyState() {
+	Eventually(s.IsBusy, defaults.SiteOperationStartTimeout).Should(BeTrue(), "should find progress indicator")
+}
+
+// IsReady checks if cluster is in ready state
+func (s *Site) IsReady() bool {
+	log.Infof("checking for cluster ready state")
+	selection := s.page.Find(".grv-site-nav-top-indicator.--ready")
+	count, _ := selection.Count()
+	return count > 0
+}
+
+// IsBusy checks if cluster is in busy state
+func (s *Site) IsBusy() bool {
+	log.Infof("checking for cluster busy state")
+	selection := s.page.Find(".grv-site-nav-top-indicator.--processing")
+	count, _ := selection.Count()
+	return count > 0
+}
+
+// VerifySiteNavigation navigates to given URL and ensures it is a cluster page
 func VerifySiteNavigation(page *web.Page, URL string) {
 	Expect(page.Navigate(URL)).To(Succeed())
-	Eventually(page.FindByClass("grv-site"), defaults.ElementTimeout).Should(BeFound(), "waiting for site to be ready")
-	ui.PauseForComponentJs()
+	Eventually(page.FindByClass("grv-site"), defaults.AppLoadTimeout).
+		Should(BeFound(), "waiting for site to be ready")
+	utils.PauseForComponentJs()
 }
 
 func (s *Site) formatUrl(newPrefix string) string {
 	urlPrefix := fmt.Sprintf("/web/site/%v/%v", s.domainName, newPrefix)
-	url, err := s.page.URL()
-	Expect(err).NotTo(HaveOccurred())
-	return framework.URLPathFromString(url, urlPrefix)
+	return utils.FormatUrl(s.page, urlPrefix)
 }

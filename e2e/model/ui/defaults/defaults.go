@@ -5,17 +5,18 @@ import "time"
 const (
 	// AjaxCallTimeout specifies the amount of time needed to complete AJAX request
 	AjaxCallTimeout = 20 * time.Second
-	ElementTimeout  = 20 * time.Second
+	// AppLoadTimeout specifies the amount of time needed for web app to load
+	AppLoadTimeout = 20 * time.Second
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 1 * time.Minute
 	// EventuallyPollInterval defines the frequency of Eventually polling attempts
 	EventuallyPollInterval = 300 * time.Millisecond
 
-	// ProvisionerSelectedTimeout specifies the amount of time to wait for the requirements screen after selecting a provisioner
-	ProvisionerSelectedTimeout = 5 * time.Minute
 	// AgentServerTimeout defines the amount of time to wait for agents to connect
 	AgentServerTimeout = 5 * time.Minute
 
+	// InstallCreateClusterTimeout specifies the amount of time needed to create a cluster and proceed to the next step
+	InstallCreateClusterTimeout = 5 * time.Minute
 	// InstallStartTimeout specifies the amount of time to wait for the install to start
 	InstallStartTimeout = 5 * time.Minute
 	// InstallTimeout defines the amount of time to wait for installation to complete
@@ -30,12 +31,14 @@ const (
 	// SiteLogoutAfterUpdateTimeout defines amount of time needed to redirect a user to login page after update operation
 	SiteLogoutAfterUpdateTimeout = 5 * time.Minute
 	// SiteLogoutAfterUpdatePollInterval defines the frequency of polling attempts to check if a user has been logged out after update operation
-	SiteLogoutAfterUpdatePollInterval = 5 * time.Second
-	// SiteOperationTimeout time for operation to be completed (Expand and Application Update operations)
-	SiteOperationTimeout = 10 * time.Minute
+	SiteLogoutAfterUpdatePollInterval = 7 * time.Second
+	// SiteOperationEndTimeout time for operation to be completed (Expand and Application Update operations)
+	SiteOperationEndTimeout = 10 * time.Minute
+	// SiteOperationStartTimeout time for operation to start
+	SiteOperationStartTimeout = 20 * time.Second
 
-	// SlowOperationTimeout defines how long to wait on slow operations
-	SlowOperationTimeout = 30 * time.Minute
+	// LoginGoogleNextStepTimeout specifies the amount of time needed for google auth steps to initialize
+	LoginGoogleNextStepTimeout = 10 * time.Second
 
 	// OpsCenterDeleteSiteTimeout specifies the amount of time allotted to a site delete operation
 	OpsCenterDeleteSiteTimeout = 5 * time.Minute

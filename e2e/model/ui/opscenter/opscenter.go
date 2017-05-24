@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui"
 	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/model/ui/utils"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -14,23 +14,29 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
+// OpsCenter is opscenter ui model
 type OpsCenter struct {
 	page *web.Page
 	url  string
 }
 
-func Open(page *web.Page, url string) OpsCenter {
-	Expect(page.Navigate(url)).To(Succeed())
-	Eventually(page.FindByClass("grv-portal"), defaults.ElementTimeout).Should(BeFound(), "waiting for opscenter to load")
-	ui.PauseForComponentJs()
-	return OpsCenter{page: page, url: url}
+// Open navigates to opscenter URL and returns ui model
+func Open(page *web.Page, URL string) OpsCenter {
+	log.Infof("trying to open opscenter")
+	Expect(page.Navigate(URL)).To(Succeed())
+	Eventually(page.FindByClass("grv-portal"), defaults.AppLoadTimeout).
+		Should(BeFound(), "waiting for opscenter to load")
+
+	utils.PauseForComponentJs()
+	return OpsCenter{page: page, url: URL}
 }
 
+// DeleteSite deletes cluster by its name
 func (o *OpsCenter) DeleteSite(domainName string) {
 	log.Infof("selecting a delete site item")
 	deploymentIndex := getDeploymentIndex(o.page, domainName)
 	Expect(deploymentIndex).To(BeNumerically(">=", 0), "expected to find a valid deployment index")
-	ui.SetDropdownValue2(o.page, fmt.Sprintf(".grv-portal-sites tr:nth-child(%v)", deploymentIndex+1), "button", "Delete...")
+	utils.SetDropdownValue2(o.page, fmt.Sprintf(".grv-portal-sites tr:nth-child(%v)", deploymentIndex+1), "button", "Delete...")
 
 	log.Infof("entering AWS credentials")
 	elems := o.page.FindByName("aws_access_key")
@@ -59,6 +65,7 @@ func (o *OpsCenter) DeleteSite(domainName string) {
 }
 
 func getDeploymentIndex(page *web.Page, domainName string) int {
+	var deploymentIndex int
 	const scriptTemplate = `
             var rows = Array.prototype.slice.call(document.querySelectorAll(".grv-portal-sites .grv-table .grv-portal-sites-tag"));
             return rows.findIndex( (tag) => {
@@ -67,9 +74,6 @@ func getDeploymentIndex(page *web.Page, domainName string) int {
         `
 
 	script := fmt.Sprintf(scriptTemplate, domainName)
-	var deploymentIndex int
-
 	Expect(page.RunScript(script, nil, &deploymentIndex)).To(Succeed())
-
 	return deploymentIndex
 }
