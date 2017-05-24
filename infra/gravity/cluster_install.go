@@ -37,7 +37,7 @@ func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, len(nodes), errs)
+	err := utils.CollectErrors(ctx, errs)
 	require.NoError(t, err, "installation")
 
 }
@@ -52,5 +52,5 @@ func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, len(nodes), errs)
+	return utils.CollectErrors(ctx, errs)
 }

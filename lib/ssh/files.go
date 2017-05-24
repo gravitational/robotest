@@ -7,16 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gravitational/robotest/lib/utils"
-
 	"github.com/gravitational/trace"
-
-	"golang.org/x/crypto/ssh"
 )
 
 // TransferFile takes file URL which may be S3 or HTTP or local file and transfers it to remote the machine
 // fileUrl - file to download, could be S3:// or http(s)://
-func TransferFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, fileUrl, dstDir string, env map[string]string) (path string, err error) {
+func TransferFile(ctx context.Context, node SshNode, fileUrl, dstDir string, env map[string]string) (path string, err error) {
 	u, err := url.Parse(fileUrl)
 	if err != nil {
 		return "", trace.Wrap(err, "parsing %s", fileUrl)
@@ -32,7 +28,7 @@ func TransferFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client
 	case "https":
 		cmd = fmt.Sprintf("wget %s -O %s/", fileUrl, dstPath)
 	case "":
-		remotePath, err := PutFile(ctx, logFn, client, fileUrl, dstDir)
+		remotePath, err := PutFile(ctx, node, fileUrl, dstDir)
 		return remotePath, trace.Wrap(err)
 	case "gs":
 	default:
@@ -40,7 +36,7 @@ func TransferFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client
 		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	err = RunCommands(ctx, logFn, client, []Cmd{
+	err = RunCommands(ctx, node, []Cmd{
 		{fmt.Sprintf("mkdir -p %s", dstDir), nil},
 		{cmd, env},
 	})
@@ -59,9 +55,9 @@ const (
 
 // TestFile tests remote file using `test` command.
 // It returns trace.NotFound in case test fails, nil is test passes, and unspecified error otherwise
-func TestFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, path, test string) error {
+func TestFile(ctx context.Context, node SshNode, path, test string) error {
 	cmd := fmt.Sprintf("test %s %s", test, path)
-	_, exit, err := RunAndParse(ctx, logFn, client, cmd, nil, ParseDiscard)
+	_, exit, err := RunAndParse(ctx, node, cmd, nil, ParseDiscard)
 	if err != nil {
 		return trace.Wrap(err, cmd)
 	}
@@ -78,21 +74,20 @@ func TestFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, pa
 	case 1:
 		return trace.NotFound(path)
 	default:
-		return trace.Errorf("[%v] %s returned exit code %d", client.RemoteAddr(), cmd, exit)
+		return trace.Errorf("[%v] %s returned exit code %d", node, cmd, exit)
 	}
 }
 
 // WaitForFile waits for a test to become true against a remote file (or context to expire)
-func WaitForFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, path, test string, sleepDuration time.Duration) error {
+func WaitForFile(ctx context.Context, node SshNode, path, test string, sleepDuration time.Duration) error {
 	for {
-		err := TestFile(ctx, logFn,
-			client, path, test)
+		err := TestFile(ctx, node, path, test)
 
 		if trace.IsNotFound(err) {
-			logFn("[%v] waiting for %s, will retry in %v", client.RemoteAddr(), path, sleepDuration)
+			node.Logf("waiting for %s, will retry in %v", path, sleepDuration)
 			select {
 			case <-ctx.Done():
-				return trace.Errorf("[%v] timed out waiting for %s", client.RemoteAddr(), path)
+				return trace.Errorf("[%v] timed out waiting for %s", node, path)
 			case <-time.After(sleepDuration):
 				continue
 			}
@@ -102,6 +97,6 @@ func WaitForFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client,
 			return nil
 		}
 
-		return trace.Wrap(err, "[%v] waiting for %s", client.RemoteAddr(), path)
+		return trace.Wrap(err, "[%v] waiting for %s", node, path)
 	}
 }

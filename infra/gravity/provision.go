@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
@@ -42,6 +40,7 @@ func scheduleDestroy(ctx context.Context, cloud, tag string) {
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
+	fromConfig   *ProvisionerConfig
 	dockerDevice string
 	user         string
 	os           string
@@ -55,7 +54,7 @@ type cloudDynamicParams struct {
 func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynamicParams {
 	require.NotNil(t, baseConfig)
 
-	param := &cloudDynamicParams{}
+	param := &cloudDynamicParams{fromConfig: baseConfig}
 
 	// OS name is cloud-init script specific
 	// enforce compatible values
@@ -115,8 +114,8 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
-	logFn := utils.Logf(t, "provision")
-	logFn("[start] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	logFn := utils.Logf(t, baseConfig.Tag())
+	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
 
 	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
 	if err != nil {
@@ -140,7 +139,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	for _, node := range nodes {
 		go func(n infra.Node) {
 			var res result
-			res.gravity, res.err = PrepareGravity(ctx, logFn, n, params)
+			res.gravity, res.err = PrepareGravity(ctx, t, n, params)
 			resultCh <- &res
 		}(node)
 	}
@@ -164,26 +163,25 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		return nil, p.Destroy, trace.NewAggregate(errors...)
 	}
 
-	logFn("[complete] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	for _, node := range nodes {
+		logFn("\t%v", node)
+	}
 
 	return sorted(gravityNodes), p.Destroy, nil
 }
 
 // sort Interface implementation
-type gravityList []Gravity
+type byPrivateAddr []Gravity
 
-func (g gravityList) Len() int { return len(g) }
-func (g gravityList) Swap(i, j int) {
-	tmp := g[i]
-	g[i] = g[j]
-	g[j] = tmp
-}
-func (g gravityList) Less(i, j int) bool {
+func (g byPrivateAddr) Len() int      { return len(g) }
+func (g byPrivateAddr) Swap(i, j int) { g[i], g[j] = g[j], g[i] }
+func (g byPrivateAddr) Less(i, j int) bool {
 	return g[i].Node().PrivateAddr() < g[j].Node().PrivateAddr()
 }
 
 func sorted(nodes []Gravity) []Gravity {
-	sort.Sort(gravityList(nodes))
+	sort.Sort(byPrivateAddr(nodes))
 	return nodes
 }
 
@@ -194,16 +192,15 @@ const (
 const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
-func bootstrap(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, param *cloudDynamicParams) error {
-	err := sshutil.Run(ctx, logFn, client, "sudo whoami", nil)
+func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error {
+	err := sshutil.Run(ctx, g, "sudo whoami", nil)
 	if err != nil {
 		return trace.Wrap(err, "sudo check")
 	}
 
 	// TODO: implement simple line-by-line execution of existing .sh scripts
 	// Azure doesn't support cloud-init for RHEL/CentOS so need migrate them here
-	return sshutil.WaitForFile(ctx, logFn, client,
-		cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
 }
 
 // ConfigureNode is used to configure a provisioned node
@@ -211,24 +208,32 @@ func bootstrap(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, p
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func PrepareGravity(ctx context.Context, logFn utils.LogFnType, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
-	g, err := fromNode(ctx, logFn, node, param.installDir, param.dockerDevice)
+func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
+	g := &gravity{
+		node:         node,
+		installDir:   param.installDir,
+		dockerDevice: param.dockerDevice,
+		logFn:        t.Logf,
+		fromConfig:   param.fromConfig,
+	}
+
+	client, err := sshClient(ctx, g.Logf, g.node)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	g.ssh = client
 
-	err = bootstrap(ctx, logFn, g.Client(), param)
+	err = bootstrap(ctx, g, param)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	configCompleteFile := filepath.Join(param.installDir, "config_complete")
 
-	err = sshutil.TestFile(ctx, logFn,
-		g.Client(), configCompleteFile, sshutil.TestRegularFile)
+	err = sshutil.TestFile(ctx, g, configCompleteFile, sshutil.TestRegularFile)
 
 	if err == nil {
-		logFn("node %v was already configured", node.Addr())
+		g.Logf("already configured")
 		return g, nil
 	}
 
@@ -236,13 +241,12 @@ func PrepareGravity(ctx context.Context, logFn utils.LogFnType, node infra.Node,
 		return nil, trace.Wrap(err)
 	}
 
-	tgz, err := sshutil.TransferFile(ctx, logFn, g.Client(),
-		param.installerUrl, param.installDir, param.env)
+	tgz, err := sshutil.TransferFile(ctx, g, param.installerUrl, param.installDir, param.env)
 	if err != nil {
 		return nil, trace.Wrap(err, param.installerUrl)
 	}
 
-	err = sshutil.RunCommands(ctx, logFn, g.Client(), []sshutil.Cmd{
+	err = sshutil.RunCommands(ctx, g, []sshutil.Cmd{
 		{fmt.Sprintf("tar -xvf %s -C %s", tgz, param.installDir), nil},
 		{fmt.Sprintf("touch %s", configCompleteFile), nil},
 	})

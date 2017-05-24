@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"text/template"
 	"time"
 
@@ -41,6 +42,8 @@ type Gravity interface {
 	Client() *ssh.Client
 	// Text representation
 	String() string
+	// Will log using extended info such as current tag, node info, etc
+	Logf(format string, args ...interface{})
 }
 
 const (
@@ -88,8 +91,9 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	node         infra.Node
+	fromConfig   *ProvisionerConfig
 	logFn        utils.LogFnType
+	node         infra.Node
 	installDir   string
 	dockerDevice string
 	ssh          *ssh.Client
@@ -115,32 +119,22 @@ func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ss
 	}
 }
 
-// FromNode takes a provisioned and set up Node and makes Gravity control interface
-func fromNode(ctx context.Context, logFn utils.LogFnType, node infra.Node, installDir, dockerDevice string) (Gravity, error) {
-	g := gravity{
-		node:         node,
-		logFn:        logFn,
-		installDir:   installDir,
-		dockerDevice: dockerDevice,
-	}
-
-	client, err := sshClient(ctx, logFn, g.node)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	g.ssh = client
-	return &g, nil
+// Logf logs simultaneously to stdout and testing interface
+func (g *gravity) Logf(format string, args ...interface{}) {
+	log.Printf("%s [%v] %s", g.fromConfig.Tag(), g, fmt.Sprintf(format, args...))
+	g.logFn("[%v] %s", g, fmt.Sprintf(format, args...))
 }
 
+// String returns public and private addresses of the node
 func (g *gravity) String() string {
-	return g.node.PrivateAddr()
+	return fmt.Sprintf("%s %s", g.node.PrivateAddr(), g.node.Addr())
 }
 
 func (g *gravity) Node() infra.Node {
 	return g.node
 }
 
+// Client returns SSH client to the node
 func (g *gravity) Client() *ssh.Client {
 	return g.ssh
 }
@@ -150,15 +144,14 @@ func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s",
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice)
 
-	err := sshutils.Run(ctx, g.logFn, g.ssh,
-		cmd, nil)
+	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
+// Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
-	status, exit, err := sshutils.RunAndParse(ctx, g.logFn, g.ssh,
-		cmd, nil, parseStatus)
+	status, exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus)
 
 	if err != nil {
 		return nil, trace.Wrap(err, cmd)
@@ -201,7 +194,7 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.logFn, g.ssh, buf.String(), nil)
+	err = sshutils.Run(ctx, g, buf.String(), nil)
 	return trace.Wrap(err, cmd)
 }
 
@@ -214,7 +207,7 @@ func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.installDir)
 	}
 
-	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
@@ -226,14 +219,14 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error 
 	} else {
 		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --confirm --force %s`, g.installDir, node)
 	}
-	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
 	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
-	err := sshutils.Run(ctx, g.logFn, g.ssh, cmd, nil)
+	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
@@ -246,7 +239,7 @@ func (g *gravity) PowerOff(ctx context.Context, graceful bool) error {
 		cmd = "sudo poweroff -f"
 	}
 
-	sshutils.RunAndParse(ctx, g.logFn, g.ssh, cmd, nil, nil)
+	sshutils.RunAndParse(ctx, g, cmd, nil, nil)
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
 }
@@ -259,7 +252,7 @@ func (g *gravity) Reboot(ctx context.Context, graceful bool) error {
 	} else {
 		cmd = "sudo reboot -f"
 	}
-	sshutils.RunAndParse(ctx, g.logFn, g.ssh, cmd, nil, nil)
+	sshutils.RunAndParse(ctx, g, cmd, nil, nil)
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 
 	client, err := sshClient(ctx, g.logFn, g.Node())

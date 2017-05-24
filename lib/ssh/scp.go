@@ -7,16 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gravitational/robotest/lib/utils"
-
 	"github.com/gravitational/trace"
 
 	"golang.org/x/crypto/ssh"
 )
 
 // CopyFile transfers local file to remote host directory
-func PutFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, srcPath, dstDir string) (remotePath string, err error) {
-	session, err := client.NewSession()
+func PutFile(ctx context.Context, node SshNode, srcPath, dstDir string) (remotePath string, err error) {
+	session, err := node.Client().NewSession()
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -34,11 +32,14 @@ func PutFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, src
 	}
 
 	errCh := make(chan error, 2)
-	go scpSendFile(session, f, fi, errCh)
+	go func() {
+		err := scpSendFile(session, f, fi)
+		errCh <- trace.Wrap(err)
+	}()
 
 	go func() {
 		err := session.Run(fmt.Sprintf("/usr/bin/scp -tr %s", dstDir))
-		errCh <- err
+		errCh <- trace.Wrap(err)
 	}()
 
 	select {
@@ -55,34 +56,31 @@ func PutFile(ctx context.Context, logFn utils.LogFnType, client *ssh.Client, src
 	}
 }
 
-func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo, errCh chan error) {
+func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
 	cmd := fmt.Sprintf("C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
 
 	out, err := session.StdinPipe()
 	if err != nil {
-		errCh <- trace.Wrap(err)
-		return
+		return trace.Wrap(err)
 	}
 	defer out.Close()
 
 	_, err = io.WriteString(out, cmd)
 	if err != nil {
-		errCh <- trace.Wrap(err)
-		return
+		return trace.Wrap(err)
 	}
 
 	n, err := io.Copy(out, file)
 	if err != nil {
-		errCh <- trace.Wrap(err)
-		return
+		return trace.Wrap(err)
 	}
 	if n != fi.Size() {
-		errCh <- trace.Errorf("short write: %v %v", n, fi.Size())
-		return
+		return trace.Errorf("short write: %v %v", n, fi.Size())
 	}
 
 	if _, err := out.Write([]byte{0x0}); err != nil {
-		errCh <- trace.Wrap(err)
-		return
+		return trace.Wrap(err)
 	}
+
+	return nil
 }

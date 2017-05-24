@@ -36,13 +36,12 @@ publish:
 
 .PHONY: $(TARGETS)
 $(TARGETS): clean vendor
+	@go version
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
 vendor: glide.yaml
 	cd $(SRCDIR) && glide install
-
-glide.yaml:
 
 .PHONY: clean
 clean:

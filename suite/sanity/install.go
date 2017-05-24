@@ -11,26 +11,31 @@ import (
 
 // installReliability performs cyclic installs
 // https://github.com/gravitational/gravity/issues/2251
-func installReliability(ctx context.Context, t *testing.T, config *gravity.ProvisionerConfig, payload interface{}) {
-	for _, size := range []uint{1, 3, 6} {
-		gravity.Run(ctx, t, config, cycleInstall, cycleInstallParam{nodes: size, cycles: 15}, gravity.Parallel)
+func installInCycles(cycles uint, sizes []uint) gravity.TestFunc {
+	return func(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
+		cycleInstall(ctx, t, baseConfig, cycles, sizes)
 	}
 }
 
-type cycleInstallParam struct{ nodes, cycles uint }
+func cycleInstall(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig, cycles uint, sizes []uint) {
+	install := func(cfg *gravity.ProvisionerConfig) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
 
-func cycleInstall(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig, payload interface{}) {
-	param, ok := payload.(cycleInstallParam)
-	require.True(t, ok)
+			nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
+			require.NoError(t, err, "provision nodes")
+			defer gravity.Destroy(t, destroyFn)
 
-	cfg := baseConfig.WithNodes(param.nodes)
-	nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
-	require.NoError(t, err, "provision nodes")
-	defer gravity.Destroy(t, destroyFn)
+			var c uint
+			for c = 1; c <= cycles; c++ {
+				gravity.Uninstall(ctx, t, nodes)
+				gravity.OfflineInstall(ctx, t, nodes)
+			}
+		}
+	}
 
-	var c uint
-	for c = 1; c <= param.cycles; c++ {
-		gravity.OfflineInstall(ctx, t, nodes)
-		gravity.Uninstall(ctx, t, nodes)
+	for _, nodes := range sizes {
+		cfg := baseConfig.WithTag("cyclic").WithNodes(nodes)
+		t.Run(cfg.Tag(), install(cfg))
 	}
 }

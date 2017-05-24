@@ -7,13 +7,10 @@ import (
 )
 
 // WaitForErrors collects errors from channel provided, honouring timeout
-func CollectErrors(ctx context.Context, count int, errChan chan error) error {
-	if count <= 0 {
-		return trace.Errorf("count(%d) <= 0", count)
-	}
-
+// it will expect exactly cap(errChan) messages
+func CollectErrors(ctx context.Context, errChan chan error) error {
 	errors := []error{}
-	for i := 0; i < count; i++ {
+	for i := 0; i < cap(errChan); i++ {
 		select {
 		case <-ctx.Done():
 			errors = append(errors, trace.Errorf("timed out"))

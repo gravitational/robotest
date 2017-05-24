@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/lib/utils"
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
@@ -28,7 +29,7 @@ func Expand(ctx context.Context, t *testing.T, current, extra []Gravity) {
 		}(node)
 	}
 
-	err = utils.CollectErrors(ctx, len(extra), errs)
+	err = utils.CollectErrors(ctx, errs)
 	assert.NoError(t, err, "expand")
 
 	all := append([]Gravity{}, current...)
@@ -39,7 +40,7 @@ func Expand(ctx context.Context, t *testing.T, current, extra []Gravity) {
 }
 
 // ShrinkLeave will gracefully leave cluster
-func ShrinkLeave(ctx context.Context, t *testing.T, nodesKeep, nodesToRemove []Gravity) {
+func ShrinkLeave(ctx context.Context, t *testing.T, nodesToKeep, nodesToRemove []Gravity) {
 	errs := make(chan error, len(nodesToRemove))
 	for _, node := range nodesToRemove {
 		go func(n Gravity) {
@@ -48,10 +49,10 @@ func ShrinkLeave(ctx context.Context, t *testing.T, nodesKeep, nodesToRemove []G
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, len(nodesToRemove), errs)
+	err := utils.CollectErrors(ctx, errs)
 	assert.NoError(t, err, "node leave")
 
-	for _, node := range nodesKeep {
+	for _, node := range nodesToKeep {
 		status, err := node.Status(ctx)
 		assert.NoError(t, err, "node status")
 		t.Logf("node %s status=%+v", node.Node().Addr(), status)
@@ -59,8 +60,10 @@ func ShrinkLeave(ctx context.Context, t *testing.T, nodesKeep, nodesToRemove []G
 	}
 }
 
-// TestNodeLoss simulates sudden nodes loss within an existing cluster
-func NodeLoss(ctx context.Context, t *testing.T, master Gravity, nodesToRemove []Gravity) {
+// TestNodeLoss simulates sudden nodes loss within an existing cluster followed by node eviction
+func NodeLoss(ctx context.Context, t *testing.T, nodesKeep []Gravity, nodesToRemove []Gravity) {
+	require.NotZero(t, len(nodesKeep), "need to keep some nodes")
+
 	errs := make(chan error, len(nodesToRemove))
 	for _, node := range nodesToRemove {
 		go func(n Gravity) {
@@ -69,15 +72,28 @@ func NodeLoss(ctx context.Context, t *testing.T, master Gravity, nodesToRemove [
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, len(nodesToRemove), errs)
-	assert.NoError(t, err, "kill nodes")
+	err := utils.CollectErrors(ctx, errs)
+	require.NoError(t, err, "kill nodes")
 
+	Status(ctx, t, nodesKeep)
+
+	master := nodesKeep[0]
 	evictErrors := []error{}
+
 	for _, node := range nodesToRemove {
-		err := master.Remove(ctx, node.Node().PrivateAddr(), Force)
-		if err != nil {
-			evictErrors = append(evictErrors, err)
-		}
+		evictErrors = append(evictErrors, wait.Retry(ctx, tryEvict(ctx, t, master, node)))
 	}
 	assert.NoError(t, trace.NewAggregate(evictErrors...), "node removal")
+}
+
+func tryEvict(ctx context.Context, t *testing.T, master, node Gravity) func() error {
+	return func() error {
+		// it seems it may fail sometimes, so we will repeat
+		err := master.Remove(ctx, node.Node().PrivateAddr(), Force)
+		if err != nil {
+			t.Logf("(%s) error evicting %s : %v", master, node, err)
+			return wait.ContinueRetry{err.Error()}
+		}
+		return nil
+	}
 }
