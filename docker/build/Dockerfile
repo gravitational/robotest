@@ -1,4 +1,4 @@
-FROM golang:1.7.1
+FROM golang:1.7.5
 
 ARG UID
 ARG GID

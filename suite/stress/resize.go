@@ -1,4 +1,4 @@
-package suite
+package stress
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testOfflineBasic(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+func multiResize(t *testing.T, ctx context.Context, baseConfig *gravity.ProvisionerConfig) {
 	config := baseConfig
 	config.NodeCount = 6
 
