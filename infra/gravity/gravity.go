@@ -110,7 +110,7 @@ func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ss
 			return client, nil
 		}
 
-		logFn("waiting for SSH on %s, retry in %v", node.Addr(), retrySSH)
+		logFn("waiting for SSH on %s, retry in %v, error was %v", node.Addr(), retrySSH, err)
 		select {
 		case <-ctx.Done():
 			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
