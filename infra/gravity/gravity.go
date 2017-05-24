@@ -99,10 +99,16 @@ type gravity struct {
 	ssh          *ssh.Client
 }
 
-const retrySSH = time.Second * 10
+const (
+	retrySSH    = time.Second * 10
+	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
+)
 
 // waits for SSH to be up on node and returns client
-func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+	ctx, cancel := context.WithTimeout(baseContext, deadlineSSH)
+	defer cancel()
+
 	for {
 		client, err := node.Client()
 

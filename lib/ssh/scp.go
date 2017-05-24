@@ -14,6 +14,11 @@ import (
 
 // CopyFile transfers local file to remote host directory
 func PutFile(ctx context.Context, node SshNode, srcPath, dstDir string) (remotePath string, err error) {
+	mkdirCmd := fmt.Sprintf("mkdir -p %s", dstDir)
+	err = Run(ctx, node, mkdirCmd, nil)
+	if err != nil {
+		return "", trace.Wrap(err, "%v : %v", node, mkdirCmd)
+	}
 	session, err := node.Client().NewSession()
 	if err != nil {
 		return "", trace.Wrap(err)
@@ -51,7 +56,7 @@ func PutFile(ctx context.Context, node SshNode, srcPath, dstDir string) (remoteP
 		if err != nil {
 			return "", trace.Wrap(err)
 		}
-		remotePath = filepath.Join(tmpDir, filepath.Base(srcPath))
+		remotePath = filepath.Join(dstDir, filepath.Base(srcPath))
 		return remotePath, nil
 	}
 }

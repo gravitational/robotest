@@ -144,14 +144,14 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		}(node)
 	}
 
-	gravityNodes := make([]Gravity, 0, len(nodes))
+	gravityNodes := []Gravity{}
 	errors := []error{}
 	for range nodes {
 		select {
 		case <-ctx.Done():
 			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
 		case res := <-resultCh:
-			if err != nil {
+			if res.err != nil {
 				errors = append(errors, res.err)
 			} else {
 				gravityNodes = append(gravityNodes, res.gravity)
@@ -164,7 +164,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	}
 
 	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
-	for _, node := range nodes {
+	for _, node := range gravityNodes {
 		logFn("\t%v", node)
 	}
 
@@ -241,8 +241,10 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *c
 		return nil, trace.Wrap(err)
 	}
 
+	g.Logf("Transferring installer from %s ...", param.installerUrl)
 	tgz, err := sshutil.TransferFile(ctx, g, param.installerUrl, param.installDir, param.env)
 	if err != nil {
+		g.Logf("Failed to transfer installer %s : %v", param.installerUrl, err)
 		return nil, trace.Wrap(err, param.installerUrl)
 	}
 
