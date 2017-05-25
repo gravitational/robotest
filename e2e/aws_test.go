@@ -13,15 +13,9 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
 
-	var ui uimodel.UI
-
-	BeforeEach(func() {
-		ui = uimodel.Init(f.Page)
-	})
-
 	It("should provision a new cluster [provisioner:aws_install]", func() {
 		domainName := ctx.ClusterName
-		ui.EnsureUser(framework.InstallerURL())
+		ui := uimodel.InitWithUser(f.Page, framework.InstallerURL())
 		installer := ui.GoToInstaller(framework.InstallerURL())
 
 		By("filling out license text field if required")
@@ -62,7 +56,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	})
 
 	It("should add and remove a server [provisioner:aws_expand_shrink]", func() {
-		ui.EnsureUser(framework.SiteURL())
+		ui := uimodel.InitWithUser(f.Page, framework.SiteURL())
 		site := ui.GoToSite(ctx.ClusterName)
 		siteServerPage := site.GoToServers()
 		newServer := siteServerPage.AddAWSServer()
@@ -70,10 +64,8 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	})
 
 	It("should delete site [provisioner:aws_delete]", func() {
-		ui.EnsureUser(framework.SiteURL())
-		By("openning opscenter")
-		opscenter := ui.GoToOpsCenter(framework.Cluster.OpsCenterURL())
-		By("trying to delete a site")
+		ui := uimodel.InitWithUser(f.Page, framework.Cluster.OpsCenterURL())
+		opscenter := ui.GoToOpsCenter()
 		opscenter.DeleteSite(ctx.ClusterName)
 	})
 })

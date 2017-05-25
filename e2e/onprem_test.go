@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
+	defaults "github.com/gravitational/robotest/e2e/framework/defaults"
 
 	"github.com/gravitational/robotest/e2e/uimodel"
-	uidefaults "github.com/gravitational/robotest/e2e/uimodel/defaults"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,17 +17,11 @@ import (
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
-	var ui uimodel.UI
-	var domainName string
-
-	BeforeEach(func() {
-		domainName = ctx.ClusterName
-		ui = uimodel.Init(f.Page)
-	})
 
 	It("should provision a new cluster [provisioner:onprem_install]", func() {
 		By("navigating to installer step")
-		ui.EnsureUser(framework.InstallerURL())
+		domainName := ctx.ClusterName
+		ui := uimodel.InitWithUser(f.Page, framework.InstallerURL())
 		installer := ui.GoToInstaller(framework.InstallerURL())
 
 		By("filling out license text field if required")
@@ -55,9 +49,9 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		By("navigating to bandwagon step")
 		installer.ProceedToSite()
 		bandwagon := ui.GoToBandwagon(domainName)
+
 		By("submitting bandwagon form")
-		enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
-		ctx.Bandwagon.RemoteAccess = enableRemoteAccess
+		ctx.Bandwagon.RemoteAccess = ctx.ForceRemoteAccess || !ctx.Wizard
 		bandwagon.SubmitForm(ctx.Bandwagon)
 
 		By("navigating to a site and reading endpoints")
@@ -67,11 +61,6 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 
 		By("using local application endpoint")
-		var login = framework.Login{
-			Username: uidefaults.BandwagonEmail,
-			Password: uidefaults.BandwagonPassword,
-		}
-
 		// Use the first allocated node to access the local site
 		allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
 		siteEntryURL := endpoints[0]
@@ -79,9 +68,16 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		// terraform nodes are provisioned only with a single private network interface
 		if ctx.Provisioner == "terraform" {
 			installNode := allocatedNodes[0]
-			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), uidefaults.GravityHTTPPort)
+			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
 		}
-		serviceLogin := &framework.ServiceLogin{Username: login.Username, Password: login.Password}
+		login := framework.Login{
+			Username: framework.TestContext.Bandwagon.Email,
+			Password: framework.TestContext.Bandwagon.Password,
+		}
+		serviceLogin := &framework.ServiceLogin{
+			Username: login.Username,
+			Password: login.Password}
+
 		By("login in with bandwagon user credentials")
 		framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		// login using local cluster endpoint
@@ -90,15 +86,14 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	})
 
 	It("should add and remove a server [provisioner:onprem_expand_shrink]", func() {
-		ui.EnsureUser(framework.SiteURL())
-		site := ui.GoToSite(domainName)
+		ui := uimodel.InitWithUser(f.Page, framework.SiteURL())
+		site := ui.GoToSite(ctx.ClusterName)
 		siteServerPage := site.GoToServers()
 		newSiteServer := siteServerPage.AddOnPremServer()
 		siteServerPage.DeleteServer(newSiteServer)
 	})
 
 	It("should update site to the latest version [provisioner:onprem_update]", func() {
-		siteURL := framework.SiteURL()
 		By("uploading new application into site")
 		if ctx.Onprem.InstallerURL == "" {
 			// Upload a new version to Ops Center
@@ -109,8 +104,8 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		}
 
 		By("trying to update the site to the latest application version")
-		ui.EnsureUser(siteURL)
-		site := ui.GoToSite(domainName)
+		ui := uimodel.InitWithUser(f.Page, framework.SiteURL())
+		site := ui.GoToSite(ctx.ClusterName)
 		site.UpdateWithLatestVersion()
 	})
 })
@@ -118,7 +113,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 func filterGravityEndpoints(endpoints []string) []string {
 	var siteEndpoints []string
 	for _, v := range endpoints {
-		if strings.Contains(v, strconv.Itoa(uidefaults.GravityHTTPPort)) {
+		if strings.Contains(v, strconv.Itoa(defaults.GravityHTTPPort)) {
 			siteEndpoints = append(siteEndpoints, v)
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gravitational/configure"
+	"github.com/gravitational/robotest/e2e/framework/defaults"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
@@ -138,7 +139,14 @@ func Failf(format string, args ...interface{}) {
 }
 
 // TestContext defines the global test configuration for the test run
-var TestContext = &TestContextType{}
+var TestContext = &TestContextType{
+	Bandwagon: BandwagonConfig{
+		Organization: defaults.BandwagonOrganization,
+		Username:     defaults.BandwagonUsername,
+		Email:        defaults.BandwagonEmail,
+		Password:     defaults.BandwagonPassword,
+	},
+}
 
 // testState defines an optional state configuration that allows the test runner
 // to use state from previous runs
@@ -208,10 +216,10 @@ type TestContextType struct {
 }
 
 type BandwagonConfig struct {
-	Organization string `json:"organization" yaml:"organization" env:"ROBO_BANDWAGON_ORGANIZATION"`
-	Username     string `json:"username" yaml:"username" env:"ROBO_BANDWAGON_USERNAME"`
-	Password     string `json:"password" yaml:"password" env:"ROBO_BANDWAGON_PASSWORD"`
-	Email        string `json:"email" yaml:"email" env:"ROBO_BANDWAGON_EMAIL"`
+	Organization string `json:"organization" yaml:"organization" `
+	Username     string `json:"username" yaml:"username" `
+	Password     string `json:"password" yaml:"password" `
+	Email        string `json:"email" yaml:"email" `
 	RemoteAccess bool
 }
 

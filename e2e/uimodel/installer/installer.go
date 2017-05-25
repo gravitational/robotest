@@ -31,6 +31,7 @@ func (i *Installer) ProcessLicenseStepIfRequired(license string) {
 	elems := i.page.FindByClass("grv-license")
 	count, _ := elems.Count()
 	if count > 0 {
+		log.Infof("trying to complete license step")
 		Expect(license).NotTo(BeEmpty(), "should have a valid license")
 		Expect(elems.SendKeys(license)).To(Succeed())
 		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).
@@ -294,11 +295,6 @@ func (i *Installer) navigateTo(URL string) {
 	utils.PauseForPageJs()
 }
 
-type serverProfile struct {
-	// Nodes specifies the number of nodes to provision
-	Nodes int
-}
-
 func getServerCountFromSelectedProfile(page *web.Page) int {
 	const script = `
             var getter = [ ["installer_provision", "profilesToProvision"], profiles => {
@@ -312,6 +308,12 @@ func getServerCountFromSelectedProfile(page *web.Page) int {
             var data = window.reactor.evaluate(getter)
             return JSON.stringify(data);
         `
+
+	type serverProfile struct {
+		// Nodes specifies the number of nodes to provision
+		Nodes int
+	}
+
 	var profiles map[string]serverProfile
 	var profileBytes string
 

@@ -1,8 +1,6 @@
 package site
 
 import (
-	"fmt"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
@@ -23,30 +21,28 @@ type Site struct {
 // Open navigates to cluster URL and returns its ui model
 func Open(page *web.Page, domainName string) Site {
 	site := Site{page: page, domainName: domainName}
-	url := site.formatUrl("")
+	url := utils.GetSiteURL(page, domainName)
 	VerifySiteNavigation(page, url)
 	return site
 }
 
 // GoToIndex navigates to cluster index page
 func (s *Site) GoToIndex() AppPage {
-	url := s.formatUrl("")
+	url := utils.GetSiteURL(s.page, s.domainName)
 	VerifySiteNavigation(s.page, url)
 	return AppPage{site: s}
 }
 
 // GoToServers navigates to cluster server page
 func (s *Site) GoToServers() ServerPage {
-	url := s.formatUrl("servers")
+	url := utils.GetSiteServersURL(s.page, s.domainName)
 	VerifySiteNavigation(s.page, url)
-
 	Eventually(func() bool {
 		count, _ := s.page.All(".grv-site-servers .grv-table td").Count()
 		return count > 0
 	}, defaults.AjaxCallTimeout).Should(BeTrue(), "waiting for servers to load")
 
 	utils.PauseForPageJs()
-
 	return ServerPage{site: s}
 }
 
@@ -145,9 +141,4 @@ func VerifySiteNavigation(page *web.Page, URL string) {
 	Eventually(page.FindByClass("grv-site"), defaults.AppLoadTimeout).
 		Should(BeFound(), "waiting for site to be ready")
 	utils.PauseForComponentJs()
-}
-
-func (s *Site) formatUrl(newPrefix string) string {
-	urlPrefix := fmt.Sprintf("/web/site/%v/%v", s.domainName, newPrefix)
-	return utils.FormatUrl(s.page, urlPrefix)
 }

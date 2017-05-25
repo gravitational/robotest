@@ -14,9 +14,11 @@ type UI struct {
 	page *web.Page
 }
 
-// Init creates UI instance
-func Init(page *web.Page) UI {
-	return UI{page: page}
+// InitWithUser navigates to given URL and ensures signed-in user.
+func InitWithUser(page *web.Page, URL string) UI {
+	ui := UI{page: page}
+	user.EnsureUser(page, URL)
+	return ui
 }
 
 // GoToSite navigates to cluster page and returns cluster object
@@ -30,8 +32,8 @@ func (u *UI) GoToInstaller(URL string) installer.Installer {
 }
 
 // GoToOpsCenter navigates to opscenter page and returns opscenter object
-func (u *UI) GoToOpsCenter(URL string) opscenter.OpsCenter {
-	return opscenter.Open(u.page, URL)
+func (u *UI) GoToOpsCenter() opscenter.OpsCenter {
+	return opscenter.Open(u.page)
 }
 
 // GoToBandwagon navigates to bandwagon page and returns bandwagon object

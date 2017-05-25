@@ -42,6 +42,20 @@ func FormatUrl(page *web.Page, prefix string) string {
 	return framework.URLPathFromString(url, prefix)
 }
 
+func GetSiteURL(page *web.Page, clusterName string) string {
+	urlPrefix := fmt.Sprintf("/web/site/%v", clusterName)
+	return FormatUrl(page, urlPrefix)
+}
+
+func GetOpsCenterURL(page *web.Page) string {
+	return FormatUrl(page, "/web/portal")
+}
+
+func GetSiteServersURL(page *web.Page, clusterName string) string {
+	clusterURL := GetSiteURL(page, clusterName)
+	return fmt.Sprintf("%v/servers", clusterURL)
+}
+
 func SetDropdownValue(page *web.Page, classPath string, value string) {
 	const scriptTemplate = `
             var result = [];

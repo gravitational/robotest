@@ -21,14 +21,15 @@ type OpsCenter struct {
 }
 
 // Open navigates to opscenter URL and returns ui model
-func Open(page *web.Page, URL string) OpsCenter {
+func Open(page *web.Page) OpsCenter {
 	log.Infof("trying to open opscenter")
-	Expect(page.Navigate(URL)).To(Succeed())
+	url := utils.GetOpsCenterURL(page)
+	Expect(page.Navigate(url)).To(Succeed())
 	Eventually(page.FindByClass("grv-portal"), defaults.AppLoadTimeout).
 		Should(BeFound(), "waiting for opscenter to load")
 
 	utils.PauseForComponentJs()
-	return OpsCenter{page: page, url: URL}
+	return OpsCenter{page: page, url: url}
 }
 
 // DeleteSite deletes cluster by its name
