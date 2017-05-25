@@ -40,8 +40,3 @@ func (u *UI) GoToOpsCenter() opscenter.OpsCenter {
 func (u *UI) GoToBandwagon(domainName string) bandwagon.Bandwagon {
 	return bandwagon.Open(u.page, domainName)
 }
-
-// EnsureUser navigates to given URL and ensures that a user is logged in
-func (u *UI) EnsureUser(URL string) {
-	user.EnsureUser(u.page, URL)
-}

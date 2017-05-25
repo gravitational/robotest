@@ -81,7 +81,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		By("login in with bandwagon user credentials")
 		framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		// login using local cluster endpoint
-		ui.EnsureUser(framework.SiteURL())
+		ui = uimodel.InitWithUser(f.Page, framework.SiteURL())
 		ui.GoToSite(domainName)
 	})
 
