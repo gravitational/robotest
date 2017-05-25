@@ -26,7 +26,6 @@ import (
 
 const (
 	tfVarsFile           = "robotest.tfvars.json"
-	terraformTimeout     = time.Minute * 15 // longest operation is node creation, but it's parallelized
 	terraformRepeatAfter = time.Second * 5
 )
 
@@ -70,10 +69,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 	return t, nil
 }
 
-func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), terraformTimeout)
-	defer cancel()
-
+func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer infra.Node, err error) {
 	nfiles, err := system.CopyAll(r.ScriptPath, r.stateDir)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -85,7 +81,7 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {
-		err := r.terraform()
+		err := r.terraform(ctx)
 		if err == nil {
 			if withInstaller {
 				nodes := r.pool.Nodes()
@@ -113,8 +109,8 @@ func (r *terraform) Create(withInstaller bool) (installer infra.Node, err error)
 
 }
 
-func (r *terraform) terraform() (err error) {
-	output, err := r.boot()
+func (r *terraform) terraform(ctx context.Context) (err error) {
+	output, err := r.boot(ctx)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -153,10 +149,10 @@ func (r *terraform) terraform() (err error) {
 	return nil
 }
 
-func (r *terraform) Destroy() error {
+func (r *terraform) Destroy(ctx context.Context) error {
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
-	_, err := r.command([]string{
+	_, err := r.command(ctx, []string{
 		"destroy", "-force",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
@@ -235,14 +231,14 @@ func (r *terraform) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (r *terraform) boot() (output string, err error) {
+func (r *terraform) boot(ctx context.Context) (output string, err error) {
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	err = r.saveVarsJSON(varsPath)
 	if err != nil {
 		return "", trace.Wrap(err, "failed to store Terraform vars")
 	}
 
-	out, err := r.command([]string{
+	out, err := r.command(ctx, []string{
 		"apply",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
@@ -255,8 +251,8 @@ func (r *terraform) boot() (output string, err error) {
 	return string(out), nil
 }
 
-func (r *terraform) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
-	cmd := exec.Command("terraform", args...)
+func (r *terraform) command(ctx context.Context, args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "terraform", args...)
 	var out bytes.Buffer
 	opts = append(opts, system.Dir(r.stateDir))
 	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry, opts...)

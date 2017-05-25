@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"testing"
 
 	"github.com/gravitational/robotest/lib/utils"
 
@@ -10,14 +9,17 @@ import (
 )
 
 // Status walks around all nodes and checks whether they all feel OK
-func Status(ctx context.Context, t *testing.T, nodes []Gravity) error {
+func (c TestContext) Status(nodes []Gravity) error {
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
+
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {
 		go func(n Gravity) {
 			status, err := n.Status(ctx)
-			assert.NoError(t, err, n.String())
-			t.Logf("%s status=%+v", n, status)
+			assert.NoError(c.t, err, n.String())
+			c.t.Logf("%s status=%+v", n, status)
 
 			errs <- err
 		}(node)

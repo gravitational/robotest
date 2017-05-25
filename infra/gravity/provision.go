@@ -94,22 +94,11 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
-	logFn := utils.Logf(t, baseConfig.Tag())
-	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
-
-	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	_, err = p.Create(false)
-	if err != nil {
-		return nil, nil, trace.Wrap(err)
-	}
-	resourceAllocated(baseConfig.Tag())
-	destroyFn := wrapDestroyFn(baseConfig.Tag(), p.Destroy)
-
-	nodes := p.NodePool().Nodes()
 	type result struct {
 		gravity Gravity
 		err     error
@@ -139,15 +128,16 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		}
 	}
 
+	logFn := utils.Logf(t, baseConfig.Tag())
 	if len(errors) != 0 {
 		aggError := trace.NewAggregate(errors...)
-		logFn("[provision] cleanup after error provisioning : %v", aggError)
+		logFn("cleanup after error provisioning : %v", aggError)
 
 		destroyFn(ctx, t)
 		return nil, destroyFn, aggError
 	}
 
-	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
 	for _, node := range gravityNodes {
 		logFn("\t%v", node)
 	}

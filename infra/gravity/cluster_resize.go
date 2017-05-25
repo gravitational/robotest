@@ -2,7 +2,7 @@ package gravity
 
 import (
 	"context"
-	"testing"
+	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -10,16 +10,22 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func Expand(ctx context.Context, t *testing.T, current, extra []Gravity, role string) error {
+func (c TestContext) Expand(current, extra []Gravity, role string) error {
 	if len(current) == 0 || len(extra) == 0 {
 		return trace.Errorf("empty node list")
 	}
+
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
 
 	joinAddr := current[0].Node().PrivateAddr()
 	status, err := current[0].Status(ctx)
 	if err != nil {
 		trace.Wrap(err, "query status from [%v]", current[0])
 	}
+
+	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
+	defer cancel()
 
 	errs := make(chan error, len(extra))
 	for _, node := range extra {
@@ -40,11 +46,14 @@ func Expand(ctx context.Context, t *testing.T, current, extra []Gravity, role st
 	all := append([]Gravity{}, current...)
 	all = append(all, extra...)
 
-	return trace.Wrap(Status(ctx, t, all))
+	return trace.Wrap(c.Status(all))
 }
 
 // ShrinkLeave will gracefully leave cluster
-func ShrinkLeave(ctx context.Context, t *testing.T, nodesToKeep, nodesToRemove []Gravity) error {
+func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Leave, len(nodesToRemove)))
+	defer cancel()
+
 	errs := make(chan error, len(nodesToRemove))
 	for _, node := range nodesToRemove {
 		go func(n Gravity) {
@@ -57,10 +66,13 @@ func ShrinkLeave(ctx context.Context, t *testing.T, nodesToKeep, nodesToRemove [
 }
 
 // TestNodeLoss simulates sudden nodes loss within an existing cluster followed by node eviction
-func NodeLoss(ctx context.Context, t *testing.T, nodesToKeep []Gravity, nodesToRemove []Gravity) error {
+func (c TestContext) NodeLoss(nodesToKeep []Gravity, nodesToRemove []Gravity) error {
 	if len(nodesToKeep) == 0 || len(nodesToRemove) == 0 {
 		return trace.BadParameter("node list empty")
 	}
+
+	ctx, cancel := context.WithTimeout(c.parent, time.Minute)
+	defer cancel()
 
 	errs := make(chan error, len(nodesToRemove))
 	for _, node := range nodesToRemove {
@@ -76,23 +88,25 @@ func NodeLoss(ctx context.Context, t *testing.T, nodesToKeep []Gravity, nodesToR
 	}
 
 	// informative, is expected to report errors
-	Status(ctx, t, nodesToKeep)
+	c.Status(nodesToKeep)
 
 	master := nodesToKeep[0]
 	evictErrors := []error{}
 
+	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Leave, len(nodesToRemove)))
+	defer cancel()
+
 	for _, node := range nodesToRemove {
-		evictErrors = append(evictErrors, wait.Retry(ctx, tryEvict(ctx, t, master, node)))
+		evictErrors = append(evictErrors, wait.Retry(ctx, tryEvict(ctx, master, node)))
 	}
 	return trace.NewAggregate(evictErrors...)
 }
 
-func tryEvict(ctx context.Context, t *testing.T, master, node Gravity) func() error {
+func tryEvict(ctx context.Context, master, node Gravity) func() error {
 	return func() error {
 		// it seems it may fail sometimes, so we will repeat
 		err := master.Remove(ctx, node.Node().PrivateAddr(), Force)
 		if err != nil {
-			t.Logf("(%s) error evicting %s : %v", master, node, err)
 			return wait.ContinueRetry{err.Error()}
 		}
 		return nil

@@ -3,6 +3,7 @@ package gravity
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,4 +33,39 @@ func wrap(fn TestFunc, ctx context.Context, cfg *ProvisionerConfig, parallel boo
 		}
 		fn(ctx, t, cfg)
 	}
+}
+
+// OpTimeouts define per-node, per-operation timeouts which would be used to determine
+// whether test must be failed
+// provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
+type OpTimeouts struct {
+	Install, Status, Uninstall, Leave time.Duration
+}
+
+var DefaultTimeouts = OpTimeouts{
+	Install:   time.Minute * 10,
+	Uninstall: time.Minute * 3,
+	Status:    time.Second * 30,
+	Leave:     time.Second * 30,
+}
+
+// TestContext aggregates common parameters for better test suite readability
+type TestContext struct {
+	t        *testing.T
+	parent   context.Context
+	timeouts OpTimeouts
+}
+
+// WithTesting creates new context holder
+func NewContext(parent context.Context, t *testing.T, timeouts OpTimeouts) TestContext {
+	return TestContext{t, parent, timeouts}
+}
+
+// OK is equivalent to require.NoError
+func (c TestContext) OK(msg string, err error) {
+	require.NoError(c.t, err, msg)
+}
+
+func withDuration(d time.Duration, n int) time.Duration {
+	return d * time.Duration(n)
 }

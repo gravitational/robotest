@@ -77,11 +77,11 @@ type Provisioner interface {
 	//
 	// withInstaller specifies if the provisioner should select an installer node.
 	// Installer node selection is provisioner-specific
-	Create(withInstaller bool) (installer Node, err error)
+	Create(ctx context.Context, withInstaller bool) (installer Node, err error)
 	// Destroy the infrastructures created by Create.
 	// After the call to Destroy the provisioner is invalid and no
 	// other methods can be used
-	Destroy() error
+	Destroy(ctx context.Context) error
 	// Connect connects to the node identified with addr and returns
 	// a new session object that can be used to execute remote commands
 	Connect(addr string) (*ssh.Session, error)

@@ -2,6 +2,7 @@ package sanity
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/gravitational/robotest/infra/gravity"
@@ -16,6 +17,8 @@ type cycleInstallParam struct {
 	Flavors map[uint]string
 	// Role is node role as defined in app.yaml
 	Role string
+	// Timeout defines operation timeouts
+	Timeouts gravity.OpTimeouts
 }
 
 // installReliability performs cyclic installs
@@ -26,22 +29,23 @@ func installInCycles(param cycleInstallParam) gravity.TestFunc {
 	}
 }
 
-func cycleInstall(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig, param cycleInstallParam) {
+func cycleInstall(baseContext context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig, param cycleInstallParam) {
 	install := func(cfg *gravity.ProvisionerConfig, flavor string) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 
-			nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
+			nodes, destroyFn, err := gravity.Provision(baseContext, t, cfg)
 			require.NoError(t, err, "provision nodes")
-			defer destroyFn(ctx, t)
+			defer destroyFn(baseContext, t)
+
+			g := gravity.NewContext(baseContext, t, param.Timeouts)
 
 			var c uint
 			for c = 1; c <= param.Cycles; c++ {
-				err := gravity.OfflineInstall(ctx, t, nodes, flavor, param.Role)
-				require.NoError(t, err, "install cycle %d of %d", c, param.Cycles)
-
-				err = gravity.Uninstall(ctx, t, nodes)
-				require.NoError(t, err, "uninstall cycle %d of %d", c, param.Cycles)
+				msg := fmt.Sprintf("install cycle %d of %d", c, param.Cycles)
+				require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
+				require.NoError(t, g.Status(nodes), msg)
+				require.NoError(t, g.Uninstall(nodes), msg)
 			}
 		}
 	}

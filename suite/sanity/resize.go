@@ -12,8 +12,8 @@ import (
 )
 
 type resizeParam struct {
-	// ReasonableTimeout is per-node operation timeout value
-	ReasonableTimeout time.Duration
+	// Timeouts is per-node operation timeout value
+	Timeouts gravity.OpTimeouts
 	// Role is node role
 	Role string
 	// InitialFlavor is equivalent to 1 node
@@ -33,73 +33,19 @@ const (
 // * install 1 node expand to 3
 // * force remove 1 recover another one
 func basicResize(param resizeParam) gravity.TestFunc {
-	return func(baseContext context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
-		require.True(t, param.ReasonableTimeout >= minTimeout,
-			"timeout value %v too small", param.ReasonableTimeout)
-
+	return func(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(4)
 
-		provisioningCtx, cancelProvision := context.WithTimeout(baseContext, provisioningTimeout)
-		defer cancelProvision()
-		nodes, destroyFn, err := gravity.Provision(provisioningCtx, t, config)
+		nodes, destroyFn, err := gravity.Provision(ctx, t, config)
 		require.NoError(t, err, "provision nodes")
-		require.Len(t, nodes, 4)
-		defer destroyFn(baseContext, t)
+		defer destroyFn(ctx, t)
 
-		t.Log(nodes)
-		ok := t.Run("wipe nodes", func(t *testing.T) {
-			t.Skip()
-			gravity.Uninstall(provisioningCtx, t, nodes)
-		})
-		require.True(t, ok, "wipe nodes if re-entrant")
+		g := gravity.NewContext(ctx, t, param.Timeouts)
 
-		ok = t.Run("install 1 node", func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(baseContext, param.ReasonableTimeout)
-			defer cancel()
-
-			err := gravity.OfflineInstall(ctx, t, nodes[0:1], param.InitialFlavor, param.Role)
-			require.NoError(t, err)
-		})
-		require.True(t, ok, "installOffline 1 node")
-
-		ok = t.Run("expand to 3 nodes", func(t *testing.T) {
-			expandTo := nodes[1:3]
-
-			ctx, cancel := context.WithTimeout(baseContext, param.ReasonableTimeout*time.Duration(len(expandTo)))
-			defer cancel()
-
-			err := gravity.Expand(ctx, t, nodes[0:1], expandTo, param.Role)
-			require.NoError(t, err)
-		})
-		require.True(t, ok, "expand to 3 nodes")
-
-		// TODO: detect current active master and evict it
-		ok = t.Run("remove node #0", func(t *testing.T) {
-			// FIXME: it is supposed to work without extra time
-			time.Sleep(time.Second * 30)
-
-			ctx, cancel := context.WithTimeout(baseContext, param.ReasonableTimeout)
-			defer cancel()
-
-			gravity.NodeLoss(ctx, t, nodes[1:3], nodes[0:1])
-		})
-		require.True(t, ok, "remove one node")
-
-		ok = t.Run("query status from remaining nodes", func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(baseContext, statusTimeout)
-			defer cancel()
-
-			gravity.Status(ctx, t, nodes[0:1])
-			// this is informative, we not assert errors reporting
-		})
-		require.True(t, ok, "query status after node loss")
-
-		ok = t.Run("recover node", func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(baseContext, param.ReasonableTimeout)
-			defer cancel()
-
-			err = gravity.Expand(ctx, t, nodes[1:3], nodes[3:4], param.Role)
-		})
-		require.True(t, ok, "recover node")
+		g.OK("install one node", g.OfflineInstall(nodes[0:1], param.InitialFlavor, param.Role))
+		g.OK("expand to three", g.Expand(nodes[0:1], nodes[1:3], param.Role))
+		g.OK("node loss", g.NodeLoss(nodes[1:3], nodes[0:1]))
+		g.Status(nodes[0:1]) // informative
+		g.OK("replace node", g.Expand(nodes[1:3], nodes[3:4], param.Role))
 	}
 }

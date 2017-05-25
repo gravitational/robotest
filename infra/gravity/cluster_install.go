@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"testing"
 
 	"github.com/gravitational/robotest/lib/utils"
 
@@ -10,7 +9,10 @@ import (
 )
 
 // OfflineInstall sets up cluster using nodes provided
-func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity, flavor, role string) error {
+func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
+
 	if len(nodes) == 0 {
 		return trace.Errorf("at least one node")
 	}
@@ -41,7 +43,10 @@ func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity, flavor, 
 
 // Uninstall makes nodes leave cluster and uninstall gravity
 // it is not asserting internally
-func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
+func (c TestContext) Uninstall(nodes []Gravity) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
+
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {

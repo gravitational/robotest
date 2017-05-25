@@ -4,10 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/terraform"
+	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
 )
@@ -20,23 +25,24 @@ var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources 
 
 var resourceListFile = flag.String("resourcegroupfile", "", "file with list of resources created")
 
+var testStatus = map[bool]string{true: "failed", false: "ok"}
+
 // wrapDestroyFn implements a global conditional logic
-func wrapDestroyFn(tag string, destroy func() error) DestroyFn {
+func wrapDestroyFn(tag string, destroy func(context.Context) error) DestroyFn {
 	return func(ctx context.Context, t *testing.T) error {
+		log := utils.Logf(t, tag)
+
 		if (*destroyOnSuccess == false) ||
 			(t.Failed() && *destroyOnFailure == false) {
-			t.Logf("Not removing terraform %s")
+			log("Not removing terraform %s")
 			return nil
 		}
 
-		info := fmt.Sprintf("***\n*** destroying Terraform resources %s\n***\n", tag)
-		t.Logf(info)
-		log.Printf(info)
+		log("destroying Terraform resources %s, test %s", tag, testStatus[t.Failed()])
 
-		err := destroy()
+		err := destroy(ctx)
 		if err != nil {
-			t.Logf("%s : %v", info, err)
-			log.Printf("%s : %v", info, err)
+			log("error destroying terraform resources: %v", err)
 		} else {
 			resourceDestroyed(tag)
 		}
@@ -84,7 +90,6 @@ func saveResourceAllocations() error {
 	defer file.Close()
 
 	for res, _ := range resourceAllocations.tags {
-		log.Printf("currently allocated: %s", res)
 		_, err = fmt.Fprintln(file, res)
 		if err != nil {
 			return trace.ConvertSystemError(err)
@@ -92,4 +97,35 @@ func saveResourceAllocations() error {
 	}
 
 	return nil
+}
+
+// terraform deals with underlying terraform provisioner
+func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, params *cloudDynamicParams) ([]infra.Node, DestroyFn, error) {
+	// there's an internal retry in provisioners,
+	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
+	// as they'll pick up incomplete state from cloud and proceed
+	// only second chance is provided
+	for _, threshold := range []time.Duration{time.Second * 30, time.Minute * 5} {
+		p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+		if err != nil {
+			return nil, nil, trace.Wrap(err)
+		}
+
+		ctx, cancel := context.WithTimeout(baseContext, threshold)
+		defer cancel()
+
+		_, err = p.Create(ctx, false)
+		if err != nil && ctx.Err() == context.DeadlineExceeded {
+			continue
+		}
+
+		if err != nil {
+			return nil, nil, trace.Wrap(err)
+		}
+
+		resourceAllocated(baseConfig.Tag())
+		return p.NodePool().Nodes(), wrapDestroyFn(baseConfig.Tag(), p.Destroy), nil
+	}
+
+	return nil, nil, trace.Errorf("timed out provisioning %s", baseConfig.Tag())
 }

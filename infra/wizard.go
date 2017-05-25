@@ -224,7 +224,7 @@ func (r *wizardCluster) Close() error {
 }
 
 func (r *wizardCluster) Destroy() error {
-	return r.provisioner.Destroy()
+	return r.provisioner.Destroy(context.TODO())
 }
 
 func (r *wizardCluster) OpsCenterURL() string {

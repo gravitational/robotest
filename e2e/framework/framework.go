@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -141,7 +142,7 @@ func InitializeCluster() {
 			Expect(err).NotTo(HaveOccurred())
 
 			withInstaller := TestContext.Onprem.InstallerURL != "" && TestContext.Wizard
-			installerNode, err = provisioner.Create(withInstaller)
+			installerNode, err = provisioner.Create(context.TODO(), withInstaller)
 		}
 		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner
