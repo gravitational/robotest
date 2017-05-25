@@ -6,16 +6,14 @@ import (
 
 	"github.com/gravitational/robotest/lib/utils"
 
-	"github.com/stretchr/testify/require"
-)
-
-const (
-	defaultRole = "worker"
+	"github.com/gravitational/trace"
 )
 
 // OfflineInstall sets up cluster using nodes provided
-func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
-	require.NotZero(t, len(nodes), "at least 1 node")
+func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity, flavor, role string) error {
+	if len(nodes) == 0 {
+		return trace.Errorf("at least one node")
+	}
 
 	master := nodes[0]
 	token := "ROBOTEST"
@@ -23,7 +21,8 @@ func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
 	errs := make(chan error, len(nodes))
 	go func() {
 		errs <- master.Install(ctx, InstallCmd{
-			Token: token,
+			Token:  token,
+			Flavor: flavor,
 		})
 	}()
 
@@ -33,16 +32,15 @@ func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
 			errs <- n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    token,
-				Role:     defaultRole})
+				Role:     role})
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, errs)
-	require.NoError(t, err, "installation")
-
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
+// it is not asserting internally
 func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
 	errs := make(chan error, len(nodes))
 
@@ -52,5 +50,5 @@ func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, errs)
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }

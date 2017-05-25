@@ -5,7 +5,13 @@ import (
 )
 
 var Basic = map[string]gravity.TestFunc{
-	"install_1":   installInCycles(2, []uint{1}),
-	"install_10":  installInCycles(10, []uint{1, 3, 6}),
-	"basicResize": basicResize,
+	"install_1_1": installInCycles(cycleInstallParam{
+		Cycles: 1, Flavors: map[uint]string{1: "one"}, Role: "node"}),
+	"install_1_3": installInCycles(cycleInstallParam{
+		Cycles: 1, Flavors: map[uint]string{3: "three"}, Role: "node"}),
+	"install_1_6": installInCycles(cycleInstallParam{
+		Cycles: 1, Flavors: map[uint]string{6: "six"}, Role: "node"}),
+	"install_10_136": installInCycles(cycleInstallParam{
+		Cycles: 10, Flavors: map[uint]string{1: "one", 3: "three", 6: "six"}, Role: "node"}),
+	"basicResize": basicResize(resizeParam{InitialFlavor: "one", Role: "node"}),
 }

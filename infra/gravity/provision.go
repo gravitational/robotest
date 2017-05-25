@@ -2,12 +2,9 @@ package gravity
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 
@@ -20,51 +17,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
-
-// DestroyFn function which will destroy previously created remote resources
-type DestroyFn func() error
-
-var keepResources = flag.Bool("keepresources", true, "do not destroy resources after test runs")
-var resourceListFile = flag.String("resourcegroupfile", "", "file with list of resources created")
-
-func Destroy(t *testing.T, destroy DestroyFn) {
-	if *keepResources {
-		t.Logf("Leaving Terraform resources alive")
-		return
-	}
-
-	t.Logf("Destroying Terraform resources")
-	destroy()
-}
-
-var scheduledDemolitions = struct {
-	sync.Mutex
-	tags []string
-}{tags: []string{}}
-
-// scheduleDestroy adds resource allocated into local index file for shell-based cleanup
-// as test might crash and leak resources on the cloud
-func scheduleDestroy(ctx context.Context, t *testing.T, cloud, tag string) {
-	scheduledDemolitions.Lock()
-	defer scheduledDemolitions.Unlock()
-
-	scheduledDemolitions.tags = append(scheduledDemolitions.tags, tag)
-
-	if *resourceListFile == "" {
-		return
-	}
-
-	file, err := os.OpenFile(*resourceListFile, os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		t.Errorf("Error updating resource file %s : %v", *resourceListFile, err)
-		return
-	}
-	defer file.Close()
-
-	for _, resource := range scheduledDemolitions.tags {
-		fmt.Fprintln(file, resource)
-	}
-}
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
@@ -150,12 +102,12 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		return nil, nil, trace.Wrap(err)
 	}
 
-	scheduleDestroy(ctx, t, baseConfig.CloudProvider, baseConfig.tag)
-
 	_, err = p.Create(false)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+	resourceAllocated(baseConfig.CloudProvider, baseConfig.Tag())
+	destroyFn := wrapDestroyFn(baseConfig.Tag(), p.Destroy)
 
 	nodes := p.NodePool().Nodes()
 	type result struct {
@@ -188,7 +140,11 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	}
 
 	if len(errors) != 0 {
-		return nil, p.Destroy, trace.NewAggregate(errors...)
+		aggError := trace.NewAggregate(errors...)
+		logFn("[provision] cleanup after error provisioning : %v", aggError)
+
+		destroyFn(ctx, t)
+		return nil, destroyFn, aggError
 	}
 
 	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
@@ -196,7 +152,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		logFn("\t%v", node)
 	}
 
-	return sorted(gravityNodes), p.Destroy, nil
+	return sorted(gravityNodes), destroyFn, nil
 }
 
 // sort Interface implementation
