@@ -14,7 +14,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	defer cancel()
 
 	if len(nodes) == 0 {
-		return trace.Errorf("at least one node")
+		return trace.NotFound("at least one node")
 	}
 
 	master := nodes[0]

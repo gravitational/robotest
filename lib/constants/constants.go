@@ -16,6 +16,9 @@ const (
 	// SharedDirMask is a mask for shared directories
 	SharedDirMask = 0755
 
+	// SharedReadMask is a mask for shared directories
+	SharedReadMask = 0644
+
 	// SharedReadWriteMask is a mask for a shared file with world read/write access
 	SharedReadWriteMask = 0666
 )

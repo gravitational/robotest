@@ -12,6 +12,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
@@ -34,7 +35,7 @@ func wrapDestroyFn(tag string, destroy func(context.Context) error) DestroyFn {
 
 		if (*destroyOnSuccess == false) ||
 			(t.Failed() && *destroyOnFailure == false) {
-			log("Not removing terraform %s")
+			log("Not removing terraform %s", tag)
 			return nil
 		}
 
@@ -57,7 +58,7 @@ var resourceAllocations = struct {
 }{tags: map[string]bool{}}
 
 // resourceAllocated adds resource allocated into local index file for shell-based cleanup
-// as test might crash and leak resources on the cloud
+// as test might crash and leak resources in the cloud
 func resourceAllocated(tag string) error {
 	resourceAllocations.Lock()
 	defer resourceAllocations.Unlock()
@@ -83,9 +84,9 @@ func saveResourceAllocations() error {
 		return nil
 	}
 
-	file, err := os.OpenFile(*resourceListFile, os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(*resourceListFile, os.O_RDWR|os.O_CREATE, constants.SharedReadMask)
 	if err != nil {
-		return trace.Wrap(err, "updating resource allocation index %s : %v", *resourceListFile, err)
+		return trace.ConvertSystemError(err)
 	}
 	defer file.Close()
 

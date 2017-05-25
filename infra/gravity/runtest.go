@@ -56,7 +56,7 @@ type TestContext struct {
 	timeouts OpTimeouts
 }
 
-// WithTesting creates new context holder
+// NewContext creates new context holder
 func NewContext(parent context.Context, t *testing.T, timeouts OpTimeouts) TestContext {
 	return TestContext{t, parent, timeouts}
 }

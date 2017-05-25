@@ -16,7 +16,7 @@ aws:
   vpc: Create new # leave it like that
   docker_device: /dev/xvdb 
 azure: 
-  subscription_id: # see [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for next for params
+  subscription_id: # see [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for next 4 params
   client_id: 
   client_secret: 
   tenant_id: 

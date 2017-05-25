@@ -7,6 +7,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 

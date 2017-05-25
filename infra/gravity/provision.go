@@ -134,7 +134,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		logFn("cleanup after error provisioning : %v", aggError)
 
 		destroyFn(ctx, t)
-		return nil, destroyFn, aggError
+		return nil, nil, aggError
 	}
 
 	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
