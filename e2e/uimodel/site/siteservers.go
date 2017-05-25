@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/agent"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
@@ -71,15 +73,18 @@ func (p *ServerPage) GetAgentServers() []agent.AgentServer {
 
 // AddOnPremServer returns to onprem servers for expand operation
 func (p *ServerPage) AddOnPremServer() SiteServer {
+	log.Infof("trying to add onprem server")
 	page := p.site.page
 	config := framework.TestContext.Onprem
-	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).To(Succeed(), "should click on Add Existing button")
+	Expect(page.FindByClass("grv-site-servers-provisioner-add-existing").Click()).
+		To(Succeed(), "should click on Add Existing button")
 
 	utils.PauseForComponentJs()
 	p.selectOnPremProfile(config.ExpandProfile)
 	utils.PauseForComponentJs()
 
-	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).To(Succeed(), "should click on continue button")
+	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).
+		To(Succeed(), "should click on continue button")
 	utils.PauseForComponentJs()
 
 	element := page.Find(".grv-installer-server-instruction span")
@@ -110,6 +115,7 @@ func (p *ServerPage) AddOnPremServer() SiteServer {
 
 // AddAWSServer returns to aws servers for expand operation
 func (p *ServerPage) AddAWSServer() SiteServer {
+	log.Infof("trying to add AWS server")
 	config := framework.TestContext.AWS
 	page := p.site.page
 	currentServerItems := p.GetSiteServers()
@@ -117,12 +123,15 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 		To(Succeed(), "should click on Provision new button")
 
 	utils.PauseForComponentJs()
+
+	log.Infof("filling out AWS keys")
 	utils.FillOutAWSKeys(page, config.AccessKey, config.SecretKey)
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).
 		To(Succeed(), "click on continue")
-	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.AppLoadTimeout).
+	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.SiteFetchServerProfileTimeout).
 		Should(BeFound(), "should display profile and instance type")
 
+	log.Infof("selecting server profile")
 	profileLabel := p.getProfileLabel(config.ExpandProfile)
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-profile", "", profileLabel)
 
@@ -131,12 +140,14 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 		instanceType = p.getFirstAvailableAWSInstanceType()
 	}
 
+	log.Infof("selecting aws instance type")
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-instance-type", "", instanceType)
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).
 		To(Succeed(), "should click on start button")
 
 	p.site.WaitForOperationCompletion()
 
+	log.Infof("retrieving new server info")
 	updatedItems := p.GetSiteServers()
 	var newItem SiteServer
 	for i, item := range updatedItems {
@@ -149,15 +160,13 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 		}
 	}
 
-	Expect(newItem).ToNot(
-		BeNil(),
-		"should find a new server in the server list")
-
+	Expect(newItem).ToNot(BeNil(), "should find a new server in the server list")
 	return newItem
 }
 
 // DeleteServer deletes given server
 func (p *ServerPage) DeleteServer(server SiteServer) {
+	log.Infof("tring to delete a server")
 	p.clickDeleteServer(server.AdvertiseIP)
 	Expect(p.site.page.Find(".modal-dialog .btn-danger").Click()).
 		To(Succeed(), "should click on confirmation button")
@@ -247,6 +256,7 @@ func (p *ServerPage) getFirstAvailableAWSInstanceType() string {
 }
 
 func (p *ServerPage) selectOnPremProfile(profileName string) {
+	log.Infof("selecting onprem profile")
 	if profileName == "" {
 		Expect(p.site.page.FindByClass("grv-control-radio-indicator").Click()).To(
 			Succeed(),

@@ -34,8 +34,10 @@ const (
 	SiteLogoutAfterUpdatePollInterval = 7 * time.Second
 	// SiteOperationEndTimeout time for operation to be completed (Expand and Application Update operations)
 	SiteOperationEndTimeout = 10 * time.Minute
-	// SiteOperationStartTimeout time for operation to start
+	// SiteOperationStartTimeout is a waiting time for operation to start
 	SiteOperationStartTimeout = 20 * time.Second
+	// SiteFetchServerProfileTimeout is a waiting time to fetch AWS server profiles
+	SiteFetchServerProfileTimeout = 20 * time.Second
 
 	// LoginGoogleNextStepTimeout specifies the amount of time needed for google auth steps to initialize
 	LoginGoogleNextStepTimeout = 10 * time.Second

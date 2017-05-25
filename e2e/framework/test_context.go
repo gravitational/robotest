@@ -22,7 +22,6 @@ import (
 	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 // ConfigureFlags registers common command line flags, parses the command line
@@ -358,19 +357,7 @@ func newContextConfig(configFile string) error {
 		return trace.Wrap(err, "Error parsing config file")
 	}
 
-	err = validator.New().Struct(TestContext)
-	if err == nil {
-		return nil
-	}
-
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		log.Errorf("configuration file %s has errors", configFile)
-		for _, fieldError := range validationErrors {
-			log.Errorf("   field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
-		}
-	}
-
-	return trace.Errorf("configuration file fails validation test")
+	return nil
 }
 
 func initTestState(configFile string) error {

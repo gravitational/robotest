@@ -89,20 +89,18 @@ func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value strin
 	} else {
 		buttonSelector = fmt.Sprintf("%v %v", rootSelector, buttonSelector)
 	}
-	Expect(page.Find(buttonSelector).Click()).To(Succeed())
 
+	Expect(page.Find(buttonSelector).Click()).To(Succeed())
 	script := fmt.Sprintf(scriptTemplate, rootSelector)
 	var options []string
-
 	Expect(page.RunScript(script, nil, &options)).To(Succeed())
 
 	for index, optionValue := range options {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", rootSelector, index+1)
 			Expect(page.Find(optionClass)).To(BeFound())
-			Expect(page.Find(optionClass).Click()).To(
-				Succeed(),
-				"should select given dropdown value")
+			Expect(page.Find(optionClass).Click()).To(Succeed(), "should select given dropdown value")
+			PauseForComponentJs()
 			return
 		}
 	}

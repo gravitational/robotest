@@ -10,8 +10,6 @@ import (
 	"github.com/gravitational/robotest/e2e/uimodel"
 	uidefaults "github.com/gravitational/robotest/e2e/uimodel/defaults"
 
-	sitemodel "github.com/gravitational/robotest/e2e/uimodel/site"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -94,22 +92,12 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	})
 
 	framework.RoboDescribe("Site expand|shrink operation [provisioner:onprem][expand][shrink]", func() {
-		var siteServer = sitemodel.SiteServer{}
-		var site = sitemodel.Site{}
-
-		BeforeEach(func() {
+		It("should add and remove a server", func() {
 			ui.EnsureUser(framework.SiteURL())
-			site = ui.GoToSite(domainName)
-		})
-
-		It("should add a new server", func() {
+			site := ui.GoToSite(domainName)
 			siteServerPage := site.GoToServers()
-			siteServer = siteServerPage.AddOnPremServer()
-		})
-
-		It("should remove a new server", func() {
-			siteServerPage := site.GoToServers()
-			siteServerPage.DeleteServer(siteServer)
+			newSiteServer := siteServerPage.AddOnPremServer()
+			siteServerPage.DeleteServer(newSiteServer)
 		})
 	})
 

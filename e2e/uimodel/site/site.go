@@ -107,6 +107,7 @@ func (s *Site) GetEndpoints() (endpoints []string) {
 
 // WaitForOperationCompletion waits for cluster ongoing operation to be completed
 func (s *Site) WaitForOperationCompletion() {
+	log.Infof("wait for operation completion")
 	s.WaitForBusyState()
 	s.WaitForReadyState()
 }

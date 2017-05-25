@@ -4,7 +4,6 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 
 	"github.com/gravitational/robotest/e2e/uimodel"
-	sitemodel "github.com/gravitational/robotest/e2e/uimodel/site"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -66,22 +65,12 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	})
 
 	framework.RoboDescribe("Site expand and shrink operations [provisioner:aws][expand][shrink]", func() {
-		var siteServer = sitemodel.SiteServer{}
-		var site = sitemodel.Site{}
-
-		BeforeEach(func() {
+		It("should add and remove a server", func() {
 			ui.EnsureUser(framework.SiteURL())
-			site = ui.GoToSite(ctx.ClusterName)
-		})
-
-		It("should add a new server [expand]", func() {
+			site := ui.GoToSite(ctx.ClusterName)
 			siteServerPage := site.GoToServers()
-			siteServer = siteServerPage.AddAWSServer()
-		})
-
-		It("should remove a new server [shrink]", func() {
-			siteServerPage := site.GoToServers()
-			siteServerPage.DeleteServer(siteServer)
+			newServer := siteServerPage.AddAWSServer()
+			siteServerPage.DeleteServer(newServer)
 		})
 	})
 

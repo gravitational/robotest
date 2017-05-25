@@ -33,7 +33,7 @@ func Open(page *web.Page, URL string) OpsCenter {
 
 // DeleteSite deletes cluster by its name
 func (o *OpsCenter) DeleteSite(domainName string) {
-	log.Infof("selecting a delete site item")
+	log.Infof("selecting a site to delete")
 	deploymentIndex := getDeploymentIndex(o.page, domainName)
 	Expect(deploymentIndex).To(BeNumerically(">=", 0), "expected to find a valid deployment index")
 	utils.SetDropdownValue2(o.page, fmt.Sprintf(".grv-portal-sites tr:nth-child(%v)", deploymentIndex+1), "button", "Delete...")
