@@ -84,15 +84,13 @@ func (u *User) Signout() {
 	Eventually(u.page.FindByClass("grv-user-login")).Should(BeFound())
 }
 
-// EnsureUser navigates to given URL and ensures that a user is logged in
-func EnsureUser(page *web.Page, URL string) {
-	log.Infof("navigating to %q", URL)
-	login := framework.TestContext.Login
+// EnsureUserAt navigates to given URL and ensures that a user is logged in
+func EnsureUserAt(page *web.Page, URL string) {
+	log.Infof("ensuring a logged in user at %q", URL)
 	Expect(page.Navigate(URL)).To(Succeed())
-	count, _ := page.FindByClass("grv-user-login").Count()
-
-	if count != 0 {
+	if utils.IsFound(page, ".grv-user-login") {
 		log.Infof("handling login")
+		login := framework.TestContext.Login
 		user := CreateUser(page, login.Username, login.Password)
 		switch login.AuthProvider {
 		case WithEmail, WithNoProvider:

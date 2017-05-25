@@ -75,7 +75,7 @@ func (s *Site) UpdateWithLatestVersion() {
 
 	log.Infof("checking if app version has been updated correctly")
 	siteURL := framework.SiteURL()
-	user.EnsureUser(s.page, siteURL)
+	user.EnsureUserAt(s.page, siteURL)
 	appPage = s.GoToIndex()
 	curVer := appPage.GetCurrentVersion()
 	Expect(curVer.Version).To(BeEquivalentTo(newVersion.Version), "should display the new version")

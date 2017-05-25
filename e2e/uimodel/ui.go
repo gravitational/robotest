@@ -17,7 +17,7 @@ type UI struct {
 // InitWithUser navigates to given URL and ensures signed-in user.
 func InitWithUser(page *web.Page, URL string) UI {
 	ui := UI{page: page}
-	user.EnsureUser(page, URL)
+	user.EnsureUserAt(page, URL)
 	return ui
 }
 
