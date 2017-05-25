@@ -43,8 +43,8 @@ func cycleInstall(baseContext context.Context, t *testing.T, baseConfig *gravity
 			var c uint
 			for c = 1; c <= param.Cycles; c++ {
 				msg := fmt.Sprintf("install cycle %d of %d", c, param.Cycles)
-				require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
-				require.NoError(t, g.Status(nodes), msg)
+				assert.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
+				assert.NoError(t, g.Status(nodes), msg)
 				require.NoError(t, g.Uninstall(nodes), msg)
 			}
 		}
