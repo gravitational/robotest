@@ -57,17 +57,15 @@ func (i *Installer) InitAWSInstallation(domainName string) {
 	}, defaults.AjaxCallTimeout).Should(BeTrue(), "should accept AWS keys")
 
 	Expect(i.IsWarningVisible()).To(BeFalse(), "should be no warnings")
+	utils.PauseForComponentJs()
 
 	log.Infof("setting region")
-	utils.PauseForComponentJs()
 	utils.SetDropdownValue(i.page, "grv-installer-aws-region", config.Region)
 
 	log.Infof("setting key pair")
-	utils.PauseForComponentJs()
 	utils.SetDropdownValue(i.page, "grv-installer-aws-key-pair", config.KeyPair)
 
 	log.Infof("setting VPC")
-	utils.PauseForComponentJs()
 	utils.SetDropdownValue(i.page, "grv-installer-aws-vpc", config.VPC)
 	i.proceedToReqs()
 }
