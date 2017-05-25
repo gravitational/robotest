@@ -44,6 +44,8 @@ const (
 
 	// OpsCenterDeleteSiteTimeout specifies the amount of time allotted to a site delete operation
 	OpsCenterDeleteSiteTimeout = 5 * time.Minute
+	// OpsCenterDeleteSitePollInterval specifies poll interval for checking site deletion status
+	OpsCenterDeleteSitePollInterval = 3 * time.Second
 
 	// BandwagonOrganization specifies the name of the test organization or site to use in bandwagon form
 	BandwagonOrganization = "Robotest"

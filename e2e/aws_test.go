@@ -19,67 +19,61 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 		ui = uimodel.Init(f.Page)
 	})
 
-	framework.RoboDescribe("Provisioning a new cluster [provisioner:aws][install]", func() {
-		It("should provision a new cluster", func() {
-			domainName := ctx.ClusterName
-			ui.EnsureUser(framework.InstallerURL())
-			installer := ui.GoToInstaller(framework.InstallerURL())
+	It("should provision a new cluster [provisioner:aws_install]", func() {
+		domainName := ctx.ClusterName
+		ui.EnsureUser(framework.InstallerURL())
+		installer := ui.GoToInstaller(framework.InstallerURL())
 
-			By("filling out license text field if required")
-			installer.ProcessLicenseStepIfRequired(ctx.License)
-			installer.CreateSiteWithAWS(domainName)
+		By("filling out license text field if required")
+		installer.ProcessLicenseStepIfRequired(ctx.License)
+		installer.InitAWSInstallation(domainName)
 
-			By("selecting a flavor")
-			installer.SelectFlavorByLabel(ctx.FlavorLabel)
-			profiles := installer.GetAWSProfiles()
-			Expect(len(profiles)).To(Equal(1), "should verify required node number")
+		By("selecting a flavor")
+		installer.SelectFlavorByLabel(ctx.FlavorLabel)
+		profiles := installer.GetAWSProfiles()
+		Expect(len(profiles)).To(BeNumerically(">", 0), "expect at least 1 profile")
 
-			By("setting up AWS instance types")
-			for _, p := range profiles {
-				p.SetInstanceType(ctx.AWS.InstanceType)
-			}
+		By("setting up AWS instance types")
+		for _, p := range profiles {
+			p.SetInstanceType(ctx.AWS.InstanceType)
+		}
 
-			By("starting an installation")
-			installer.StartInstallation()
+		By("starting an installation")
+		installer.StartInstallation()
 
-			By("waiting until install is completed or failed")
-			installer.WaitForCompletion()
+		By("waiting until install is completed or failed")
+		installer.WaitForCompletion()
 
-			if installer.NeedsBandwagon(domainName) == true {
-				By("navigating to bandwagon step")
-				bandwagon := ui.GoToBandwagon(domainName)
-				By("submitting bandwagon form")
-				enableRemoteAccess := ctx.ForceRemoteAccess || !ctx.Wizard
-				ctx.Bandwagon.RemoteAccess = enableRemoteAccess
-				bandwagon.SubmitForm(ctx.Bandwagon)
+		if installer.NeedsBandwagon(domainName) == true {
+			By("navigating to bandwagon step")
+			bandwagon := ui.GoToBandwagon(domainName)
+			By("submitting bandwagon form")
+			ctx.Bandwagon.RemoteAccess = ctx.ForceRemoteAccess || !ctx.Wizard
+			bandwagon.SubmitForm(ctx.Bandwagon)
 
-				By("navigating to a site and reading endpoints")
-				site := ui.GoToSite(domainName)
-				endpoints := site.GetEndpoints()
-				Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
-			} else {
-				By("clicking on continue")
-				installer.ProceedToSite()
-			}
-		})
+			By("navigating to a site and reading endpoints")
+			site := ui.GoToSite(domainName)
+			endpoints := site.GetEndpoints()
+			Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
+		} else {
+			By("clicking on continue")
+			installer.ProceedToSite()
+		}
 	})
 
-	framework.RoboDescribe("Site expand and shrink operations [provisioner:aws][expand][shrink]", func() {
-		It("should add and remove a server", func() {
-			ui.EnsureUser(framework.SiteURL())
-			site := ui.GoToSite(ctx.ClusterName)
-			siteServerPage := site.GoToServers()
-			newServer := siteServerPage.AddAWSServer()
-			siteServerPage.DeleteServer(newServer)
-		})
+	It("should add and remove a server [provisioner:aws_expand_shrink]", func() {
+		ui.EnsureUser(framework.SiteURL())
+		site := ui.GoToSite(ctx.ClusterName)
+		siteServerPage := site.GoToServers()
+		newServer := siteServerPage.AddAWSServer()
+		siteServerPage.DeleteServer(newServer)
 	})
 
-	framework.RoboDescribe("Site delete operation [provisioner:aws][delete]", func() {
-		It("should delete site", func() {
-			By("openning opscenter")
-			opscenter := ui.GoToOpsCenter(framework.Cluster.OpsCenterURL())
-			By("trying to delete a site")
-			opscenter.DeleteSite(ctx.ClusterName)
-		})
+	It("should delete site [provisioner:aws_delete]", func() {
+		ui.EnsureUser(framework.SiteURL())
+		By("openning opscenter")
+		opscenter := ui.GoToOpsCenter(framework.Cluster.OpsCenterURL())
+		By("trying to delete a site")
+		opscenter.DeleteSite(ctx.ClusterName)
 	})
 })

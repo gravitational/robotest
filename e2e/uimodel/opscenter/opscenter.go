@@ -50,7 +50,7 @@ func (o *OpsCenter) DeleteSite(domainName string) {
 		Expect(elems.SendKeys(framework.TestContext.AWS.SecretKey)).To(Succeed(), "expected to input AWS secret key")
 	}
 
-	log.Infof("entering domain name")
+	log.Infof("confirming cluster name")
 	elems = o.page.FindByName("deploymentName")
 	Expect(elems).To(BeFound())
 	Expect(elems.SendKeys(domainName)).To(Succeed())
@@ -59,9 +59,11 @@ func (o *OpsCenter) DeleteSite(domainName string) {
 	Expect(o.page.Find(".grv-dialog .btn-danger").Click()).To(Succeed())
 	Eventually(
 		func() bool {
+			log.Infof("checking if cluster %v disappered from the list", domainName)
 			return getDeploymentIndex(o.page, domainName) >= 0
-		}, defaults.OpsCenterDeleteSiteTimeout).ShouldNot(BeTrue(),
-		fmt.Sprintf("deployment %q should disappear from the deployment list", domainName))
+		},
+		defaults.OpsCenterDeleteSiteTimeout,
+		defaults.OpsCenterDeleteSitePollInterval).ShouldNot(BeTrue(), "cluster should disappear from the cluster list")
 }
 
 func getDeploymentIndex(page *web.Page, domainName string) int {

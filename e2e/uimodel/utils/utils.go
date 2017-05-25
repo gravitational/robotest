@@ -14,15 +14,15 @@ import (
 )
 
 func IsErrorPage(page *web.Page) bool {
-	return checkIfExists(page, ".grv-msg-page")
+	return IsFound(page, ".grv-msg-page")
 }
 
 func IsInstaller(page *web.Page) bool {
-	return checkIfExists(page, ".grv-installer")
+	return IsFound(page, ".grv-installer")
 }
 
 func HasValidationErrors(page *web.Page) bool {
-	return checkIfExists(page, "label.error")
+	return IsFound(page, "label.error")
 }
 
 func IsLoginPage(page *web.Page) bool {
@@ -30,7 +30,7 @@ func IsLoginPage(page *web.Page) bool {
 	return count > 0
 }
 
-func checkIfExists(page *web.Page, className string) bool {
+func IsFound(page *web.Page, className string) bool {
 	el := page.Find(className)
 	count, _ := el.Count()
 	return count > 0
@@ -56,16 +56,15 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 
 	var result []string
 	page.Find(classPath).Click()
-
+	PauseForComponentJs()
 	script := fmt.Sprintf(scriptTemplate, classPath)
-
 	page.RunScript(script, nil, &result)
-
 	for i, optionValue := range result {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v .Select-option:nth-child(%v)", classPath, i+1)
 			Expect(page.Find(optionClass)).To(BeFound())
 			Expect(page.Find(optionClass).Click()).To(Succeed())
+			PauseForComponentJs()
 			return
 		}
 	}
@@ -76,6 +75,7 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 // There are 2 different controls that UI uses for dropdown thus each
 // requires different handling
 func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value string) {
+	var options []string
 	const scriptTemplate = `
             var options = [];
             var cssSelector = "%v .dropdown-menu a";
@@ -91,10 +91,9 @@ func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value strin
 	}
 
 	Expect(page.Find(buttonSelector).Click()).To(Succeed())
+	PauseForComponentJs()
 	script := fmt.Sprintf(scriptTemplate, rootSelector)
-	var options []string
 	Expect(page.RunScript(script, nil, &options)).To(Succeed())
-
 	for index, optionValue := range options {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", rootSelector, index+1)

@@ -40,19 +40,23 @@ func (i *Installer) ProcessLicenseStepIfRequired(license string) {
 	}
 }
 
-// CreateSiteWithAWS initilizes cluster install operation using AWS
-func (i *Installer) CreateSiteWithAWS(domainName string) string {
-	log.Infof("setting domain name")
-	config := framework.TestContext.AWS
-	Expect(i.IsCreateSiteStep()).To(BeTrue(), "should be on the select provisioner step")
+// InitAWSInstallation initilizes cluster install operation using AWS
+func (i *Installer) InitAWSInstallation(domainName string) {
+	log.Infof("trying to initialize AWS install operation")
+	Expect(i.IsCreateSiteStep()).To(BeTrue())
 	specifyDomainName(i.page, domainName)
 
-	log.Infof("setting provisioner")
+	log.Infof("providing AWS keys")
+	config := framework.TestContext.AWS
 	Expect(i.page.FindByClass("--aws").Click()).To(Succeed())
 	Expect(i.page.FindByName("aws_access_key").Fill(config.AccessKey)).To(Succeed())
 	Expect(i.page.FindByName("aws_secret_key").Fill(config.SecretKey)).To(Succeed())
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
-	Eventually(i.page.FindByClass("grv-installer-aws-region"), defaults.FindTimeout).Should(BeFound())
+	Eventually(func() bool {
+		return utils.IsFound(i.page, ".grv-installer-aws-region") || i.IsWarningVisible()
+	}, defaults.AjaxCallTimeout).Should(BeTrue(), "should accept AWS keys")
+
+	Expect(i.IsWarningVisible()).To(BeFalse(), "should be no warnings")
 
 	log.Infof("setting region")
 	utils.PauseForComponentJs()
@@ -65,29 +69,18 @@ func (i *Installer) CreateSiteWithAWS(domainName string) string {
 	log.Infof("setting VPC")
 	utils.PauseForComponentJs()
 	utils.SetDropdownValue(i.page, "grv-installer-aws-vpc", config.VPC)
-
 	i.proceedToReqs()
-
-	pageURL, err := i.page.URL()
-	Expect(err).NotTo(HaveOccurred())
-	return pageURL
 }
 
-// CreateSiteWithOnPrem initilizes cluster install operation using OnPrem
-func (i *Installer) CreateSiteWithOnPrem(domainName string) string {
-	page := i.page
-	Expect(i.IsCreateSiteStep()).To(BeTrue(), "should be on the select provisioner step")
-	log.Infof("setting domain name")
-	specifyDomainName(page, domainName)
+// InitOnPremInstallation initilizes cluster install operation using OnPrem
+func (i *Installer) InitOnPremInstallation(domainName string) {
+	log.Infof("trying to initialize onprem install operation")
+	Expect(i.IsCreateSiteStep()).To(BeTrue())
+	specifyDomainName(i.page, domainName)
 
 	log.Infof("setting provisioner")
-	Eventually(i.page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())
-	Expect(page.FindByClass("--metal").Click()).To(Succeed())
-
+	Expect(i.page.FindByClass("--metal").Click()).To(Succeed())
 	i.proceedToReqs()
-	pageURL, err := page.URL()
-	Expect(err).NotTo(HaveOccurred())
-	return pageURL
 }
 
 // PrepareOnPremNodes sets parameters for each found node
@@ -249,10 +242,7 @@ func (i *Installer) SelectFlavorByIndex(index int) {
 // SelectFlavorByLabel selects flavor by label
 func (i *Installer) SelectFlavorByLabel(label string) int {
 	Expect(i.IsRequirementsReviewStep()).To(BeTrue(), "should be on cluster requirements step")
-	labels := i.page.All(".grv-slider-value-desc span")
-	Expect(labels).To(BeFound())
-
-	elems, err := labels.Elements()
+	elems, err := i.page.All(".grv-slider-value-desc span").Elements()
 	Expect(err).NotTo(HaveOccurred())
 
 	for _, elem := range elems {
@@ -286,9 +276,14 @@ func (i *Installer) proceedToReqs() {
 	log.Infof("trying to init install operation")
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(func() bool {
-		return i.IsWarningVisible() || i.IsRequirementsReviewStep() || utils.HasValidationErrors(i.page)
+		return i.hasIssues() || i.IsRequirementsReviewStep()
 	}, defaults.InstallCreateClusterTimeout).Should(BeTrue())
+	Expect(i.hasIssues()).To(BeFalse(), "should not have validation errors")
 	Expect(i.IsRequirementsReviewStep()).To(BeTrue(), "should be on requirements step")
+}
+
+func (i *Installer) hasIssues() bool {
+	return i.IsWarningVisible() || utils.HasValidationErrors(i.page)
 }
 
 func (i *Installer) navigateTo(URL string) {
@@ -333,7 +328,11 @@ func getServerCountFromSelectedProfile(page *web.Page) int {
 }
 
 func specifyDomainName(page *web.Page, domainName string) {
-	Eventually(page.FindByName("domainName"), defaults.FindTimeout).Should(BeFound())
+	log.Infof("specifying domain name")
 	Expect(page.FindByName("domainName").Fill(domainName)).To(Succeed())
-	Eventually(page.FindByClass("fa-check"), defaults.FindTimeout).Should(BeFound())
+	Eventually(func() bool {
+		return utils.IsFound(page, ".fa-check") || utils.HasValidationErrors(page)
+	}, defaults.AjaxCallTimeout).Should(BeTrue())
+
+	Expect(page.FindByClass("fa-check")).To(BeFound(), "should be a valid cluster name")
 }
