@@ -29,7 +29,7 @@ func wrapDestroyFn(tag string, destroy func() error) DestroyFn {
 			return nil
 		}
 
-		info := fmt.Sprintf("destroying Terraform resources %s", tag)
+		info := fmt.Sprintf("***\n*** destroying Terraform resources %s\n***\n", tag)
 		t.Logf(info)
 		log.Printf(info)
 
@@ -37,6 +37,8 @@ func wrapDestroyFn(tag string, destroy func() error) DestroyFn {
 		if err != nil {
 			t.Logf("%s : %v", info, err)
 			log.Printf("%s : %v", info, err)
+		} else {
+			resourceDestroyed(tag)
 		}
 
 		return trace.Wrap(err)
@@ -50,7 +52,7 @@ var resourceAllocations = struct {
 
 // resourceAllocated adds resource allocated into local index file for shell-based cleanup
 // as test might crash and leak resources on the cloud
-func resourceAllocated(cloud, tag string) error {
+func resourceAllocated(tag string) error {
 	resourceAllocations.Lock()
 	defer resourceAllocations.Unlock()
 
@@ -62,7 +64,7 @@ func resourceAllocated(cloud, tag string) error {
 	return saveResourceAllocations()
 }
 
-func resourceDestroyed(cloud, tag string) error {
+func resourceDestroyed(tag string) error {
 	resourceAllocations.Lock()
 	defer resourceAllocations.Unlock()
 

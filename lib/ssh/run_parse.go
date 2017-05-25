@@ -2,6 +2,7 @@ package sshutils
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -56,6 +57,8 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 			envStrings = append(envStrings, fmt.Sprintf("%s=%s", k, v))
 		}
 	}
+
+	session.Stdin = new(bytes.Buffer)
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {

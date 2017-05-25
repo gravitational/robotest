@@ -25,6 +25,8 @@ const (
 	statusTimeout = time.Second * 30
 	// reasonable timeframe infrastructure should be provisioned
 	provisioningTimeout = time.Minute * 20
+	// minTimeout to guard against forgotten params or ridiculously small values
+	minTimeout = time.Minute * 5
 )
 
 // testEssentialResize performs the following sanity test:
@@ -32,6 +34,9 @@ const (
 // * force remove 1 recover another one
 func basicResize(param resizeParam) gravity.TestFunc {
 	return func(baseContext context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
+		require.True(t, param.ReasonableTimeout >= minTimeout,
+			"timeout value %v too small", param.ReasonableTimeout)
+
 		config := baseConfig.WithNodes(4)
 
 		provisioningCtx, cancelProvision := context.WithTimeout(baseContext, provisioningTimeout)

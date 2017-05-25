@@ -106,7 +106,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
-	resourceAllocated(baseConfig.CloudProvider, baseConfig.Tag())
+	resourceAllocated(baseConfig.Tag())
 	destroyFn := wrapDestroyFn(baseConfig.Tag(), p.Destroy)
 
 	nodes := p.NodePool().Nodes()
