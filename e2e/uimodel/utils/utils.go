@@ -1,4 +1,4 @@
-package ui
+package utils
 
 import (
 	"fmt"
@@ -6,12 +6,55 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	"github.com/gravitational/robotest/e2e/model/ui/defaults"
+	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
 )
+
+func IsErrorPage(page *web.Page) bool {
+	return IsFound(page, ".grv-msg-page")
+}
+
+func IsInstaller(page *web.Page) bool {
+	return IsFound(page, ".grv-installer")
+}
+
+func HasValidationErrors(page *web.Page) bool {
+	return IsFound(page, "label.error")
+}
+
+func IsLoginPage(page *web.Page) bool {
+	count, _ := page.FindByClass("grv-user-login").Count()
+	return count > 0
+}
+
+func IsFound(page *web.Page, className string) bool {
+	el := page.Find(className)
+	count, _ := el.Count()
+	return count > 0
+}
+
+func FormatUrl(page *web.Page, prefix string) string {
+	url, err := page.URL()
+	Expect(err).NotTo(HaveOccurred())
+	return framework.URLPathFromString(url, prefix)
+}
+
+func GetSiteURL(page *web.Page, clusterName string) string {
+	urlPrefix := fmt.Sprintf("/web/site/%v", clusterName)
+	return FormatUrl(page, urlPrefix)
+}
+
+func GetOpsCenterURL(page *web.Page) string {
+	return FormatUrl(page, "/web/portal")
+}
+
+func GetSiteServersURL(page *web.Page, clusterName string) string {
+	clusterURL := GetSiteURL(page, clusterName)
+	return fmt.Sprintf("%v/servers", clusterURL)
+}
 
 func SetDropdownValue(page *web.Page, classPath string, value string) {
 	const scriptTemplate = `
@@ -27,16 +70,15 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 
 	var result []string
 	page.Find(classPath).Click()
-
+	PauseForComponentJs()
 	script := fmt.Sprintf(scriptTemplate, classPath)
-
 	page.RunScript(script, nil, &result)
-
 	for i, optionValue := range result {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v .Select-option:nth-child(%v)", classPath, i+1)
 			Expect(page.Find(optionClass)).To(BeFound())
 			Expect(page.Find(optionClass).Click()).To(Succeed())
+			PauseForComponentJs()
 			return
 		}
 	}
@@ -47,6 +89,7 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 // There are 2 different controls that UI uses for dropdown thus each
 // requires different handling
 func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value string) {
+	var options []string
 	const scriptTemplate = `
             var options = [];
             var cssSelector = "%v .dropdown-menu a";
@@ -60,20 +103,17 @@ func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value strin
 	} else {
 		buttonSelector = fmt.Sprintf("%v %v", rootSelector, buttonSelector)
 	}
+
 	Expect(page.Find(buttonSelector).Click()).To(Succeed())
-
+	PauseForComponentJs()
 	script := fmt.Sprintf(scriptTemplate, rootSelector)
-	var options []string
-
 	Expect(page.RunScript(script, nil, &options)).To(Succeed())
-
 	for index, optionValue := range options {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v li:nth-child(%v) a", rootSelector, index+1)
 			Expect(page.Find(optionClass)).To(BeFound())
-			Expect(page.Find(optionClass).Click()).To(
-				Succeed(),
-				"should select given dropdown value")
+			Expect(page.Find(optionClass).Click()).To(Succeed(), "should select given dropdown value")
+			PauseForComponentJs()
 			return
 		}
 	}
@@ -135,8 +175,7 @@ func PauseForServerListRefresh() {
 }
 
 func Pause(params ...time.Duration) {
-	timeInterval := defaults.PauseTimeout
-
+	timeInterval := 100 * time.Millisecond
 	if len(params) != 0 {
 		timeInterval = params[0]
 	}

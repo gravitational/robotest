@@ -214,7 +214,7 @@ If the tests are to be run against an installer tarball of a particular applicat
 
 
 ```shell
-$ ./robotest -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`Onprem Install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`provisioner:onprem_install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
@@ -234,19 +234,19 @@ We differentiate the tests in two directions: AWS and bare metal.
 
 List of relevant top-level test specs:
 
-  * `Onprem Installation` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
-  * `AWS Installation` specifies the context for installing an application on AWS cloud (using automatic provisioning)
+  * `provisioner:onprem_install` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
+  * `provisioner:aws_install` specifies the context for installing an application on AWS cloud (using automatic provisioning)
 
 These two test specs should be used to bootstrap a test - i.e. create an infrastructure and install an application.
 So every test run should start with either:
 
 ```
-$ ./robotest -ginkgo.focus='Onprem Install' ...
+$ ./robotest -ginkgo.focus=provisioner:onprem_install ...
 ```
 or
 
 ```
-$ ./robotest -ginkgo.focus='AWS Install' ...
+$ ./robotest -ginkgo.focus=provisioner:aws_install ...
 ```
 
 to setup the cluster for further tests.
@@ -261,10 +261,10 @@ structure has been prepared and the application installed, one can run a further
 an application:
 
 ```
-$ ./robotest -gingko.focus='Site Update'
-$ ./robotest -gingko.focus='Site Servers'
-$ ./robotest -gingko.focus='Application Backup Test'
-$ ./robotest -gingko.focus='Application Restore Test'
+$ ./robotest -gingko.focus=provisioner:onprem_update
+$ ./robotest -gingko.focus=provisioner:onprem_expand_shrink
+$ ./robotest -gingko.focus=backup
+$ ./robotest -gingko.focus=restore
 ```
 
 ### Test cleanup

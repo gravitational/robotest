@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	utils "github.com/gravitational/robotest/e2e/model/ui"
+	"github.com/gravitational/robotest/e2e/uimodel/utils"
 	"github.com/gravitational/robotest/infra"
 
 	. "github.com/onsi/gomega"
@@ -11,12 +11,15 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
+// AgentServer is agent server ui model
 type AgentServer struct {
+	// Hostname is agent server hostname
 	Hostname    string
 	cssSelector string
 	page        *web.Page
 }
 
+// CreateAgentServer finds agent servers on the page and creates ui models
 func CreateAgentServer(page *web.Page, cssSelector string) AgentServer {
 	elem := page.Find(cssSelector)
 	Expect(elem).To(BeFound())
@@ -27,18 +30,20 @@ func CreateAgentServer(page *web.Page, cssSelector string) AgentServer {
 	return AgentServer{page: page, Hostname: hostname, cssSelector: cssSelector}
 }
 
+// SetIP assigns IP to this server
 func (a *AgentServer) SetIP(value string) {
 	cssSelector := fmt.Sprintf("%v .grv-provision-req-server-interface", a.cssSelector)
 	utils.SetDropdownValue2(a.page, cssSelector, "", value)
 }
 
+// NeedsDockerDevice checks if this server needs a docker
 func (a *AgentServer) NeedsDockerDevice() bool {
 	cssSelector := fmt.Sprintf(`%v input[placeholder="loopback"]`, a.cssSelector)
-	element := a.page.Find(cssSelector)
-	count, _ := element.Count()
+	count, _ := a.page.Find(cssSelector).Count()
 	return count == 1
 }
 
+// SetDockerDevice assigns docker device to this server
 func (a *AgentServer) SetDockerDevice(value string) {
 	cssSelector := fmt.Sprintf(`%v input[placeholder="loopback"]`, a.cssSelector)
 	Expect(a.page.Find(cssSelector).Fill(value)).To(
@@ -46,6 +51,7 @@ func (a *AgentServer) SetDockerDevice(value string) {
 		"should set a docker device value")
 }
 
+// GetIPs returns this server available IPs
 func (a *AgentServer) GetIPs() []string {
 	const scriptTemplate = `
             var result = [];

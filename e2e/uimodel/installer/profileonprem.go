@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gravitational/robotest/e2e/model/ui/agent"
+	"github.com/gravitational/robotest/e2e/uimodel/agent"
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/agouti"
 	am "github.com/sclevine/agouti/matchers"
 )
 
+// OnPremProfile is ui model for onprem server profile
 type OnPremProfile struct {
 	Command string
 	Label   string
@@ -18,25 +19,12 @@ type OnPremProfile struct {
 	page    *agouti.Page
 }
 
-func FindOnPremProfiles(page *agouti.Page) []OnPremProfile {
-	var profiles = []OnPremProfile{}
-	s := page.All(".grv-installer-provision-reqs-item")
-	elements, _ := s.Elements()
-
-	for index, _ := range elements {
-		profiles = append(profiles, createProfile(page, index))
-	}
-
-	return profiles
-}
-
+// GetAgentServers returns agent servers
 func (p *OnPremProfile) GetAgentServers() []agent.AgentServer {
 	var agentServers = []agent.AgentServer{}
-	cssSelector := fmt.Sprintf("%v .grv-provision-req-server", getProfileCssSelector(p.index))
-	s := p.page.All(cssSelector)
-
-	elements, _ := s.Elements()
-	for index, _ := range elements {
+	cssSelector := fmt.Sprintf("%v .grv-provision-req-server", getProfileCSSSelector(p.index))
+	elements, _ := p.page.All(cssSelector).Elements()
+	for index := range elements {
 		cssAgentServerSelector := fmt.Sprintf("%v:nth-child(%v)", cssSelector, index+1)
 		agentServers = append(agentServers, agent.CreateAgentServer(p.page, cssAgentServerSelector))
 	}
@@ -44,12 +32,12 @@ func (p *OnPremProfile) GetAgentServers() []agent.AgentServer {
 	return agentServers
 }
 
-func getProfileCssSelector(index int) string {
+func getProfileCSSSelector(index int) string {
 	return fmt.Sprintf(".grv-installer-provision-reqs-item:nth-child(%v)", index+1)
 }
 
 func createProfile(page *agouti.Page, index int) OnPremProfile {
-	cssSelector := fmt.Sprintf("%v .grv-installer-server-instruction span", getProfileCssSelector(index))
+	cssSelector := fmt.Sprintf("%v .grv-installer-server-instruction span", getProfileCSSSelector(index))
 
 	element := page.Find(cssSelector)
 	Expect(element).To(am.BeFound())
@@ -57,7 +45,7 @@ func createProfile(page *agouti.Page, index int) OnPremProfile {
 	command, _ := element.Text()
 	Expect(command).NotTo(BeEmpty())
 
-	cssSelector = fmt.Sprintf("%v .grv-installer-provision-node-count h2", getProfileCssSelector(index))
+	cssSelector = fmt.Sprintf("%v .grv-installer-provision-node-count h2", getProfileCSSSelector(index))
 
 	child := page.Find(cssSelector)
 	Expect(child).To(am.BeFound())

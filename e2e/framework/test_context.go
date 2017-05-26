@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gravitational/configure"
+	"github.com/gravitational/robotest/e2e/framework/defaults"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
@@ -22,7 +23,6 @@ import (
 	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 // ConfigureFlags registers common command line flags, parses the command line
@@ -139,7 +139,14 @@ func Failf(format string, args ...interface{}) {
 }
 
 // TestContext defines the global test configuration for the test run
-var TestContext = &TestContextType{}
+var TestContext = &TestContextType{
+	Bandwagon: BandwagonConfig{
+		Organization: defaults.BandwagonOrganization,
+		Username:     defaults.BandwagonUsername,
+		Email:        defaults.BandwagonEmail,
+		Password:     defaults.BandwagonPassword,
+	},
+}
 
 // testState defines an optional state configuration that allows the test runner
 // to use state from previous runs
@@ -213,6 +220,7 @@ type BandwagonConfig struct {
 	Username     string `json:"username" yaml:"username" `
 	Password     string `json:"password" yaml:"password" `
 	Email        string `json:"email" yaml:"email" `
+	RemoteAccess bool
 }
 
 // Login defines Ops Center authentication parameters
@@ -357,19 +365,7 @@ func newContextConfig(configFile string) error {
 		return trace.Wrap(err, "Error parsing config file")
 	}
 
-	err = validator.New().Struct(TestContext)
-	if err == nil {
-		return nil
-	}
-
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		log.Errorf("configuration file %s has errors", configFile)
-		for _, fieldError := range validationErrors {
-			log.Errorf("   field %s=%v fails rule %s", fieldError.Field(), fieldError.Value(), fieldError.Tag())
-		}
-	}
-
-	return trace.Errorf("configuration file fails validation test")
+	return nil
 }
 
 func initTestState(configFile string) error {
