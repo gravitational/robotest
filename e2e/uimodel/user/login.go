@@ -86,7 +86,7 @@ func (u *User) Signout() {
 
 // EnsureUserAt navigates to given URL and ensures that a user is logged in
 func EnsureUserAt(page *web.Page, URL string) {
-	log.Infof("ensuring a logged in user at %q", URL)
+	log.Infof("ensuring a logged in user at %s", URL)
 	Expect(page.Navigate(URL)).To(Succeed())
 	if utils.IsFound(page, ".grv-user-login") {
 		log.Infof("handling login")
@@ -98,7 +98,7 @@ func EnsureUserAt(page *web.Page, URL string) {
 		case WithGoogle:
 			user.LoginWithGoogle()
 		default:
-			trace.BadParameter("unknown auth type %q", login.AuthProvider)
+			trace.BadParameter("unknown auth type %s", login.AuthProvider)
 		}
 
 		utils.PauseForComponentJs()

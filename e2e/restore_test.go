@@ -5,11 +5,11 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = framework.RoboDescribe("Application backup and restore [backup][restore]", func() {
-	It("should be able to make backup", func() {
+var _ = framework.RoboDescribe("Application backup and restore", func() {
+	It("should be able to backup [backup]", func() {
 		framework.BackupApplication()
 	})
-	It("should be able to restore application", func() {
+	It("should be able to restore [restore]", func() {
 		framework.RestoreApplication()
 	})
 })
