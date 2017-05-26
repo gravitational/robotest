@@ -127,7 +127,7 @@ func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error
 	}
 	defer tgz.Close()
 
-	errCh := make(chan error)
+	errCh := make(chan error, 3)
 
 	go func() {
 		node.Logf("(starting) %s", cmd)

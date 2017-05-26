@@ -85,7 +85,7 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 		outCh <- nil
 	}
 
-	runCh := make(chan error, 1)
+	runCh := make(chan error, 3)
 	go func() {
 		node.Logf("(starting) %s", cmd)
 		runCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
