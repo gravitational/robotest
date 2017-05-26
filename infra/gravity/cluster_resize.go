@@ -38,15 +38,8 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 		}(node)
 	}
 
-	err = utils.CollectErrors(ctx, errs)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	all := append([]Gravity{}, current...)
-	all = append(all, extra...)
-
-	return trace.Wrap(c.Status(all))
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
+	// TODO: make proper assertion
 }
 
 // ShrinkLeave will gracefully leave cluster

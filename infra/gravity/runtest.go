@@ -39,14 +39,15 @@ func wrap(fn TestFunc, ctx context.Context, cfg *ProvisionerConfig, parallel boo
 // whether test must be failed
 // provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
 type OpTimeouts struct {
-	Install, Status, Uninstall, Leave time.Duration
+	Install, Status, Uninstall, Leave, CollectLogs time.Duration
 }
 
 var DefaultTimeouts = OpTimeouts{
-	Install:   time.Minute * 10,
-	Uninstall: time.Minute * 3,
-	Status:    time.Second * 30,
-	Leave:     time.Second * 30,
+	Install:     time.Minute * 10,
+	Uninstall:   time.Minute * 3,
+	Status:      time.Second * 30,
+	Leave:       time.Second * 30,
+	CollectLogs: time.Minute * 5,
 }
 
 // TestContext aggregates common parameters for better test suite readability

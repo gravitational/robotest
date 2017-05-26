@@ -23,15 +23,23 @@ type DestroyFn func(context.Context, *testing.T) error
 
 var destroyOnSuccess = flag.Bool("destroy-on-success", true, "remove resources after test success")
 var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources after test failure")
-
-var resourceListFile = flag.String("resourcegroupfile", "", "file with list of resources created")
+var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
+var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
 var testStatus = map[bool]string{true: "failed", false: "ok"}
 
 // wrapDestroyFn implements a global conditional logic
-func wrapDestroyFn(tag string, destroy func(context.Context) error) DestroyFn {
+func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func(ctx context.Context, t *testing.T) error {
 		log := utils.Logf(t, tag)
+
+		if t.Failed() || *collectLogs {
+			log("collecting logs from nodes...")
+			err := NewContext(ctx, t, DefaultTimeouts).CollectLogs("postmortem", nodes)
+			if err != nil {
+				log("warning: errors collecting logs : %v", err)
+			}
+		}
 
 		if (*destroyOnSuccess == false) ||
 			(t.Failed() && *destroyOnFailure == false) {
@@ -101,7 +109,7 @@ func saveResourceAllocations() error {
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, params *cloudDynamicParams) ([]infra.Node, DestroyFn, error) {
+func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, params *cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
@@ -125,7 +133,7 @@ func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, pa
 		}
 
 		resourceAllocated(baseConfig.Tag())
-		return p.NodePool().Nodes(), wrapDestroyFn(baseConfig.Tag(), p.Destroy), nil
+		return p.NodePool().Nodes(), p.Destroy, nil
 	}
 
 	return nil, nil, trace.Errorf("timed out provisioning %s", baseConfig.Tag())

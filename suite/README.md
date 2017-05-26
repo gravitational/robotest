@@ -50,9 +50,11 @@ Every test creates its own resource group on cloud provider, and removes it afte
 
 1. `config` : see sample YAML config file above.
 2. `dir` : directory to keep state, its recommended to map it from host.
-3. `resourcegroupfile` will keep list of resource groups created on cloud.
+3. `resourcegroup-file` will keep list of resource groups created on cloud.
 4. `destroy-on-success` whether to remove VMs after successful test run.
 5. `destroy-on-failure` whether to remove VMs after test failure. 
 6. `tag` all resource groups will start from this. Choose something unique.
 7. `suite` : `sanity`, `stress`, `regression`. Use `sanity`. 
 8. `set` whether to run a [specific test set](https://github.com/gravitational/robotest/blob/master/suite/sanity/sanity.go) or all. 
+9. `always-collect-logs` whether to also collect logs from nodes on test success. They are always fetched to state dir if test fails.
+

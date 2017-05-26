@@ -7,7 +7,6 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,11 +40,14 @@ func cycleInstall(baseContext context.Context, t *testing.T, baseConfig *gravity
 
 			g := gravity.NewContext(baseContext, t, param.Timeouts)
 
+			return
+
 			var c uint
 			for c = 1; c <= param.Cycles; c++ {
 				msg := fmt.Sprintf("install cycle %d of %d", c, param.Cycles)
-				assert.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
-				assert.NoError(t, g.Status(nodes), msg)
+				require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
+				require.NoError(t, g.SiteReport(nodes), msg)
+				require.NoError(t, g.Status(nodes), msg)
 				require.NoError(t, g.Uninstall(nodes), msg)
 			}
 		}

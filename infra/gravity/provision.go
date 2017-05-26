@@ -133,7 +133,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		aggError := trace.NewAggregate(errors...)
 		logFn("cleanup after error provisioning : %v", aggError)
 
-		destroyFn(ctx, t)
+		destroyFn(ctx)
 		return nil, nil, aggError
 	}
 
@@ -142,7 +142,8 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		logFn("\t%v", node)
 	}
 
-	return sorted(gravityNodes), destroyFn, nil
+	return sorted(gravityNodes),
+		wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
 }
 
 // sort Interface implementation
@@ -188,7 +189,8 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *c
 		installDir:   param.installDir,
 		dockerDevice: param.dockerDevice,
 		logFn:        t.Logf,
-		fromConfig:   param.fromConfig,
+		tag:          param.fromConfig.Tag(),
+		stateDir:     param.fromConfig.stateDir,
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)
