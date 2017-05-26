@@ -30,11 +30,15 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 
 	for _, node := range nodes[1:] {
 		go func(n Gravity) {
-			// TODO: how to properly define node role ?
-			errs <- n.Join(ctx, JoinCmd{
+			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    token,
 				Role:     role})
+			if err != nil {
+				n.Logf("Join failed, will cancel install")
+				cancel()
+			}
+			errs <- err
 		}(node)
 	}
 

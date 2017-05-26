@@ -43,19 +43,15 @@ func basicResize(param resizeParam) gravity.TestFunc {
 		g := gravity.NewContext(ctx, t, param.Timeouts)
 
 		g.OK("install one node", g.OfflineInstall(nodes[0:1], param.InitialFlavor, param.Role))
-		g.OK("site report", g.SiteReport(nodes[0:1]))
 		g.OK("status", g.Status(nodes[0:1]))
 
 		g.OK("expand to three", g.Expand(nodes[0:1], nodes[1:3], param.Role))
-		g.OK("site report", g.SiteReport(nodes[0:3]))
 		g.OK("status", g.Status(nodes[0:3]))
 
 		g.OK("node loss", g.NodeLoss(nodes[1:3], nodes[0:1]))
-		g.SiteReport(nodes[1:3])
 		g.Status(nodes[0:1]) // informative
 
 		g.OK("replace node", g.Expand(nodes[1:3], nodes[3:4], param.Role))
-		g.OK("site report", g.SiteReport(nodes[1:4]))
 		g.OK("status", g.Status(nodes[1:4]))
 	}
 }
