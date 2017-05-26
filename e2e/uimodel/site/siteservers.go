@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/agent"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/gomega"
 	. "github.com/sclevine/agouti/matchers"
 )
@@ -71,7 +70,7 @@ func (p *ServerPage) GetAgentServers() []agent.AgentServer {
 	return agentServers
 }
 
-// AddOnPremServer returns to onprem servers for expand operation
+// AddOnPremServer adds onprem servers
 func (p *ServerPage) AddOnPremServer() SiteServer {
 	log.Infof("trying to add onprem server")
 	page := p.site.page
@@ -113,9 +112,9 @@ func (p *ServerPage) AddOnPremServer() SiteServer {
 	return newServer
 }
 
-// AddAWSServer returns to aws servers for expand operation
+// AddAWSServer adds aws server
 func (p *ServerPage) AddAWSServer() SiteServer {
-	log.Infof("trying to add AWS server")
+	log.Info("trying to add AWS server")
 	config := framework.TestContext.AWS
 	page := p.site.page
 	currentServerItems := p.GetSiteServers()
@@ -124,14 +123,14 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 
 	utils.PauseForComponentJs()
 
-	log.Infof("filling out AWS keys")
+	log.Info("filling out AWS keys")
 	utils.FillOutAWSKeys(page, config.AccessKey, config.SecretKey)
 	Expect(page.Find(".grv-site-servers-provisioner-content .btn-primary").Click()).
 		To(Succeed(), "click on continue")
 	Eventually(page.FindByClass("grv-site-servers-provisioner-new"), defaults.SiteFetchServerProfileTimeout).
 		Should(BeFound(), "should display profile and instance type")
 
-	log.Infof("selecting server profile")
+	log.Info("selecting server profile")
 	profileLabel := p.getProfileLabel(config.ExpandProfile)
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-profile", "", profileLabel)
 
@@ -140,14 +139,14 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 		instanceType = p.getFirstAvailableAWSInstanceType()
 	}
 
-	log.Infof("selecting aws instance type")
+	log.Info("selecting aws instance type")
 	utils.SetDropdownValue2(page, ".grv-site-servers-provisioner-new-instance-type", "", instanceType)
 	Expect(page.FindByClass("grv-site-servers-btn-start").Click()).
 		To(Succeed(), "should click on start button")
 
 	p.site.WaitForOperationCompletion()
 
-	log.Infof("retrieving new server info")
+	log.Info("retrieving new server info")
 	updatedItems := p.GetSiteServers()
 	var newItem SiteServer
 	for i, item := range updatedItems {
@@ -166,7 +165,7 @@ func (p *ServerPage) AddAWSServer() SiteServer {
 
 // DeleteServer deletes given server
 func (p *ServerPage) DeleteServer(server SiteServer) {
-	log.Infof("tring to delete a server")
+	log.Info("tring to delete a server")
 	p.clickDeleteServer(server.AdvertiseIP)
 	Expect(p.site.page.Find(".modal-dialog .btn-danger").Click()).
 		To(Succeed(), "should click on confirmation button")
@@ -276,14 +275,14 @@ func (p *ServerPage) getProfileLabel(profileName string) string {
 	const jsTemplate = `
 		var profileName = "%v";
 		var server = null;		
-		var nodeProfilers = reactor.evaluate(["sites", "%v", "app", "manifest", "nodeProfiles"])
+		var nodeProfiles = reactor.evaluate(["sites", "%v", "app", "manifest", "nodeProfiles"])
 			.toJS()
 			.reduce( (r, item) => { r[item.name] = item; return r;}, {});
 			
 		if(profileName !== ""){
-			server = nodeProfilers[profileName];								
+			server = nodeProfiles[profileName];								
 		}else{
-			server = nodeProfilers[0];
+			server = nodeProfiles[0];
 		}
 
 		if(!server){
@@ -295,8 +294,7 @@ func (p *ServerPage) getProfileLabel(profileName string) string {
 
 	js := fmt.Sprintf(jsTemplate, profileName, siteName)
 
-	Expect(p.site.page.RunScript(js, nil, &profileLabel)).To(
-		Succeed(),
+	Expect(p.site.page.RunScript(js, nil, &profileLabel)).To(Succeed(),
 		fmt.Sprintf("should run js script to retrieve a label for %v profile", profileName))
 
 	Expect(profileLabel).NotTo(

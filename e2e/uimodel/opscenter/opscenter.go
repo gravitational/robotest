@@ -8,7 +8,6 @@ import (
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
 	log "github.com/Sirupsen/logrus"
-
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"

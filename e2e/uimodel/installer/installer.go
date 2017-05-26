@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
+	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
@@ -37,7 +37,7 @@ func (i *Installer) ProcessLicenseStepIfRequired(license string) {
 		Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).
 			To(Succeed(), "should input the license text")
 		Eventually(i.page.FindByClass("grv-installer-warning"), defaults.FindTimeout).
-			ShouldNot(BeFound(), "should not see an error about an invalid license")
+			ShouldNot(BeFound(), "should be no warnings")
 	}
 }
 
@@ -102,7 +102,7 @@ func (i *Installer) PrepareOnPremNodes(dockerDevice string) {
 	log.Infof("executing the command on servers")
 	index := 0
 	for _, p := range onpremProfiles {
-		nodesForProfile := allocatedNodes[index:p.Count]
+		nodesForProfile := allocatedNodes[index : index+p.Count]
 		framework.RunAgentCommand(p.Command, nodesForProfile...)
 		index = index + p.Count
 	}
@@ -127,7 +127,7 @@ func (i *Installer) PrepareOnPremNodes(dockerDevice string) {
 
 // GetOnPremProfiles returns a list of onprem profiles
 func (i *Installer) GetOnPremProfiles() []OnPremProfile {
-	log.Infof("getting onprem profiles")
+	log.Info("getting onprem profiles")
 	elements, _ := i.page.All(".grv-installer-provision-reqs-item").Elements()
 	var profiles = []OnPremProfile{}
 	for index := range elements {
@@ -139,7 +139,7 @@ func (i *Installer) GetOnPremProfiles() []OnPremProfile {
 
 // GetAWSProfiles returns a list of aws profiles
 func (i *Installer) GetAWSProfiles() []AWSProfile {
-	log.Infof("getting AWS profiles")
+	log.Info("getting AWS profiles")
 	var profiles []AWSProfile
 	elements, err := i.page.All(".grv-installer-provision-reqs-item").Elements()
 	Expect(err).NotTo(HaveOccurred())
@@ -152,13 +152,13 @@ func (i *Installer) GetAWSProfiles() []AWSProfile {
 
 // ProceedToSite proceeds to the cluster site once installation is completed.
 func (i *Installer) ProceedToSite() {
-	log.Infof("trying to proceed to site")
+	log.Info("trying to proceed to site")
 	Expect(i.page.Find(".grv-installer-progress-result .btn-primary").Click()).To(Succeed())
 }
 
 // StartInstallation starts install operation
 func (i *Installer) StartInstallation() {
-	log.Infof("clicking on start installation")
+	log.Info("clicking on start installation")
 	button := i.page.Find(".grv-installer-footer .btn-primary")
 	Expect(button).To(BeFound())
 	Expect(button.Click()).To(Succeed())
@@ -169,7 +169,7 @@ func (i *Installer) StartInstallation() {
 	Expect(i.IsInProgressStep()).To(BeTrue(), "should successfully start an installation")
 }
 
-// IsCreateSiteStep checks if installer is an initial step
+// IsCreateSiteStep checks if installer is at the initial step
 func (i *Installer) IsCreateSiteStep() bool {
 	log.Infof("checking if on the create new cluster step")
 	count, _ := i.page.FindByClass("grv-installer-fqdn").Count()
@@ -183,7 +183,7 @@ func (i *Installer) IsInProgressStep() bool {
 	return count != 0
 }
 
-// IsRequirementsReviewStep checks if installer is on the requirements step
+// IsRequirementsReviewStep checks if installer is at the requirements step
 func (i *Installer) IsRequirementsReviewStep() bool {
 	count, _ := i.page.FindByClass("grv-installer-provision-reqs").Count()
 	return count != 0
@@ -310,7 +310,6 @@ func getServerCountFromSelectedProfile(page *web.Page) int {
         `
 
 	type serverProfile struct {
-		// Nodes specifies the number of nodes to provision
 		Nodes int
 	}
 

@@ -36,7 +36,7 @@ func (a *AgentServer) SetIP(value string) {
 	utils.SetDropdownValue2(a.page, cssSelector, "", value)
 }
 
-// NeedsDockerDevice checks if this server needs a docker
+// NeedsDockerDevice checks if this server needs a dedicated device for dock
 func (a *AgentServer) NeedsDockerDevice() bool {
 	cssSelector := fmt.Sprintf(`%v input[placeholder="loopback"]`, a.cssSelector)
 	count, _ := a.page.Find(cssSelector).Count()
@@ -51,7 +51,7 @@ func (a *AgentServer) SetDockerDevice(value string) {
 		"should set a docker device value")
 }
 
-// GetIPs returns this server available IPs
+// GetIPs returns the list of all server IPs
 func (a *AgentServer) GetIPs() []string {
 	const scriptTemplate = `
             var result = [];
