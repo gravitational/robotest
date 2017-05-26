@@ -114,7 +114,10 @@ func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, pa
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
 	// only second chance is provided
-	for _, threshold := range []time.Duration{time.Second * 30, time.Minute * 5} {
+	//
+	// TODO: this seems to require more thorough testing, and same approach applied to Destory
+	//
+	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 5} {
 		p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
 		if err != nil {
 			return nil, nil, trace.Wrap(err)
