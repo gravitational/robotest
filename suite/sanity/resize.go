@@ -11,50 +11,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type resizeParam struct {
+	// Timeouts is per-node operation timeout value
+	Timeouts gravity.OpTimeouts
+	// Role is node role
+	Role string
+	// InitialFlavor is equivalent to 1 node
+	InitialFlavor string
+}
+
+const (
+	// reasonable timeframe a node should report its status including all overheads
+	statusTimeout = time.Second * 30
+	// reasonable timeframe infrastructure should be provisioned
+	provisioningTimeout = time.Minute * 20
+	// minTimeout to guard against forgotten params or ridiculously small values
+	minTimeout = time.Minute * 5
+)
+
 // testEssentialResize performs the following sanity test:
 // * install 1 node expand to 3
 // * force remove 1 recover another one
-//
-func basicResize(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
-	config := baseConfig.WithNodes(4)
+func basicResize(param resizeParam) gravity.TestFunc {
+	return func(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
+		config := baseConfig.WithNodes(4)
 
-	nodes, destroyFn, err := gravity.Provision(ctx, t, config)
-	require.NoError(t, err, "provision nodes")
-	require.Len(t, nodes, 4)
-	defer gravity.Destroy(t, destroyFn)
+		nodes, destroyFn, err := gravity.Provision(ctx, t, config)
+		require.NoError(t, err, "provision nodes")
+		defer destroyFn(ctx, t)
 
-	t.Log(nodes)
-	ok := t.Run("wipe nodes", func(t *testing.T) {
-		t.Skip()
-		gravity.Uninstall(ctx, t, nodes)
-	})
-	require.True(t, ok, "wipe nodes if re-entrant")
+		g := gravity.NewContext(ctx, t, param.Timeouts)
 
-	ok = t.Run("install 1 node", func(t *testing.T) {
-		gravity.OfflineInstall(ctx, t, nodes[0:1])
-	})
-	require.True(t, ok, "installOffline 1 node")
+		g.OK("install one node", g.OfflineInstall(nodes[0:1], param.InitialFlavor, param.Role))
+		g.OK("status", g.Status(nodes[0:1]))
 
-	ok = t.Run("expand to 3 nodes", func(t *testing.T) {
-		gravity.Expand(ctx, t, nodes[0:1], nodes[1:3])
-	})
-	require.True(t, ok, "expand to 3 nodes")
+		g.OK("expand to three", g.Expand(nodes[0:1], nodes[1:3], param.Role))
+		g.OK("status", g.Status(nodes[0:3]))
 
-	// TODO: detect current active master and evict it
-	ok = t.Run("remove node #0", func(t *testing.T) {
-		// FIXME: it is supposed to work without extra time
-		time.Sleep(time.Minute * 5)
-		gravity.NodeLoss(ctx, t, nodes[1:3], nodes[0:1])
-	})
-	require.True(t, ok, "remove one node")
+		g.OK("node loss", g.NodeLoss(nodes[1:3], nodes[0:1]))
+		g.Status(nodes[0:1]) // informative
 
-	ok = t.Run("query status from remaining nodes", func(t *testing.T) {
-		gravity.Status(ctx, t, nodes[0:1])
-	})
-	require.True(t, ok, "query status after node loss")
-
-	ok = t.Run("recover node", func(t *testing.T) {
-		gravity.Expand(ctx, t, nodes[1:3], nodes[3:4])
-	})
-	require.True(t, ok, "recover node")
+		g.OK("replace node", g.Expand(nodes[1:3], nodes[3:4], param.Role))
+		g.OK("status", g.Status(nodes[1:4]))
+	}
 }

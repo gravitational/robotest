@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -18,25 +17,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
-
-// DestroyFn function which will destroy previously created remote resources
-type DestroyFn func() error
-
-var keepResources = flag.Bool("keepresources", true, "do not destroy resources after test runs")
-
-func Destroy(t *testing.T, destroy DestroyFn) {
-	if *keepResources {
-		return
-	}
-
-	destroy()
-}
-
-// scheduleDestroy will register resource (placement) group for destruction with external service
-// based on Context expiration deadline. This would only be used in continuous operation (i.e. part of CLI)
-func scheduleDestroy(ctx context.Context, cloud, tag string) {
-	// TODO: implement
-}
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
@@ -114,22 +94,11 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
-	logFn := utils.Logf(t, baseConfig.Tag())
-	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
-
-	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	scheduleDestroy(ctx, baseConfig.CloudProvider, baseConfig.tag)
-
-	_, err = p.Create(false)
-	if err != nil {
-		return nil, nil, trace.Wrap(err)
-	}
-
-	nodes := p.NodePool().Nodes()
 	type result struct {
 		gravity Gravity
 		err     error
@@ -144,14 +113,14 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		}(node)
 	}
 
-	gravityNodes := make([]Gravity, 0, len(nodes))
+	gravityNodes := []Gravity{}
 	errors := []error{}
 	for range nodes {
 		select {
 		case <-ctx.Done():
 			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
 		case res := <-resultCh:
-			if err != nil {
+			if res.err != nil {
 				errors = append(errors, res.err)
 			} else {
 				gravityNodes = append(gravityNodes, res.gravity)
@@ -159,16 +128,22 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		}
 	}
 
+	logFn := utils.Logf(t, baseConfig.Tag())
 	if len(errors) != 0 {
-		return nil, p.Destroy, trace.NewAggregate(errors...)
+		aggError := trace.NewAggregate(errors...)
+		logFn("cleanup after error provisioning : %v", aggError)
+
+		destroyFn(ctx)
+		return nil, nil, aggError
 	}
 
-	logFn("[provision] OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
-	for _, node := range nodes {
+	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	for _, node := range gravityNodes {
 		logFn("\t%v", node)
 	}
 
-	return sorted(gravityNodes), p.Destroy, nil
+	return sorted(gravityNodes),
+		wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
 }
 
 // sort Interface implementation
@@ -214,7 +189,8 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *c
 		installDir:   param.installDir,
 		dockerDevice: param.dockerDevice,
 		logFn:        t.Logf,
-		fromConfig:   param.fromConfig,
+		tag:          param.fromConfig.Tag(),
+		stateDir:     param.fromConfig.stateDir,
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)
@@ -241,8 +217,10 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *c
 		return nil, trace.Wrap(err)
 	}
 
+	g.Logf("Transferring installer from %s ...", param.installerUrl)
 	tgz, err := sshutil.TransferFile(ctx, g, param.installerUrl, param.installDir, param.env)
 	if err != nil {
+		g.Logf("Failed to transfer installer %s : %v", param.installerUrl, err)
 		return nil, trace.Wrap(err, param.installerUrl)
 	}
 
