@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"text/template"
 	"time"
 
@@ -20,8 +21,10 @@ import (
 type Gravity interface {
 	// Install operates on initial master node
 	Install(ctx context.Context, param InstallCmd) error
-	// Retrieve status
+	// Status retrieves status
 	Status(ctx context.Context) (*GravityStatus, error)
+	// SiteReport retrieves site report
+	SiteReport(ctx context.Context) error
 	// OfflineUpdate tries to upgrade application version
 	OfflineUpdate(ctx context.Context, installerUrl string) error
 	// Join asks to join existing cluster (or installation in progress)
@@ -32,10 +35,12 @@ type Gravity interface {
 	Remove(ctx context.Context, node string, graceful bool) error
 	// Uninstall will wipe gravity installation from node
 	Uninstall(ctx context.Context) error
-	// Poweroff will power off the node
+	// PowerOff will power off the node
 	PowerOff(ctx context.Context, graceful bool) error
 	// Reboot will reboot this node and wait until it will become available again
 	Reboot(ctx context.Context, graceful bool) error
+	// CollectLogs will pull essential logs from node and store it in state dir under node-logs/prefix
+	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
 	// Node returns underlying VM instance
 	Node() infra.Node
 	// Client returns SSH client to VM instance
@@ -91,18 +96,25 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	fromConfig   *ProvisionerConfig
 	logFn        utils.LogFnType
 	node         infra.Node
 	installDir   string
+	stateDir     string
+	tag          string
 	dockerDevice string
 	ssh          *ssh.Client
 }
 
-const retrySSH = time.Second * 10
+const (
+	retrySSH    = time.Second * 10
+	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
+)
 
 // waits for SSH to be up on node and returns client
-func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+	ctx, cancel := context.WithTimeout(baseContext, deadlineSSH)
+	defer cancel()
+
 	for {
 		client, err := node.Client()
 
@@ -121,7 +133,7 @@ func sshClient(ctx context.Context, logFn utils.LogFnType, node infra.Node) (*ss
 
 // Logf logs simultaneously to stdout and testing interface
 func (g *gravity) Logf(format string, args ...interface{}) {
-	log.Printf("%s [%v] %s", g.fromConfig.Tag(), g, fmt.Sprintf(format, args...))
+	log.Printf("%s [%v] %s", g.tag, g, fmt.Sprintf(format, args...))
 	g.logFn("[%v] %s", g, fmt.Sprintf(format, args...))
 }
 
@@ -141,11 +153,17 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s",
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s",
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice)
 
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
+}
+
+// SiteReport queries site report
+// TODO: parse
+func (g *gravity) SiteReport(ctx context.Context) error {
+	return trace.Wrap(sshutils.Run(ctx, g, "gravity site report", nil))
 }
 
 // Status queries cluster status
@@ -181,7 +199,7 @@ type cmdEx struct {
 var joinCmdTemplate = template.Must(
 	template.New("gravity_join").Parse(
 		`cd {{.P.InstallDir}} && sudo ./gravity join {{.Cmd.PeerAddr}} \
-		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} \
+		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} --debug \
 		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}}`))
 
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
@@ -215,9 +233,9 @@ func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --confirm %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.installDir, node)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --confirm --force %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.installDir, node)
 	}
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
@@ -240,6 +258,7 @@ func (g *gravity) PowerOff(ctx context.Context, graceful bool) error {
 	}
 
 	sshutils.RunAndParse(ctx, g, cmd, nil, nil)
+	g.ssh = nil
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
 }
@@ -262,4 +281,18 @@ func (g *gravity) Reboot(ctx context.Context, graceful bool) error {
 
 	g.ssh = client
 	return nil
+}
+
+// PullLogs fetches essential logs from the host and stores them in state dir
+func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error) {
+	if g.ssh == nil {
+		return "", trace.AccessDenied("node %v is poweroff", g)
+	}
+
+	files := []string{
+		"/var/lib/gravity/planet/log",
+		fmt.Sprintf("%s/*.log", g.installDir),
+	}
+	localPath := filepath.Join(g.stateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
+	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g, files, localPath))
 }

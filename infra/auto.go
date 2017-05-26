@@ -1,5 +1,7 @@
 package infra
 
+import "context"
+
 // autoCluster represents a cluster managed by an active OpsCenter
 // An auto cluster may or may not have a provisioner. When no provisioner
 // is specified, the cluster is automatically provisioned
@@ -22,7 +24,7 @@ func (r *autoCluster) Close() error {
 
 func (r *autoCluster) Destroy() error {
 	if r.provisioner != nil {
-		return r.provisioner.Destroy()
+		return r.provisioner.Destroy(context.TODO())
 	}
 	return nil
 }

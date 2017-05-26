@@ -3,6 +3,7 @@ package vagrant
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -54,7 +55,7 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*vagrant, 
 	return v, nil
 }
 
-func (r *vagrant) Create(withInstaller bool) (installer infra.Node, err error) {
+func (r *vagrant) Create(ctx context.Context, withInstaller bool) (installer infra.Node, err error) {
 	file := filepath.Base(r.ScriptPath)
 	err = system.CopyFile(r.ScriptPath, filepath.Join(r.stateDir, file))
 	if err != nil {
@@ -92,7 +93,7 @@ func (r *vagrant) Create(withInstaller bool) (installer infra.Node, err error) {
 	return node, trace.Wrap(err)
 }
 
-func (r *vagrant) Destroy() error {
+func (r *vagrant) Destroy(ctx context.Context) error {
 	r.Debugf("destroying vagrant cluster: %v", r.stateDir)
 	out, err := r.command(args("destroy", "-f"))
 	if err != nil {

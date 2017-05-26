@@ -2,20 +2,20 @@ package gravity
 
 import (
 	"context"
-	"testing"
 
 	"github.com/gravitational/robotest/lib/utils"
 
-	"github.com/stretchr/testify/require"
-)
-
-const (
-	defaultRole = "worker"
+	"github.com/gravitational/trace"
 )
 
 // OfflineInstall sets up cluster using nodes provided
-func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
-	require.NotZero(t, len(nodes), "at least 1 node")
+func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
+
+	if len(nodes) == 0 {
+		return trace.NotFound("at least one node")
+	}
 
 	master := nodes[0]
 	token := "ROBOTEST"
@@ -23,27 +23,34 @@ func OfflineInstall(ctx context.Context, t *testing.T, nodes []Gravity) {
 	errs := make(chan error, len(nodes))
 	go func() {
 		errs <- master.Install(ctx, InstallCmd{
-			Token: token,
+			Token:  token,
+			Flavor: flavor,
 		})
 	}()
 
 	for _, node := range nodes[1:] {
 		go func(n Gravity) {
-			// TODO: how to properly define node role ?
-			errs <- n.Join(ctx, JoinCmd{
+			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    token,
-				Role:     defaultRole})
+				Role:     role})
+			if err != nil {
+				n.Logf("Join failed, will cancel install")
+				cancel()
+			}
+			errs <- err
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, errs)
-	require.NoError(t, err, "installation")
-
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
-func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
+// it is not asserting internally
+func (c TestContext) Uninstall(nodes []Gravity) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
+
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {
@@ -52,5 +59,5 @@ func Uninstall(ctx context.Context, t *testing.T, nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, errs)
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
