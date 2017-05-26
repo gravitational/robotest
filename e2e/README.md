@@ -214,7 +214,7 @@ If the tests are to be run against an installer tarball of a particular applicat
 
 
 ```shell
-$ ./robotest -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`provisioner:onprem_install`
+$ ./robotest -provisioner=vagrant -config=config.yaml -mode=wizard -ginkgo.focus=`provisioner:onprem,install`
 ```
 
 This changes the operation mode to provision a cluster, choose a node for installer and start the installer - all done automatically before
@@ -234,19 +234,19 @@ We differentiate the tests in two directions: AWS and bare metal.
 
 List of relevant top-level test specs:
 
-  * `provisioner:onprem_install` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
-  * `provisioner:aws_install` specifies the context for installing an application on AWS cloud (using automatic provisioning)
+  * `provisioner:onprem,install` specifies the context for installing an application on bare metal (including AWS bare metal - e.g. as provisioned by `terraform`)
+  * `provisioner:aws,install` specifies the context for installing an application on AWS cloud (using automatic provisioning)
 
 These two test specs should be used to bootstrap a test - i.e. create an infrastructure and install an application.
 So every test run should start with either:
 
 ```
-$ ./robotest -ginkgo.focus=provisioner:onprem_install ...
+$ ./robotest -ginkgo.focus=provisioner:onprem,install ...
 ```
 or
 
 ```
-$ ./robotest -ginkgo.focus=provisioner:aws_install ...
+$ ./robotest -ginkgo.focus=provisioner:aws,install ...
 ```
 
 to setup the cluster for further tests.
@@ -261,8 +261,8 @@ structure has been prepared and the application installed, one can run a further
 an application:
 
 ```
-$ ./robotest -gingko.focus=provisioner:onprem_update
-$ ./robotest -gingko.focus=provisioner:onprem_expand_shrink
+$ ./robotest -gingko.focus=provisioner:onprem,update
+$ ./robotest -gingko.focus=provisioner:onprem,expand-shrink
 $ ./robotest -gingko.focus=backup
 $ ./robotest -gingko.focus=restore
 ```

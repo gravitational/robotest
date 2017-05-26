@@ -6,8 +6,7 @@ import (
 	"strings"
 
 	"github.com/gravitational/robotest/e2e/framework"
-	defaults "github.com/gravitational/robotest/e2e/framework/defaults"
-
+	"github.com/gravitational/robotest/e2e/framework/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel"
 
 	. "github.com/onsi/ginkgo"
@@ -18,7 +17,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
 
-	It("should provision a new cluster [provisioner:onprem_install]", func() {
+	It("should provision a new cluster [provisioner:onprem,install]", func() {
 		By("navigating to installer step")
 		domainName := ctx.ClusterName
 		ui := uimodel.InitWithUser(f.Page, framework.InstallerURL())
@@ -85,7 +84,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		ui.GoToSite(domainName)
 	})
 
-	It("should add and remove a server [provisioner:onprem_expand_shrink]", func() {
+	It("should add and remove a server [provisioner:onprem,expand-shrink]", func() {
 		ui := uimodel.InitWithUser(f.Page, framework.SiteURL())
 		site := ui.GoToSite(ctx.ClusterName)
 		siteServerPage := site.GoToServers()
@@ -93,7 +92,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		siteServerPage.DeleteServer(newSiteServer)
 	})
 
-	It("should update site to the latest version [provisioner:onprem_update]", func() {
+	It("should update site to the latest version [provisioner:onprem,update]", func() {
 		By("uploading new application into site")
 		if ctx.Onprem.InstallerURL == "" {
 			// Upload a new version to Ops Center

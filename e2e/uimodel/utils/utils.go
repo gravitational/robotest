@@ -13,49 +13,65 @@ import (
 	. "github.com/sclevine/agouti/matchers"
 )
 
+// IsErrorPage checks if error page is open
 func IsErrorPage(page *web.Page) bool {
 	return IsFound(page, ".grv-msg-page")
 }
 
+// IsErrorPage checks if installer page is open
 func IsInstaller(page *web.Page) bool {
 	return IsFound(page, ".grv-installer")
 }
 
+// HasValidationErrors checks if validation errors are present
 func HasValidationErrors(page *web.Page) bool {
 	return IsFound(page, "label.error")
 }
 
+// IsLoginPage checks if login page is open
 func IsLoginPage(page *web.Page) bool {
 	count, _ := page.FindByClass("grv-user-login").Count()
 	return count > 0
 }
 
+// IsFound checks if element selector matches any elements
 func IsFound(page *web.Page, className string) bool {
 	el := page.Find(className)
 	count, _ := el.Count()
 	return count > 0
 }
 
+// FormatUrl returns URL by appending given prefix to page base URL
 func FormatUrl(page *web.Page, prefix string) string {
 	url, err := page.URL()
 	Expect(err).NotTo(HaveOccurred())
 	return framework.URLPathFromString(url, prefix)
 }
 
+// GetSiteURL returns cluster page URL
 func GetSiteURL(page *web.Page, clusterName string) string {
 	urlPrefix := fmt.Sprintf("/web/site/%v", clusterName)
 	return FormatUrl(page, urlPrefix)
 }
 
+// GetOpsCenterURL returns Ops Center page URL
 func GetOpsCenterURL(page *web.Page) string {
 	return FormatUrl(page, "/web/portal")
 }
 
+// GetSiteServersURL returns cluster serve page URL
 func GetSiteServersURL(page *web.Page, clusterName string) string {
 	clusterURL := GetSiteURL(page, clusterName)
 	return fmt.Sprintf("%v/servers", clusterURL)
 }
 
+// FillOutAWSKeys fills out AWS access and secret fields with given values
+func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
+	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(Succeed(), "should enter access key")
+	Expect(page.FindByName("aws_secret_key").Fill(secretKey)).To(Succeed(), "should enter secret key")
+}
+
+// SetDropdownValue sets a value to dropdown element
 func SetDropdownValue(page *web.Page, classPath string, value string) {
 	const scriptTemplate = `
             var result = [];
@@ -86,8 +102,8 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 	framework.Failf("failed to select value %q in dropdown %q", value, classPath)
 }
 
-// There are 2 different controls that UI uses for dropdown thus each
-// requires different handling
+// SetDropdownValue2 sets a value to dropdown element
+// There are 2 different controls that UI uses for dropdown thus each requires different handling
 func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value string) {
 	var options []string
 	const scriptTemplate = `
@@ -121,6 +137,7 @@ func SetDropdownValue2(page *web.Page, rootSelector, buttonSelector, value strin
 	framework.Failf("failed to select value %q in dropdown %q", value, rootSelector)
 }
 
+// SelectRadio sets a value to select element
 func SelectRadio(page *web.Page, selector string, matches valueMatcher) {
 	const scriptTemplate = `
             var options = [];
@@ -151,16 +168,6 @@ func SelectRadio(page *web.Page, selector string, matches valueMatcher) {
 
 // valueMatcher defines an interface to select a value
 type valueMatcher func(value string) bool
-
-func FillOutAWSKeys(page *web.Page, accessKey string, secretKey string) {
-	Expect(page.FindByName("aws_access_key").Fill(accessKey)).To(
-		Succeed(),
-		"should enter access key")
-
-	Expect(page.FindByName("aws_secret_key").Fill(secretKey)).To(
-		Succeed(),
-		"should enter secret key")
-}
 
 func PauseForPageJs() {
 	time.Sleep(1 * time.Second)

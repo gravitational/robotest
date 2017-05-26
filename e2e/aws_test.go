@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"github.com/gravitational/robotest/e2e/framework"
-
 	"github.com/gravitational/robotest/e2e/uimodel"
 
 	. "github.com/onsi/ginkgo"
@@ -13,7 +12,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 	f := framework.New()
 	ctx := framework.TestContext
 
-	It("should provision a new cluster [provisioner:aws_install]", func() {
+	It("should provision a new cluster [provisioner:aws,install]", func() {
 		domainName := ctx.ClusterName
 		ui := uimodel.InitWithUser(f.Page, framework.InstallerURL())
 		installer := ui.GoToInstaller(framework.InstallerURL())
@@ -38,7 +37,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 		By("waiting until install is completed or failed")
 		installer.WaitForCompletion()
 
-		if installer.NeedsBandwagon(domainName) == true {
+		if installer.NeedsBandwagon(domainName) {
 			By("navigating to bandwagon step")
 			bandwagon := ui.GoToBandwagon(domainName)
 			By("submitting bandwagon form")
@@ -55,7 +54,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 		}
 	})
 
-	It("should add and remove a server [provisioner:aws_expand_shrink]", func() {
+	It("should add and remove a server [provisioner:aws,expand-shrink]", func() {
 		ui := uimodel.InitWithUser(f.Page, framework.SiteURL())
 		site := ui.GoToSite(ctx.ClusterName)
 		siteServerPage := site.GoToServers()
@@ -63,7 +62,7 @@ var _ = framework.RoboDescribe("AWS Integration Test", func() {
 		siteServerPage.DeleteServer(newServer)
 	})
 
-	It("should delete site [provisioner:aws_delete]", func() {
+	It("should delete site [provisioner:aws,delete]", func() {
 		ui := uimodel.InitWithUser(f.Page, framework.Cluster.OpsCenterURL())
 		opscenter := ui.GoToOpsCenter()
 		opscenter.DeleteSite(ctx.ClusterName)
