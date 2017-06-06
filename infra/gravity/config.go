@@ -38,6 +38,8 @@ type ProvisionerConfig struct {
 	nodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
 	os string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
+	// dockerStorageDriver defines Docker storage driver
+	storageDriver string `validate:"required,eq=overlayfs2|devicemapper"`
 }
 
 // LoadConfig loads essential parameters from YAML
@@ -102,6 +104,16 @@ func (config *ProvisionerConfig) WithOS(os string) *ProvisionerConfig {
 	cfg.os = os
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, os)
 	cfg.stateDir = filepath.Join(cfg.stateDir, os)
+
+	return &cfg
+}
+
+// WithStorageDriver returns copy of config with specific storage driver
+func (config *ProvisionerConfig) WithStorageDriver(storageDriver string) *ProvisionerConfig {
+	cfg := *config
+	cfg.storageDriver = storageDriver
+	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, storageDriver)
+	cfg.stateDir = filepath.Join(cfg.stateDir, storageDriver)
 
 	return &cfg
 }

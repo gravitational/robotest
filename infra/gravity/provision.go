@@ -185,12 +185,13 @@ func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error 
 // TODO: migrate bootstrap scripts here as well;
 func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
 	g := &gravity{
-		node:         node,
-		installDir:   param.installDir,
-		dockerDevice: param.dockerDevice,
-		logFn:        t.Logf,
-		tag:          param.fromConfig.Tag(),
-		stateDir:     param.fromConfig.stateDir,
+		node:          node,
+		installDir:    param.installDir,
+		dockerDevice:  param.dockerDevice,
+		storageDriver: param.fromConfig.storageDriver,
+		logFn:         t.Logf,
+		tag:           param.fromConfig.Tag(),
+		stateDir:      param.fromConfig.stateDir,
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)

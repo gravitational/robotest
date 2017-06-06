@@ -96,13 +96,14 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	logFn        utils.LogFnType
-	node         infra.Node
-	installDir   string
-	stateDir     string
-	tag          string
-	dockerDevice string
-	ssh          *ssh.Client
+	logFn         utils.LogFnType
+	node          infra.Node
+	installDir    string
+	stateDir      string
+	tag           string
+	dockerDevice  string
+	storageDriver string
+	ssh           *ssh.Client
 }
 
 const (
@@ -153,8 +154,8 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s",
-		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s --storage-driver=%s",
+		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice, g.storageDriver)
 
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
