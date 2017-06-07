@@ -35,7 +35,7 @@ var testSets, osFlavors, storageDrivers valueList
 func init() {
 	flag.Var(&testSets, "set", "comma delimited test set out of suite to run, leave empty for all")
 	flag.Var(&osFlavors, "os", "comma delimited list of OS")
-	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers, currently devicemapper or overlayfs2")
+	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers, currently devicemapper or overlay2")
 }
 
 var testTimeout = time.Hour * 3
@@ -47,8 +47,8 @@ var suites = map[string]testSet{
 }
 
 var storageDriverOsCompat = map[string][]string{
-	"ubuntu": []string{"overlayfs2", "devicemapper"},
-	"centos": []string{"overlayfs2", "devicemapper"},
+	"ubuntu": []string{"overlay2", "devicemapper"},
+	"centos": []string{"overlay2", "devicemapper"},
 	"rhel":   []string{"devicemapper"},
 }
 

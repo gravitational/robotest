@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/gravitational/robotest/lib/utils"
+
+	"github.com/gravitational/trace"
 )
 
 // Status walks around all nodes and checks whether they all feel OK
@@ -21,7 +23,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, errs)
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // SiteReport runs site report command across nodes
@@ -38,7 +40,7 @@ func (c TestContext) SiteReport(nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, errs)
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // PullLogs requests logs from all nodes
@@ -62,5 +64,5 @@ func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 		}(node)
 	}
 
-	return utils.CollectErrors(ctx, errs)
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }

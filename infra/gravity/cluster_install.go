@@ -42,7 +42,8 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 		}(node)
 	}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+	_, err := utils.Collect(ctx, cancel, errs, nil)
+	return trace.Wrap(err)
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity

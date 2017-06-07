@@ -118,7 +118,7 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 	case err = <-runCh:
 		if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
 			node.Logf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
-			return nil, exitErr.ExitStatus(), nil
+			return nil, exitErr.ExitStatus(), exitErr
 		}
 		if err != nil {
 			return nil, exitStatusUndefined, trace.Wrap(err)

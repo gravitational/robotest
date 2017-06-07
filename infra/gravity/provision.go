@@ -90,51 +90,52 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynami
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func Provision(baseCtx context.Context, t *testing.T, baseConfig *ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
-	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
+	logFn := utils.Logf(t, baseConfig.Tag())
+
+	logFn("(1/3) Provisioning VMs")
+
+	nodes, destroyFn, err := runTerraform(baseCtx, baseConfig, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	type result struct {
-		gravity Gravity
-		err     error
-	}
-	resultCh := make(chan *result, len(nodes))
+	errChan := make(chan error, len(nodes))
+	nodeChan := make(chan interface{}, len(nodes))
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
+	logFn("(2/3) Configuring VMs")
 
 	for _, node := range nodes {
-		go func(n infra.Node) {
-			var res result
-			res.gravity, res.err = PrepareGravity(ctx, t, n, params)
-			resultCh <- &res
+		go func(node infra.Node) {
+			val, err := PrepareGravity(ctx, t, node, params)
+			nodeChan <- val
+			errChan <- err
 		}(node)
 	}
 
-	gravityNodes := []Gravity{}
-	errors := []error{}
-	for range nodes {
-		select {
-		case <-ctx.Done():
-			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
-		case res := <-resultCh:
-			if res.err != nil {
-				errors = append(errors, res.err)
-			} else {
-				gravityNodes = append(gravityNodes, res.gravity)
-			}
-		}
+	nodeVals, err := utils.Collect(ctx, cancel, errChan, nodeChan)
+	if err != nil {
+		destroyFn(ctx)
+		return nil, nil, trace.Wrap(err)
 	}
 
-	logFn := utils.Logf(t, baseConfig.Tag())
-	if len(errors) != 0 {
-		aggError := trace.NewAggregate(errors...)
-		logFn("cleanup after error provisioning : %v", aggError)
+	gravityNodes := []Gravity{}
+	for _, node := range nodeVals {
+		gravityNodes = append(gravityNodes, node.(Gravity))
+	}
 
-		destroyFn(ctx)
-		return nil, nil, aggError
+	logFn("(3/3) Synchronizing clocks")
+	timeNodes := []sshutil.SshNode{}
+	for _, node := range gravityNodes {
+		timeNodes = append(timeNodes, node)
+	}
+	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
+		return nil, nil, trace.Wrap(err)
 	}
 
 	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)

@@ -38,7 +38,8 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 		}(node)
 	}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+	_, err = utils.Collect(ctx, cancel, errs, nil)
+	return trace.Wrap(err)
 	// TODO: make proper assertion
 }
 
@@ -75,8 +76,7 @@ func (c TestContext) NodeLoss(nodesToKeep []Gravity, nodesToRemove []Gravity) er
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, errs)
-	if err != nil {
+	if err := utils.CollectErrors(ctx, errs); err != nil {
 		return trace.Wrap(err, "error powering off")
 	}
 

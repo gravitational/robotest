@@ -39,7 +39,7 @@ type ProvisionerConfig struct {
 	// OS defines one of supported operating systems
 	os string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
 	// dockerStorageDriver defines Docker storage driver
-	storageDriver string `validate:"required,eq=overlayfs2|devicemapper"`
+	storageDriver string `validate:"required,eq=overlay2|devicemapper"`
 }
 
 // LoadConfig loads essential parameters from YAML
