@@ -36,6 +36,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 		for _, node := range nodes {
 			go func(node SshNode) {
 				val, _, err := RunAndParse(ctx, node, "chronyc tracking", nil, parseChronyc)
+				node.Logf(" NTP delta=%v", val)
 				errCh <- err
 				valueCh <- val
 			}(node)
@@ -55,7 +56,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 }
 
 const (
-	maxDelta = time.Millisecond * 300
+	maxDelta = time.Millisecond * 80
 )
 
 func inSyncWithNTP(values []interface{}) bool {
@@ -87,7 +88,8 @@ func parseChronyc(r *bufio.Reader) (interface{}, error) {
 			if err != nil {
 				return nil, trace.Wrap(err, line)
 			}
-			return time.Second * time.Duration(d), nil
+			ts := time.Duration(d * float64(time.Second))
+			return ts, nil
 		}
 	}
 

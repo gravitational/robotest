@@ -5,7 +5,7 @@
 set -euo pipefail
 
 apt update 
-apt install -y chrony python-pip lvm2 curl wget 
+apt install -y chrony python-pip lvm2 curl wget thin-provisioning-tools
 pip install --upgrade awscli
 
 mkfs.ext4 /dev/sdc
