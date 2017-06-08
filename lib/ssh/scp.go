@@ -99,7 +99,7 @@ func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
 // GetTgz will pick up number of remote files and store it locally as .tgz
 // files should be absolute paths
 func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error {
-	cmd := fmt.Sprintf("sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
+	cmd := fmt.Sprintf("sudo sync && sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
 	session, err := node.Client().NewSession()
 	if err != nil {
 		return trace.Wrap(err)
