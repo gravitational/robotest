@@ -47,10 +47,10 @@ var suites = map[string]testSet{
 }
 
 var storageDriverOsCompat = map[string][]string{
-	"ubuntu": []string{"overlay2", "devicemapper"},
-	"debian": []string{"overlay2", "devicemapper"},
-	"centos": []string{"overlay2", "devicemapper"},
-	"rhel":   []string{"devicemapper"},
+	"ubuntu": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"debian": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"centos": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"rhel":   []string{"devicemapper", "loopback"},
 }
 
 func in(val string, arr []string) bool {

@@ -56,7 +56,7 @@ const (
 // TestFile tests remote file using `test` command.
 // It returns trace.NotFound in case test fails, nil is test passes, and unspecified error otherwise
 func TestFile(ctx context.Context, node SshNode, path, test string) error {
-	cmd := fmt.Sprintf("test %s %s", test, path)
+	cmd := fmt.Sprintf("sudo test %s %s", test, path)
 	_, exit, err := RunAndParse(ctx, node, cmd, nil, ParseDiscard)
 
 	/*

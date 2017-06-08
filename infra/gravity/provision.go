@@ -82,26 +82,12 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicP
 	return param
 }
 
-// Provision gets VMs up, running and ready to use
-func Provision(baseCtx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
-	validateConfig(t, baseConfig)
-	params := makeDynamicParams(t, baseConfig)
-
-	logFn := utils.Logf(t, baseConfig.Tag())
-
-	logFn("(1/3) Provisioning VMs")
-
-	nodes, destroyFn, err := runTerraform(baseCtx, baseConfig, params)
-	if err != nil {
-		return nil, nil, trace.Wrap(err)
-	}
-
+func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
 	errChan := make(chan error, len(nodes))
 	nodeChan := make(chan interface{}, len(nodes))
+
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
-
-	logFn("(2/3) Configuring VMs")
 
 	for _, node := range nodes {
 		go func(node infra.Node) {
@@ -113,13 +99,35 @@ func Provision(baseCtx context.Context, t *testing.T, baseConfig ProvisionerConf
 
 	nodeVals, err := utils.Collect(ctx, cancel, errChan, nodeChan)
 	if err != nil {
-		destroyFn(ctx)
-		return nil, nil, trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
 	gravityNodes := []Gravity{}
 	for _, node := range nodeVals {
 		gravityNodes = append(gravityNodes, node.(Gravity))
+	}
+
+	return sorted(gravityNodes), nil
+}
+
+// Provision gets VMs up, running and ready to use
+func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	validateConfig(t, baseConfig)
+	params := makeDynamicParams(t, baseConfig)
+
+	logFn := utils.Logf(t, baseConfig.Tag())
+
+	logFn("(1/3) Provisioning VMs")
+	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	logFn("(2/3) Configuring VMs")
+	gravityNodes, err := configureVMs(ctx, t, params, nodes)
+	if err != nil {
+		logFn("some nodes initialization failed, teardown this setup as non-usable")
+		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
 	logFn("(3/3) Synchronizing clocks")
@@ -136,8 +144,7 @@ func Provision(baseCtx context.Context, t *testing.T, baseConfig ProvisionerConf
 		logFn("\t%v", node)
 	}
 
-	return sorted(gravityNodes),
-		wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
+	return gravityNodes, wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
 }
 
 // sort Interface implementation
@@ -155,6 +162,9 @@ func sorted(nodes []Gravity) []Gravity {
 }
 
 const (
+	// set by https://github.com/Azure/WALinuxAgent which is bundled with all Azure linux distro
+	// once basic provisioning procedures are complete
+	waagentProvisionFile   = "/var/lib/waagent/provisioned"
 	cloudInitSupportedFile = "/var/lib/bootstrap_started"
 	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
 )
@@ -163,7 +173,12 @@ const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
 func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
-	err := sshutil.TestFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile)
+	err := sshutil.WaitForFile(ctx, g, waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = sshutil.TestFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile)
 	if err == nil {
 		g.Logf("node already bootstrapped")
 		return nil

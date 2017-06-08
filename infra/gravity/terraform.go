@@ -117,27 +117,24 @@ func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, par
 	//
 	// TODO: this seems to require more thorough testing, and same approach applied to Destory
 	//
-	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 5} {
-		p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
-		if err != nil {
-			return nil, nil, trace.Wrap(err)
-		}
 
+	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 10} {
 		ctx, cancel := context.WithTimeout(baseContext, threshold)
 		defer cancel()
 
 		_, err = p.Create(ctx, false)
-		if err != nil && ctx.Err() == context.DeadlineExceeded {
-			continue
-		}
-
 		if err != nil {
-			return nil, nil, trace.Wrap(err)
+			continue
 		}
 
 		resourceAllocated(baseConfig.Tag())
 		return p.NodePool().Nodes(), p.Destroy, nil
 	}
 
-	return nil, nil, trace.Errorf("timed out provisioning %s", baseConfig.Tag())
+	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))
 }
