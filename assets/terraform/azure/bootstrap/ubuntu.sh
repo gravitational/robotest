@@ -4,11 +4,13 @@
 #
 set -euo pipefail
 
+touch /var/lib/bootstrap_started
+
 apt update 
 apt install -y chrony python-pip lvm2 curl wget thin-provisioning-tools
 pip install --upgrade awscli
 
-mkfs.ext4 /dev/sdc
+mkfs.ext4 -F /dev/sdc
 echo -e '/dev/sdc\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2' >> /etc/fstab
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data

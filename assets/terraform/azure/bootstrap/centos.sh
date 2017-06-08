@@ -4,12 +4,15 @@
 #
 set -euo pipefail
 
+touch /var/lib/bootstrap_started
+
+yum remove -y dnsmasq
 yum install -y chrony python unzip lvm2 device-mapper-persistent-data
 curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
 unzip awscli-bundle.zip
 ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
 
-mkfs.ext4 /dev/sdc
+mkfs.ext4 -F /dev/sdc
 echo -e '/dev/sdc\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2' >> /etc/fstab
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data

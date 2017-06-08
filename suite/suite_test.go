@@ -48,6 +48,7 @@ var suites = map[string]testSet{
 
 var storageDriverOsCompat = map[string][]string{
 	"ubuntu": []string{"overlay2", "devicemapper"},
+	"debian": []string{"overlay2", "devicemapper"},
 	"centos": []string{"overlay2", "devicemapper"},
 	"rhel":   []string{"devicemapper"},
 }

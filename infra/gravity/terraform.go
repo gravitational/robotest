@@ -109,7 +109,7 @@ func saveResourceAllocations() error {
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, params *cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
+func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed

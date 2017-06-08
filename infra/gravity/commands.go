@@ -96,14 +96,10 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	logFn         utils.LogFnType
-	node          infra.Node
-	installDir    string
-	stateDir      string
-	tag           string
-	dockerDevice  string
-	storageDriver string
-	ssh           *ssh.Client
+	logFn utils.LogFnType
+	node  infra.Node
+	ssh   *ssh.Client
+	param cloudDynamicParams
 }
 
 const (
@@ -134,7 +130,7 @@ func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.No
 
 // Logf logs simultaneously to stdout and testing interface
 func (g *gravity) Logf(format string, args ...interface{}) {
-	log.Printf("%s [%v] %s", g.tag, g, fmt.Sprintf(format, args...))
+	log.Printf("%s [%v] %s", g.param.Tag(), g, fmt.Sprintf(format, args...))
 	g.logFn("[%v] %s", g, fmt.Sprintf(format, args...))
 }
 
@@ -155,7 +151,7 @@ func (g *gravity) Client() *ssh.Client {
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s --storage-driver=%s",
-		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.dockerDevice, g.storageDriver)
+		g.param.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.param.dockerDevice, g.param.storageDriver)
 
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
@@ -169,7 +165,7 @@ func (g *gravity) SiteReport(ctx context.Context) error {
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.param.installDir)
 	status, exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus)
 
 	if err != nil {
@@ -206,7 +202,7 @@ var joinCmdTemplate = template.Must(
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer
 	err := joinCmdTemplate.Execute(&buf, cmdEx{
-		P:   autoVals{g.installDir, g.Node().PrivateAddr(), g.dockerDevice},
+		P:   autoVals{g.param.installDir, g.Node().PrivateAddr(), g.param.dockerDevice},
 		Cmd: cmd,
 	})
 	if err != nil {
@@ -221,9 +217,9 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.installDir)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.param.installDir)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.installDir)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.param.installDir)
 	}
 
 	err := sshutils.Run(ctx, g, cmd, nil)
@@ -234,9 +230,9 @@ func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.param.installDir, node)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.param.installDir, node)
 	}
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
@@ -244,7 +240,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error 
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.param.installDir)
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
@@ -292,8 +288,8 @@ func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error
 
 	files := []string{
 		"/var/lib/gravity/planet/log",
-		fmt.Sprintf("%s/*.log", g.installDir),
+		fmt.Sprintf("%s/*.log", g.param.installDir),
 	}
-	localPath := filepath.Join(g.stateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
+	localPath := filepath.Join(g.param.stateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
 	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g, files, localPath))
 }

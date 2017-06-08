@@ -39,11 +39,13 @@ type ProvisionerConfig struct {
 	// OS defines one of supported operating systems
 	os string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
 	// dockerStorageDriver defines Docker storage driver
-	storageDriver string `validate:"required,eq=overlay2|devicemapper"`
+	storageDriver string `validate:"required,eq=overlay2|devicemapper|loopback"`
+	// dockerDevice is a physical volume where docker data would be stored
+	dockerDevice string `validate:"required,eq=overlay2|devicemapper|loopback"`
 }
 
 // LoadConfig loads essential parameters from YAML
-func LoadConfig(t *testing.T, configFile, stateDir, tag string) *ProvisionerConfig {
+func LoadConfig(t *testing.T, configFile, stateDir, tag string) ProvisionerConfig {
 	require.NotEmpty(t, configFile, "config file")
 	f, err := os.Open(configFile)
 	require.NoError(t, err, configFile)
@@ -69,57 +71,73 @@ func LoadConfig(t *testing.T, configFile, stateDir, tag string) *ProvisionerConf
 
 	cfg.stateDir = filepath.Join(cfg.stateDir, cfg.tag)
 
-	return &cfg
+	switch cfg.CloudProvider {
+	case "azure":
+		require.NotNil(t, cfg.Azure)
+		cfg.dockerDevice = cfg.Azure.DockerDevice
+	case "aws":
+		require.NotNil(t, cfg.AWS)
+		cfg.dockerDevice = cfg.AWS.DockerDevice
+	default:
+		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
+	}
+
+	return cfg
 }
 
 // Tag returns current tag of a config
-func (config *ProvisionerConfig) Tag() string {
+func (config ProvisionerConfig) Tag() string {
 	return config.tag
 }
 
 // WithTag returns copy of config applying extended tag to it
-func (config *ProvisionerConfig) WithTag(tag string) *ProvisionerConfig {
-	cfg := *config
+func (config ProvisionerConfig) WithTag(tag string) ProvisionerConfig {
+	cfg := config
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, tag)
 	cfg.stateDir = filepath.Join(cfg.stateDir, tag)
 
-	return &cfg
+	return cfg
 }
 
 // WithNodes returns copy of config with specific number of nodes
-func (config *ProvisionerConfig) WithNodes(nodes uint) *ProvisionerConfig {
-	extra := fmt.Sprintf("%d_nodes", nodes)
+func (config ProvisionerConfig) WithNodes(nodes uint) ProvisionerConfig {
+	extra := fmt.Sprintf("%dn", nodes)
 
-	cfg := *config
+	cfg := config
 	cfg.nodeCount = nodes
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, extra)
 	cfg.stateDir = filepath.Join(cfg.stateDir, extra)
 
-	return &cfg
+	return cfg
 }
 
 // WithOS returns copy of config with specific OS
-func (config *ProvisionerConfig) WithOS(os string) *ProvisionerConfig {
-	cfg := *config
+func (config ProvisionerConfig) WithOS(os string) ProvisionerConfig {
+	cfg := config
 	cfg.os = os
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, os)
 	cfg.stateDir = filepath.Join(cfg.stateDir, os)
 
-	return &cfg
+	return cfg
 }
 
 // WithStorageDriver returns copy of config with specific storage driver
-func (config *ProvisionerConfig) WithStorageDriver(storageDriver string) *ProvisionerConfig {
-	cfg := *config
-	cfg.storageDriver = storageDriver
+func (config ProvisionerConfig) WithStorageDriver(storageDriver string) ProvisionerConfig {
+	cfg := config
+	if storageDriver == "loopback" {
+		cfg.storageDriver = "devicemapper"
+		cfg.dockerDevice = ""
+	} else {
+		cfg.storageDriver = storageDriver
+	}
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, storageDriver)
 	cfg.stateDir = filepath.Join(cfg.stateDir, storageDriver)
 
-	return &cfg
+	return cfg
 }
 
 // validateConfig checks that key parameters are present
-func validateConfig(t *testing.T, config *ProvisionerConfig) {
+func validateConfig(t *testing.T, config ProvisionerConfig) {
 	err := validator.New().Struct(&config)
 	if err == nil {
 		return

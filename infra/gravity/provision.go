@@ -20,10 +20,8 @@ import (
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
-	fromConfig   *ProvisionerConfig
-	dockerDevice string
+	ProvisionerConfig
 	user         string
-	os           string
 	installDir   string
 	installerUrl string
 	tf           terraform.Config
@@ -31,10 +29,10 @@ type cloudDynamicParams struct {
 }
 
 // makeDynamicParams takes base config, validates it and returns cloudDynamicParams
-func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynamicParams {
+func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicParams {
 	require.NotNil(t, baseConfig)
 
-	param := &cloudDynamicParams{fromConfig: baseConfig}
+	param := cloudDynamicParams{ProvisionerConfig: baseConfig}
 
 	// OS name is cloud-init script specific
 	// enforce compatible values
@@ -67,8 +65,6 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynami
 		param.tf.AWS.ClusterName = baseConfig.tag
 		param.tf.AWS.SSHUser = param.user
 
-		param.dockerDevice = param.tf.AWS.DockerDevice
-
 		param.env = map[string]string{
 			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
 			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
@@ -81,16 +77,13 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynami
 		param.tf.Azure = &azure
 		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
-
-		param.dockerDevice = param.tf.Azure.DockerDevice
 	}
 
-	require.NotEmpty(t, param.dockerDevice, "docker device")
 	return param
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(baseCtx context.Context, t *testing.T, baseConfig *ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func Provision(baseCtx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
@@ -162,21 +155,37 @@ func sorted(nodes []Gravity) []Gravity {
 }
 
 const (
-	cloudInitCompleteFile = "/var/lib/bootstrap_complete"
+	cloudInitSupportedFile = "/var/lib/bootstrap_started"
+	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
 )
 
 const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
-func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error {
-	err := sshutil.Run(ctx, g, "sudo whoami", nil)
-	if err != nil {
-		return trace.Wrap(err, "sudo check")
+func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
+	err := sshutil.TestFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile)
+	if err == nil {
+		g.Logf("node already bootstrapped")
+		return nil
+	}
+	if !trace.IsNotFound(err) {
+		return trace.Wrap(err)
 	}
 
-	// TODO: implement simple line-by-line execution of existing .sh scripts
-	// Azure doesn't support cloud-init for RHEL/CentOS so need migrate them here
-	return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	err = sshutil.TestFile(ctx, g, cloudInitSupportedFile, sshutil.TestRegularFile)
+	if err == nil {
+		g.Logf("cloud-init underway")
+		return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	}
+	if !trace.IsNotFound(err) {
+		return trace.Wrap(err)
+	}
+
+	// apparently cloud-init scripts are not supported for given OS
+	err = sshutil.RunScript(ctx, g,
+		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os)),
+		sshutil.SUDO)
+	return trace.Wrap(err)
 }
 
 // ConfigureNode is used to configure a provisioned node
@@ -184,15 +193,11 @@ func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error 
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
+func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cloudDynamicParams) (Gravity, error) {
 	g := &gravity{
-		node:          node,
-		installDir:    param.installDir,
-		dockerDevice:  param.dockerDevice,
-		storageDriver: param.fromConfig.storageDriver,
-		logFn:         t.Logf,
-		tag:           param.fromConfig.Tag(),
-		stateDir:      param.fromConfig.stateDir,
+		node:  node,
+		param: param,
+		logFn: t.Logf,
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)

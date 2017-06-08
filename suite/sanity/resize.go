@@ -33,7 +33,7 @@ const (
 // * install 1 node expand to 3
 // * force remove 1 recover another one
 func basicResize(param resizeParam) gravity.TestFunc {
-	return func(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
+	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(4)
 
 		nodes, destroyFn, err := gravity.Provision(ctx, t, config)
