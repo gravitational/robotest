@@ -39,9 +39,9 @@ type ProvisionerConfig struct {
 	// OS defines one of supported operating systems
 	os string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
 	// dockerStorageDriver defines Docker storage driver
-	storageDriver string `validate:"required,eq=overlay2|devicemapper|loopback"`
+	storageDriver string `validate:"required,eq=overlay|overlay2|devicemapper|loopback"`
 	// dockerDevice is a physical volume where docker data would be stored
-	dockerDevice string `validate:"required,eq=overlay2|devicemapper|loopback"`
+	dockerDevice string `validate:"required"`
 }
 
 // LoadConfig loads essential parameters from YAML

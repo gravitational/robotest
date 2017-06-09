@@ -15,15 +15,25 @@ func (c TestContext) Status(nodes []Gravity) error {
 
 	errs := make(chan error, len(nodes))
 
-	for _, node := range nodes {
-		go func(n Gravity) {
-			status, err := n.Status(ctx)
-			n.Logf("status=%+v", n, status)
-			errs <- err
-		}(node)
-	}
+	// will retry in case of transient errors
+	for {
+		for _, node := range nodes {
+			go func(n Gravity) {
+				status, err := n.Status(ctx)
+				n.Logf("status=%+v", n, status)
+				errs <- err
+			}(node)
+		}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+		err := utils.CollectErrors(ctx, errs)
+		if err == nil {
+			return nil
+		}
+
+		if ctx.Err() != nil {
+			return trace.Wrap(err)
+		}
+	}
 }
 
 // SiteReport runs site report command across nodes
