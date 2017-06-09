@@ -43,11 +43,11 @@ type OpTimeouts struct {
 }
 
 var DefaultTimeouts = OpTimeouts{
-	Install:     time.Minute * 10,
-	Uninstall:   time.Minute * 3,
-	Status:      time.Second * 30,
-	Leave:       time.Second * 30,
-	CollectLogs: time.Minute * 5,
+	Install:     time.Minute * 15,
+	Uninstall:   time.Minute * 5,
+	Status:      time.Minute * 3,
+	Leave:       time.Minute * 3,
+	CollectLogs: time.Minute * 7,
 }
 
 // TestContext aggregates common parameters for better test suite readability

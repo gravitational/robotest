@@ -20,7 +20,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 		for _, node := range nodes {
 			go func(n Gravity) {
 				status, err := n.Status(ctx)
-				n.Logf("status=%+v", n, status)
+				n.Logf("status=%+v", status)
 				errs <- err
 			}(node)
 		}
