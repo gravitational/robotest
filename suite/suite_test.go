@@ -3,6 +3,7 @@ package suite
 import (
 	"context"
 	"flag"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ var testSuite = flag.String("suite", "sanity", "test suite to run")
 var configFile = flag.String("config", "", "cloud config file in YAML")
 var stateDir = flag.String("dir", "", "state dir")
 var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
+var repeat = flag.Int("repeat", 1, "how many times to repeat a test")
 
 var testSets, osFlavors, storageDrivers valueList
 
@@ -94,13 +96,15 @@ func TestMain(t *testing.T) {
 	// see docker/suite/entrypoint.sh
 	ctx, _ := context.WithTimeout(context.Background(), testTimeout)
 
-	for _, osFlavor := range osFlavors {
-		for ts, fn := range suiteSet {
-			for _, drv := range storageDrivers {
-				if in(drv, storageDriverOsCompat[osFlavor]) {
-					gravity.Run(ctx, t,
-						config.WithTag(*testSuite).WithTag(ts).WithOS(osFlavor).WithStorageDriver(drv),
-						fn, gravity.Parallel)
+	for r := 1; r <= *repeat; r++ {
+		for _, osFlavor := range osFlavors {
+			for ts, fn := range suiteSet {
+				for _, drv := range storageDrivers {
+					if in(drv, storageDriverOsCompat[osFlavor]) {
+						gravity.Run(ctx, t,
+							config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
+							fn, gravity.Parallel)
+					}
 				}
 			}
 		}

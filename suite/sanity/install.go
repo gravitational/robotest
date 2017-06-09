@@ -2,7 +2,6 @@ package sanity
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/gravitational/robotest/infra/gravity"
@@ -10,9 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type cycleInstallParam struct {
-	// Cycles is how many times to repeat install / uninstall cycle
-	Cycles int
+type installParam struct {
 	// Flavors defines mapping between number of nodes allocated and build flavor as defined in app.yaml
 	Flavors map[uint]string
 	// Role is node role as defined in app.yaml
@@ -23,14 +20,14 @@ type cycleInstallParam struct {
 
 // installReliability performs cyclic installs
 // https://github.com/gravitational/gravity/issues/2251
-func installInCycles(param cycleInstallParam) gravity.TestFunc {
+func install(param installParam) gravity.TestFunc {
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
 		cycleInstall(ctx, t, baseConfig, param)
 	}
 }
 
-func cycleInstall(baseContext context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig, param cycleInstallParam) {
-	installCycle := func(cfg gravity.ProvisionerConfig, flavor string) func(*testing.T) {
+func cycleInstall(baseContext context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig, param installParam) {
+	installFn := func(cfg gravity.ProvisionerConfig, flavor string) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 
@@ -45,18 +42,8 @@ func cycleInstall(baseContext context.Context, t *testing.T, baseConfig gravity.
 		}
 	}
 
-	install := func(cfg gravity.ProvisionerConfig, flavor string) func(*testing.T) {
-		return func(t *testing.T) {
-			t.Parallel()
-			for c := 1; c <= param.Cycles; c++ {
-				lc := cfg.WithTag(fmt.Sprintf("c%d", c))
-				t.Run(lc.Tag(), installCycle(lc, flavor))
-			}
-		}
-	}
-
 	for nodes, flavor := range param.Flavors {
 		cfg := baseConfig.WithNodes(nodes)
-		t.Run(cfg.Tag(), install(cfg, flavor))
+		t.Run(cfg.Tag(), installFn(cfg, flavor))
 	}
 }
