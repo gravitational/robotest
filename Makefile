@@ -15,7 +15,7 @@ all: clean build
 .PHONY: build
 build: buildbox
 	mkdir -p build
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS)
+	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS) build/go-junit-report
 
 .PHONY: buildbox
 buildbox:
@@ -42,6 +42,10 @@ $(TARGETS): clean vendor
 
 vendor: glide.yaml
 	cd $(SRCDIR) && glide install
+
+build/go-junit-report:
+	go get -u github.com/jstemmer/go-junit-report
+	go build -o build/go-junit-report github.com/jstemmer/go-junit-report 
 
 .PHONY: clean
 clean:
