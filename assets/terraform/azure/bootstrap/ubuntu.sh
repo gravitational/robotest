@@ -6,6 +6,9 @@ set -euo pipefail
 
 touch /var/lib/bootstrap_started
 
+# disable Hyper-V time sync
+echo 2dd1ce17-079e-403c-b352-a1921ee207ee > /sys/bus/vmbus/drivers/hv_util/unbind
+
 apt update 
 apt install -y chrony python-pip lvm2 curl wget thin-provisioning-tools
 pip install --upgrade awscli
