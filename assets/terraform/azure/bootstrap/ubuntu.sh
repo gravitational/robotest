@@ -10,7 +10,8 @@ touch /var/lib/bootstrap_started
 echo 2dd1ce17-079e-403c-b352-a1921ee207ee > /sys/bus/vmbus/drivers/hv_util/unbind
 
 apt update 
-apt install -y chrony python-pip lvm2 curl wget thin-provisioning-tools
+apt install -y chrony lvm2 curl wget thin-provisioning-tools
+curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
 mkfs.ext4 -F /dev/sdc

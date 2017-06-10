@@ -57,6 +57,7 @@ func basicExpand(param expandParam) gravity.TestFunc {
 		g.OK(fmt.Sprintf("install on %d node", param.InitialNodes),
 			g.OfflineInstall(nodes[0:param.InitialNodes], param.InitialFlavor, param.Role))
 		g.OK("status", g.Status(nodes[0:param.InitialNodes]))
+		g.OK("time sync", g.CheckTimeSync(nodes))
 
 		g.OK(fmt.Sprintf("expand to %d nodes", param.TargetNodes),
 			g.Expand(nodes[0:param.InitialNodes], nodes[param.InitialNodes:param.TargetNodes], param.Role))

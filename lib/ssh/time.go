@@ -28,6 +28,16 @@ func WaitTimeSync(ctx context.Context, nodes []SshNode) error {
 	return wait.Retry(ctx, checkTimeInSync(ctx, nodes))
 }
 
+// CheckTimeSync verifies current time is in sync across nodes
+func CheckTimeSync(ctx context.Context, nodes []SshNode) error {
+	if len(nodes) < 2 {
+		return nil
+	}
+
+	err := checkTimeInSync(ctx, nodes)()
+	return trace.Wrap(err)
+}
+
 func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 	return func() error {
 		errCh := make(chan error, len(nodes))

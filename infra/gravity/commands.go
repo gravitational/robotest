@@ -100,6 +100,7 @@ type gravity struct {
 	node  infra.Node
 	ssh   *ssh.Client
 	param cloudDynamicParams
+	ts    time.Time
 }
 
 const (
@@ -130,8 +131,9 @@ func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.No
 
 // Logf logs simultaneously to stdout and testing interface
 func (g *gravity) Logf(format string, args ...interface{}) {
-	log.Printf("%s [%v] %s", g.param.Tag(), g, fmt.Sprintf(format, args...))
-	g.logFn("[%v] %s", g, fmt.Sprintf(format, args...))
+	elapsed := time.Since(g.ts)
+	log.Printf("%s [%v %v] %s", g.param.Tag(), g, elapsed, fmt.Sprintf(format, args...))
+	g.logFn("[%v %v] %s", g, elapsed, fmt.Sprintf(format, args...))
 }
 
 // String returns public and private addresses of the node

@@ -254,5 +254,6 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cl
 		return nil, trace.Wrap(err)
 	}
 
+	g.ts = time.Now()
 	return g, nil
 }

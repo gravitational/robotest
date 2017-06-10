@@ -3,6 +3,7 @@ package gravity
 import (
 	"context"
 
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
@@ -34,6 +35,21 @@ func (c TestContext) Status(nodes []Gravity) error {
 			return trace.Wrap(err)
 		}
 	}
+}
+
+// CheckTime walks around all nodes and checks whether their time is within acceptable limits
+func (c TestContext) CheckTimeSync(nodes []Gravity) error {
+	timeNodes := []sshutils.SshNode{}
+	for _, n := range timeNodes {
+		timeNodes = append(timeNodes, n)
+	}
+
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
+
+	err := sshutils.CheckTimeSync(ctx, timeNodes)
+
+	return trace.Wrap(err)
 }
 
 // SiteReport runs site report command across nodes
