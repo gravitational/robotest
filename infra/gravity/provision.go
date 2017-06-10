@@ -136,7 +136,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) 
 		timeNodes = append(timeNodes, node)
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
 	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)

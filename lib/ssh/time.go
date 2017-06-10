@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"regexp"
+	"math"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -35,8 +35,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 
 		for _, node := range nodes {
 			go func(node SshNode) {
-				val, _, err := RunAndParse(ctx, node, "chronyc tracking", nil, parseChronyc)
-				node.Logf(" NTP delta=%v", val)
+				val, _, err := RunAndParse(ctx, node, "date +%s%3N", nil, parseTime)
 				errCh <- err
 				valueCh <- val
 			}(node)
@@ -47,7 +46,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 			return wait.AbortRetry{errors}
 		}
 
-		if inSyncWithNTP(values) {
+		if timeInRange(values) {
 			return nil
 		}
 
@@ -56,42 +55,34 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 }
 
 const (
-	maxDelta = time.Millisecond * 80
+	maxDelta = 200.0
 )
 
-func inSyncWithNTP(values []interface{}) bool {
-	for _, v := range values {
-		d := v.(time.Duration)
-		if d >= maxDelta {
+func timeInRange(values []interface{}) bool {
+	if len(values) < 2 {
+		return true
+	}
+
+	d0 := values[0].(float64)
+	for _, v := range values[1:] {
+		if math.Abs(d0-v.(float64)) > maxDelta {
 			return false
 		}
 	}
 	return true
 }
 
-var reSystemTime = regexp.MustCompile(`(System time)\s+\: ([\d\.]+) seconds .*`)
-
-func parseChronyc(r *bufio.Reader) (interface{}, error) {
-	for {
-		line, err := r.ReadString('\n')
-		if err == io.EOF {
-			return nil, trace.Errorf("reached end of output, no `System time` report found")
-		}
-		if err != nil {
-			return nil, trace.Wrap(err)
-		}
-
-		vars := reSystemTime.FindStringSubmatch(line)
-		if len(vars) == 3 {
-			io.Copy(ioutil.Discard, r)
-			d, err := strconv.ParseFloat(vars[2], 64)
-			if err != nil {
-				return nil, trace.Wrap(err, line)
-			}
-			ts := time.Duration(d * float64(time.Second))
-			return ts, nil
-		}
+func parseTime(r *bufio.Reader) (interface{}, error) {
+	line, err := r.ReadString('\n')
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
 
-	return nil, trace.Errorf("failed to parse `chronyc tracking` output")
+	ts, err := strconv.ParseFloat(strings.TrimRight(line, "\n"), 64)
+	if err != nil {
+		return nil, trace.Wrap(err, line)
+	}
+
+	io.Copy(ioutil.Discard, r)
+	return ts, nil
 }
