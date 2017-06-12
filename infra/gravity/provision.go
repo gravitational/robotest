@@ -213,6 +213,7 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cl
 		node:  node,
 		param: param,
 		logFn: t.Logf,
+		ts:    time.Now(),
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)
@@ -254,6 +255,5 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cl
 		return nil, trace.Wrap(err)
 	}
 
-	g.ts = time.Now()
 	return g, nil
 }

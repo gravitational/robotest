@@ -131,7 +131,7 @@ func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.No
 
 // Logf logs simultaneously to stdout and testing interface
 func (g *gravity) Logf(format string, args ...interface{}) {
-	elapsed := time.Since(g.ts)
+	elapsed := (time.Since(g.ts) / time.Second) * time.Second
 	log.Printf("%s [%v %v] %s", g.param.Tag(), g, elapsed, fmt.Sprintf(format, args...))
 	g.logFn("[%v %v] %s", g, elapsed, fmt.Sprintf(format, args...))
 }

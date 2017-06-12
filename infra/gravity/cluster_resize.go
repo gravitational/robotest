@@ -36,6 +36,7 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 				Role:     role})
 			errs <- trace.Wrap(err, n.Node().PrivateAddr())
 		}(node)
+		time.Sleep(time.Second)
 	}
 
 	_, err = utils.Collect(ctx, cancel, errs, nil)
