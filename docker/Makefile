@@ -24,6 +24,7 @@ $(TARGETS): $(BINARIES)
 	fi;
 	mkdir -p $(TEMPDIR)/build
 	cp -r ../assets/terraform $(TEMPDIR)
+	cp -a ../build/go-junit-report $(TEMPDIR)/build/
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true --pull -t $(IMAGE) .

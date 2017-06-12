@@ -72,7 +72,7 @@ resource "azurerm_virtual_machine" "node" {
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 0
-    disk_size_gb      = "30"
+    disk_size_gb      = "25"
   }
 
   storage_data_disk {
@@ -80,7 +80,7 @@ resource "azurerm_virtual_machine" "node" {
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 1
-    disk_size_gb      = "80"
+    disk_size_gb      = "75"
   }
 
 }

@@ -2,6 +2,7 @@ package sshutils
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gravitational/trace"
 )
@@ -29,7 +30,10 @@ func RunCommands(ctx context.Context, node SshNode, commands []Cmd) error {
 	return nil
 }
 
-const tmpDir = "/tmp"
+const (
+	tmpDir = "/tmp"
+	SUDO   = true
+)
 
 // RunScript will run a .sh script on remote host
 // if script should not be executed it should have internal flag files and terminate
@@ -39,6 +43,11 @@ func RunScript(ctx context.Context, node SshNode, scriptPath string, sudo bool) 
 		return trace.Wrap(err)
 	}
 
-	err = Run(ctx, node, remotePath, nil)
+	cmd := fmt.Sprintf("/bin/sh -x %s", remotePath)
+	if sudo {
+		cmd = fmt.Sprintf("sudo %s", cmd)
+	}
+
+	err = Run(ctx, node, cmd, nil)
 	return trace.Wrap(err)
 }

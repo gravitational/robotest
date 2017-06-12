@@ -20,10 +20,8 @@ import (
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
-	fromConfig   *ProvisionerConfig
-	dockerDevice string
+	ProvisionerConfig
 	user         string
-	os           string
 	installDir   string
 	installerUrl string
 	tf           terraform.Config
@@ -31,10 +29,10 @@ type cloudDynamicParams struct {
 }
 
 // makeDynamicParams takes base config, validates it and returns cloudDynamicParams
-func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynamicParams {
+func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicParams {
 	require.NotNil(t, baseConfig)
 
-	param := &cloudDynamicParams{fromConfig: baseConfig}
+	param := cloudDynamicParams{ProvisionerConfig: baseConfig}
 
 	// OS name is cloud-init script specific
 	// enforce compatible values
@@ -67,8 +65,6 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynami
 		param.tf.AWS.ClusterName = baseConfig.tag
 		param.tf.AWS.SSHUser = param.user
 
-		param.dockerDevice = param.tf.AWS.DockerDevice
-
 		param.env = map[string]string{
 			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
 			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
@@ -81,60 +77,66 @@ func makeDynamicParams(t *testing.T, baseConfig *ProvisionerConfig) *cloudDynami
 		param.tf.Azure = &azure
 		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
-
-		param.dockerDevice = param.tf.Azure.DockerDevice
 	}
 
-	require.NotEmpty(t, param.dockerDevice, "docker device")
 	return param
 }
 
+func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
+	errChan := make(chan error, len(nodes))
+	nodeChan := make(chan interface{}, len(nodes))
+
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
+	for _, node := range nodes {
+		go func(node infra.Node) {
+			val, err := PrepareGravity(ctx, t, node, params)
+			nodeChan <- val
+			errChan <- err
+		}(node)
+	}
+
+	nodeVals, err := utils.Collect(ctx, cancel, errChan, nodeChan)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	gravityNodes := []Gravity{}
+	for _, node := range nodeVals {
+		gravityNodes = append(gravityNodes, node.(Gravity))
+	}
+
+	return sorted(gravityNodes), nil
+}
+
 // Provision gets VMs up, running and ready to use
-func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
+	logFn := utils.Logf(t, baseConfig.Tag())
+
+	logFn("(1/3) Provisioning VMs")
 	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	type result struct {
-		gravity Gravity
-		err     error
-	}
-	resultCh := make(chan *result, len(nodes))
-
-	for _, node := range nodes {
-		go func(n infra.Node) {
-			var res result
-			res.gravity, res.err = PrepareGravity(ctx, t, n, params)
-			resultCh <- &res
-		}(node)
+	logFn("(2/3) Configuring VMs")
+	gravityNodes, err := configureVMs(ctx, t, params, nodes)
+	if err != nil {
+		logFn("some nodes initialization failed, teardown this setup as non-usable")
+		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	gravityNodes := []Gravity{}
-	errors := []error{}
-	for range nodes {
-		select {
-		case <-ctx.Done():
-			return nil, nil, trace.Errorf("timed out waiting for nodes to provision")
-		case res := <-resultCh:
-			if res.err != nil {
-				errors = append(errors, res.err)
-			} else {
-				gravityNodes = append(gravityNodes, res.gravity)
-			}
-		}
+	logFn("(3/3) Synchronizing clocks")
+	timeNodes := []sshutil.SshNode{}
+	for _, node := range gravityNodes {
+		timeNodes = append(timeNodes, node)
 	}
-
-	logFn := utils.Logf(t, baseConfig.Tag())
-	if len(errors) != 0 {
-		aggError := trace.NewAggregate(errors...)
-		logFn("cleanup after error provisioning : %v", aggError)
-
-		destroyFn(ctx)
-		return nil, nil, aggError
+	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
+		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
 	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
@@ -142,8 +144,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig *ProvisionerConfig)
 		logFn("\t%v", node)
 	}
 
-	return sorted(gravityNodes),
-		wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
+	return gravityNodes, wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
 }
 
 // sort Interface implementation
@@ -161,21 +162,45 @@ func sorted(nodes []Gravity) []Gravity {
 }
 
 const (
-	cloudInitCompleteFile = "/var/lib/bootstrap_complete"
+	// set by https://github.com/Azure/WALinuxAgent which is bundled with all Azure linux distro
+	// once basic provisioning procedures are complete
+	waagentProvisionFile   = "/var/lib/waagent/provisioned"
+	cloudInitSupportedFile = "/var/lib/bootstrap_started"
+	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
 )
 
 const cloudInitWait = time.Second * 10
 
 // Run bootstrap scripts on a node
-func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error {
-	err := sshutil.Run(ctx, g, "sudo whoami", nil)
+func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
+	err := sshutil.WaitForFile(ctx, g, waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
 	if err != nil {
-		return trace.Wrap(err, "sudo check")
+		return trace.Wrap(err)
 	}
 
-	// TODO: implement simple line-by-line execution of existing .sh scripts
-	// Azure doesn't support cloud-init for RHEL/CentOS so need migrate them here
-	return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	err = sshutil.TestFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile)
+	if err == nil {
+		g.Logf("node already bootstrapped")
+		return nil
+	}
+	if !trace.IsNotFound(err) {
+		return trace.Wrap(err)
+	}
+
+	err = sshutil.TestFile(ctx, g, cloudInitSupportedFile, sshutil.TestRegularFile)
+	if err == nil {
+		g.Logf("cloud-init underway")
+		return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	}
+	if !trace.IsNotFound(err) {
+		return trace.Wrap(err)
+	}
+
+	// apparently cloud-init scripts are not supported for given OS
+	err = sshutil.RunScript(ctx, g,
+		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os)),
+		sshutil.SUDO)
+	return trace.Wrap(err)
 }
 
 // ConfigureNode is used to configure a provisioned node
@@ -183,14 +208,12 @@ func bootstrap(ctx context.Context, g Gravity, param *cloudDynamicParams) error 
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param *cloudDynamicParams) (Gravity, error) {
+func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cloudDynamicParams) (Gravity, error) {
 	g := &gravity{
-		node:         node,
-		installDir:   param.installDir,
-		dockerDevice: param.dockerDevice,
-		logFn:        t.Logf,
-		tag:          param.fromConfig.Tag(),
-		stateDir:     param.fromConfig.stateDir,
+		node:  node,
+		param: param,
+		logFn: t.Logf,
+		ts:    time.Now(),
 	}
 
 	client, err := sshClient(ctx, g.Logf, g.node)

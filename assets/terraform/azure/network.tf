@@ -295,6 +295,19 @@ resource "azurerm_network_security_group" "robotest" {
     destination_address_prefix = "*"
   }
 
+  security_rule {
+    name                       = "AllowNTP"
+    priority                   = 1140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "UDP"
+    source_port_range          = "*"
+    destination_port_range     = "123"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "*"
+  }
+
+
 }
 
 resource "azurerm_virtual_network" "robotest" {

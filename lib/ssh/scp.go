@@ -52,18 +52,19 @@ func PutFile(ctx context.Context, node SshNode, srcPath, dstDir string) (remoteP
 		errCh <- trace.Wrap(err)
 	}()
 
-	select {
-	case <-ctx.Done():
-		session.Signal(ssh.SIGTERM)
-		return "", trace.Errorf("scp timed out")
-	case err := <-errCh:
-		// either I/O goroutine returns error first, or command completes
-		if err != nil {
-			return "", trace.Wrap(err)
+	for c := 0; c < 2; c++ {
+		select {
+		case <-ctx.Done():
+			session.Signal(ssh.SIGTERM)
+			return "", trace.Errorf("scp timed out")
+		case err := <-errCh:
+			if err != nil {
+				return "", trace.Wrap(err)
+			}
 		}
-		remotePath = filepath.Join(dstDir, filepath.Base(srcPath))
-		return remotePath, nil
 	}
+	remotePath = filepath.Join(dstDir, filepath.Base(srcPath))
+	return remotePath, nil
 }
 
 func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
@@ -98,7 +99,7 @@ func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
 // GetTgz will pick up number of remote files and store it locally as .tgz
 // files should be absolute paths
 func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error {
-	cmd := fmt.Sprintf("sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
+	cmd := fmt.Sprintf("sudo sync && sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
 	session, err := node.Client().NewSession()
 	if err != nil {
 		return trace.Wrap(err)

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type TestFunc func(ctx context.Context, t *testing.T, config *ProvisionerConfig)
+type TestFunc func(ctx context.Context, t *testing.T, config ProvisionerConfig)
 
 const (
 	Parallel   = true
@@ -17,7 +17,7 @@ const (
 )
 
 // Run is a handy wrapper around test runner to have a properly assigned tag, state dir, etc.
-func Run(ctx context.Context, t *testing.T, config *ProvisionerConfig, fn TestFunc, parallel bool) {
+func Run(ctx context.Context, t *testing.T, config ProvisionerConfig, fn TestFunc, parallel bool) {
 	ok := t.Run(config.Tag(), wrap(fn, ctx, config, parallel))
 	if parallel {
 		assert.True(t, ok, config.Tag())
@@ -26,7 +26,7 @@ func Run(ctx context.Context, t *testing.T, config *ProvisionerConfig, fn TestFu
 	}
 }
 
-func wrap(fn TestFunc, ctx context.Context, cfg *ProvisionerConfig, parallel bool) func(*testing.T) {
+func wrap(fn TestFunc, ctx context.Context, cfg ProvisionerConfig, parallel bool) func(*testing.T) {
 	return func(t *testing.T) {
 		if parallel {
 			t.Parallel()
@@ -43,11 +43,11 @@ type OpTimeouts struct {
 }
 
 var DefaultTimeouts = OpTimeouts{
-	Install:     time.Minute * 10,
-	Uninstall:   time.Minute * 3,
-	Status:      time.Second * 30,
-	Leave:       time.Second * 30,
-	CollectLogs: time.Minute * 5,
+	Install:     time.Minute * 15,
+	Uninstall:   time.Minute * 5,
+	Status:      time.Minute * 3,
+	Leave:       time.Minute * 3,
+	CollectLogs: time.Minute * 7,
 }
 
 // TestContext aggregates common parameters for better test suite readability

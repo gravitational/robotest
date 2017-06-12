@@ -4,11 +4,17 @@
 #
 set -euo pipefail
 
+touch /var/lib/bootstrap_started
+
+# disable Hyper-V time sync
+echo 2dd1ce17-079e-403c-b352-a1921ee207ee > /sys/bus/vmbus/drivers/hv_util/unbind
+
 apt update 
-apt install -y python-pip lvm2 curl wget
+apt install -y chrony lvm2 curl wget thin-provisioning-tools
+curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
-mkfs.ext4 /dev/sdc
+mkfs.ext4 -F /dev/sdc
 echo -e '/dev/sdc\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2' >> /etc/fstab
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data

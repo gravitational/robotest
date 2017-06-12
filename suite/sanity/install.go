@@ -2,7 +2,6 @@ package sanity
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/gravitational/robotest/infra/gravity"
@@ -10,9 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type cycleInstallParam struct {
-	// Cycles is how many times to repeat install / uninstall cycle
-	Cycles uint
+type installParam struct {
 	// Flavors defines mapping between number of nodes allocated and build flavor as defined in app.yaml
 	Flavors map[uint]string
 	// Role is node role as defined in app.yaml
@@ -23,14 +20,14 @@ type cycleInstallParam struct {
 
 // installReliability performs cyclic installs
 // https://github.com/gravitational/gravity/issues/2251
-func installInCycles(param cycleInstallParam) gravity.TestFunc {
-	return func(ctx context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig) {
+func install(param installParam) gravity.TestFunc {
+	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
 		cycleInstall(ctx, t, baseConfig, param)
 	}
 }
 
-func cycleInstall(baseContext context.Context, t *testing.T, baseConfig *gravity.ProvisionerConfig, param cycleInstallParam) {
-	install := func(cfg *gravity.ProvisionerConfig, flavor string) func(*testing.T) {
+func cycleInstall(baseContext context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig, param installParam) {
+	installFn := func(cfg gravity.ProvisionerConfig, flavor string) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 
@@ -39,19 +36,14 @@ func cycleInstall(baseContext context.Context, t *testing.T, baseConfig *gravity
 			defer destroyFn(baseContext, t)
 
 			g := gravity.NewContext(baseContext, t, param.Timeouts)
-
-			var c uint
-			for c = 1; c <= param.Cycles; c++ {
-				msg := fmt.Sprintf("install cycle %d of %d", c, param.Cycles)
-				require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role), msg)
-				require.NoError(t, g.Status(nodes), msg)
-				require.NoError(t, g.Uninstall(nodes), msg)
-			}
+			require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role))
+			require.NoError(t, g.Status(nodes))
+			require.NoError(t, g.Uninstall(nodes))
 		}
 	}
 
 	for nodes, flavor := range param.Flavors {
-		cfg := baseConfig.WithTag("cyclic").WithNodes(nodes)
-		t.Run(cfg.Tag(), install(cfg, flavor))
+		cfg := baseConfig.WithNodes(nodes)
+		t.Run(cfg.Tag(), installFn(cfg, flavor))
 	}
 }

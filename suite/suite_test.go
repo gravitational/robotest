@@ -3,6 +3,7 @@ package suite
 import (
 	"context"
 	"flag"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,12 +12,33 @@ import (
 	"github.com/gravitational/robotest/suite/sanity"
 )
 
+type valueList []string
+
+func (r *valueList) String() string {
+	if r == nil {
+		return ""
+	} else {
+		return strings.Join(*r, ",")
+	}
+}
+func (r *valueList) Set(value string) error {
+	*r = strings.Split(value, ",")
+	return nil
+}
+
 var testSuite = flag.String("suite", "sanity", "test suite to run")
-var testSets = flag.String("set", "", "comma delimited test set out of suite to run, leave empty for all")
 var configFile = flag.String("config", "", "cloud config file in YAML")
 var stateDir = flag.String("dir", "", "state dir")
 var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
-var osFlag = flag.String("os", "ubuntu", "comma delimited list of OS")
+var repeat = flag.Int("repeat", 1, "how many times to repeat a test")
+
+var testSets, osFlavors, storageDrivers valueList
+
+func init() {
+	flag.Var(&testSets, "set", "comma delimited test set out of suite to run, leave empty for all")
+	flag.Var(&osFlavors, "os", "comma delimited list of OS")
+	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers: devicemapper,loopback,overlay,overlay2")
+}
 
 var testTimeout = time.Hour * 3
 
@@ -24,6 +46,22 @@ type testSet map[string]gravity.TestFunc
 
 var suites = map[string]testSet{
 	"sanity": sanity.Basic,
+}
+
+var storageDriverOsCompat = map[string][]string{
+	"ubuntu": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"debian": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"centos": []string{"overlay2", "overlay", "devicemapper", "loopback"},
+	"rhel":   []string{"devicemapper", "loopback"},
+}
+
+func in(val string, arr []string) bool {
+	for _, v := range arr {
+		if val == v {
+			return true
+		}
+	}
+	return false
 }
 
 // TestMain is a selector of which test to run,
@@ -37,20 +75,15 @@ func TestMain(t *testing.T) {
 
 	config := gravity.LoadConfig(t, *configFile, *stateDir, *tag)
 
-	osFlavors := []string{}
-	for _, flavor := range strings.Split(*osFlag, ",") {
-		osFlavors = append(osFlavors, flavor)
-	}
-
 	suiteSet, there := suites[*testSuite]
 	if !there {
 		t.Fatalf("No such test suite \"%s\"", *testSuite)
 	}
-	if *testSets != "" {
+	if len(testSets) > 0 {
 		baseSet := suiteSet
 		suiteSet = map[string]gravity.TestFunc{}
 
-		for _, set := range strings.Split(*testSets, ",") {
+		for _, set := range testSets {
 			fn, there := baseSet[set]
 			if !there {
 				t.Fatalf("No such test set %s in suite %s", set, *testSuite)
@@ -63,9 +96,17 @@ func TestMain(t *testing.T) {
 	// see docker/suite/entrypoint.sh
 	ctx, _ := context.WithTimeout(context.Background(), testTimeout)
 
-	for _, osFlavor := range osFlavors {
-		for key, fn := range suiteSet {
-			gravity.Run(ctx, t, config.WithTag(*testSuite).WithTag(key).WithOS(osFlavor), fn, gravity.Parallel)
+	for r := 1; r <= *repeat; r++ {
+		for _, osFlavor := range osFlavors {
+			for ts, fn := range suiteSet {
+				for _, drv := range storageDrivers {
+					if in(drv, storageDriverOsCompat[osFlavor]) {
+						gravity.Run(ctx, t,
+							config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
+							fn, gravity.Parallel)
+					}
+				}
+			}
 		}
 	}
 }

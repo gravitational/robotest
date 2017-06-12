@@ -109,7 +109,7 @@ func saveResourceAllocations() error {
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, params *cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
+func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
@@ -117,27 +117,24 @@ func runTerraform(baseContext context.Context, baseConfig *ProvisionerConfig, pa
 	//
 	// TODO: this seems to require more thorough testing, and same approach applied to Destory
 	//
-	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 5} {
-		p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
-		if err != nil {
-			return nil, nil, trace.Wrap(err)
-		}
 
+	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 10} {
 		ctx, cancel := context.WithTimeout(baseContext, threshold)
 		defer cancel()
 
 		_, err = p.Create(ctx, false)
-		if err != nil && ctx.Err() == context.DeadlineExceeded {
-			continue
-		}
-
 		if err != nil {
-			return nil, nil, trace.Wrap(err)
+			continue
 		}
 
 		resourceAllocated(baseConfig.Tag())
 		return p.NodePool().Nodes(), p.Destroy, nil
 	}
 
-	return nil, nil, trace.Errorf("timed out provisioning %s", baseConfig.Tag())
+	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))
 }
