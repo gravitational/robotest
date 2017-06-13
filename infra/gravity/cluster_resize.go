@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
@@ -30,7 +31,12 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 	errs := make(chan error, len(extra))
 	for _, node := range extra {
 		go func(n Gravity) {
-			err := n.Join(ctx, JoinCmd{
+			err := sshutils.Run(ctx, n, "sudo gravity enter -- /usr/bin/etcdctl -- cluster-health", nil)
+			if err != nil {
+				errs <- err
+				return
+			}
+			err = n.Join(ctx, JoinCmd{
 				PeerAddr: joinAddr,
 				Token:    status.Token,
 				Role:     role})
