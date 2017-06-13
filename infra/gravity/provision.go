@@ -21,11 +21,10 @@ import (
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
 	ProvisionerConfig
-	user         string
-	installDir   string
-	installerUrl string
-	tf           terraform.Config
-	env          map[string]string
+	user    string
+	homeDir string
+	tf      terraform.Config
+	env     map[string]string
 }
 
 // makeDynamicParams takes base config, validates it and returns cloudDynamicParams
@@ -47,10 +46,7 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicP
 	param.user, ok = osUsernames[baseConfig.os]
 	require.True(t, ok, baseConfig.os)
 
-	param.installerUrl = baseConfig.InstallerURL
-	require.NotEmpty(t, param.installerUrl, "InstallerUrl")
-
-	param.installDir = filepath.Join("/home", param.user, "install")
+	param.homeDir = filepath.Join("/home", param.user)
 
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
@@ -91,7 +87,7 @@ func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicPara
 
 	for _, node := range nodes {
 		go func(node infra.Node) {
-			val, err := PrepareGravity(ctx, t, node, params)
+			val, err := configureVM(ctx, t, node, params)
 			nodeChan <- val
 			errChan <- err
 		}(node)
@@ -208,7 +204,7 @@ func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cloudDynamicParams) (Gravity, error) {
+func configureVM(ctx context.Context, t *testing.T, node infra.Node, param cloudDynamicParams) (Gravity, error) {
 	g := &gravity{
 		node:  node,
 		param: param,
@@ -223,34 +219,6 @@ func PrepareGravity(ctx context.Context, t *testing.T, node infra.Node, param cl
 	g.ssh = client
 
 	err = bootstrap(ctx, g, param)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	configCompleteFile := filepath.Join(param.installDir, "config_complete")
-
-	err = sshutil.TestFile(ctx, g, configCompleteFile, sshutil.TestRegularFile)
-
-	if err == nil {
-		g.Logf("already configured")
-		return g, nil
-	}
-
-	if !trace.IsNotFound(err) {
-		return nil, trace.Wrap(err)
-	}
-
-	g.Logf("Transferring installer from %s ...", param.installerUrl)
-	tgz, err := sshutil.TransferFile(ctx, g, param.installerUrl, param.installDir, param.env)
-	if err != nil {
-		g.Logf("Failed to transfer installer %s : %v", param.installerUrl, err)
-		return nil, trace.Wrap(err, param.installerUrl)
-	}
-
-	err = sshutil.RunCommands(ctx, g, []sshutil.Cmd{
-		{fmt.Sprintf("tar -xvf %s -C %s", tgz, param.installDir), nil},
-		{fmt.Sprintf("touch %s", configCompleteFile), nil},
-	})
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

@@ -54,6 +54,7 @@ func basicExpand(param expandParam) gravity.TestFunc {
 
 		g := gravity.NewContext(ctx, t, param.Timeouts)
 
+		g.OK("download installer", g.SetInstaller(nodes, config.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.InitialNodes),
 			g.OfflineInstall(nodes[0:param.InitialNodes], param.InitialFlavor, param.Role))
 		g.OK("status", g.Status(nodes[0:param.InitialNodes]))

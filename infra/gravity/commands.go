@@ -19,6 +19,8 @@ import (
 
 // Gravity is interface to remote gravity CLI
 type Gravity interface {
+	// SetInstaller transfers and prepares installer package
+	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
 	// Install operates on initial master node
 	Install(ctx context.Context, param InstallCmd) error
 	// Status retrieves status
@@ -41,6 +43,8 @@ type Gravity interface {
 	Reboot(ctx context.Context, graceful bool) error
 	// CollectLogs will pull essential logs from node and store it in state dir under node-logs/prefix
 	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
+	// Upgrade takes currently active installer (see SetInstaller) and tries to perform upgrade
+	Upgrade(ctx context.Context) error
 	// Node returns underlying VM instance
 	Node() infra.Node
 	// Client returns SSH client to VM instance
@@ -96,11 +100,12 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	logFn utils.LogFnType
-	node  infra.Node
-	ssh   *ssh.Client
-	param cloudDynamicParams
-	ts    time.Time
+	logFn      utils.LogFnType
+	node       infra.Node
+	ssh        *ssh.Client
+	installDir string
+	param      cloudDynamicParams
+	ts         time.Time
 }
 
 const (
@@ -153,7 +158,7 @@ func (g *gravity) Client() *ssh.Client {
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallCmd) error {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s --storage-driver=%s",
-		g.param.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.param.dockerDevice, g.param.storageDriver)
+		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor, g.param.dockerDevice, g.param.storageDriver)
 
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
@@ -167,7 +172,7 @@ func (g *gravity) SiteReport(ctx context.Context) error {
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.param.installDir)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
 	status, exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus)
 
 	if err != nil {
@@ -204,7 +209,7 @@ var joinCmdTemplate = template.Must(
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer
 	err := joinCmdTemplate.Execute(&buf, cmdEx{
-		P:   autoVals{g.param.installDir, g.Node().PrivateAddr(), g.param.dockerDevice},
+		P:   autoVals{g.installDir, g.Node().PrivateAddr(), g.param.dockerDevice},
 		Cmd: cmd,
 	})
 	if err != nil {
@@ -219,9 +224,9 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.param.installDir)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.installDir)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.param.installDir)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.installDir)
 	}
 
 	err := sshutils.Run(ctx, g, cmd, nil)
@@ -232,9 +237,9 @@ func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.param.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.installDir, node)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.param.installDir, node)
+		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.installDir, node)
 	}
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
@@ -242,7 +247,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error 
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.param.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
 	err := sshutils.Run(ctx, g, cmd, nil)
 	return trace.Wrap(err, cmd)
 }
@@ -290,8 +295,35 @@ func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error
 
 	files := []string{
 		"/var/lib/gravity/planet/log",
-		fmt.Sprintf("%s/*.log", g.param.installDir),
+		fmt.Sprintf("%s/*/*.log", g.param.homeDir),
 	}
 	localPath := filepath.Join(g.param.stateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
 	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g, files, localPath))
+}
+
+// SetInstaller overrides default installer into
+func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir string) error {
+	installDir := filepath.Join(g.param.homeDir, subdir)
+	g.Logf("installer %s => %s", installerUrl, installDir)
+
+	tgz, err := sshutils.TransferFile(ctx, g, installerUrl, installDir, g.param.env)
+	if err != nil {
+		g.Logf("Failed to transfer installer %s : %v", installerUrl, err)
+		return trace.Wrap(err, installerUrl)
+	}
+
+	err = sshutils.Run(ctx, g, fmt.Sprintf("tar -xvf %s -C %s", tgz, installDir), nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	g.installDir = installDir
+	return nil
+}
+
+// Upgrade takes current installer and tries to perform upgrade
+func (g *gravity) Upgrade(ctx context.Context) error {
+	cmd := fmt.Sprintf(`cd %s && sudo ./upgrade`, g.installDir)
+	err := sshutils.Run(ctx, g, cmd, nil)
+	return trace.Wrap(err, cmd)
 }

@@ -43,31 +43,33 @@ func SetProvisionerPolicy(p ProvisionerPolicy) {
 
 var testStatus = map[bool]string{true: "failed", false: "ok"}
 
-const finalTeardownTimeout = time.Minute * 2
+const finalTeardownTimeout = time.Minute * 5
 
 // wrapDestroyFn implements a global conditional logic
 func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
-	return func(ctx context.Context, t *testing.T) error {
+	return func(baseContext context.Context, t *testing.T) error {
 		log := utils.Logf(t, tag)
 
 		skipLogCollection := false
 
-		if ctx.Err() != nil && policy.DestroyOnFailure == false {
-			log("destroy skipped for %s: %v", tag, ctx.Err())
-			return trace.Wrap(ctx.Err())
+		if baseContext.Err() != nil && policy.DestroyOnFailure == false {
+			log("destroy skipped for %s: %v", tag, baseContext.Err())
+			return trace.Wrap(baseContext.Err())
 		}
 
-		if ctx.Err() != nil && policy.DestroyOnFailure {
-			log("providing extra %v for %s teardown and cleanup", finalTeardownTimeout, tag)
+		ctx := baseContext
+		if baseContext.Err() != nil {
+			log("main context %v, providing extra %v for %s teardown and cleanup",
+				baseContext.Err(), finalTeardownTimeout, tag)
+			skipLogCollection = true
 			var cancel func()
 			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
 			defer cancel()
-			skipLogCollection = true
 		}
 
 		if t.Failed() && policy.FailFast {
 			log("test failed, FailFast=true requesting other tests teardown")
-			policy.CancelAllFn()
+			defer policy.CancelAllFn()
 		}
 
 		if !skipLogCollection && (t.Failed() || policy.AlwaysCollectLogs) {

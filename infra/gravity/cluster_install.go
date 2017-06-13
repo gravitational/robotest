@@ -8,6 +8,22 @@ import (
 	"github.com/gravitational/trace"
 )
 
+// ProvisionInstaller deploys a specific installer
+func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Install)
+	defer cancel()
+
+	errs := make(chan error, len(nodes))
+	for _, node := range nodes {
+		go func(node Gravity) {
+			errs <- node.SetInstaller(ctx, installerUrl, tag)
+		}(node)
+	}
+
+	_, err := utils.Collect(ctx, cancel, errs, nil)
+	return trace.Wrap(err)
+}
+
 // OfflineInstall sets up cluster using nodes provided
 func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
@@ -57,6 +73,22 @@ func (c TestContext) Uninstall(nodes []Gravity) error {
 	for _, node := range nodes {
 		go func(n Gravity) {
 			errs <- n.Uninstall(ctx)
+		}(node)
+	}
+
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
+}
+
+// Upgrade tries to perform an upgrade procedure on all nodes
+func (c TestContext) Upgrade(nodes []Gravity) error {
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
+
+	errs := make(chan error, len(nodes))
+
+	for _, node := range nodes {
+		go func(n Gravity) {
+			errs <- n.Upgrade(ctx)
 		}(node)
 	}
 
