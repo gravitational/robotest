@@ -27,6 +27,9 @@ import (
 const (
 	tfVarsFile           = "robotest.tfvars.json"
 	terraformRepeatAfter = time.Second * 5
+
+	azureCloud = "azure"
+	awsCloud   = "aws"
 )
 
 func New(stateDir string, config Config) (*terraform, error) {
@@ -149,8 +152,31 @@ func (r *terraform) terraform(ctx context.Context) (err error) {
 	return nil
 }
 
+func (r *terraform) destroyAzure(ctx context.Context) error {
+	cfg := r.Config.Azure
+	if cfg == nil {
+		return trace.Errorf("azure config is nil")
+	}
+
+	token, err := AzureGetAuthToken(ctx, AzureAuthParam{
+		ClientId:     cfg.ClientId,
+		ClientSecret: cfg.ClientSecret,
+		TenantId:     cfg.TenantId})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = AzureRemoveResourceGroup(ctx, token, cfg.SubscriptionId, cfg.ResourceGroup)
+	return trace.Wrap(err)
+}
+
 func (r *terraform) Destroy(ctx context.Context) error {
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
+
+	if r.Config.CloudProvider == azureCloud {
+		return trace.Wrap(r.destroyAzure(ctx))
+	}
+
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	_, err := r.command(ctx, []string{
 		"destroy", "-force",
