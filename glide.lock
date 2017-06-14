@@ -185,7 +185,7 @@ imports:
   - ssh/terminal
   - ssh/testdata
 - name: golang.org/x/net
-  version: 569280fa63be4e201b975e5411e30a92178f0118
+  version: 186fd3fc8194a5e9980a82230d69c1ff7134229f
   subpackages:
   - bpf
   - context
