@@ -84,13 +84,10 @@ func (c TestContext) Upgrade(nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
-	errs := make(chan error, len(nodes))
-
-	for _, node := range nodes {
-		go func(n Gravity) {
-			errs <- n.Upgrade(ctx)
-		}(node)
+	if len(nodes) == 0 {
+		return trace.Errorf("no nodes provided")
 	}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+	err := nodes[0].Upgrade(ctx)
+	return trace.Wrap(err)
 }

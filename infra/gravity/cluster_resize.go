@@ -28,26 +28,24 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
 	defer cancel()
 
-	errs := make(chan error, len(extra))
-	for _, node := range extra {
-		go func(n Gravity) {
-			err := sshutils.Run(ctx, n, "sudo gravity enter -- /usr/bin/etcdctl -- cluster-health", nil)
+	for i, node := range extra {
+		if i > 0 {
+			err = wait.Retry(ctx, waitEtcdHealthOk(ctx, node))
 			if err != nil {
-				errs <- err
-				return
+				return trace.Wrap(err, "error waiting for ETCD health on node %s: %v", node.String(), err)
 			}
-			err = n.Join(ctx, JoinCmd{
-				PeerAddr: joinAddr,
-				Token:    status.Token,
-				Role:     role})
-			errs <- trace.Wrap(err, n.Node().PrivateAddr())
-		}(node)
-		time.Sleep(time.Second)
+		}
+
+		err = n.Join(ctx, JoinCmd{
+			PeerAddr: joinAddr,
+			Token:    status.Token,
+			Role:     role})
+		if err != nil {
+			return trace.Wrap(err, "error joining cluster on node %s: %v", node.String(), err)
+		}
 	}
 
-	_, err = utils.Collect(ctx, cancel, errs, nil)
-	return trace.Wrap(err)
-	// TODO: make proper assertion
+	return nil
 }
 
 // ShrinkLeave will gracefully leave cluster
@@ -110,5 +108,21 @@ func tryEvict(ctx context.Context, master, node Gravity) func() error {
 			return wait.ContinueRetry{err.Error()}
 		}
 		return nil
+	}
+}
+
+func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
+	return func() error {
+		_, exitCode, err := sshutils.RunAndParse(ctx, node,
+			"cd %s && sudo ./gravity enter -- /usr/bin/etcdctl -- cluster-health", nil)
+		if err == nil {
+			return nil
+		}
+
+		if exitCode > 0 {
+			return wait.ContinueRetry{err.Error()}
+		} else {
+			return wait.AbortRetry{err.Error()}
+		}
 	}
 }
