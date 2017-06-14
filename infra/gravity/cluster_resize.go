@@ -36,7 +36,7 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 			}
 		}
 
-		err = n.Join(ctx, JoinCmd{
+		err = node.Join(ctx, JoinCmd{
 			PeerAddr: joinAddr,
 			Token:    status.Token,
 			Role:     role})
@@ -114,7 +114,8 @@ func tryEvict(ctx context.Context, master, node Gravity) func() error {
 func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 	return func() error {
 		_, exitCode, err := sshutils.RunAndParse(ctx, node,
-			"cd %s && sudo ./gravity enter -- /usr/bin/etcdctl -- cluster-health", nil)
+			"cd %s && sudo ./gravity enter -- /usr/bin/etcdctl -- cluster-health",
+			nil, sshutils.ParseDiscard)
 		if err == nil {
 			return nil
 		}
@@ -122,7 +123,7 @@ func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 		if exitCode > 0 {
 			return wait.ContinueRetry{err.Error()}
 		} else {
-			return wait.AbortRetry{err.Error()}
+			return wait.AbortRetry{err}
 		}
 	}
 }
