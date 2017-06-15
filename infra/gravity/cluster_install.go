@@ -80,7 +80,7 @@ func (c TestContext) Uninstall(nodes []Gravity) error {
 }
 
 // Upgrade tries to perform an upgrade procedure on all nodes
-func (c TestContext) Upgrade(nodes []Gravity) error {
+func (c TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
@@ -88,6 +88,13 @@ func (c TestContext) Upgrade(nodes []Gravity) error {
 		return trace.Errorf("no nodes provided")
 	}
 
-	err := nodes[0].Upgrade(ctx)
+	node := nodes[0]
+
+	err := node.SetInstaller(ctx, installerUrl, subdir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = node.Upgrade(ctx)
 	return trace.Wrap(err)
 }

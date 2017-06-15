@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
+	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
 	"golang.org/x/crypto/ssh"
@@ -323,7 +325,38 @@ func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir 
 
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./upgrade`, g.installDir)
-	err := sshutils.Run(ctx, g, cmd, nil)
-	return trace.Wrap(err, cmd)
+	err := sshutils.Run(ctx, g, fmt.Sprintf(`cd %s && sudo ./upload`, g.installDir), nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	codeI, _, err := sshutils.RunAndParse(ctx, g,
+		fmt.Sprintf(`cd %s && sudo ./gravity --insecure -q upgrade $(./gravity app-package --state-dir=.)`, g.installDir),
+		nil, sshutils.ParseAsString)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	code, ok := codeI.(string)
+	if !ok {
+		return trace.Errorf("unexpected response type %v", codeI)
+	}
+
+	// wait for operation to complete
+	err = wait.Retry(ctx, func() error {
+		responseI, _, err := sshutils.RunAndParse(ctx, g,
+			fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code),
+			nil, sshutils.ParseAsString)
+		response, ok := responseI.(string)
+		if ok {
+			if strings.Contains(response, "complete") {
+				return nil
+			}
+			if strings.Contains(response, "fail") {
+				return wait.AbortRetry{trace.Errorf("%s: %v", response, err)}
+			}
+		}
+
+		return wait.ContinueRetry{"waiting for update to complete"}
+	})
+	return trace.Wrap(err)
 }

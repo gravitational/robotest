@@ -34,8 +34,7 @@ func upgrade(param upgradeParam) gravity.TestFunc {
 		g.OK("base installer", g.SetInstaller(nodes, param.BaseInstallerURL, "base"))
 		g.OK("install", g.OfflineInstall(nodes, param.Flavor, param.Role))
 		g.OK("status", g.Status(nodes))
-		g.OK("upgrade installer", g.SetInstaller(nodes, cfg.InstallerURL, "upgrade"))
-		g.OK("upgrade", g.Upgrade(nodes))
+		g.OK("upgrade", g.Upgrade(nodes, cfg.InstallerURL, "upgrade"))
 		g.OK("status", g.Status(nodes))
 	}
 }

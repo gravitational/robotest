@@ -147,6 +147,14 @@ func ParseDiscard(r *bufio.Reader) (interface{}, error) {
 	return nil, nil
 }
 
+func ParseAsString(r *bufio.Reader) (interface{}, error) {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return string(b), nil
+}
+
 type readLogger struct {
 	prefix string
 	logFn  utils.LogFnType

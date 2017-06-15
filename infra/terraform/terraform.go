@@ -174,7 +174,12 @@ func (r *terraform) Destroy(ctx context.Context) error {
 	r.Debugf("destroying terraform cluster: %v", r.stateDir)
 
 	if r.Config.CloudProvider == azureCloud {
-		return trace.Wrap(r.destroyAzure(ctx))
+		err := r.destroyAzure(ctx)
+		if err != nil {
+			return trace.Wrap(err, "azureDestroy %v", err)
+		}
+		err = os.RemoveAll(r.stateDir)
+		return trace.Wrap(err, "cleaning up %s: %v", r.stateDir, err)
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
@@ -292,9 +297,9 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 func (r *terraform) saveVarsJSON(varFile string) error {
 	var config interface{}
 	switch r.Config.CloudProvider {
-	case "aws":
+	case awsCloud:
 		config = r.Config.AWS
-	case "azure":
+	case azureCloud:
 		config = r.Config.Azure
 	default:
 		return trace.Errorf("No configuration for cloud %s", r.Config.CloudProvider)
