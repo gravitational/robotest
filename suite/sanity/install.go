@@ -36,9 +36,10 @@ func cycleInstall(baseContext context.Context, t *testing.T, baseConfig gravity.
 			defer destroyFn(baseContext, t)
 
 			g := gravity.NewContext(baseContext, t, param.Timeouts)
-			require.NoError(t, g.OfflineInstall(nodes, flavor, param.Role))
-			require.NoError(t, g.Status(nodes))
-			require.NoError(t, g.Uninstall(nodes))
+			g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+			g.OK("install", g.OfflineInstall(nodes, flavor, param.Role))
+			g.OK("status", g.Status(nodes))
+			g.OK("uninstall", g.Uninstall(nodes))
 		}
 	}
 

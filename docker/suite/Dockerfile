@@ -18,11 +18,8 @@ RUN    curl https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 
 RUN mkdir -p /robotest
 WORKDIR /robotest
-COPY entrypoint.sh /entrypoint.sh
 COPY build/robotest-suite /usr/bin/robotest-suite
 COPY build/go-junit-report /usr/bin/go-junit-report
 COPY terraform /robotest/terraform
 
 RUN chmod +x /usr/bin/robotest-suite
-
-ENTRYPOINT ["/entrypoint.sh"]

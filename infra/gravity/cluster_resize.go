@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
@@ -18,30 +19,50 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
-	joinAddr := current[0].Node().PrivateAddr()
-	status, err := current[0].Status(ctx)
+	master := current[0]
+	joinAddr := master.Node().PrivateAddr()
+	status, err := master.Status(ctx)
 	if err != nil {
-		trace.Wrap(err, "query status from [%v]", current[0])
+		trace.Wrap(err, "query status from [%v]", master)
 	}
 
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
 	defer cancel()
 
-	errs := make(chan error, len(extra))
 	for _, node := range extra {
-		go func(n Gravity) {
-			err := n.Join(ctx, JoinCmd{
-				PeerAddr: joinAddr,
-				Token:    status.Token,
-				Role:     role})
-			errs <- trace.Wrap(err, n.Node().PrivateAddr())
-		}(node)
-		time.Sleep(time.Second)
+		// workaround for bug #2324
+		err = wait.Retry(ctx, waitEtcdHealthOk(ctx, master))
+		if err != nil {
+			return trace.Wrap(err, "error waiting for ETCD health on node %s: %v", node.String(), err)
+		}
+
+		err = node.Join(ctx, JoinCmd{
+			PeerAddr: joinAddr,
+			Token:    status.Token,
+			Role:     role})
+		if err != nil {
+			return trace.Wrap(err, "error joining cluster on node %s: %v", node.String(), err)
+		}
 	}
 
-	_, err = utils.Collect(ctx, cancel, errs, nil)
-	return trace.Wrap(err)
-	// TODO: make proper assertion
+	return nil
+}
+
+func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
+	return func() error {
+		_, exitCode, err := sshutils.RunAndParse(ctx, node,
+			`sudo /usr/bin/gravity enter -- --notty /usr/bin/etcdctl -- cluster-health`,
+			nil, sshutils.ParseDiscard)
+		if err == nil {
+			return nil
+		}
+
+		if exitCode > 0 {
+			return wait.ContinueRetry{err.Error()}
+		} else {
+			return wait.AbortRetry{err}
+		}
+	}
 }
 
 // ShrinkLeave will gracefully leave cluster

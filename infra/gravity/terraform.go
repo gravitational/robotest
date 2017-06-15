@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,19 +20,59 @@ import (
 // DestroyFn function which will destroy previously created remote resources
 type DestroyFn func(context.Context, *testing.T) error
 
-var destroyOnSuccess = flag.Bool("destroy-on-success", true, "remove resources after test success")
-var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources after test failure")
-var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
-var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
+type ProvisionerPolicy struct {
+	// DestroyOnSuccess instructs to remove any cloud resources after test completed OK
+	DestroyOnSuccess bool
+	// DestroyOnFailure instructs to cleanup any cloud resources after test completed with failure or context was timed out or interrupted
+	DestroyOnFailure bool
+	// AlwaysCollectLogs requests to fetch logs also from VMs where tests completed OK
+	AlwaysCollectLogs bool
+	// FailFast requests to interrupt all other tests when any of the tests failed
+	FailFast bool
+	// ResourceListFile keeps record of allocated and not cleaned up resources
+	ResourceListFile string
+	// CancelAllFn is top-level context cancellation function which is used to implement FailFast behaviour
+	CancelAllFn func()
+}
+
+var policy ProvisionerPolicy
+
+func SetProvisionerPolicy(p ProvisionerPolicy) {
+	policy = p
+}
 
 var testStatus = map[bool]string{true: "failed", false: "ok"}
 
+const finalTeardownTimeout = time.Minute * 5
+
 // wrapDestroyFn implements a global conditional logic
 func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
-	return func(ctx context.Context, t *testing.T) error {
+	return func(baseContext context.Context, t *testing.T) error {
 		log := utils.Logf(t, tag)
 
-		if t.Failed() || *collectLogs {
+		skipLogCollection := false
+
+		if baseContext.Err() != nil && policy.DestroyOnFailure == false {
+			log("destroy skipped for %s: %v", tag, baseContext.Err())
+			return trace.Wrap(baseContext.Err())
+		}
+
+		ctx := baseContext
+		if baseContext.Err() != nil {
+			log("main context %v, providing extra %v for %s teardown and cleanup",
+				baseContext.Err(), finalTeardownTimeout, tag)
+			skipLogCollection = true
+			var cancel func()
+			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
+			defer cancel()
+		}
+
+		if t.Failed() && policy.FailFast {
+			log("test failed, FailFast=true requesting other tests teardown")
+			defer policy.CancelAllFn()
+		}
+
+		if !skipLogCollection && (t.Failed() || policy.AlwaysCollectLogs) {
 			log("collecting logs from nodes...")
 			err := NewContext(ctx, t, DefaultTimeouts).CollectLogs("postmortem", nodes)
 			if err != nil {
@@ -41,8 +80,8 @@ func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) er
 			}
 		}
 
-		if (*destroyOnSuccess == false) ||
-			(t.Failed() && *destroyOnFailure == false) {
+		if (policy.DestroyOnSuccess == false) ||
+			(t.Failed() && policy.DestroyOnFailure == false) {
 			log("Not removing terraform %s", tag)
 			return nil
 		}
@@ -88,11 +127,11 @@ func resourceDestroyed(tag string) error {
 }
 
 func saveResourceAllocations() error {
-	if *resourceListFile == "" {
+	if policy.ResourceListFile == "" {
 		return nil
 	}
 
-	file, err := os.OpenFile(*resourceListFile, os.O_RDWR|os.O_CREATE, constants.SharedReadMask)
+	file, err := os.OpenFile(policy.ResourceListFile, os.O_RDWR|os.O_CREATE, constants.SharedReadMask)
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
@@ -128,12 +167,24 @@ func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, par
 		defer cancel()
 
 		_, err = p.Create(ctx, false)
+		if ctx.Err() != nil {
+			teardownCtx, cancel := context.WithTimeout(context.Background(), finalTeardownTimeout)
+			defer cancel()
+			err1 := trace.Errorf("[terraform interrupted on apply due to upper context=%v, result=%v]", ctx.Err(), err)
+			err2 := trace.Wrap(p.Destroy(teardownCtx))
+			return nil, nil, trace.NewAggregate(err1, err2)
+		}
+
 		if err != nil {
 			continue
 		}
 
 		resourceAllocated(baseConfig.Tag())
 		return p.NodePool().Nodes(), p.Destroy, nil
+	}
+
+	if policy.FailFast {
+		policy.CancelAllFn()
 	}
 
 	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))

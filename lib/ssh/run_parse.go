@@ -110,24 +110,30 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 	}()
 
 	select {
-	case <-ctx.Done():
+	case ctxErr := <-ctx.Done():
 		err := session.Signal(ssh.SIGTERM)
-		return nil, exitStatusUndefined,
-			trace.Errorf("[%v] %s timed out, sending SIGTERM: %v",
-				node, cmd, err)
+		err = trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
+			node, cmd, ctxErr, err)
+		node.Logf(err.Error())
+		return nil, exitStatusUndefined, err
 	case err = <-runCh:
 		if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-			node.Logf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
-			return nil, exitErr.ExitStatus(), exitErr
+			err := trace.Errorf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
+			node.Logf(err.Error())
+			return nil, exitErr.ExitStatus(), err
 		}
 		if err != nil {
-			return nil, exitStatusUndefined, trace.Wrap(err)
+			err := trace.Wrap(err, cmd)
+			node.Logf(err.Error())
+			return nil, exitStatusUndefined, err
 		}
 	}
 
 	select {
 	case <-ctx.Done():
-		return nil, exitStatusUndefined, trace.Errorf("parse function timed out")
+		err := trace.Errorf("%s : parse function timed out", cmd)
+		node.Logf(err.Error())
+		return nil, exitStatusUndefined, err
 	case out := <-outCh:
 		if outErr, isError := out.(error); isError {
 			node.Logf("(parse fn failed) %s, error %v",
@@ -142,6 +148,14 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 func ParseDiscard(r *bufio.Reader) (interface{}, error) {
 	io.Copy(ioutil.Discard, r)
 	return nil, nil
+}
+
+func ParseAsString(r *bufio.Reader) (interface{}, error) {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return string(b), nil
 }
 
 type readLogger struct {

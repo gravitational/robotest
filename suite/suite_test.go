@@ -4,7 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -31,6 +34,11 @@ var configFile = flag.String("config", "", "cloud config file in YAML")
 var stateDir = flag.String("dir", "", "state dir")
 var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
 var repeat = flag.Int("repeat", 1, "how many times to repeat a test")
+var failFast = flag.Bool("fail-fast", false, "will attemt to shut down all other tests on first failure")
+var destroyOnSuccess = flag.Bool("destroy-on-success", true, "remove resources after test success")
+var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources after test failure")
+var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
+var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
 var testSets, osFlavors, storageDrivers valueList
 
@@ -64,6 +72,20 @@ func in(val string, arr []string) bool {
 	return false
 }
 
+func setupSignals(cancelFn func()) {
+	c := make(chan os.Signal, 3)
+	signal.Notify(c, syscall.SIGTERM)
+	signal.Notify(c, syscall.SIGHUP)
+	signal.Notify(c, syscall.SIGINT)
+
+	go func() {
+		for s := range c {
+			fmt.Println("GOT SIGNAL", s)
+			cancelFn()
+		}
+	}()
+}
+
 // TestMain is a selector of which test to run,
 // as go test cannot deal with multiple packages in pre-compiled mode
 // right now it'll just invoke sanity suite
@@ -94,7 +116,17 @@ func TestMain(t *testing.T) {
 
 	// testing package has internal 10 mins timeout, can be reset from command line only
 	// see docker/suite/entrypoint.sh
-	ctx, _ := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), testTimeout)
+	setupSignals(cancelFn)
+
+	gravity.SetProvisionerPolicy(gravity.ProvisionerPolicy{
+		DestroyOnSuccess:  *destroyOnSuccess,
+		DestroyOnFailure:  *destroyOnFailure,
+		AlwaysCollectLogs: *collectLogs,
+		FailFast:          *failFast,
+		ResourceListFile:  *resourceListFile,
+		CancelAllFn:       cancelFn,
+	})
 
 	for r := 1; r <= *repeat; r++ {
 		for _, osFlavor := range osFlavors {
