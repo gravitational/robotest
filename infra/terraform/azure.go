@@ -27,18 +27,22 @@ const (
 
 // GetAuthToken retrieves OAuth token for an application
 func AzureGetAuthToken(ctx context.Context, param AzureAuthParam) (*AzureToken, error) {
-	resp, err := http.PostForm(fmt.Sprintf(azureTokenUrl, param.TenantId),
+	reqUrl := fmt.Sprintf(azureTokenUrl, param.TenantId)
+	resp, err := http.PostForm(reqUrl,
 		url.Values{
 			"grant_type":    {"client_credentials"},
 			"resource":      {"https://management.azure.com/"},
 			"client_id":     {param.ClientId},
 			"client_secret": {param.ClientSecret}})
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return nil, trace.Wrap(err, "[POST %s]=%v", reqUrl, err)
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, trace.Wrap(err, "[read response from POST %s]=%v", reqUrl, err)
+	}
 
 	var token AzureToken
 	if err = json.Unmarshal(body, &token); err != nil {
@@ -56,10 +60,10 @@ func AzureRemoveResourceGroup(ctx context.Context, token *AzureToken, subscripti
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("DELETE",
-		fmt.Sprintf(azureManagementUrl, subscription, group), nil)
+	reqUrl := fmt.Sprintf(azureManagementUrl, subscription, group)
+	req, err := http.NewRequest("DELETE", reqUrl, nil)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(err, `[DELETE %s]=%v`, reqUrl, err)
 	}
 
 	req = req.WithContext(ctx)
@@ -70,7 +74,7 @@ func AzureRemoveResourceGroup(ctx context.Context, token *AzureToken, subscripti
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusAccepted {
-		return trace.Errorf("unexpected response %v", resp)
+		return trace.Errorf("%v/%s [DELETE %s]", resp.StatusCode, resp.Status, reqUrl)
 	}
 	return nil
 }

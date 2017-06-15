@@ -170,9 +170,9 @@ func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, par
 		if ctx.Err() != nil {
 			teardownCtx, cancel := context.WithTimeout(context.Background(), finalTeardownTimeout)
 			defer cancel()
-			return nil, nil, trace.Wrap(
-				trace.Errorf("terraform interrupted on apply: %v", ctx.Err()),
-				p.Destroy(teardownCtx))
+			err1 := trace.Errorf("[terraform interrupted on apply due to upper context=%v, result=%v]", ctx.Err(), err)
+			err2 := trace.Wrap(p.Destroy(teardownCtx))
+			return nil, nil, trace.NewAggregate(err1, err2)
 		}
 
 		if err != nil {
