@@ -112,9 +112,10 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 	select {
 	case ctxErr := <-ctx.Done():
 		err := session.Signal(ssh.SIGTERM)
-		return nil, exitStatusUndefined,
-			trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
-				node, cmd, ctxErr, err)
+		err = trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
+			node, cmd, ctxErr, err)
+		node.Logf(err.Error())
+		return nil, exitStatusUndefined, err
 	case err = <-runCh:
 		if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
 			err := trace.Errorf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
@@ -130,7 +131,9 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 
 	select {
 	case <-ctx.Done():
-		return nil, exitStatusUndefined, trace.Errorf("parse function timed out")
+		err := trace.Errorf("%s : parse function timed out", cmd)
+		node.Logf(err.Error())
+		return nil, exitStatusUndefined, err
 	case out := <-outCh:
 		if outErr, isError := out.(error); isError {
 			node.Logf("(parse fn failed) %s, error %v",

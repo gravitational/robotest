@@ -51,14 +51,14 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 				Token:    token,
 				Role:     role})
 			if err != nil {
-				n.Logf("Join failed, will cancel install")
-				cancel()
+				n.Logf("Join failed: %v", err)
 			}
 			errs <- err
 		}(node)
 	}
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
+	c.t.Log("install failed: %v", err)
 	return trace.Wrap(err)
 }
 
