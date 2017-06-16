@@ -48,7 +48,7 @@ func init() {
 	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers: devicemapper,loopback,overlay,overlay2")
 }
 
-var testTimeout = time.Hour * 3
+var testTimeout = time.Hour * 12
 
 type testSet map[string]gravity.TestFunc
 
