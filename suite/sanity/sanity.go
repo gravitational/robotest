@@ -29,16 +29,16 @@ var Basic = map[string]gravity.TestFunc{
 		InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),
 
 	"expand13": basicExpand(expandParam{
-		InitialNodes: 1, TargetNodes: 3, InitialFlavor: "one", Role: "node", Timeouts: *defaultTimeouts}),
+		InitialNodes: 1, TargetNodes: 3, InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),
 	"expand23": basicExpand(expandParam{
-		InitialNodes: 2, TargetNodes: 3, InitialFlavor: "two", Role: "node", Timeouts: *defaultTimeouts}),
+		InitialNodes: 2, TargetNodes: 3, InitialFlavor: "two", Role: "node", Timeouts: defaultTimeouts}),
 	"expand36": basicExpand(expandParam{
-		InitialNodes: 3, TargetNodes: 6, InitialFlavor: "one", Role: "node", Timeouts: *defaultTimeouts}),
+		InitialNodes: 3, TargetNodes: 6, InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),
 
 	"upgrade1": upgrade(upgradeParam{
-		NodeCount: 1, Flavor: "one", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: baseInstallerURL}),
+		NodeCount: 1, Flavor: "one", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: *baseInstallerURL}),
 	"upgrade3": upgrade(upgradeParam{
-		NodeCount: 3, Flavor: "three", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: baseInstallerURL}),
+		NodeCount: 3, Flavor: "three", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: *baseInstallerURL}),
 	"upgrade6": upgrade(upgradeParam{
-		NodeCount: 6, Flavor: "six", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: baseInstallerURL}),
+		NodeCount: 6, Flavor: "six", Role: "node", Timeouts: defaultTimeouts, BaseInstallerURL: *baseInstallerURL}),
 }
