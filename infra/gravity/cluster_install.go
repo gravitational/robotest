@@ -58,7 +58,9 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	}
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
-	c.t.Log("install failed: %v", err)
+	if err != nil {
+		c.t.Logf("install failed: %v", err)
+	}
 	return trace.Wrap(err)
 }
 

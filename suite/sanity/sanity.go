@@ -11,15 +11,19 @@ const (
 )
 
 var Basic = map[string]gravity.TestFunc{
+	"provision1": install(installParam{
+		NodeCount: 1, Flavor: "one", Timeouts: defaultTimeouts, Role: "node"}),
+	"provision3": install(installParam{
+		NodeCount: 3, Flavor: "three", Timeouts: defaultTimeouts, Role: "node"}),
+	"provision6": install(installParam{
+		NodeCount: 6, Flavor: "six", Timeouts: defaultTimeouts, Role: "node"}),
+
 	"install1": install(installParam{
-		Flavors: map[uint]string{1: "one"}, Timeouts: defaultTimeouts, Role: "node"}),
+		NodeCount: 1, Flavor: "one", Timeouts: defaultTimeouts, Role: "node"}),
 	"install3": install(installParam{
-		Flavors: map[uint]string{3: "three"}, Timeouts: defaultTimeouts, Role: "node"}),
+		NodeCount: 3, Flavor: "three", Timeouts: defaultTimeouts, Role: "node"}),
 	"install6": install(installParam{
-		Flavors: map[uint]string{6: "six"}, Timeouts: defaultTimeouts, Role: "node"}),
-	"install136": install(installParam{
-		Flavors:  map[uint]string{1: "one", 3: "three", 6: "six"},
-		Timeouts: defaultTimeouts, Role: "node"}),
+		NodeCount: 6, Flavor: "six", Timeouts: defaultTimeouts, Role: "node"}),
 
 	"basicResize": basicResize(resizeParam{
 		InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),
