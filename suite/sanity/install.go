@@ -22,8 +22,6 @@ type installParam struct {
 
 func install(param installParam) gravity.TestFunc {
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		t.Parallel()
-
 		cfg := baseConfig.WithNodes(param.NodeCount)
 		nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
 		require.NoError(t, err, "provision nodes")
@@ -38,8 +36,6 @@ func install(param installParam) gravity.TestFunc {
 
 func provision(param installParam) gravity.TestFunc {
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		t.Parallel()
-
 		cfg := baseConfig.WithNodes(param.NodeCount)
 		nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
 		require.NoError(t, err, "provision nodes")
