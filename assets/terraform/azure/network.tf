@@ -39,7 +39,7 @@ resource "azurerm_network_security_group" "robotest" {
     protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = 32009
-    source_address_prefix      = "*"
+    source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "*"
   }
 
