@@ -92,3 +92,58 @@ func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
+
+type ClusterNodesByRole struct {
+	ApiMaster         Gravity
+	GravitySiteMaster Gravity
+	GravitySiteBackup []Gravity
+	Regular           []Gravity
+}
+
+// NodesByRole will conveniently organize nodes according to their roles in cluster
+func (c TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
+	if len(nodes) < 1 {
+		return nil, trace.BadParameter("at least one node required")
+	}
+
+	roles := ClusterNodesByRole{
+		Regular:           []Gravity{},
+		GravitySiteBackup: []Gravity{},
+	}
+
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
+
+	apiMasterIP, err := ResolveInPlanet(ctx, nodes[0], "apiserver")
+	if err != nil {
+		return nil, trace.Wrap(err, "resolving apiserver: %v", err)
+	}
+
+	gravityMasterIP, gravityOther, err := GetGravitySiteNodes(ctx, nodes[0])
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+node_loop:
+	for _, node := range nodes {
+		if node.Node().PrivateAddr() == apiMasterIP {
+			roles.ApiMaster = node
+		}
+
+		if node.Node().PrivateAddr() == gravityMasterIP {
+			roles.GravitySiteMaster = node
+			continue node_loop
+		}
+
+		for _, ip := range gravityOther {
+			if node.Node().PrivateAddr() == ip {
+				roles.GravitySiteBackup = append(roles.GravitySiteBackup, node)
+				continue node_loop
+			}
+		}
+
+		roles.Regular = append(roles.Regular, node)
+	}
+
+	return &roles, nil
+}

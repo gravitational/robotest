@@ -167,9 +167,9 @@ type readLogger struct {
 func (l *readLogger) Read(p []byte) (n int, err error) {
 	n, err = l.r.Read(p)
 	if err != nil && err != io.EOF {
-		l.logFn("%s %q: %v", l.prefix, p[0:n], err)
+		l.logFn("%s %s: %v", l.prefix, string(p[0:n]), err)
 	} else if n > 0 {
-		l.logFn("%s %q", l.prefix, p[0:n])
+		l.logFn("%s %s", l.prefix, string(p[0:n]))
 	}
 	return n, err
 }

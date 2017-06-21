@@ -25,8 +25,23 @@ var Basic = map[string]gravity.TestFunc{
 	"install6": install(installParam{
 		NodeCount: 6, Flavor: "six", Timeouts: defaultTimeouts, Role: "node"}),
 
-	"basicResize": basicResize(resizeParam{
-		InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),
+	"apiMasterLoss3": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 3, InitialFlavor: "three", ReplaceNodeType: nodeApiMaster, Role: "node", Timeouts: defaultTimeouts}),
+	"apiMasterLoss6": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 6, InitialFlavor: "six", ReplaceNodeType: nodeApiMaster, Role: "node", Timeouts: defaultTimeouts}),
+
+	"gsMasterLoss3": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 3, InitialFlavor: "three", ReplaceNodeType: nodeGravitySiteMaster, Role: "node", Timeouts: defaultTimeouts}),
+	"gsMasterLoss6": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 6, InitialFlavor: "six", ReplaceNodeType: nodeGravitySiteMaster, Role: "node", Timeouts: defaultTimeouts}),
+
+	"gsNodeLoss3": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 3, InitialFlavor: "three", ReplaceNodeType: nodeGravitySiteNode, Role: "node", Timeouts: defaultTimeouts}),
+	"gsNodeLoss6": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 6, InitialFlavor: "six", ReplaceNodeType: nodeGravitySiteNode, Role: "node", Timeouts: defaultTimeouts}),
+
+	"workerNodeLoss6": lossAndRecovery(lossAndRecoveryParam{
+		InitialNodes: 6, InitialFlavor: "six", ReplaceNodeType: nodeRegularNode, Role: "node", Timeouts: defaultTimeouts}),
 
 	"expand13": basicExpand(expandParam{
 		InitialNodes: 1, TargetNodes: 3, InitialFlavor: "one", Role: "node", Timeouts: defaultTimeouts}),

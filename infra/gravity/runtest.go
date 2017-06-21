@@ -2,6 +2,8 @@ package gravity
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -46,7 +48,7 @@ var DefaultTimeouts = OpTimeouts{
 	Install:     time.Minute * 15,
 	Uninstall:   time.Minute * 5,
 	Status:      time.Minute * 3,
-	Leave:       time.Minute * 3,
+	Leave:       time.Minute * 40,
 	CollectLogs: time.Minute * 7,
 }
 
@@ -64,7 +66,24 @@ func NewContext(parent context.Context, t *testing.T, timeouts OpTimeouts) TestC
 
 // OK is equivalent to require.NoError
 func (c TestContext) OK(msg string, err error) {
-	require.NoError(c.t, err, msg)
+	require.NoError(c.t, err, fmt.Sprintf("%s : %v", msg, err))
+	if err == nil {
+		c.Logf("*** %s: OK!", msg)
+	}
+}
+
+// Sleep will just sleep with log message
+func (c TestContext) Sleep(msg string, d time.Duration) {
+	c.Logf("Sleep %v %s...", d, msg)
+	select {
+	case <-time.After(d):
+	case <-c.parent.Done():
+	}
+}
+
+func (c TestContext) Logf(format string, args ...interface{}) {
+	c.t.Logf(format, args...)
+	log.Printf("%s %s", c.t.Name(), fmt.Sprintf(format, args...))
 }
 
 func withDuration(d time.Duration, n int) time.Duration {

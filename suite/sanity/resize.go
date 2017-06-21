@@ -3,6 +3,7 @@ package sanity
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"time"
@@ -12,13 +13,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type resizeParam struct {
+const (
+	// K8S API master node
+	nodeApiMaster = "apimaster"
+	// Gravity Site master node
+	nodeGravitySiteMaster = "gsmaster"
+	// One of the GravitySite nodes
+	nodeGravitySiteNode = "gsnode"
+	// Regular node
+	nodeRegularNode = "regular"
+)
+
+type lossAndRecoveryParam struct {
 	// Timeouts is per-node operation timeout value
 	Timeouts gravity.OpTimeouts
 	// Role is node role
 	Role string
-	// InitialFlavor is equivalent to 1 node
+	// InitialFlavor is equivalent to InitialNodes node
 	InitialFlavor string
+	// InitialNodes how many nodes
+	InitialNodes uint
+	// ReplaceNodes is how many nodes to loose and recover
+	ReplaceNodes uint
+	// ReplaceNodeType : see killXXX constants
+	ReplaceNodeType string
 }
 
 type expandParam struct {
@@ -66,29 +84,79 @@ func basicExpand(param expandParam) gravity.TestFunc {
 	}
 }
 
-// testEssentialResize performs the following sanity test:
-// * install 1 node expand to 3
-// * force remove 1 recover another one
-func basicResize(param resizeParam) gravity.TestFunc {
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		config := baseConfig.WithNodes(4)
+// lossAndRecovery installs cluster then fails one of the nodes, and then removes it
+// There are several modes how nodes could be removed:
+// 1. forcible or not : i.e. whether node is shut down first or not
+// 2. whether node is master, or one of gravity-site members, or regular node
+// 3.
+// 4.
 
-		nodes, destroyFn, err := gravity.Provision(ctx, t, config)
+func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
+	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+		config := baseConfig.WithNodes(param.InitialNodes + 1)
+
+		allNodes, destroyFn, err := gravity.Provision(ctx, t, config)
 		require.NoError(t, err, "provision nodes")
 		defer destroyFn(ctx, t)
 
 		g := gravity.NewContext(ctx, t, param.Timeouts)
 
-		g.OK("install one node", g.OfflineInstall(nodes[0:1], param.InitialFlavor, param.Role))
-		g.OK("status", g.Status(nodes[0:1]))
+		g.OK("download installer", g.SetInstaller(allNodes, config.InstallerURL, "install"))
 
-		g.OK("expand to three", g.Expand(nodes[0:1], nodes[1:3], param.Role))
-		g.OK("status", g.Status(nodes[0:3]))
+		installed := allNodes[0:param.InitialNodes]
+		g.OK("install", g.OfflineInstall(installed, param.InitialFlavor, param.Role))
 
-		g.OK("node loss", g.NodeLoss(nodes[1:3], nodes[0:1]))
-		g.Status(nodes[0:1]) // informative
+		g.Sleep("between install and node loss", time.Minute*2)
 
-		g.OK("replace node", g.Expand(nodes[1:3], nodes[3:4], param.Role))
-		g.OK("status", g.Status(nodes[1:4]))
+		before, err := g.NodesByRole(installed)
+		g.OK("node roles", err)
+		g.Logf("Cluster Roles: %+v", before)
+
+		var remaining []gravity.Gravity
+		switch param.ReplaceNodeType {
+		case nodeApiMaster:
+			remaining = excludeNode(installed, before.ApiMaster)
+			err = g.NodeLoss(remaining, before.ApiMaster)
+		case nodeGravitySiteNode:
+			require.Len(t, before.GravitySiteBackup, 2)
+
+			// avoid picking up ApiMaster, as it'll become a very different test then
+			idx := 0
+			if before.GravitySiteBackup[idx] == before.ApiMaster {
+				idx = 1
+			}
+			remaining = excludeNode(installed, before.GravitySiteBackup[idx])
+			err = g.NodeLoss(remaining, before.GravitySiteBackup[idx])
+		case nodeRegularNode:
+			require.NotEmpty(t, before.Regular)
+			idx := rand.Intn(len(before.Regular))
+			remaining = excludeNode(installed, before.Regular[idx])
+			err = g.NodeLoss(remaining, before.Regular[idx])
+		default:
+			t.Fatalf("unexpected node role type %s", param.ReplaceNodeType)
+		}
+		g.OK("node loss", err)
+
+		g.Sleep("between node loss and recovery", time.Minute)
+
+		g.OK("replace node", g.Expand(remaining, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))
+
+		after, err := g.NodesByRole(append(remaining, allNodes[param.InitialNodes]))
+		g.OK("node role after replacement", err)
+		g.Logf("Cluster Roles: %+v", after)
+
+		require.NotNil(t, after.ApiMaster, "api master")
+		require.Len(t, after.GravitySiteBackup, 2)
+		require.Len(t, after.Regular, int(param.InitialNodes-3))
 	}
+}
+
+func excludeNode(nodes []gravity.Gravity, excl gravity.Gravity) []gravity.Gravity {
+	out := []gravity.Gravity{}
+	for _, node := range nodes {
+		if excl != node {
+			out = append(out, node)
+		}
+	}
+	return out
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -47,6 +48,8 @@ type Gravity interface {
 	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
 	// Upgrade takes currently active installer (see SetInstaller) and tries to perform upgrade
 	Upgrade(ctx context.Context) error
+	// RunInPlanet runs specific command inside Planet container and returns its result
+	RunInPlanet(ctx context.Context, cmd string, args []string) (string, error)
 	// Node returns underlying VM instance
 	Node() infra.Node
 	// Client returns SSH client to VM instance
@@ -226,25 +229,23 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm`, g.installDir)
+		cmd = `leave --confirm`
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity leave --debug --confirm --force`, g.installDir)
+		cmd = `leave --confirm --force`
 	}
 
-	err := sshutils.Run(ctx, g, cmd, nil)
-	return trace.Wrap(err, cmd)
+	return trace.Wrap(g.runOp(ctx, cmd))
 }
 
 // Remove ejects node from cluster
 func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
 	var cmd string
 	if graceful {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`remove --confirm %s`, node)
 	} else {
-		cmd = fmt.Sprintf(`cd %s && sudo ./gravity remove --debug --confirm --force %s`, g.installDir, node)
+		cmd = fmt.Sprintf(`remove --confirm --force %s`, node)
 	}
-	err := sshutils.Run(ctx, g, cmd, nil)
-	return trace.Wrap(err, cmd)
+	return trace.Wrap(g.runOp(ctx, cmd))
 }
 
 // Uninstall removes gravity installation. It requires Leave beforehand
@@ -330,19 +331,34 @@ func (g *gravity) Upgrade(ctx context.Context) error {
 		return trace.Wrap(err)
 	}
 
+	return trace.Wrap(g.runOp(ctx, `upgrade $(./gravity app-package --state-dir=.)`))
+}
+
+// for cases when gravity doesn't return just opcode but an extended message
+var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\".*`)
+
+// runOp launches specific command and waits for operation to complete, ignoring transient errors
+func (g *gravity) runOp(ctx context.Context, command string) error {
 	codeI, _, err := sshutils.RunAndParse(ctx, g,
-		fmt.Sprintf(`cd %s && sudo ./gravity --insecure -q upgrade $(./gravity app-package --state-dir=.)`, g.installDir),
+		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet`, g.installDir, command),
 		nil, sshutils.ParseAsString)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	code, ok := codeI.(string)
 	if !ok {
-		return trace.Errorf("unexpected response type %v", codeI)
+		return trace.Errorf("cmd=%s, unexpected response type %v", command, codeI)
+	}
+	if match := reGravityExtended.FindStringSubmatch(code); len(match) == 2 {
+		code = match[1]
 	}
 
-	// wait for operation to complete
-	err = wait.Retry(ctx, func() error {
+	retry := wait.Retryer{
+		Attempts: 1000,
+		Delay:    time.Second * 20,
+	}
+
+	err = retry.Do(ctx, func() error {
 		responseI, _, err := sshutils.RunAndParse(ctx, g,
 			fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code),
 			nil, sshutils.ParseAsString)
@@ -352,11 +368,27 @@ func (g *gravity) Upgrade(ctx context.Context) error {
 				return nil
 			}
 			if strings.Contains(response, "fail") {
-				return wait.AbortRetry{trace.Errorf("%s: %v", response, err)}
+				return wait.Abort(trace.Errorf("%s: %v", response, err))
 			}
 		}
 
-		return wait.ContinueRetry{"waiting for update to complete"}
+		return wait.Continue("waiting for op to complete")
 	})
 	return trace.Wrap(err)
+}
+
+// RunInPlanet executes given command inside Planet container
+func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args []string) (string, error) {
+	c := fmt.Sprintf(`cd %s && sudo ./gravity enter -- --notty %s -- %s`,
+		g.installDir, cmd, strings.Join(args, " "))
+	outI, _, err := sshutils.RunAndParse(ctx, g, c, nil, sshutils.ParseAsString)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	out, ok := outI.(string)
+	if !ok {
+		return "", trace.Errorf("got %v which is not string", outI)
+	}
+
+	return out, nil
 }

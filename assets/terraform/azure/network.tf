@@ -32,6 +32,18 @@ resource "azurerm_network_security_group" "robotest" {
   }
 
   security_rule {
+    name                       = "WebAdmin"
+    priority                   = 1011
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "TCP"
+    source_port_range          = "*"
+    destination_port_range     = 32009
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
     name                       = "InstallerPorts"
     priority                   = 1020
     direction                  = "Inbound"
