@@ -44,8 +44,8 @@ type lossAndRecoveryParam struct {
 }
 
 func lossAndRecoveryVariety(template lossAndRecoveryParam) gravity.TestFunc {
-	var exp map[bool]string = map[bool]string{true: "eB", false: "eA"}
-	var pwr map[bool]string = map[bool]string{true: "on", false: "of"}
+	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
+	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
 		for _, nodeRoleType := range []string{nodeApiMaster, nodeGravitySiteMaster, nodeGravitySiteNode, nodeRegularNode} {
@@ -76,12 +76,14 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 
 		g.OK("download installer", g.SetInstaller(allNodes, config.InstallerURL, "install"))
 
+		g.Logf("Loss and Recovery test param %+v", param)
+
 		nodes := allNodes[0:param.InitialNodes]
 		g.OK("install", g.OfflineInstall(nodes, param.InitialFlavor, param.Role))
 		g.OK("install status", g.Status(nodes))
 
 		nodes, removed, err := removeNode(g, t, nodes, param.ReplaceNodeType, param.PowerOff)
-		g.OK("node removal", err)
+		g.OK(fmt.Sprintf("node for removal=%v, poweroff=%v", removed, param.PowerOff), err)
 
 		now := time.Now()
 		g.OK("wait for readiness", g.Status(nodes))
@@ -93,10 +95,10 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 			nodes = append(nodes, allNodes[param.InitialNodes])
 
 			g.OK("remove lost node",
-				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), removed.Offline()))
+				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), !removed.Offline()))
 		} else {
-			g.OK("remove lost node",
-				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), removed.Offline()))
+			g.OK("remove node",
+				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), !removed.Offline()))
 
 			g.OK("replace node",
 				g.Expand(nodes, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))

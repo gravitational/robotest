@@ -2,6 +2,9 @@ package gravity
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
 
@@ -59,9 +62,33 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
-		c.t.Logf("install failed: %v", err)
+		c.Logf("install failed: %v", err)
+		return trace.Wrap(err)
+	}
+
+	pass := makePassword()
+	user := "robotest@gravitational.io"
+
+	out, err := nodes[0].RunInPlanet(ctx, "curl", []string{
+		`-H`, `"Content-Type: application/json"`,
+		`-X`, `POST`, `-d`,
+		fmt.Sprintf(`'{"email":"%s","password":"%s"}'`, user, pass),
+		`http://bandwagon.kube-system.svc.cluster.local/api/complete`})
+	if err == nil {
+		c.Logf("Admin interface: https://%s:32009/ user=%s, pass=%s. Creating user=%q",
+			nodes[0].Node().Addr(), user, pass, out)
 	}
 	return trace.Wrap(err)
+}
+
+func makePassword() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+	result := make([]byte, 10)
+	for i := range result {
+		result[i] = chars[r.Intn(len(chars))]
+	}
+	return string(result)
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
