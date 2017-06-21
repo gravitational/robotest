@@ -52,6 +52,8 @@ type Gravity interface {
 	RunInPlanet(ctx context.Context, cmd string, args []string) (string, error)
 	// Node returns underlying VM instance
 	Node() infra.Node
+	// Offline returns true if node was previously powered off
+	Offline() bool
 	// Client returns SSH client to VM instance
 	Client() *ssh.Client
 	// Text representation
@@ -268,6 +270,10 @@ func (g *gravity) PowerOff(ctx context.Context, graceful bool) error {
 	g.ssh = nil
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
+}
+
+func (g *gravity) Offline() bool {
+	return g.ssh == nil
 }
 
 // Reboot gracefully restarts a machine and waits for it to become available again

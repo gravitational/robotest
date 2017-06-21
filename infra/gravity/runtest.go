@@ -47,7 +47,7 @@ type OpTimeouts struct {
 var DefaultTimeouts = OpTimeouts{
 	Install:     time.Minute * 15,
 	Uninstall:   time.Minute * 5,
-	Status:      time.Minute * 3,
+	Status:      time.Minute * 30, // sufficient for failover procedures
 	Leave:       time.Minute * 40,
 	CollectLogs: time.Minute * 7,
 }
@@ -62,6 +62,10 @@ type TestContext struct {
 // NewContext creates new context holder
 func NewContext(parent context.Context, t *testing.T, timeouts OpTimeouts) TestContext {
 	return TestContext{t, parent, timeouts}
+}
+
+func (c TestContext) Context() context.Context {
+	return c.parent
 }
 
 // OK is equivalent to require.NoError
