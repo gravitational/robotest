@@ -69,7 +69,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	pass := makePassword()
 	user := "robotest@gravitational.io"
 
-	out, err := nodes[0].RunInPlanet(ctx, "curl", []string{
+	out, err := nodes[0].RunInPlanet(ctx, "/usr/bin/curl", []string{
 		`-H`, `"Content-Type: application/json"`,
 		`-X`, `POST`, `-d`,
 		fmt.Sprintf(`'{"email":"%s","password":"%s"}'`, user, pass),

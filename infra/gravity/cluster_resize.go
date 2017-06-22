@@ -86,23 +86,21 @@ func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
 }
 
 // TestNodeLoss simulates sudden nodes loss within an existing cluster followed by node eviction
-func (c TestContext) NodeLoss(nodesToKeep []Gravity, remove Gravity) error {
+func (c TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
 	if len(nodesToKeep) == 0 {
 		return trace.BadParameter("node list empty")
 	}
-
-	if err := remove.PowerOff(c.parent, Force); err != nil {
-		return trace.Wrap(err, "error powering off")
-	}
-
-	// informative, is expected to report errors
-	c.Status(nodesToKeep)
 
 	master := nodesToKeep[0]
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Leave)
 	defer cancel()
 
-	err := master.Remove(ctx, remove.Node().PrivateAddr(), Force)
+	err := master.Remove(ctx, remove.Node().PrivateAddr(), !remove.Offline())
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = c.Status(nodesToKeep)
 	return trace.Wrap(err)
 }

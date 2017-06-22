@@ -48,7 +48,7 @@ var DefaultTimeouts = OpTimeouts{
 	Install:     time.Minute * 15,
 	Uninstall:   time.Minute * 5,
 	Status:      time.Minute * 30, // sufficient for failover procedures
-	Leave:       time.Minute * 40,
+	Leave:       time.Minute * 15,
 	CollectLogs: time.Minute * 7,
 }
 
@@ -73,6 +73,14 @@ func (c TestContext) OK(msg string, err error) {
 	require.NoError(c.t, err, fmt.Sprintf("%s : %v", msg, err))
 	if err == nil {
 		c.Logf("*** %s: OK!", msg)
+	}
+}
+
+// Require verifies condition is true, fails test otherwise
+func (c TestContext) Require(msg string, condition bool, args ...interface{}) {
+	if !condition {
+		c.Logf("*** FATAL: condition %s not met: %v", msg, args)
+		c.t.FailNow()
 	}
 }
 

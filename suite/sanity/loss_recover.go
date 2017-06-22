@@ -48,7 +48,7 @@ func lossAndRecoveryVariety(template lossAndRecoveryParam) gravity.TestFunc {
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeApiMaster, nodeGravitySiteMaster, nodeGravitySiteNode, nodeRegularNode} {
+		for _, nodeRoleType := range []string{nodeGravitySiteMaster} { // , nodeApiMaster, nodeGravitySiteNode, nodeRegularNode} {
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
@@ -94,11 +94,17 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 				g.Expand(nodes, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))
 			nodes = append(nodes, allNodes[param.InitialNodes])
 
-			g.OK("remove lost node",
-				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), !removed.Offline()))
+			roles, err := g.NodesByRole(nodes)
+			g.OK("node role after expand", err)
+			g.Logf("Roles after expand: %+v", roles)
+
+			g.OK("remove lost node", g.RemoveNode(nodes, removed))
 		} else {
-			g.OK("remove node",
-				nodes[0].Remove(ctx, removed.Node().PrivateAddr(), !removed.Offline()))
+			g.OK("remove lost node", g.RemoveNode(nodes, removed))
+
+			roles, err := g.NodesByRole(nodes)
+			g.OK("node role after remove", err)
+			g.Logf("Roles after remove: %+v", roles)
 
 			g.OK("replace node",
 				g.Expand(nodes, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))
@@ -106,7 +112,8 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 		}
 
 		roles, err := g.NodesByRole(nodes)
-		g.OK("node role after replacement", err)
+		g.OK("final node roles", err)
+		g.Logf("Final Cluster Roles: %+v", roles)
 
 		g.Logf("Cluster Roles: %+v", roles)
 		require.NotNil(t, roles.ApiMaster, "api master")
@@ -127,8 +134,7 @@ func removeNode(g gravity.TestContext, t *testing.T,
 	case nodeApiMaster:
 		removed = roles.ApiMaster
 	case nodeGravitySiteMaster:
-		require.NotEqual(t, roles.ApiMaster, roles.GravitySiteMaster,
-			"gravity-site master == apiserver, will not test this one")
+		g.Require("gravity-site master != apiserver", roles.ApiMaster != roles.GravitySiteMaster)
 		removed = roles.GravitySiteMaster
 	case nodeGravitySiteNode:
 		require.Len(t, roles.GravitySiteBackup, 2)
