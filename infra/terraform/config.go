@@ -19,8 +19,10 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if (c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != "") ||
-		(c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != "") == false {
+	hasValidAWSSSH := c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != ""
+	hasValidAzureSSH := c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != ""
+
+	if (hasValidAWSSSH || hasValidAzureSSH) == false {
 		errors = append(errors,
 			trace.Errorf("SSH configuration missing for %s", c.CloudProvider))
 	}
