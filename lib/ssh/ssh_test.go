@@ -69,14 +69,16 @@ func testPutFile(t *testing.T, client *ssh.Client) {
 }
 
 func testEnv(t *testing.T, client *ssh.Client) {
-	out, exit, err := RunAndParse(context.Background(),
+	var out string
+	exit, err := RunAndParse(context.Background(),
 		t.Logf,
 		client,
 		"echo $AWS_SECURE_KEY",
 		// NOTE: add `AcceptEnv AWS_*` to /etc/ssh/sshd.conf
 		map[string]string{"AWS_SECURE_KEY": "SECUREKEY"},
-		func(r *bufio.Reader) (interface{}, error) {
-			return r.ReadString('\n')
+		func(r *bufio.Reader) error {
+			out = r.ReadString('\n')
+			return nil
 		})
 	assert.NoError(t, err)
 	assert.Zero(t, exit, "exit code")

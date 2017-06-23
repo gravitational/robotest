@@ -54,7 +54,7 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 
 func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 	return func() error {
-		_, exitCode, err := sshutils.RunAndParse(ctx, node,
+		exitCode, err := sshutils.RunAndParse(ctx, node,
 			`sudo /usr/bin/gravity enter -- --notty /usr/bin/etcdctl -- cluster-health`,
 			nil, sshutils.ParseDiscard)
 		if err == nil {
@@ -77,7 +77,7 @@ func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
 	errs := make(chan error, len(nodesToRemove))
 	for _, node := range nodesToRemove {
 		go func(n Gravity) {
-			err := n.Leave(ctx, Graceful)
+			err := n.Leave(ctx, Graceful(true))
 			errs <- trace.Wrap(err, n.Node().PrivateAddr())
 		}(node)
 	}
@@ -85,7 +85,7 @@ func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
-// TestNodeLoss simulates sudden nodes loss within an existing cluster followed by node eviction
+// RemoveNode simulates sudden nodes loss within an existing cluster followed by node eviction
 func (c TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
 	if len(nodesToKeep) == 0 {
 		return trace.BadParameter("node list empty")
@@ -96,7 +96,7 @@ func (c TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Leave)
 	defer cancel()
 
-	err := master.Remove(ctx, remove.Node().PrivateAddr(), !remove.Offline())
+	err := master.Remove(ctx, remove.Node().PrivateAddr(), Graceful(!remove.Offline()))
 	if err != nil {
 		return trace.Wrap(err)
 	}

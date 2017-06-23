@@ -69,11 +69,11 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	pass := makePassword()
 	user := "robotest@gravitational.io"
 
-	out, err := nodes[0].RunInPlanet(ctx, "/usr/bin/curl", []string{
+	out, err := nodes[0].RunInPlanet(ctx, "/usr/bin/curl", "--silent",
 		`-H`, `"Content-Type: application/json"`,
 		`-X`, `POST`, `-d`,
 		fmt.Sprintf(`'{"email":"%s","password":"%s"}'`, user, pass),
-		`http://bandwagon.kube-system.svc.cluster.local/api/complete`})
+		`http://bandwagon.kube-system.svc.cluster.local/api/complete`)
 	if err == nil {
 		c.Logf("Admin interface: https://%s:32009/ user=%s, pass=%s. Creating user=%q",
 			nodes[0].Node().Addr(), user, pass, out)

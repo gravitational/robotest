@@ -99,11 +99,16 @@ func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
+// ClusterNodesByRole defines which roles every node plays in a cluster
 type ClusterNodesByRole struct {
-	ApiMaster         Gravity
-	GravitySiteMaster Gravity
-	GravitySiteBackup []Gravity
-	Regular           []Gravity
+	// ApiMaster is Kubernetes apiserver master
+	ApiMaster Gravity
+	// ClusterMaster is current gravity-site application master
+	ClusterMaster Gravity
+	// ClusterBackup are backup nodes for gravity-site application
+	ClusterBackup []Gravity
+	// Regular nodes are those which are part of the cluster but have no role assigned
+	Regular []Gravity
 }
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
@@ -112,39 +117,36 @@ func (c TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
 		return nil, trace.BadParameter("at least one node required")
 	}
 
-	roles := ClusterNodesByRole{
-		Regular:           []Gravity{},
-		GravitySiteBackup: []Gravity{},
-	}
+	roles := ClusterNodesByRole{}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
-	apiMasterIP, err := ResolveInPlanet(ctx, nodes[0], "apiserver")
+	apiMaster, err := ResolveInPlanet(ctx, nodes[0], "apiserver")
 	if err != nil {
 		return nil, trace.Wrap(err, "resolving apiserver: %v", err)
 	}
 
-	gravityMasterIP, gravityOther, err := GetGravitySiteNodes(ctx, nodes[0])
+	clusterMaster, clusterBackup, err := GetGravitySiteNodes(ctx, nodes[0])
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-node_loop:
+nodeLoop:
 	for _, node := range nodes {
-		if node.Node().PrivateAddr() == apiMasterIP {
+		if node.Node().PrivateAddr() == apiMaster {
 			roles.ApiMaster = node
 		}
 
-		if node.Node().PrivateAddr() == gravityMasterIP {
-			roles.GravitySiteMaster = node
-			continue node_loop
+		if node.Node().PrivateAddr() == clusterMaster {
+			roles.ClusterMaster = node
+			continue
 		}
 
-		for _, ip := range gravityOther {
+		for _, ip := range clusterBackup {
 			if node.Node().PrivateAddr() == ip {
-				roles.GravitySiteBackup = append(roles.GravitySiteBackup, node)
-				continue node_loop
+				roles.ClusterBackup = append(roles.ClusterBackup, node)
+				continue nodeLoop
 			}
 		}
 

@@ -35,21 +35,21 @@ type Gravity interface {
 	// Join asks to join existing cluster (or installation in progress)
 	Join(ctx context.Context, param JoinCmd) error
 	// Leave requests current node leave a cluster
-	Leave(ctx context.Context, graceful bool) error
+	Leave(ctx context.Context, graceful Graceful) error
 	// Remove requests cluster to evict a given node
-	Remove(ctx context.Context, node string, graceful bool) error
+	Remove(ctx context.Context, node string, graceful Graceful) error
 	// Uninstall will wipe gravity installation from node
 	Uninstall(ctx context.Context) error
 	// PowerOff will power off the node
-	PowerOff(ctx context.Context, graceful bool) error
+	PowerOff(ctx context.Context, graceful Graceful) error
 	// Reboot will reboot this node and wait until it will become available again
-	Reboot(ctx context.Context, graceful bool) error
+	Reboot(ctx context.Context, graceful Graceful) error
 	// CollectLogs will pull essential logs from node and store it in state dir under node-logs/prefix
 	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
 	// Upgrade takes currently active installer (see SetInstaller) and tries to perform upgrade
 	Upgrade(ctx context.Context) error
 	// RunInPlanet runs specific command inside Planet container and returns its result
-	RunInPlanet(ctx context.Context, cmd string, args []string) (string, error)
+	RunInPlanet(ctx context.Context, cmd string, args ...string) (string, error)
 	// Node returns underlying VM instance
 	Node() infra.Node
 	// Offline returns true if node was previously powered off
@@ -62,12 +62,7 @@ type Gravity interface {
 	Logf(format string, args ...interface{})
 }
 
-const (
-	// Force an operation
-	Force = false
-	// Graceful completion of operation
-	Graceful = true
-)
+type Graceful bool
 
 // InstallCmd install parameters passed to first node
 type InstallCmd struct {
@@ -180,7 +175,8 @@ func (g *gravity) SiteReport(ctx context.Context) error {
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
-	status, exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus)
+	status := GravityStatus{}
+	exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus(&status))
 
 	if err != nil {
 		return nil, trace.Wrap(err, cmd)
@@ -191,7 +187,7 @@ func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 			g.Node().PrivateAddr(), g.Node().Addr(), cmd, exit)
 	}
 
-	return status.(*GravityStatus), nil
+	return &status, nil
 }
 
 func (g *gravity) OfflineUpdate(ctx context.Context, installerUrl string) error {
@@ -228,7 +224,7 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 }
 
 // Leave makes given node leave the cluster
-func (g *gravity) Leave(ctx context.Context, graceful bool) error {
+func (g *gravity) Leave(ctx context.Context, graceful Graceful) error {
 	var cmd string
 	if graceful {
 		cmd = `leave --confirm`
@@ -240,7 +236,7 @@ func (g *gravity) Leave(ctx context.Context, graceful bool) error {
 }
 
 // Remove ejects node from cluster
-func (g *gravity) Remove(ctx context.Context, node string, graceful bool) error {
+func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) error {
 	var cmd string
 	if graceful {
 		cmd = fmt.Sprintf(`remove --confirm %s`, node)
@@ -258,7 +254,7 @@ func (g *gravity) Uninstall(ctx context.Context) error {
 }
 
 // PowerOff forcibly halts a machine
-func (g *gravity) PowerOff(ctx context.Context, graceful bool) error {
+func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 	var cmd string
 	if graceful {
 		cmd = "sudo shutdown -h now"
@@ -277,7 +273,7 @@ func (g *gravity) Offline() bool {
 }
 
 // Reboot gracefully restarts a machine and waits for it to become available again
-func (g *gravity) Reboot(ctx context.Context, graceful bool) error {
+func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 	var cmd string
 	if graceful {
 		cmd = "sudo shutdown -r now"
@@ -345,15 +341,12 @@ var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\"
 
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
-	codeI, _, err := sshutils.RunAndParse(ctx, g,
+	var code string
+	_, err := sshutils.RunAndParse(ctx, g,
 		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet`, g.installDir, command),
-		nil, sshutils.ParseAsString)
+		nil, sshutils.ParseAsString(&code))
 	if err != nil {
 		return trace.Wrap(err)
-	}
-	code, ok := codeI.(string)
-	if !ok {
-		return trace.Errorf("cmd=%s, unexpected response type %v", command, codeI)
 	}
 	if match := reGravityExtended.FindStringSubmatch(code); len(match) == 2 {
 		code = match[1]
@@ -365,35 +358,34 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 	}
 
 	err = retry.Do(ctx, func() error {
-		responseI, _, err := sshutils.RunAndParse(ctx, g,
-			fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code),
-			nil, sshutils.ParseAsString)
-		response, ok := responseI.(string)
-		if ok {
-			if strings.Contains(response, "complete") {
-				return nil
-			}
-			if strings.Contains(response, "fail") {
-				return wait.Abort(trace.Errorf("%s: %v", response, err))
-			}
+		var response string
+		cmd := fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code)
+		_, err := sshutils.RunAndParse(ctx, g,
+			cmd, nil, sshutils.ParseAsString(&response))
+		if err != nil {
+			return wait.Continue(cmd)
+		}
+		if strings.Contains(response, "complete") {
+			return nil
+		}
+		if strings.Contains(response, "fail") {
+			return wait.Abort(trace.Errorf("%s: response=%, err=%v", cmd, response, err))
 		}
 
-		return wait.Continue("waiting for op to complete")
+		return wait.Continue(cmd)
 	})
 	return trace.Wrap(err)
 }
 
 // RunInPlanet executes given command inside Planet container
-func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args []string) (string, error) {
+func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (string, error) {
 	c := fmt.Sprintf(`cd %s && sudo ./gravity enter -- --notty %s -- %s`,
 		g.installDir, cmd, strings.Join(args, " "))
-	outI, _, err := sshutils.RunAndParse(ctx, g, c, nil, sshutils.ParseAsString)
+
+	var out string
+	_, err := sshutils.RunAndParse(ctx, g, c, nil, sshutils.ParseAsString(&out))
 	if err != nil {
 		return "", trace.Wrap(err)
-	}
-	out, ok := outI.(string)
-	if !ok {
-		return "", trace.Errorf("got %v which is not string", outI)
 	}
 
 	return out, nil

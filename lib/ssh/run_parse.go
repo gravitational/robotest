@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type OutputParseFn func(r *bufio.Reader) (out interface{}, err error)
+type OutputParseFn func(r *bufio.Reader) error
 
 const exitStatusUndefined = -1
 
@@ -28,7 +28,7 @@ type SshNode interface {
 
 // Run is a simple method to run external program and don't care about its output or exit status
 func Run(ctx context.Context, node SshNode, cmd string, env map[string]string) error {
-	_, exit, err := RunAndParse(ctx, node,
+	exit, err := RunAndParse(ctx, node,
 		cmd, env, ParseDiscard)
 
 	if err != nil {
@@ -44,10 +44,10 @@ func Run(ctx context.Context, node SshNode, cmd string, env map[string]string) e
 
 // RunAndParse runs remote SSH command with environment variables set by `env`
 // exitStatus is -1 if undefined
-func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]string, parse OutputParseFn) (out interface{}, exitStatus int, err error) {
+func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
 	session, err := node.Client().NewSession()
 	if err != nil {
-		return nil, exitStatusUndefined, trace.Wrap(err, "ssh session")
+		return exitStatusUndefined, trace.Wrap(err, "ssh session")
 	}
 	defer session.Close()
 
@@ -62,33 +62,28 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		return nil, exitStatusUndefined, trace.Wrap(err)
+		return exitStatusUndefined, trace.Wrap(err)
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		return nil, exitStatusUndefined, trace.Wrap(err)
+		return exitStatusUndefined, trace.Wrap(err)
 	}
 
-	outCh := make(chan interface{}, 1)
+	errCh := make(chan error, 2)
+	expectErrs := 1
 	if parse != nil {
+		expectErrs++
 		go func() {
-			out, err := parse(bufio.NewReader(
+			err := parse(bufio.NewReader(
 				&readLogger{fmt.Sprintf("%s [stdout]", cmd), node.Logf, stdout}))
-			if err != nil {
-				outCh <- trace.Wrap(err)
-			} else {
-				outCh <- out
-			}
+			errCh <- trace.Wrap(err)
 		}()
-	} else {
-		outCh <- nil
 	}
 
-	runCh := make(chan error, 3)
 	go func() {
 		node.Logf("(starting) %s", cmd)
-		runCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
+		errCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
 	}()
 
 	go func() {
@@ -100,7 +95,7 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 			}
 			if parse == nil {
 				session.Close()
-				runCh <- nil // FIXME : this is a hack; session closure does not unblock session.Run() wonder if there's a better way
+				errCh <- nil // FIXME : this is a hack; session closure does not unblock session.Run() wonder if there's a better way
 				return
 			}
 			if err != nil {
@@ -109,53 +104,45 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 		}
 	}()
 
-	select {
-	case ctxErr := <-ctx.Done():
-		err := session.Signal(ssh.SIGTERM)
-		err = trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
-			node, cmd, ctxErr, err)
-		node.Logf(err.Error())
-		return nil, exitStatusUndefined, err
-	case err = <-runCh:
-		if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-			err := trace.Errorf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
+	for i := 0; i < expectErrs; i++ {
+		select {
+		case ctxErr := <-ctx.Done():
+			err := session.Signal(ssh.SIGTERM)
+			err = trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
+				node, cmd, ctxErr, err)
 			node.Logf(err.Error())
-			return nil, exitErr.ExitStatus(), err
-		}
-		if err != nil {
-			err := trace.Wrap(err, cmd)
-			node.Logf(err.Error())
-			return nil, exitStatusUndefined, err
+			return exitStatusUndefined, err
+		case err = <-errCh:
+			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
+				err := trace.Errorf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
+				node.Logf(err.Error())
+				return exitErr.ExitStatus(), err
+			}
+			if err != nil {
+				err := trace.Wrap(err, cmd)
+				node.Logf(err.Error())
+				return exitStatusUndefined, err
+			}
 		}
 	}
-
-	select {
-	case <-ctx.Done():
-		err := trace.Errorf("%s : parse function timed out", cmd)
-		node.Logf(err.Error())
-		return nil, exitStatusUndefined, err
-	case out := <-outCh:
-		if outErr, isError := out.(error); isError {
-			node.Logf("(parse fn failed) %s, error %v",
-				cmd, outErr)
-			return nil, exitStatusUndefined, trace.Wrap(outErr)
-		}
-		node.Logf("(exit=0) %s", cmd)
-		return out, 0, nil
-	}
+	node.Logf("(exit=0) %s", cmd)
+	return 0, nil
 }
 
-func ParseDiscard(r *bufio.Reader) (interface{}, error) {
+func ParseDiscard(r *bufio.Reader) error {
 	io.Copy(ioutil.Discard, r)
-	return nil, nil
+	return nil
 }
 
-func ParseAsString(r *bufio.Reader) (interface{}, error) {
-	b, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, trace.Wrap(err)
+func ParseAsString(out *string) OutputParseFn {
+	return func(r *bufio.Reader) error {
+		b, err := ioutil.ReadAll(r)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		*out = string(b)
+		return nil
 	}
-	return string(b), nil
 }
 
 type readLogger struct {

@@ -16,7 +16,7 @@ func ResolveInPlanet(ctx context.Context, g Gravity, name string) (string, error
 		return "", trace.BadParameter("should provide name to resolve")
 	}
 
-	addr, err := g.RunInPlanet(ctx, "/usr/bin/dig", []string{"+short", name})
+	addr, err := g.RunInPlanet(ctx, "/usr/bin/dig", "+short", name)
 	addr = reIpAddr.FindString(addr)
 	if addr == "" {
 		return "", trace.NotFound("no records for %s", name)
@@ -28,13 +28,13 @@ func ResolveInPlanet(ctx context.Context, g Gravity, name string) (string, error
 var reSpaces = regexp.MustCompile(`\s+`)
 
 // GetGravitySiteNodes will parse `kubectl get pods` output to figure out which nodes run gravity site master
-func GetGravitySiteNodes(ctx context.Context, g Gravity) (master string, other []string, err error) {
-	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", []string{"get", "pods", "-o=wide", "--namespace=kube-system"})
+func GetGravitySiteNodes(ctx context.Context, g Gravity) (master string, backup []string, err error) {
+	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", "get", "pods", "-o=wide", "--namespace=kube-system")
 	if err != nil {
 		return "", nil, trace.Wrap(err)
 	}
 
-	other = []string{}
+	backup = []string{}
 	for i, line := range strings.Split(out, "\n") {
 		if i == 0 || line == "" {
 			continue
@@ -53,9 +53,9 @@ func GetGravitySiteNodes(ctx context.Context, g Gravity) (master string, other [
 		if vals[1] == "1/1" {
 			master = vals[6]
 		} else {
-			other = append(other, vals[6])
+			backup = append(backup, vals[6])
 		}
 	}
 
-	return master, other, nil
+	return master, backup, nil
 }

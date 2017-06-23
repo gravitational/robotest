@@ -17,9 +17,9 @@ const (
 	// K8S API master node
 	nodeApiMaster = "apim"
 	// Gravity Site master node
-	nodeGravitySiteMaster = "gsm"
+	nodeClusterMaster = "gsm"
 	// One of the GravitySite nodes
-	nodeGravitySiteNode = "gsn"
+	nodeClusterBackup = "gsn"
 	// Regular node
 	nodeRegularNode = "wrk"
 )
@@ -48,7 +48,7 @@ func lossAndRecoveryVariety(template lossAndRecoveryParam) gravity.TestFunc {
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeGravitySiteMaster} { // , nodeApiMaster, nodeGravitySiteNode, nodeRegularNode} {
+		for _, nodeRoleType := range []string{nodeClusterMaster} { // , nodeApiMaster, nodeGravitySiteNode, nodeRegularNode} {
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
@@ -117,7 +117,7 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 
 		g.Logf("Cluster Roles: %+v", roles)
 		require.NotNil(t, roles.ApiMaster, "api master")
-		require.Len(t, roles.GravitySiteBackup, 2)
+		require.Len(t, roles.ClusterBackup, 2)
 		require.Len(t, roles.Regular, int(param.InitialNodes-3))
 	}
 }
@@ -133,17 +133,17 @@ func removeNode(g gravity.TestContext, t *testing.T,
 	switch nodeRoleType {
 	case nodeApiMaster:
 		removed = roles.ApiMaster
-	case nodeGravitySiteMaster:
-		g.Require("gravity-site master != apiserver", roles.ApiMaster != roles.GravitySiteMaster)
-		removed = roles.GravitySiteMaster
-	case nodeGravitySiteNode:
-		require.Len(t, roles.GravitySiteBackup, 2)
+	case nodeClusterMaster:
+		g.Require("gravity-site master != apiserver", roles.ApiMaster != roles.ClusterMaster)
+		removed = roles.ClusterMaster
+	case nodeClusterBackup:
+		g.Require("2 cluster backup nodes", len(roles.ClusterBackup) == 2)
 		// avoid picking up ApiMaster, as it'll become a very different test then
 		idx := 0
-		if roles.GravitySiteBackup[idx] == roles.ApiMaster {
+		if roles.ClusterBackup[idx] == roles.ApiMaster {
 			idx = 1
 		}
-		removed = roles.GravitySiteBackup[idx]
+		removed = roles.ClusterBackup[idx]
 	case nodeRegularNode:
 		require.NotEmpty(t, roles.Regular)
 		removed = roles.Regular[rand.Intn(len(roles.Regular))]
@@ -156,7 +156,7 @@ func removeNode(g gravity.TestContext, t *testing.T,
 	if powerOff {
 		ctx, cancel := context.WithTimeout(g.Context(), time.Minute)
 		defer cancel()
-		err = removed.PowerOff(ctx, gravity.Force)
+		err = removed.PowerOff(ctx, gravity.Graceful(false))
 	}
 
 	return remaining, removed, trace.Wrap(err)

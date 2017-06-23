@@ -45,9 +45,10 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 
 		for _, node := range nodes {
 			go func(node SshNode) {
-				val, _, err := RunAndParse(ctx, node, "date +%s%3N", nil, parseTime)
+				var ts float64
+				_, err := RunAndParse(ctx, node, "date +%s%3N", nil, parseTime(&ts))
 				errCh <- err
-				valueCh <- val
+				valueCh <- ts
 			}(node)
 		}
 
@@ -82,17 +83,19 @@ func timeInRange(values []interface{}) bool {
 	return true
 }
 
-func parseTime(r *bufio.Reader) (interface{}, error) {
-	line, err := r.ReadString('\n')
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
+func parseTime(ts *float64) OutputParseFn {
+	return func(r *bufio.Reader) error {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			return trace.Wrap(err)
+		}
 
-	ts, err := strconv.ParseFloat(strings.TrimRight(line, "\n"), 64)
-	if err != nil {
-		return nil, trace.Wrap(err, line)
-	}
+		*ts, err = strconv.ParseFloat(strings.TrimRight(line, "\n"), 64)
+		if err != nil {
+			return trace.Wrap(err, line)
+		}
 
-	io.Copy(ioutil.Discard, r)
-	return ts, nil
+		io.Copy(ioutil.Discard, r)
+		return nil
+	}
 }

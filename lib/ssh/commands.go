@@ -19,7 +19,7 @@ type Cmd struct {
 // RunCommands executes commands sequentially
 func RunCommands(ctx context.Context, node SshNode, commands []Cmd) error {
 	for _, cmd := range commands {
-		_, exit, err := RunAndParse(ctx, node, cmd.Command, cmd.Env, ParseDiscard)
+		exit, err := RunAndParse(ctx, node, cmd.Command, cmd.Env, ParseDiscard)
 		if err != nil {
 			return trace.Wrap(err, cmd.Command)
 		}
