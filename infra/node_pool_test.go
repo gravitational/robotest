@@ -107,7 +107,11 @@ type node struct {
 	addr string
 }
 
-func (r node) Addr() string { return r.addr }
+func (r node) Addr() string        { return r.addr }
+func (r node) PrivateAddr() string { return r.addr }
+func (r node) Client() (*ssh.Client, error) {
+	return nil, trace.BadParameter("not implemented")
+}
 func (r node) Connect() (*ssh.Session, error) {
 	return nil, trace.BadParameter("not implemented")
 }

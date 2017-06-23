@@ -76,9 +76,9 @@ func testEnv(t *testing.T, client *ssh.Client) {
 		"echo $AWS_SECURE_KEY",
 		// NOTE: add `AcceptEnv AWS_*` to /etc/ssh/sshd.conf
 		map[string]string{"AWS_SECURE_KEY": "SECUREKEY"},
-		func(r *bufio.Reader) error {
-			out = r.ReadString('\n')
-			return nil
+		func(r *bufio.Reader) (err error) {
+			out, err = r.ReadString('\n')
+			return trace.Wrap(err)
 		})
 	assert.NoError(t, err)
 	assert.Zero(t, exit, "exit code")

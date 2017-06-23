@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"testing"
 
-	sshutils "github.com/gravitational/robotest/lib/ssh"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,27 +24,16 @@ Operation:
 `)
 
 func TestGravityOutput(t *testing.T) {
-	for _, s := range []struct {
-		label string
-		fn    sshutils.OutputParseFn
-		data  []byte
-		val   interface{}
-	}{
-		{
-			"parseStatus",
-			parseStatus,
-			testStatusStr,
-			&GravityStatus{
-				Cluster:     "nostalgicjones2725",
-				Application: "mattermost",
-				Status:      "expanding",
-				Token:       "fac3b88014367fe4e98a8664755e2be4",
-				Nodes:       []string{"10.40.2.4"},
-			},
-		},
-	} {
-		out, err := s.fn(bufio.NewReader(bytes.NewReader(s.data)))
-		assert.NoError(t, err)
-		assert.Equal(t, s.val, out, s.label)
+	expectedStatus := &GravityStatus{
+		Cluster:     "nostalgicjones2725",
+		Application: "mattermost",
+		Status:      "expanding",
+		Token:       "fac3b88014367fe4e98a8664755e2be4",
+		Nodes:       []string{"10.40.2.4"},
 	}
+
+	var status GravityStatus
+	err := parseStatus(&status)(bufio.NewReader(bytes.NewReader(testStatusStr)))
+	assert.NoError(t, err)
+	assert.Equal(t, expectedStatus, &status, "parseStatus")
 }
