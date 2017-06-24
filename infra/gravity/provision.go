@@ -30,20 +30,29 @@ type cloudDynamicParams struct {
 // makeDynamicParams takes base config, validates it and returns cloudDynamicParams
 func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicParams {
 	require.NotNil(t, baseConfig)
+	require.Contains(t, []string{"aws", "azure"}, baseConfig.CloudProvider)
 
 	param := cloudDynamicParams{ProvisionerConfig: baseConfig}
 
 	// OS name is cloud-init script specific
 	// enforce compatible values
 	var ok bool
-	osUsernames := map[string]string{
-		"ubuntu": "robotest",
-		"debian": "admin",
-		"rhel":   "redhat", // TODO: check
-		"centos": "centos",
+	usernames := map[string]map[string]string{
+		"azure": map[string]string{
+			"ubuntu": "robotest",
+			"debian": "admin",
+			"rhel":   "redhat", // TODO: check
+			"centos": "centos",
+		},
+		"aws": map[string]string{
+			"ubuntu": "ubuntu",
+			"debian": "admin",
+			"rhel":   "redhat",
+			"centos": "centos",
+		},
 	}
 
-	param.user, ok = osUsernames[baseConfig.os]
+	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os]
 	require.True(t, ok, baseConfig.os)
 
 	param.homeDir = filepath.Join("/home", param.user)
@@ -167,9 +176,9 @@ const (
 
 const cloudInitWait = time.Second * 10
 
-// Run bootstrap scripts on a node
-func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
-	err := sshutil.WaitForFile(ctx, g, waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
+// bootstrapAzure workarounds some issues with Azure platform init
+func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+	err = sshutil.WaitForFile(ctx, g, waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -199,6 +208,12 @@ func bootstrap(ctx context.Context, g Gravity, param cloudDynamicParams) error {
 	return trace.Wrap(err)
 }
 
+// bootstrapAWS is a simple workflow to wait for cloud-init to complete
+func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+	err = sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	return trace.Wrap(err)
+}
+
 // ConfigureNode is used to configure a provisioned node
 // 1. wait for node to boot
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
@@ -218,7 +233,14 @@ func configureVM(ctx context.Context, t *testing.T, node infra.Node, param cloud
 	}
 	g.ssh = client
 
-	err = bootstrap(ctx, g, param)
+	switch param.CloudProvider {
+	case "aws":
+		err = bootstrapAWS(ctx, g, param)
+	case "azure":
+		err = bootstrapAzure(ctx, g, param)
+	default:
+		return nil, trace.Errorf("unexpected cloud provider %s", param.CloudProvider)
+	}
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

@@ -11,11 +11,11 @@ var defaultTimeouts = gravity.DefaultTimeouts
 var baseInstallerURL = flag.String("sanity-base-installer", "s3://s3.gravitational.io/denis/telekube-3.53.10-installer.tar", "base application version")
 
 var Basic = map[string]gravity.TestFunc{
-	"provision1": install(installParam{
+	"provision1": provision(installParam{
 		NodeCount: 1, Flavor: "one", Timeouts: defaultTimeouts, Role: "node"}),
-	"provision3": install(installParam{
+	"provision3": provision(installParam{
 		NodeCount: 3, Flavor: "three", Timeouts: defaultTimeouts, Role: "node"}),
-	"provision6": install(installParam{
+	"provision6": provision(installParam{
 		NodeCount: 6, Flavor: "six", Timeouts: defaultTimeouts, Role: "node"}),
 
 	"install1": install(installParam{
