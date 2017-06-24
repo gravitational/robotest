@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -36,14 +35,15 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 		return trace.NotFound("at least one node")
 	}
 
-	master := nodes[0]
+	master := nodes[0].(*gravity)
 	token := "ROBOTEST"
 
 	errs := make(chan error, len(nodes))
 	go func() {
 		errs <- master.Install(ctx, InstallCmd{
-			Token:  token,
-			Flavor: flavor,
+			Cluster: master.param.Tag(),
+			Token:   token,
+			Flavor:  flavor,
 		})
 	}()
 
@@ -66,18 +66,11 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 		return trace.Wrap(err)
 	}
 
-	pass := makePassword()
-	user := "robotest@gravitational.io"
+	_, err = master.RunInPlanet(ctx, "/usr/bin/gravity",
+		"site", "complete", "--support=on", "--insecure",
+		"--ops-url=https://gravity-site.kube-system.svc.cluster.local:3009",
+		master.param.Tag())
 
-	out, err := nodes[0].RunInPlanet(ctx, "/usr/bin/curl", "--silent",
-		`-H`, `"Content-Type: application/json"`,
-		`-X`, `POST`, `-d`,
-		fmt.Sprintf(`'{"email":"%s","password":"%s"}'`, user, pass),
-		`http://bandwagon.kube-system.svc.cluster.local/api/complete`)
-	if err == nil {
-		c.Logf("Admin interface: https://%s:32009/ user=%s, pass=%s. Creating user=%q",
-			nodes[0].Node().Addr(), user, pass, out)
-	}
 	return trace.Wrap(err)
 }
 
