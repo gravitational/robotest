@@ -63,13 +63,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
 		c.Logf("install failed: %v", err)
-		return trace.Wrap(err)
 	}
-
-	_, err = master.RunInPlanet(ctx, "/usr/bin/gravity",
-		"site", "complete", "--support=on", "--insecure",
-		"--ops-url=https://gravity-site.kube-system.svc.cluster.local:3009",
-		master.param.Tag())
 
 	return trace.Wrap(err)
 }

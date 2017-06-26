@@ -1,5 +1,5 @@
 resource "aws_instance" "node" {
-    ami = "${lookup(var.ami, "${var.region}-${var.os}")}"
+    ami = "${lookup(var.ami, var.os)}"
     instance_type = "${var.instance_type}"
     associate_public_ip_address = true
     source_dest_check = "false"
