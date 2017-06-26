@@ -56,6 +56,10 @@ func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
 		r.Entry = log.NewEntry(log.StandardLogger())
 	}
 
+	if ctx.Err() != nil {
+		return trace.Wrap(ctx.Err())
+	}
+
 	for i := 1; i <= r.Attempts; i += 1 {
 		err = fn()
 		if err == nil {

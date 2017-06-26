@@ -5,6 +5,8 @@ import (
 	"io"
 	"regexp"
 
+	sshutils "github.com/gravitational/robotest/lib/ssh"
+
 	"github.com/gravitational/trace"
 )
 
@@ -13,35 +15,33 @@ var rStatusKV = regexp.MustCompile(`^(?P<key>[\w\s]+)\:\s*(?P<val>[\w\d\_\-]+),*
 var rStatusNodeIp = regexp.MustCompile(`^[\s\w\-\d]+\((?P<ip>[\d\.]+)\).*`)
 
 // parse `gravity status`
-func parseStatus(r *bufio.Reader) (interface{}, error) {
-	status := &GravityStatus{
-		Nodes: []string{},
+func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
+	return func(r *bufio.Reader) error {
+		for {
+			line, err := r.ReadString('\n')
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return trace.Wrap(err)
+			}
+
+			vars := rStatusKV.FindStringSubmatch(line)
+			if len(vars) == 3 {
+				populateStatus(vars[1], vars[2], status)
+				continue
+			}
+
+			vars = rStatusNodeIp.FindStringSubmatch(line)
+			if len(vars) == 2 {
+				status.Nodes = append(status.Nodes, vars[1])
+				continue
+			}
+
+		}
+
+		return nil
 	}
-
-	for {
-		line, err := r.ReadString('\n')
-		if err == io.EOF {
-			return status, nil
-		}
-		if err != nil {
-			return nil, trace.Wrap(err)
-		}
-
-		vars := rStatusKV.FindStringSubmatch(line)
-		if len(vars) == 3 {
-			populateStatus(vars[1], vars[2], status)
-			continue
-		}
-
-		vars = rStatusNodeIp.FindStringSubmatch(line)
-		if len(vars) == 2 {
-			status.Nodes = append(status.Nodes, vars[1])
-			continue
-		}
-
-	}
-
-	return status, nil
 }
 
 func populateStatus(key, value string, status *GravityStatus) error {

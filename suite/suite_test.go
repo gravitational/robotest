@@ -48,7 +48,7 @@ func init() {
 	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers: devicemapper,loopback,overlay,overlay2")
 }
 
-var testTimeout = time.Hour * 3
+var testTimeout = time.Hour * 12
 
 type testSet map[string]gravity.TestFunc
 
@@ -128,17 +128,21 @@ func TestMain(t *testing.T) {
 		CancelAllFn:       cancelFn,
 	})
 
-	for r := 1; r <= *repeat; r++ {
-		for _, osFlavor := range osFlavors {
-			for ts, fn := range suiteSet {
-				for _, drv := range storageDrivers {
-					if in(drv, storageDriverOsCompat[osFlavor]) {
-						gravity.Run(ctx, t,
-							config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
-							fn, gravity.Parallel)
+	t.Run(*testSuite, func(t *testing.T) {
+		for r := 1; r <= *repeat; r++ {
+			for _, osFlavor := range osFlavors {
+				for ts, fn := range suiteSet {
+					for _, drv := range storageDrivers {
+						if in(drv, storageDriverOsCompat[osFlavor]) {
+							gravity.Run(ctx, t,
+								config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
+								fn, gravity.Parallel)
+						}
 					}
 				}
 			}
 		}
-	}
+	})
+
+	t.Logf("SUITE %s completed", *testSuite)
 }

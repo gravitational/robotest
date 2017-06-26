@@ -15,7 +15,9 @@ var azTenant = flag.String("tenant", "", "")
 var azRemoveGroup = flag.String("remove-group", "", "")
 
 func TestAzureGroupRemoval(t *testing.T) {
-	require.NotEmpty(t, *azRemoveGroup, "resource group should not be empty")
+	if *azRemoveGroup == "" {
+		t.Skip("requires resource group")
+	}
 
 	param := AzureAuthParam{
 		ClientId:     *azClientId,

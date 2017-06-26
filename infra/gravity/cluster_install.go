@@ -2,6 +2,8 @@ package gravity
 
 import (
 	"context"
+	"math/rand"
+	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
 
@@ -33,14 +35,15 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 		return trace.NotFound("at least one node")
 	}
 
-	master := nodes[0]
+	master := nodes[0].(*gravity)
 	token := "ROBOTEST"
 
 	errs := make(chan error, len(nodes))
 	go func() {
 		errs <- master.Install(ctx, InstallCmd{
-			Token:  token,
-			Flavor: flavor,
+			Cluster: master.param.Tag(),
+			Token:   token,
+			Flavor:  flavor,
 		})
 	}()
 
@@ -58,8 +61,21 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	}
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
-	c.t.Log("install failed: %v", err)
+	if err != nil {
+		c.Logf("install failed: %v", err)
+	}
+
 	return trace.Wrap(err)
+}
+
+func makePassword() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+	result := make([]byte, 10)
+	for i := range result {
+		result[i] = chars[r.Intn(len(chars))]
+	}
+	return string(result)
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
