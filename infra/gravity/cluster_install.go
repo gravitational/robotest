@@ -27,7 +27,7 @@ func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag stri
 }
 
 // OfflineInstall sets up cluster using nodes provided
-func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error {
+func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
@@ -36,23 +36,24 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	}
 
 	master := nodes[0].(*gravity)
-	token := "ROBOTEST"
+	if param.Token == "" {
+		param.Token = "ROBOTEST"
+	}
+	if param.Cluster == "" {
+		param.Cluster = master.param.Tag()
+	}
 
 	errs := make(chan error, len(nodes))
 	go func() {
-		errs <- master.Install(ctx, InstallCmd{
-			Cluster: master.param.Tag(),
-			Token:   token,
-			Flavor:  flavor,
-		})
+		errs <- master.Install(ctx, param)
 	}()
 
 	for _, node := range nodes[1:] {
 		go func(n Gravity) {
 			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
-				Token:    token,
-				Role:     role})
+				Token:    param.Token,
+				Role:     param.Role})
 			if err != nil {
 				n.Logf("Join failed: %v", err)
 			}
@@ -63,6 +64,14 @@ func (c TestContext) OfflineInstall(nodes []Gravity, flavor, role string) error 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
 		c.Logf("install failed: %v", err)
+		return trace.Wrap(err)
+	}
+
+	if param.EnableRemoteSupport {
+		_, err = master.RunInPlanet(ctx, "/usr/bin/gravity",
+			"site", "complete", "--support=on", "--insecure",
+			"--ops-url=https://gravity-site.kube-system.svc.cluster.local:3009",
+			master.param.Tag())
 	}
 
 	return trace.Wrap(err)
