@@ -74,13 +74,13 @@ type InstallParam struct {
 	Cluster string `json:"cluster"`
 	// Flavor is Application flavor. See Application Manifest for details.
 	Flavor string `json:"flavor" validate:"required"`
-	// K8SConfig is (Optional) File with Kubernetes resources to create in the cluster during installation.
-	K8SConfigUrl string
+	// K8SConfigURL is (Optional) File with Kubernetes resources to create in the cluster during installation.
+	K8SConfigURL string
 	// PodNetworkCidr is (Optional) CIDR range Kubernetes will be allocating node subnets and pod IPs from. Must be a minimum of /16 so Kubernetes is able to allocate /24 to each node. Defaults to 10.244.0.0/16.
 	PodNetworkCIDR string
 	// ServiceCidr (Optional) CIDR range Kubernetes will be allocating service IPs from. Defaults to 10.100.0.0/16.
 	ServiceCIDR string
-	// RegisterOpsCenter (Optional) whether to register this installation with remote ops-center
+	// EnableRemoteSupport (Optional) whether to register this installation with remote ops-center
 	EnableRemoteSupport bool `json:"remote_support"`
 	// LicenseUrl (Optional) is license file, could be local or s3 or http(s) url
 	LicenseUrl string `json:"license"`

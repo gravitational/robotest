@@ -24,8 +24,8 @@ type entry struct {
 
 // Entry is a pair of initialized test function and its parameters
 type Entry struct {
-	Fn    gravity.TestFunc
-	Param interface{}
+	TestFunc gravity.TestFunc
+	Param    interface{}
 }
 
 type Config struct {
@@ -41,7 +41,7 @@ func (c *Config) Add(key string, fn ConfigFn, defaults interface{}) {
 	c.entries[key] = entry{fn, defaults}
 }
 
-// ParseAndConfigure will take list of function=JSON, base config map, and return list of initialized test functions to run
+// Parse will take list of function=JSON, base config map, and return list of initialized test functions to run
 func (c *Config) Parse(args []string) (fns map[string]Entry, err error) {
 	var errs []error
 	fns = map[string]Entry{}
@@ -60,7 +60,7 @@ func (c *Config) Parse(args []string) (fns map[string]Entry, err error) {
 
 		entry, there := c.entries[key]
 		if !there {
-			errs = append(errs, trace.Errorf("no such function: %q in %+v", key, c))
+			errs = append(errs, trace.NotFound("no such function: %q in %+v", key, c))
 			continue
 		}
 
@@ -89,14 +89,17 @@ func makeFunction(fn ConfigFn, data string, defaults interface{}) (*Entry, error
 	}
 
 	err = Validate(param)
-	if err == nil {
-		var testFn gravity.TestFunc
-		testFn, err = fn(param)
-		if err == nil {
-			return &Entry{testFn, param}, nil
-		}
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
-	return nil, trace.Wrap(err)
+
+	var testFn gravity.TestFunc
+	testFn, err = fn(param)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return &Entry{testFn, param}, nil
 }
 
 // parseJSON parses JSON data using defaults object

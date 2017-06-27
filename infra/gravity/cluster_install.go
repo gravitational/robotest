@@ -2,12 +2,17 @@ package gravity
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
+)
+
+const (
+	localOpsCenterURL = `https://gravity-site.kube-system.svc.cluster.local:3009`
 )
 
 // ProvisionInstaller deploys a specific installer
@@ -70,7 +75,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 	if param.EnableRemoteSupport {
 		_, err = master.RunInPlanet(ctx, "/usr/bin/gravity",
 			"site", "complete", "--support=on", "--insecure",
-			"--ops-url=https://gravity-site.kube-system.svc.cluster.local:3009",
+			fmt.Sprintf("--ops-url=%s", localOpsCenterURL),
 			master.param.Tag())
 	}
 

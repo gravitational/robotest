@@ -132,7 +132,7 @@ func TestMain(t *testing.T) {
 						if in(drv, storageDriverOsCompat[osFlavor]) {
 							gravity.Run(ctx, t,
 								config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
-								entry.Fn, gravity.Parallel)
+								entry.TestFunc, gravity.Parallel)
 
 							t.Logf("%s : %+v", ts, entry.Param)
 						}
