@@ -144,7 +144,7 @@ func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) 
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.stateDir)
+	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.StateDir)
 	for _, node := range gravityNodes {
 		logFn("\t%v", node)
 	}

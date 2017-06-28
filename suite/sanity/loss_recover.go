@@ -15,35 +15,30 @@ import (
 
 const (
 	// K8S API master node
-	nodeApiMaster = "apim"
+	nodeApiMaster = "apimaster"
 	// Gravity Site master node
-	nodeClusterMaster = "gsm"
+	nodeClusterMaster = "clmaster"
 	// One of the GravitySite nodes
-	nodeClusterBackup = "gsn"
+	nodeClusterBackup = "clbackup"
 	// Regular node
-	nodeRegularNode = "wrk"
+	nodeRegularNode = "worker"
 )
 
 type lossAndRecoveryParam struct {
-	// Timeouts is per-node operation timeout value
-	Timeouts gravity.OpTimeouts
-	// Role is node role
-	Role string
-	// InitialFlavor is equivalent to InitialNodes node
-	InitialFlavor string
-	// InitialNodes how many nodes
-	InitialNodes uint
+	installParam
 	// ReplaceNodes is how many nodes to loose and recover
-	ReplaceNodes uint
+	ReplaceNodes uint `json:"replace" validate:"gte=0"`
 	// ReplaceNodeType : see killXXX constants
-	ReplaceNodeType string
+	ReplaceNodeType string `json:"kill" validate:"required,eq=apimaster|clmaster|clbackup|worker"`
 	// ExpandBeforeShrink is whether to expand cluster before removing dead node
-	ExpandBeforeShrink bool
+	ExpandBeforeShrink bool `json:"expand_before_shrink" validate:"required"`
 	// PowerOff is whether to power off node before remove
-	PowerOff bool
+	PowerOff bool `json:"pwroff_before_remove" validate:"required"`
 }
 
-func lossAndRecoveryVariety(template lossAndRecoveryParam) gravity.TestFunc {
+func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
+	template := p.(lossAndRecoveryParam)
+
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
@@ -56,17 +51,23 @@ func lossAndRecoveryVariety(template lossAndRecoveryParam) gravity.TestFunc {
 					param.ExpandBeforeShrink = expandBeforeShrink
 					param.ReplaceNodeType = nodeRoleType
 					param.PowerOff = powerOff
-					gravity.Run(ctx, t, cfg, lossAndRecovery(param), gravity.Parallel)
+					fun, err := lossAndRecovery(param)
+					if err != nil {
+						t.Fatalf("got error for configuration %v: %v", param, err)
+					}
+					gravity.Run(ctx, t, cfg, fun, gravity.Parallel)
 				}
 			}
 		}
-	}
+	}, nil
 }
 
 // lossAndRecovery installs cluster then fails one of the nodes, and then removes it
-func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
+func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
+	param := p.(lossAndRecoveryParam)
+
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		config := baseConfig.WithNodes(param.InitialNodes + 1)
+		config := baseConfig.WithNodes(param.NodeCount + 1)
 
 		allNodes, destroyFn, err := gravity.Provision(ctx, t, config)
 		require.NoError(t, err, "provision nodes")
@@ -78,8 +79,8 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 
 		g.Logf("Loss and Recovery test param %+v", param)
 
-		nodes := allNodes[0:param.InitialNodes]
-		g.OK("install", g.OfflineInstall(nodes, param.InitialFlavor, param.Role))
+		nodes := allNodes[0:param.NodeCount]
+		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
 		g.OK("install status", g.Status(nodes))
 
 		nodes, removed, err := removeNode(g, t, nodes, param.ReplaceNodeType, param.PowerOff)
@@ -91,8 +92,8 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 
 		if param.ExpandBeforeShrink {
 			g.OK("replace node",
-				g.Expand(nodes, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))
-			nodes = append(nodes, allNodes[param.InitialNodes])
+				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
+			nodes = append(nodes, allNodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node role after expand", err)
@@ -107,8 +108,8 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 			g.Logf("Roles after remove: %+v", roles)
 
 			g.OK("replace node",
-				g.Expand(nodes, allNodes[param.InitialNodes:param.InitialNodes+1], param.Role))
-			nodes = append(nodes, allNodes[param.InitialNodes])
+				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
+			nodes = append(nodes, allNodes[param.NodeCount])
 		}
 
 		roles, err := g.NodesByRole(nodes)
@@ -118,8 +119,8 @@ func lossAndRecovery(param lossAndRecoveryParam) gravity.TestFunc {
 		g.Logf("Cluster Roles: %+v", roles)
 		require.NotNil(t, roles.ApiMaster, "api master")
 		require.Len(t, roles.ClusterBackup, 2)
-		require.Len(t, roles.Regular, int(param.InitialNodes-3))
-	}
+		require.Len(t, roles.Regular, int(param.NodeCount-3))
+	}, nil
 }
 
 func removeNode(g gravity.TestContext, t *testing.T,

@@ -2,11 +2,8 @@ package gravity
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/gravitational/robotest/infra"
 
@@ -19,7 +16,7 @@ import (
 // CloudProvider, AWS, Azure, ScriptPath and InstallerURL
 type ProvisionerConfig struct {
 	// DeployTo defines cloud to deploy to
-	CloudProvider string `yaml:"cloud_provider" validate:"required,eq=aws|eq=azure"`
+	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure"`
 	// AWS defines AWS connection parameters
 	AWS *infra.AWSConfig `yaml:"aws"`
 	// Azure defines Azure connection parameters
@@ -29,11 +26,11 @@ type ProvisionerConfig struct {
 	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL is AWS S3 URL with the installer
 	InstallerURL string `yaml:"installer_url" validate:"required,url`
+	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
+	StateDir string `yaml:"state_dir" validate:"required"`
 
 	// Tag will group provisioned resources under for easy removal afterwards
 	tag string `validate:"required"`
-	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
-	stateDir string `validate:"required"`
 	// NodeCount defines amount of nodes to be provisioned
 	nodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
@@ -45,31 +42,9 @@ type ProvisionerConfig struct {
 }
 
 // LoadConfig loads essential parameters from YAML
-func LoadConfig(t *testing.T, configFile, stateDir, tag string) ProvisionerConfig {
-	require.NotEmpty(t, configFile, "config file")
-	f, err := os.Open(configFile)
-	require.NoError(t, err, configFile)
-	defer f.Close()
-
-	configBytes, err := ioutil.ReadAll(f)
-	require.NoError(t, err)
-
-	cfg := ProvisionerConfig{}
-	err = yaml.Unmarshal(configBytes, &cfg)
-	require.NoError(t, err, configFile)
-
-	if cfg.tag = tag; cfg.tag == "" {
-		now := time.Now()
-		cfg.tag = fmt.Sprintf("RT-%02d%02d-%02d%02d",
-			now.Month(), now.Day(), now.Hour(), now.Minute())
-	}
-
-	if cfg.stateDir = stateDir; cfg.stateDir == "" {
-		cfg.stateDir, err = ioutil.TempDir("", "robotest")
-		require.NoError(t, err, "tmp dir")
-	}
-
-	cfg.stateDir = filepath.Join(cfg.stateDir, cfg.tag)
+func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
+	err := yaml.Unmarshal(configBytes, cfg)
+	require.NoError(t, err, string(configBytes))
 
 	switch cfg.CloudProvider {
 	case "azure":
@@ -81,8 +56,6 @@ func LoadConfig(t *testing.T, configFile, stateDir, tag string) ProvisionerConfi
 	default:
 		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
 	}
-
-	return cfg
 }
 
 // Tag returns current tag of a config
@@ -93,8 +66,12 @@ func (config ProvisionerConfig) Tag() string {
 // WithTag returns copy of config applying extended tag to it
 func (config ProvisionerConfig) WithTag(tag string) ProvisionerConfig {
 	cfg := config
-	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, tag)
-	cfg.stateDir = filepath.Join(cfg.stateDir, tag)
+	if cfg.tag == "" {
+		cfg.tag = tag
+	} else {
+		cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, tag)
+	}
+	cfg.StateDir = filepath.Join(cfg.StateDir, tag)
 
 	return cfg
 }
@@ -106,7 +83,7 @@ func (config ProvisionerConfig) WithNodes(nodes uint) ProvisionerConfig {
 	cfg := config
 	cfg.nodeCount = nodes
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, extra)
-	cfg.stateDir = filepath.Join(cfg.stateDir, extra)
+	cfg.StateDir = filepath.Join(cfg.StateDir, extra)
 
 	return cfg
 }
@@ -116,7 +93,7 @@ func (config ProvisionerConfig) WithOS(os string) ProvisionerConfig {
 	cfg := config
 	cfg.os = os
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, os)
-	cfg.stateDir = filepath.Join(cfg.stateDir, os)
+	cfg.StateDir = filepath.Join(cfg.StateDir, os)
 
 	return cfg
 }
@@ -131,7 +108,7 @@ func (config ProvisionerConfig) WithStorageDriver(storageDriver string) Provisio
 		cfg.storageDriver = storageDriver
 	}
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, storageDriver)
-	cfg.stateDir = filepath.Join(cfg.stateDir, storageDriver)
+	cfg.StateDir = filepath.Join(cfg.StateDir, storageDriver)
 
 	return cfg
 }

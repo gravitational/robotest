@@ -3,6 +3,7 @@ package gravity
 import (
 	"context"
 	"fmt"
+	syslog "log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -48,6 +49,12 @@ const finalTeardownTimeout = time.Minute * 5
 // wrapDestroyFn implements a global conditional logic
 func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func(baseContext context.Context, t *testing.T) error {
+		defer func() {
+			if r := recover(); r != nil {
+				syslog.Printf("\n*****\n wrapDestroyFn %s PANIC %+v\n*****\n", tag, r)
+			}
+		}()
+
 		log := utils.Logf(t, tag)
 
 		skipLogCollection := false
@@ -157,7 +164,7 @@ func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, par
 	// TODO: this seems to require more thorough testing, and same approach applied to Destory
 	//
 
-	p, err := terraform.New(filepath.Join(baseConfig.stateDir, "tf"), params.tf)
+	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.tf)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
