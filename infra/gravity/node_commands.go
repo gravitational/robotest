@@ -82,8 +82,8 @@ type InstallParam struct {
 	ServiceCIDR string
 	// EnableRemoteSupport (Optional) whether to register this installation with remote ops-center
 	EnableRemoteSupport bool `json:"remote_support"`
-	// LicenseUrl (Optional) is license file, could be local or s3 or http(s) url
-	LicenseUrl string `json:"license"`
+	// LicenseURL (Optional) is license file, could be local or s3 or http(s) url
+	LicenseURL string `json:"license"`
 }
 
 // JoinCmd represents various parameters for Join

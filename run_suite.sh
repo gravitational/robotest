@@ -25,6 +25,9 @@ TAG=${TAG:-$(id -run)}
 DESTROY_ON_SUCCESS=${DESTROY_ON_SUCCESS:-true}
 DESTROY_ON_FAILURE=${DESTROY_ON_FAILURE:-true}
 
+# PIN robotest version if needed
+ROBOTEST_VERSION=${ROBOTEST_VERSION:-latest}
+
 # which cloud to use : aws or azure
 # define rest of the keys in the CLOUD_CONFIG below
 DEPLOY_TO=${DEPLOY_TO:-azure}
@@ -95,8 +98,8 @@ docker run \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	-v ${SSH_PUB}:/robotest/config/ops_rsa.pub \
-	-v ${P}/build/robotest-suite:/usr/bin/robotest-suite \
-	quay.io/gravitational/robotest-suite:1.0.60 \
+	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
+	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h -test.v \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=false \
 	-provision="$CLOUD_CONFIG" \
