@@ -17,7 +17,7 @@ func Suite() *config.Config {
 	cfg.Add("provision", provision, defaultInstallParam)
 	cfg.Add("install", install, defaultInstallParam)
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
-	cfg.Add("recoverV", lossAndRecoveryVariety, lossAndRecoveryParam{installParam: defaultInstallParam})
+	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
 	cfg.Add("expand", basicExpand, expandParam{installParam: defaultInstallParam})
 	cfg.Add("upgrade", upgrade, expandParam{installParam: defaultInstallParam})
 

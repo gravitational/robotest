@@ -37,7 +37,7 @@ type lossAndRecoveryParam struct {
 }
 
 func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
-	template := p.(lossAndRecoveryParam)
+	template := lossAndRecoveryParam{installParam: p.(installParam)}
 
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
