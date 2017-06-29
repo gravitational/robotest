@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/trace"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +75,7 @@ func (c TestContext) OK(msg string, err error) {
 	if err == nil {
 		c.Logf("*** %s: OK!", msg)
 	} else {
-		c.Logf("*** %s: ERROR %v", msg, err)
+		c.Logf("*** %s: ERROR %s", msg, trace.DebugReport(err))
 	}
 	require.NoError(c.t, err, fmt.Sprintf("%s : %v", msg, err))
 }
