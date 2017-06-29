@@ -70,10 +70,12 @@ func (c TestContext) Context() context.Context {
 
 // OK is equivalent to require.NoError
 func (c TestContext) OK(msg string, err error) {
-	require.NoError(c.t, err, fmt.Sprintf("%s : %v", msg, err))
 	if err == nil {
 		c.Logf("*** %s: OK!", msg)
+	} else {
+		c.Logf("*** %s: ERROR %v", msg, err)
 	}
+	require.NoError(c.t, err, fmt.Sprintf("%s : %v", msg, err))
 }
 
 // Require verifies condition is true, fails test otherwise
