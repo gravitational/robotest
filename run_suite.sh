@@ -88,7 +88,7 @@ fi
 # you generally don't need to change anything beyond this line
 # 
 
-P=$(PWD)
+P=$(pwd)
 export REPORT_FILE=$(date '+%m%d-%H%M')
 mkdir -p ${P}/wd_suite/state/${TAG}
 

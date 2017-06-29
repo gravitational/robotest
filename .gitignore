@@ -21,3 +21,4 @@ robotest
 wd
 wd_suite
 run_*.sh
+run.sh

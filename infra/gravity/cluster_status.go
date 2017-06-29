@@ -127,25 +127,26 @@ func (c TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
 		return nil, trace.Wrap(err, "resolving apiserver: %v", err)
 	}
 
-	clusterMaster, clusterBackup, err := GetGravitySiteNodes(ctx, nodes[0])
+	pods, err := KubectlGetPods(ctx, nodes[0], kubeSystemNS, appGravityLabel)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 nodeLoop:
 	for _, node := range nodes {
-		if node.Node().PrivateAddr() == apiMaster {
+		ip := node.Node().PrivateAddr()
+
+		if ip == apiMaster {
 			roles.ApiMaster = node
 		}
 
-		if node.Node().PrivateAddr() == clusterMaster {
-			roles.ClusterMaster = node
-			continue
-		}
-
-		for _, ip := range clusterBackup {
-			if node.Node().PrivateAddr() == ip {
-				roles.ClusterBackup = append(roles.ClusterBackup, node)
+		for _, pod := range pods {
+			if ip == pod.NodeIP {
+				if pod.Ready {
+					roles.ClusterMaster = node
+				} else {
+					roles.ClusterBackup = append(roles.ClusterBackup, node)
+				}
 				continue nodeLoop
 			}
 		}

@@ -43,7 +43,7 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeClusterMaster} { // , nodeApiMaster, nodeGravitySiteNode, nodeRegularNode} {
+		for _, nodeRoleType := range []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup, nodeRegularNode} {
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
@@ -91,7 +91,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 		g.Logf("It took %v for cluster to become available", time.Since(now))
 
 		if param.ExpandBeforeShrink {
-			g.OK("replace node",
+			g.OK("add node",
 				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
 			nodes = append(nodes, allNodes[param.NodeCount])
 
@@ -99,7 +99,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 			g.OK("node role after expand", err)
 			g.Logf("Roles after expand: %+v", roles)
 
-			g.OK("remove lost node", g.RemoveNode(nodes, removed))
+			g.OK("remove old node", g.RemoveNode(nodes, removed))
 		} else {
 			g.OK("remove lost node", g.RemoveNode(nodes, removed))
 
@@ -135,6 +135,11 @@ func removeNode(g gravity.TestContext, t *testing.T,
 	case nodeApiMaster:
 		removed = roles.ApiMaster
 	case nodeClusterMaster:
+		if roles.ApiMaster == roles.ClusterMaster {
+			g.Logf("API and Cluster masters reside on same node %s, will try to split", roles.ApiMaster.String())
+			g.OK("cluster master relocation", gravity.RelocateClusterMaster(g.Context(), roles.ApiMaster))
+			return removeNode(g, t, nodes, nodeRoleType, powerOff)
+		}
 		g.Require("gravity-site master != apiserver", roles.ApiMaster != roles.ClusterMaster)
 		removed = roles.ClusterMaster
 	case nodeClusterBackup:
