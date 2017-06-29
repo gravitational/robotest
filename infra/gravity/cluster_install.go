@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
@@ -14,6 +15,14 @@ import (
 const (
 	localOpsCenterURL = `https://gravity-site.kube-system.svc.cluster.local:3009`
 )
+
+// Simple hook to allow re-entrance to already initialized host
+func (c TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
+	for _, node := range nodes {
+		g := node.(*gravity)
+		g.installDir = filepath.Join(g.param.homeDir, subdir)
+	}
+}
 
 // ProvisionInstaller deploys a specific installer
 func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {

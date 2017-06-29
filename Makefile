@@ -17,6 +17,11 @@ build: buildbox
 	mkdir -p build
 	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS) build/go-junit-report
 
+.PHONY: build-suite
+build-suite: buildbox
+	mkdir -p build 
+	docker run $(DOCKERFLAGS) $(BUILDBOX) make suite
+
 .PHONY: buildbox
 buildbox:
 	docker build --pull --tag $(BUILDBOX) \

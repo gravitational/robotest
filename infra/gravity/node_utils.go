@@ -2,8 +2,10 @@ package gravity
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
@@ -29,9 +31,13 @@ func ResolveInPlanet(ctx context.Context, g Gravity, name string) (string, error
 // RelocateClusterMaster will check which node currently runs gravity-site master
 // and will try to evict it from that node so that it'll get picked up by some other
 func RelocateClusterMaster(ctx context.Context, g Gravity) error {
+	return wait.Retry(ctx, func() error { return doRelocate(ctx, g) })
+}
+
+func doRelocate(ctx context.Context, g Gravity) error {
 	pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
 	if err != nil {
-		return trace.Wrap(err)
+		return wait.Abort(trace.Wrap(err))
 	}
 
 	var master *Pod
@@ -42,14 +48,35 @@ func RelocateClusterMaster(ctx context.Context, g Gravity) error {
 		}
 	}
 	if master == nil {
-		return trace.Errorf("no current cluster master: %+v", pods)
+		return wait.Abort(trace.Errorf("no current cluster master: %+v", pods))
 	}
 
 	if err = KubectlDeletePod(ctx, g, kubeSystemNS, master.Name); err != nil {
-		return trace.Wrap(err, "removing pod %s", master.Name)
+		return wait.Abort(trace.Wrap(err, "removing pod %s", master.Name))
 	}
 
-	// we will wait for relocation to complete
+	// pod eviction is not immediate
+	wait.Sleep(ctx, defaults.RetryDelay)
+	err = wait.Retry(ctx, func() error {
+		pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
+		if err != nil {
+			return wait.Abort(err)
+		}
+
+		for _, pod := range pods {
+			if pod.Ready && pod.Name == master.Name {
+				return wait.Continue("old master not evicted yet")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return wait.Abort(err)
+	}
+
+	var newMaster *Pod
+	// wait for relocation to complete
 	err = wait.Retry(ctx, func() error {
 		pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
 		if err != nil {
@@ -58,6 +85,7 @@ func RelocateClusterMaster(ctx context.Context, g Gravity) error {
 
 		for _, pod := range pods {
 			if pod.Ready {
+				newMaster = &pod
 				return nil
 			}
 		}
@@ -65,5 +93,18 @@ func RelocateClusterMaster(ctx context.Context, g Gravity) error {
 		return wait.Continue("waiting for gravity-site master to be ready")
 	})
 
-	return trace.Wrap(err)
+	if err != nil {
+		return wait.Abort(err)
+	}
+
+	if newMaster == nil {
+		return wait.Abort(trace.Errorf("new master was not located"))
+	}
+
+	if newMaster.NodeIP == master.NodeIP {
+		return wait.Continue(fmt.Sprintf(
+			"new master %+v was elected on same node as old %+v", newMaster, master))
+	}
+
+	return nil
 }

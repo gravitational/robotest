@@ -21,27 +21,25 @@ const (
 func KubectlGetPods(ctx context.Context, g Gravity, namespace, label string) ([]Pod, error) {
 	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", "get", "pods",
 		"-n", namespace, "-l", label,
-		`-ojsonpath='{range .items[*]}{.metadata.name},{.status.conditions[?(@.type=="Ready")].status},{.status.hostIP}{"\n"}{end}')`)
+		`-ojsonpath='{range .items[*]}{.metadata.name},{.status.conditions[?(@.type=="Ready")].status},{.status.hostIP}{"\n"}{end}'`)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	errs := []error{}
 	pods := []Pod{}
 
 	for _, line := range strings.Split(out, "\n") {
 		v := strings.Split(line, ",")
-		if len(v) != 3 && line != "" {
-			errs = append(errs, trace.Errorf(line))
+		if line == "" {
 			continue
+		}
+		if len(v) != 3 {
+			return nil, trace.Errorf("unexpected string %q", line)
 		}
 
 		pods = append(pods, Pod{Name: v[0], Ready: v[1] == "True", NodeIP: v[2]})
 	}
 
-	if len(errs) > 0 {
-		return nil, trace.NewAggregate(errs...)
-	}
 	return pods, nil
 }
 

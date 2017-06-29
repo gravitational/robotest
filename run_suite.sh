@@ -16,6 +16,7 @@ STORAGE_DRIVER=${STORAGE_DRIVER:-devicemapper}
 REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
 FAIL_FAST=${FAIL_FAST:-false}
+ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
 
 # choose something relatively unique to avoid intersection with other people runs
 # tag would prefix cloud resource groups for your test runs
@@ -102,9 +103,9 @@ docker run \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h -test.v \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=false \
-	-provision="$CLOUD_CONFIG" \
+	-provision="$CLOUD_CONFIG" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
-	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE} -always-collect-logs=true \
+	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
 	-tag=${TAG} -suite=sanity -os=${TEST_OS} -storage-driver=${STORAGE_DRIVER} \
 	"${RUN_TEST}" \
 	2>&1 | tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt

@@ -116,17 +116,20 @@ func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicPara
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func Provision(baseContext context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(t, baseConfig)
 	params := makeDynamicParams(t, baseConfig)
 
 	logFn := utils.Logf(t, baseConfig.Tag())
 
 	logFn("(1/3) Provisioning VMs")
-	nodes, destroyFn, err := runTerraform(ctx, baseConfig, params)
+	nodes, destroyFn, err := runTerraform(baseContext, baseConfig, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+
+	ctx, cancel := context.WithTimeout(baseContext, cloudInitTimeout)
+	defer cancel()
 
 	logFn("(2/3) Configuring VMs")
 	gravityNodes, err := configureVMs(ctx, t, params, nodes)
@@ -134,6 +137,9 @@ func Provision(ctx context.Context, t *testing.T, baseConfig ProvisionerConfig) 
 		logFn("some nodes initialization failed, teardown this setup as non-usable")
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
+
+	ctx, cancel = context.WithTimeout(baseContext, clockSyncTimeout)
+	defer cancel()
 
 	logFn("(3/3) Synchronizing clocks")
 	timeNodes := []sshutil.SshNode{}
