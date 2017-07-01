@@ -1,60 +1,109 @@
-# Gravity CLI test suite
+## Gravity CLI test suite
 
-### Configuration File
-```
-cloud_provider: # aws or azure
-installer_url: # could be local file path, http://, https:// or s3://bucket/path URL 
-script_path: /robotest/terraform/azure # packaged with docker container, but you can override if needed using -v
-docker_device: /dev/sdd # /dev/sdd for azure, /dev/xvdb for aws
-aws:
-  access_key: # see [AWS EC2 docs](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html)
-  secret_key: 
-  ssh_user: ubuntu # OS distribution may override 
-  key_path: /robotest/config/ssh_private_key.pem # we use it to SSH to hosts
-  key_pair: # public part of SSH key is stored on AWS EC2, see its docs
-  region: us-west-1 # if you change it, you need also update AMI in terraform/aws/os.tf
-  vpc: Create new # leave it like that
-  docker_device: /dev/xvdb 
-azure: 
-  subscription_id: # see [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for next 4 params
-  client_id: 
-  client_secret: 
-  tenant_id: 
-  vm_type: Standard_DS2_v2 
-  location: westus
-  ssh_user: robotest
-  key_path: /robotest/config/ssh_private_key.pem
-  authorized_keys_path: /robotest/config/ssh_public
-  docker_device: /dev/sdd
+A recommended way to launch CLI suite is by using either `latest` or `stable` version of docker container 
+and defining few dynamic configuration variables plus necessary cloud environment parameters. 
 
-```
+```bash
+#!/bin/bash
 
-### Shell command
-```
+# Robotest dynamically generates test names and corresponding cloud resource groups 
+# TAG is used to semi-uniqely prefix them 
+export TAG=
+
+# Amount of parallel tests to run. Use it to constraint cloud resource usage to avoid hitting quota.
+export PARALLEL_TESTS=1
+
+# How many times each test should be repeated. 
+export REPEAT_TESTS=1
+
+# When true, aborts all tests on first failure
+export FAIL_FAST=false 
+
+# Keep or destroy allocated VMs for each successful or failed test
+export DESTROY_ON_SUCCESS=false
+export DESTROY_ON_FAILURE=false
+
+# Valid combinations are latest, stable or specific version 
+export ROBOTEST_VERSION=${ROBOTEST_VERSION:-"stable"}
+
+# Which cloud to deploy. Valid values are aws and azure
+export DEPLOY_TO=aws
+
+# Define to enable all log forwarding to google cloud logger and dashboard
+export GCL_PROJECT_ID=kubeadm-167321
+
+# Installer could be a local file path (don't prefix with file://) , s3:// or http(s):// URL
+export INSTALLER_URL='s3://s3.gravitational.io/denis/c1b6794-telekube-3.56.4-installer.tar.gz'
+
+set -o pipefail
+
 docker run \
-	-v $(pwd)/robotest_state:/robotest/state \
-    -v $(pwd)/app-installer.tar:/robotest/app-installer.tar \
-	-v ~/.ssh/id_rsa.pub:/robotest/config/ssh_public \
-    -v $(pwd)/config.yaml:/robotest/config/config.yaml \
-    -v ~/.ssh/id_rsa:/robotest/config/ssh_private_key.pem \
-	quay.io/gravitational/robotest-suite:latest \
-	-config /robotest/config/config.yaml \
-	-dir=/robotest/state -resourcegroupfile=/robotest/state/alloc.txt \
-	-destroy-on-success=true -destroy-on-failure=true \
-    -tag=RTJ-${BRANCH//\//-} -suite=sanity -set=${TEST_SETS}
+  quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
+  cat /usr/bin/run_suite.sh | /bin/bash -s 'install={"nodes":1,"flavor":"one"}'
+
 ```
 
-### Runtime Args
+## Jenkins
 
-Every test creates its own resource group on cloud provider, and removes it after test is complete. 
+* [Compile and test specific telekube branch](https://jenkins.gravitational.io/view/robotest/job/robotest-run/)
+* [Compile and publish Robotest](https://jenkins.gravitational.io/view/robotest/job/Robotest-publish/)
 
-1. `config` : see sample YAML config file above.
-2. `dir` : directory to keep state, its recommended to map it from host.
-3. `resourcegroup-file` will keep list of resource groups created on cloud.
-4. `destroy-on-success` whether to remove VMs after successful test run.
-5. `destroy-on-failure` whether to remove VMs after test failure. 
-6. `tag` all resource groups will start from this. Choose something unique.
-7. `suite` : `sanity`, `stress`, `regression`. Use `sanity`. 
-8. `set` whether to run a [specific test set](https://github.com/gravitational/robotest/blob/master/suite/sanity/sanity.go) or all. 
-9. `always-collect-logs` whether to also collect logs from nodes on test success. They are always fetched to state dir if test fails.
+## Supported Tests
+Every test is passed as argument to launch script as `testname={json}`. Mind the double-quotes for field names.
+
+### Install a cluster
+
+`install`
+
+* `nodes` (uint) number of nodes.
+* `flavor` (string) flavor corresponding to number of nodes.
+* `remote_support` (bool, default=false) enable remote support via `gravity complete` after install using OPS center and token burned into installer.
+* `uninstall` (bool, default=false) uninstall at the end
+
+`provision` takes same args but will not run any installer, just provision VMs. 
+
+### Install cluster, then resize
+
+`resize` 
+
+Inherits parameters from `install`, plus:
+
+* `to` (uint) number of nodes to expand (or shrink) to
+* `graceful` (bool, default=false) whether to perform graceful or forced node shrink
+
+### Install cluster, then upgrade
+
+`upgrade3lts` - current upgrade procedure for 3.x LTS branch. Inherits parameters from `install`. 
+
+* `upgrade_from` initial installer to use
+
+### Replace cluster nodes
+
+`replace` inherits `install` parameters. 
+
+* `roles` (array) `["apimaster","clmaster","clbackup","worker"]` will sequentially locate and replace nodes with given role
+* `recycle` (bool) if true, a clean node will be used for each operation replacement, if false then +1 node would be created in addition to `nodes` parameters and will sequentially be replaced as per nodes. Note the `worker` is no-op for cluster with <= 3 nodes.
+* `expand_before_shrink` (bool) expand cluster before node removal or after. 
+* `pwroff_before_remove` (bool) if true, then node would be `poweroff -f` before node replacement. Cannot be combined with `recycle=true`
+
+`replace_variety` will generate a combination of `replace` parameterized tests.
+
+## Cloud Environment Configuration
+
+Currently deployment to AWS and Azure is supported. 
+
+### AWS Configuration
+
+When deploying to AWS or using S3:// installer URLs, you need define `AWS_REGION, AWS_KEYPAIR, AWS_ACCESS_KEY, AWS_SECRET_KEY` environment variables. See [AWS EC2 docs](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html) for details.
+
+### Azure Configuration
+When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
+
+### Cloud Logging
+Robotest can automatically send detailed execution logs to Google Cloud Logging platform. To enable:
+
+1. [Create and generate key for the service account](https://cloud.google.com/docs/authentication/getting-started)
+2. Assign `Logging/Log Writer` and `Pub-Sub/Topic Writer` permissions to the service account
+3. Define `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+4. Enable [Cloud Logging](https://console.cloud.google.com/logs/viewer) project and set `GCL_PROJECT_ID` env variable to [google project ID](https://console.cloud.google.com/iam-admin/settings/project)
 
