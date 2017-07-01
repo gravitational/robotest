@@ -3,7 +3,6 @@ package gravity
 import (
 	"context"
 	"fmt"
-	syslog "log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -49,13 +48,13 @@ const finalTeardownTimeout = time.Minute * 5
 // wrapDestroyFn implements a global conditional logic
 func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func(baseContext context.Context, t *testing.T) error {
+		log := utils.Logf(t, tag)
+
 		defer func() {
 			if r := recover(); r != nil {
-				syslog.Printf("\n*****\n wrapDestroyFn %s PANIC %+v\n*****\n", tag, r)
+				log("\n*****\n wrapDestroyFn %s PANIC %+v\n*****\n", tag, r)
 			}
 		}()
-
-		log := utils.Logf(t, tag)
 
 		skipLogCollection := false
 

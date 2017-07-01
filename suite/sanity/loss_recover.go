@@ -26,8 +26,6 @@ const (
 
 type lossAndRecoveryParam struct {
 	installParam
-	// ReplaceNodes is how many nodes to loose and recover
-	ReplaceNodes uint `json:"replace" validate:"gte=0"`
 	// ReplaceNodeType : see killXXX constants
 	ReplaceNodeType string `json:"kill" validate:"required,eq=apimaster|clmaster|clbackup|worker"`
 	// ExpandBeforeShrink is whether to expand cluster before removing dead node

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -116,11 +116,6 @@ type gravity struct {
 	ts         time.Time
 }
 
-const (
-	retrySSH    = time.Second * 10
-	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
-)
-
 // waits for SSH to be up on node and returns client
 func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
 	ctx, cancel := context.WithTimeout(baseContext, deadlineSSH)
@@ -151,7 +146,7 @@ func (g *gravity) Logf(format string, args ...interface{}) {
 
 // String returns public and private addresses of the node
 func (g *gravity) String() string {
-	return fmt.Sprintf("%s %s", g.node.PrivateAddr(), g.node.Addr())
+	return fmt.Sprintf("%s/%s", g.node.PrivateAddr(), g.node.Addr())
 }
 
 func (g *gravity) Node() infra.Node {

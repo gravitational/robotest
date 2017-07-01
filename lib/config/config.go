@@ -60,7 +60,7 @@ func (c *Config) Parse(args []string) (fns map[string]Entry, err error) {
 
 		entry, there := c.entries[key]
 		if !there {
-			errs = append(errs, trace.NotFound("no such function: %q in %+v", key, c))
+			errs = append(errs, trace.NotFound("no such function: %q", key))
 			continue
 		}
 

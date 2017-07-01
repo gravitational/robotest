@@ -3,12 +3,12 @@ package gravity
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
 	"github.com/gravitational/trace"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

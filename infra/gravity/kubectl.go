@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gravitational/robotest/lib/wait"
+
 	"github.com/gravitational/trace"
 )
 
@@ -19,9 +21,16 @@ const (
 )
 
 func KubectlGetPods(ctx context.Context, g Gravity, namespace, label string) ([]Pod, error) {
-	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", "get", "pods",
-		"-n", namespace, "-l", label,
-		`-ojsonpath='{range .items[*]}{.metadata.name},{.status.conditions[?(@.type=="Ready")].status},{.status.hostIP}{"\n"}{end}'`)
+	args := []string{
+		"get", "pods", "-n", namespace,
+		`-ojsonpath='{range .items[*]}{.metadata.name},{.status.conditions[?(@.type=="Ready")].status},{.status.hostIP}{"\n"}{end}'`,
+	}
+	if label != "" {
+		args = append(args, "-l")
+		args = append(args, label)
+	}
+	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", args...)
+
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -49,10 +58,26 @@ func KubectlDeletePod(ctx context.Context, g Gravity, namespace, pod string) err
 		return trace.Wrap(err)
 	}
 
-	// FIXME: currently we don't get back exit codes from planet enter thus relying on adhoc mechanism
+	// FIXME: https://github.com/gravitational/gravity/issues/2408
 	if strings.HasPrefix(out, "Error") {
 		return trace.Errorf(out)
 	}
 
-	return nil
+	// wait for the pod to disappear
+	err = wait.Retry(ctx, func() error {
+		pods, err := KubectlGetPods(ctx, g, namespace, "")
+		if err != nil {
+			return wait.Abort(err)
+		}
+
+		for _, p := range pods {
+			if p.Name == pod {
+				return wait.Continue("pod is still present")
+			}
+		}
+
+		return nil
+	})
+
+	return trace.Wrap(err)
 }

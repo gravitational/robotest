@@ -98,8 +98,6 @@ func TestMain(t *testing.T) {
 	gravity.LoadConfig(t, []byte(*provision), &config)
 	config = config.WithTag(*tag)
 
-	t.Logf("CONFIG %q", config)
-
 	suiteCfg, there := suites[*testSuite]
 	if !there {
 		t.Fatalf("No such test suite \"%s\"", *testSuite)

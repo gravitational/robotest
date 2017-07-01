@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type expandParam struct {
+type resizeParam struct {
 	installParam
 	// TargetNodes is how many nodes cluster should have after expand
 	ToNodes uint `json:"to" validate:"required,gte=3"`
 }
 
-// basicExpand installs an initial cluster and then expands it to given number of nodes
-func basicExpand(p interface{}) (gravity.TestFunc, error) {
+// resize installs an initial cluster and then expands or gracefully shrinks it to given number of nodes
+func resize(p interface{}) (gravity.TestFunc, error) {
 	param := p.(expandParam)
 
 	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {

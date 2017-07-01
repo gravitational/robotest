@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
@@ -53,26 +52,6 @@ func doRelocate(ctx context.Context, g Gravity) error {
 
 	if err = KubectlDeletePod(ctx, g, kubeSystemNS, master.Name); err != nil {
 		return wait.Abort(trace.Wrap(err, "removing pod %s", master.Name))
-	}
-
-	// pod eviction is not immediate
-	wait.Sleep(ctx, defaults.RetryDelay)
-	err = wait.Retry(ctx, func() error {
-		pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
-		if err != nil {
-			return wait.Abort(err)
-		}
-
-		for _, pod := range pods {
-			if pod.Ready && pod.Name == master.Name {
-				return wait.Continue("old master not evicted yet")
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return wait.Abort(err)
 	}
 
 	var newMaster *Pod
