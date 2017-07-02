@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 // Abort causes Retry function to stop with error

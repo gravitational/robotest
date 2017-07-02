@@ -14,7 +14,15 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
+
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
+
+type SshNode struct {
+	Client *ssh.Client
+	Log    logrus.FieldLogger
+}
 
 // WaitTimeSync will ensure time is synchronized between the nodes provided
 // otherwise an installation might fail
@@ -46,7 +54,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 		for _, node := range nodes {
 			go func(node SshNode) {
 				var ts float64
-				_, err := RunAndParse(ctx, node, "date +%s%3N", nil, parseTime(&ts))
+				_, err := RunAndParse(ctx, node.Client, node.Log, "date +%s%3N", nil, parseTime(&ts))
 				errCh <- err
 				valueCh <- ts
 			}(node)

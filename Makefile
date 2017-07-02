@@ -16,12 +16,7 @@ all: clean build
 .PHONY: build
 build: buildbox
 	mkdir -p build
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS) build/go-junit-report
-
-.PHONY: build-suite
-build-suite: buildbox
-	mkdir -p build 
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make suite
+	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j suite
 
 .PHONY: buildbox
 buildbox:
@@ -41,12 +36,13 @@ publish:
 #
 
 .PHONY: $(TARGETS)
-$(TARGETS): clean vendor
+$(TARGETS): vendor
 	@go version
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
 vendor: glide.yaml 
+	rm -rf ./.glide ./vendor
 	cd $(SRCDIR) && glide install
 
 build/go-junit-report:
@@ -55,7 +51,7 @@ build/go-junit-report:
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILDDIR)/*
+	@rm -rf $(BUILDDIR)/* 
 
 .PHONY: test
 test:

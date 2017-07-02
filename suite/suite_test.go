@@ -13,7 +13,10 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
+
+	"github.com/sirupsen/logrus"
 )
 
 type valueList []string
@@ -42,14 +45,20 @@ var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources 
 var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
 var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
+var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
+
 var testSets, osFlavors, storageDrivers valueList
 
 func init() {
 	flag.Var(&osFlavors, "os", "comma delimited list of OS")
-	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers: devicemapper,loopback,overlay,overlay2")
+	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storage drivers: devicemapper,loopback,overlay,overlay2")
 }
 
+// max amount of time test will run
 var testTimeout = time.Hour * 12
+
+// google cloud logger initialization threshold
+var gclTimeout = time.Minute
 
 var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
@@ -108,19 +117,43 @@ func TestMain(t *testing.T) {
 		t.Fatalf("failed to parse args: %v", err)
 	}
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), gclTimeout)
+	defer cancelFn()
+
+	client, err := xlog.NewGCLClient(ctx, *cloudLogProjectID)
+	logger := xlog.NewLogger(client, t, logrus.Fields{})
+	if err != nil {
+		logger.WithError(err).Error("cloud logging not available")
+	} else {
+		logger.Warn("cloud log enabled")
+		defer client.Close()
+	}
+
 	// testing package has internal 10 mins timeout, can be reset from command line only
 	// see docker/suite/entrypoint.sh
-	ctx, cancelFn := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancelFn = context.WithTimeout(context.Background(), testTimeout)
+	defer cancelFn()
 	setupSignals(cancelFn)
 
-	gravity.SetProvisionerPolicy(gravity.ProvisionerPolicy{
+	policy := gravity.ProvisionerPolicy{
 		DestroyOnSuccess:  *destroyOnSuccess,
 		DestroyOnFailure:  *destroyOnFailure,
 		AlwaysCollectLogs: *collectLogs,
 		FailFast:          *failFast,
 		ResourceListFile:  *resourceListFile,
 		CancelAllFn:       cancelFn,
-	})
+	}
+	gravity.SetProvisionerPolicy(policy)
+
+	logger.WithFields(logrus.Fields{
+		"test_suite":         *testSuite,
+		"test_set":           testSet,
+		"provisioner_policy": policy,
+		"tag":                *tag,
+		"os_flavors":         osFlavors,
+		"storage_drivers":    storageDrivers,
+		"repeat":             *repeat,
+	}).Info("starting")
 
 	t.Run(*testSuite, func(t *testing.T) {
 		for r := 1; r <= *repeat; r++ {
@@ -128,11 +161,11 @@ func TestMain(t *testing.T) {
 				for ts, entry := range testSet {
 					for _, drv := range storageDrivers {
 						if in(drv, storageDriverOsCompat[osFlavor]) {
-							gravity.Run(ctx, t,
-								config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
-								entry.TestFunc, gravity.Parallel)
-
-							t.Logf("%s : %+v", ts, entry.Param)
+							cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv)
+							fields := logrus.Fields{"repeat": r, "test": ts, "param": entry.Param}
+							fn := gravity.Wrap(entry.TestFunc, ctx, cfg, client, fields)
+							t.Run(cfg.Tag(), fn)
+							logger.WithField("tag", cfg.Tag()).Debug("run")
 						}
 					}
 				}

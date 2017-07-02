@@ -8,8 +8,8 @@ import (
 
 	"github.com/gravitational/robotest/lib/constants"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 // CopyFile copies contents of src to dst atomically

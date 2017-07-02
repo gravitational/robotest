@@ -15,6 +15,7 @@ import (
 
 	"github.com/gravitational/trace"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,7 +88,7 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicP
 	return param
 }
 
-func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
+func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
 	errChan := make(chan error, len(nodes))
 	nodeChan := make(chan interface{}, len(nodes))
 
@@ -96,7 +97,7 @@ func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicPara
 
 	for _, node := range nodes {
 		go func(node infra.Node) {
-			val, err := configureVM(ctx, t, node, params)
+			val, err := configureVM(ctx, log.WithField("node", node), node, params)
 			nodeChan <- val
 			errChan <- err
 		}(node)
@@ -116,46 +117,41 @@ func configureVMs(baseCtx context.Context, t *testing.T, params cloudDynamicPara
 }
 
 // Provision gets VMs up, running and ready to use
-func Provision(baseContext context.Context, t *testing.T, baseConfig ProvisionerConfig) ([]Gravity, DestroyFn, error) {
-	validateConfig(t, baseConfig)
-	params := makeDynamicParams(t, baseConfig)
+func (c TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	validateConfig(c.t, cfg)
+	params := makeDynamicParams(c.t, cfg)
 
-	logFn := utils.Logf(t, baseConfig.Tag())
-
-	logFn("(1/3) Provisioning VMs")
-	nodes, destroyFn, err := runTerraform(baseContext, baseConfig, params)
+	c.Logger().Debug("Provisioning VMs")
+	nodes, destroyFn, err := runTerraform(c.Context(), cfg, params)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	ctx, cancel := context.WithTimeout(baseContext, cloudInitTimeout)
+	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	logFn("(2/3) Configuring VMs")
-	gravityNodes, err := configureVMs(ctx, t, params, nodes)
+	c.Logger().Debug("Configuring VMs")
+	gravityNodes, err := configureVMs(ctx, c.Logger(), params, nodes)
 	if err != nil {
-		logFn("some nodes initialization failed, teardown this setup as non-usable")
+		c.Logger().WithError(err).Error("some nodes initialization failed, teardown this setup as non-usable")
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	ctx, cancel = context.WithTimeout(baseContext, clockSyncTimeout)
+	ctx, cancel = context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
-	logFn("(3/3) Synchronizing clocks")
+	c.Logger().Debug("Synchronizing clocks")
 	timeNodes := []sshutil.SshNode{}
 	for _, node := range gravityNodes {
-		timeNodes = append(timeNodes, node)
+		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	logFn("OS=%s NODES=%d TAG=%s DIR=%s", baseConfig.os, baseConfig.nodeCount, baseConfig.tag, baseConfig.StateDir)
-	for _, node := range gravityNodes {
-		logFn("\t%v", node)
-	}
+	c.Logger().WithField("nodes", nodes).Debug("Provisioning complete")
 
-	return gravityNodes, wrapDestroyFn(baseConfig.Tag(), gravityNodes, destroyFn), nil
+	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
 }
 
 // sort Interface implementation
@@ -184,31 +180,32 @@ const cloudInitWait = time.Second * 10
 
 // bootstrapAzure workarounds some issues with Azure platform init
 func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
-	err = sshutil.WaitForFile(ctx, g, waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
+	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(),
+		waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = sshutil.TestFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile)
+	err = sshutil.TestFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	if err == nil {
-		g.Logf("node already bootstrapped")
+		g.Logger().Debug("node already bootstrapped")
 		return nil
 	}
 	if !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
 
-	err = sshutil.TestFile(ctx, g, cloudInitSupportedFile, sshutil.TestRegularFile)
+	err = sshutil.TestFile(ctx, g.Client(), g.Logger(), cloudInitSupportedFile, sshutil.TestRegularFile)
 	if err == nil {
-		g.Logf("cloud-init underway")
-		return sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+		g.Logger().Debug("cloud-init underway")
+		return sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
 	}
 	if !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
 
 	// apparently cloud-init scripts are not supported for given OS
-	err = sshutil.RunScript(ctx, g,
+	err = sshutil.RunScript(ctx, g.Client(), g.Logger(),
 		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os)),
 		sshutil.SUDO)
 	return trace.Wrap(err)
@@ -216,7 +213,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 
 // bootstrapAWS is a simple workflow to wait for cloud-init to complete
 func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
-	err = sshutil.WaitForFile(ctx, g, cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
 	return trace.Wrap(err)
 }
 
@@ -225,15 +222,18 @@ func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err
 // 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
 // 2.  - i.e. run bootstrap commands, load installer, etc.
 // TODO: migrate bootstrap scripts here as well;
-func configureVM(ctx context.Context, t *testing.T, node infra.Node, param cloudDynamicParams) (Gravity, error) {
+func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, param cloudDynamicParams) (Gravity, error) {
 	g := &gravity{
 		node:  node,
 		param: param,
-		logFn: t.Logf,
 		ts:    time.Now(),
+		log: log.WithFields(logrus.Fields{
+			"ip":        node.PrivateAddr(),
+			"public_ip": node.Addr(),
+		}),
 	}
 
-	client, err := sshClient(ctx, g.Logf, g.node)
+	client, err := sshClient(ctx, g.node, g.log)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

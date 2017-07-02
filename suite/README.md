@@ -7,8 +7,8 @@ and defining few dynamic configuration variables plus necessary cloud environmen
 #!/bin/bash
 
 # Robotest dynamically generates test names and corresponding cloud resource groups 
-# TAG is used to semi-uniqely prefix them 
-export TAG=
+# TAG is used to prefix them. Keep it short (i.e. 4 chars), as cloud resource groups have length limits
+export TAG=sanity/install
 
 # Amount of parallel tests to run. Use it to constraint cloud resource usage to avoid hitting quota.
 export PARALLEL_TESTS=1
@@ -24,7 +24,7 @@ export DESTROY_ON_SUCCESS=false
 export DESTROY_ON_FAILURE=false
 
 # Valid combinations are latest, stable or specific version 
-export ROBOTEST_VERSION=${ROBOTEST_VERSION:-"stable"}
+export ROBOTEST_VERSION="stable"
 
 # Which cloud to deploy. Valid values are aws and azure
 export DEPLOY_TO=aws
@@ -33,11 +33,11 @@ export DEPLOY_TO=aws
 export GCL_PROJECT_ID=kubeadm-167321
 
 # Installer could be a local file path (don't prefix with file://) , s3:// or http(s):// URL
-export INSTALLER_URL='s3://s3.gravitational.io/denis/c1b6794-telekube-3.56.4-installer.tar.gz'
+export INSTALLER_URL='s3://s3.gravitational.io/builds/c1b6794-telekube-3.56.4-installer.tar'
 
 set -o pipefail
 
-docker run \
+docker run --pull \
   quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
   cat /usr/bin/run_suite.sh | /bin/bash -s 'install={"nodes":1,"flavor":"one"}'
 
@@ -100,10 +100,8 @@ When deploying to AWS or using S3:// installer URLs, you need define `AWS_REGION
 When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
 
 ### Cloud Logging
-Robotest can automatically send detailed execution logs to Google Cloud Logging platform. To enable:
+Robotest can optionally send detailed execution logs to Google Cloud Logging platform.
 
-1. [Create and generate key for the service account](https://cloud.google.com/docs/authentication/getting-started)
-2. Assign `Logging/Log Writer` and `Pub-Sub/Topic Writer` permissions to the service account
-3. Define `GOOGLE_APPLICATION_CREDENTIALS` environment variable
-4. Enable [Cloud Logging](https://console.cloud.google.com/logs/viewer) project and set `GCL_PROJECT_ID` env variable to [google project ID](https://console.cloud.google.com/iam-admin/settings/project)
-
+1. [Create and generate key for the service account](https://cloud.google.com/docs/authentication/getting-started) and set `GOOGLE_APPLICATION_CREDENTIALS` environment variable accordingly.
+2. Assign `Logging/Log Writer` and `Pub-Sub/Topic Writer` permissions to the service account.
+3. Enable [Cloud Logging](https://console.cloud.google.com/logs/viewer) project and set `GCL_PROJECT_ID` env variable to [google project ID](https://console.cloud.google.com/iam-admin/settings/project).

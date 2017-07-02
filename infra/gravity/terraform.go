@@ -6,19 +6,19 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
-	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
+
+	"github.com/sirupsen/logrus"
 )
 
 // DestroyFn function which will destroy previously created remote resources
-type DestroyFn func(context.Context, *testing.T) error
+type DestroyFn func() error
 
 type ProvisionerPolicy struct {
 	// DestroyOnSuccess instructs to remove any cloud resources after test completed OK
@@ -32,7 +32,7 @@ type ProvisionerPolicy struct {
 	// ResourceListFile keeps record of allocated and not cleaned up resources
 	ResourceListFile string
 	// CancelAllFn is top-level context cancellation function which is used to implement FailFast behaviour
-	CancelAllFn func()
+	CancelAllFn func() `json:"-"`
 }
 
 var policy ProvisionerPolicy
@@ -46,57 +46,59 @@ var testStatus = map[bool]string{true: "failed", false: "ok"}
 const finalTeardownTimeout = time.Minute * 5
 
 // wrapDestroyFn implements a global conditional logic
-func wrapDestroyFn(tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
-	return func(baseContext context.Context, t *testing.T) error {
-		log := utils.Logf(t, tag)
-
+func wrapDestroyFn(c TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
+	return func() error {
 		defer func() {
 			if r := recover(); r != nil {
-				log("\n*****\n wrapDestroyFn %s PANIC %+v\n*****\n", tag, r)
+				c.Logger().WithField("panic", r).Error("panic in terraform destroy")
 			}
 		}()
 
-		skipLogCollection := false
+		log := c.Logger().WithFields(logrus.Fields{
+			"nodes":              nodes,
+			"provisioner_policy": policy,
+			"test_status":        testStatus[c.t.Failed()]})
 
-		if baseContext.Err() != nil && policy.DestroyOnFailure == false {
-			log("destroy skipped for %s: %v", tag, baseContext.Err())
-			return trace.Wrap(baseContext.Err())
+		skipLogCollection := false
+		ctx := c.Context()
+
+		if ctx.Err() != nil && policy.DestroyOnFailure == false {
+			log.WithError(ctx.Err()).Info("skipped destroy")
+			return trace.Wrap(ctx.Err())
 		}
 
-		ctx := baseContext
-		if baseContext.Err() != nil {
-			log("main context %v, providing extra %v for %s teardown and cleanup",
-				baseContext.Err(), finalTeardownTimeout, tag)
+		if ctx.Err() != nil {
+			log.WithError(ctx.Err()).Warn("extra cycles for teardown")
 			skipLogCollection = true
 			var cancel func()
 			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
 			defer cancel()
 		}
 
-		if t.Failed() && policy.FailFast {
-			log("test failed, FailFast=true requesting other tests teardown")
+		if c.t.Failed() && policy.FailFast {
+			log.Warn("test failed, FailFast=true requesting other tests teardown")
 			defer policy.CancelAllFn()
 		}
 
-		if !skipLogCollection && (t.Failed() || policy.AlwaysCollectLogs) {
-			log("collecting logs from nodes...")
-			err := NewContext(ctx, t, DefaultTimeouts).CollectLogs("postmortem", nodes)
+		if !skipLogCollection && (c.t.Failed() || policy.AlwaysCollectLogs) {
+			log.Debug("collecting logs from nodes...")
+			err := c.CollectLogs("postmortem", nodes)
 			if err != nil {
-				log("warning: errors collecting logs : %v", err)
+				log.WithError(err).Error("collecting logs")
 			}
 		}
 
 		if (policy.DestroyOnSuccess == false) ||
-			(t.Failed() && policy.DestroyOnFailure == false) {
-			log("Not removing terraform %s", tag)
+			(c.t.Failed() && policy.DestroyOnFailure == false) {
+			log.Info("not destroying VMs per policy")
 			return nil
 		}
 
-		log("destroying Terraform resources %s, test %s", tag, testStatus[t.Failed()])
+		log.Info("destroying VMs")
 
 		err := destroy(ctx)
 		if err != nil {
-			log("error destroying terraform resources: %v", err)
+			log.WithError(err).Error("destroying VM resources")
 		} else {
 			resourceDestroyed(tag)
 		}

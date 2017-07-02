@@ -69,7 +69,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 				Token:    param.Token,
 				Role:     param.Role})
 			if err != nil {
-				n.Logf("Join failed: %v", err)
+				n.Logger().WithError(err).Error("Join failed")
 			}
 			errs <- err
 		}(node)
@@ -77,7 +77,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
-		c.Logf("install failed: %v", err)
+		c.Logger().WithError(err).Error("install failed")
 		return trace.Wrap(err)
 	}
 

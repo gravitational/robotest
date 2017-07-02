@@ -54,7 +54,7 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 
 func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 	return func() error {
-		exitCode, err := sshutils.RunAndParse(ctx, node,
+		exitCode, err := sshutils.RunAndParse(ctx, node.Client(), node.Logger(),
 			`sudo /usr/bin/gravity enter -- --notty /usr/bin/etcdctl -- cluster-health`,
 			nil, sshutils.ParseDiscard)
 		if err == nil {

@@ -24,7 +24,7 @@ type entry struct {
 
 // Entry is a pair of initialized test function and its parameters
 type Entry struct {
-	TestFunc gravity.TestFunc
+	TestFunc gravity.TestFunc `json:"-"`
 	Param    interface{}
 }
 

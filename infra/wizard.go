@@ -18,7 +18,7 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluster, err error) {

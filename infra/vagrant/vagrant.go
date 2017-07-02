@@ -21,7 +21,7 @@ import (
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func New(stateDir string, config Config) (*vagrant, error) {

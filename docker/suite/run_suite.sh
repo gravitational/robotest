@@ -81,7 +81,6 @@ check_files ${SSH_KEY} ${SSH_PUB}
 
 if [ -n "$GCL_PROJECT_ID" ] ; then
 	check_files ${GOOGLE_APPLICATION_CREDENTIALS}
-	GCP_CONFIG=$'gcp:\n  project_id: '${GCL_PROJECT_ID}
 fi
 
 CLOUD_CONFIG="
@@ -91,7 +90,6 @@ state_dir: /robotest/state
 cloud: ${DEPLOY_TO}
 ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
-${GCP_CONFIG:-}
 "
 
 # will make verbose logging to console
@@ -104,7 +102,7 @@ mkdir -p ${P}/wd_suite/state/${TAG}
 
 set -o xtrace 
 
-docker run \
+docker run -t \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	-v ${SSH_PUB}:/robotest/config/ops_rsa.pub \
@@ -113,13 +111,14 @@ docker run \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
+	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=false \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
 	-tag=${TAG} -suite=sanity -os=${TEST_OS} -storage-driver=${STORAGE_DRIVER} \
-	$@ \
-	2>&1 | tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt
+	$@ 
+#| tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt
 
 set +o xtrace
 

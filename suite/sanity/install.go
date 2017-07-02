@@ -1,12 +1,7 @@
 package sanity
 
 import (
-	"context"
-	"testing"
-
 	"github.com/gravitational/robotest/infra/gravity"
-
-	"github.com/stretchr/testify/require"
 )
 
 type installParam struct {
@@ -20,13 +15,12 @@ type installParam struct {
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
-		require.NoError(t, err, "provision nodes")
-		defer destroyFn(ctx, t)
+		nodes, destroyFn, err := g.Provision(cfg)
+		g.OK("provision nodes", err)
+		defer destroyFn()
 
-		g := gravity.NewContext(ctx, t, param.Timeouts)
 		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
 		g.OK("status", g.Status(nodes))
@@ -36,13 +30,12 @@ func install(p interface{}) (gravity.TestFunc, error) {
 func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := gravity.Provision(ctx, t, cfg)
-		require.NoError(t, err, "provision nodes")
-		defer destroyFn(ctx, t)
+		nodes, destroyFn, err := g.Provision(cfg)
+		g.OK("provision nodes", err)
+		defer destroyFn()
 
-		g := gravity.NewContext(ctx, t, param.Timeouts)
 		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 	}, nil
 }

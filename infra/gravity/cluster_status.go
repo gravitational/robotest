@@ -27,7 +27,11 @@ func (c TestContext) Status(nodes []Gravity) error {
 		for _, node := range nodes {
 			go func(n Gravity) {
 				status, err := n.Status(ctx)
-				n.Logf("status=%+v, err=%v", status, err)
+				if err != nil {
+					n.Logger().WithError(err).Error(status)
+				} else {
+					n.Logger().WithField("status", status).Debugf("status ok")
+				}
 				errs <- err
 			}(node)
 		}
@@ -36,7 +40,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 		if err == nil {
 			return nil
 		}
-		c.Logf("status not available on some nodes, will retry")
+		c.Logger().Warn("status not available on some nodes, will retry")
 		return wait.Continue("status not ready on some nodes")
 	})
 
@@ -83,14 +87,14 @@ func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 
 	errs := make(chan error, len(nodes))
 
-	c.t.Logf("Collecting logs from nodes %v", nodes)
+	c.Logger().WithField("nodes", nodes).Debug("Collecting logs from nodes")
 	for _, node := range nodes {
 		go func(n Gravity) {
 			localPath, err := n.CollectLogs(ctx, prefix)
 			if err == nil {
-				n.Logf("logs in %s", localPath)
+				n.Logger().Debugf("logs in %s", localPath)
 			} else {
-				n.Logf("error fetching logs: %v", err)
+				n.Logger().WithError(err).Error("error fetching node logs")
 			}
 			errs <- err
 		}(node)
