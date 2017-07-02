@@ -16,7 +16,7 @@ all: clean build
 .PHONY: build
 build: buildbox
 	mkdir -p build
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j suite
+	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS)
 
 .PHONY: buildbox
 buildbox:
