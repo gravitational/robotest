@@ -7,7 +7,7 @@ set -eu -o pipefail
 #
 
 if [ -f $INSTALLER_URL ] ; then
-	INSTALLER_FILE = '/robotest/installer.tar'
+	INSTALLER_FILE='/robotest/installer.tar'
 fi
 
 # OS could be ubuntu,centos,rhel 
@@ -32,37 +32,6 @@ DESTROY_ON_FAILURE=${DESTROY_ON_FAILURE:-true}
 # PIN robotest version if needed
 ROBOTEST_VERSION=${ROBOTEST_VERSION:-stable}
 
-if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
-	echo "Unsupported deployment cloud ${DEPLOY_TO}"
-	exit 1
-fi
-
-if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] ; then
-AWS_CONFIG="aws:
-  access_key: ${AWS_ACCESS_KEY}
-  secret_key: ${AWS_SECRET_KEY}
-  ssh_user: ubuntu
-  key_path: /robotest/config/ops.pem
-  key_pair: ${AWS_KEYPAIR}
-  region: ${AWS_REGION}
-  vpc: Create New
-  docker_device: /dev/xvdb"
-fi
-
-if [ $DEPLOY_TO == "azure" ] ; then 
-AZURE_CONFIG="azure: 
-  subscription_id: ${AZURE_SUBSCRIPTION_ID}
-  client_id: ${AZURE_CLIENT_ID}
-  client_secret: ${AZURE_CLIENT_SECRET}
-  tenant_id: ${AZURE_TENANT_ID}
-  vm_type: Standard_F4s
-  location: westus
-  ssh_user: robotest
-  key_path: /robotest/config/ops.pem
-  authorized_keys_path: /robotest/config/ops_rsa.pub
-  docker_device: /dev/sdd"
-fi
-
 check_files () {
 	ABORT=
 	for v in $@ ; do
@@ -77,9 +46,40 @@ check_files () {
 	fi
 }
 
-check_files ${SSH_KEY} ${SSH_PUB}
+if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
+	echo "Unsupported deployment cloud ${DEPLOY_TO}"
+	exit 1
+fi
 
-if [ -n "$GCL_PROJECT_ID" ] ; then
+if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] ; then
+check_files ${SSH_KEY} 
+AWS_CONFIG="aws:
+  access_key: ${AWS_ACCESS_KEY}
+  secret_key: ${AWS_SECRET_KEY}
+  ssh_user: ubuntu
+  key_path: /robotest/config/ops.pem
+  key_pair: ${AWS_KEYPAIR}
+  region: ${AWS_REGION}
+  vpc: Create New
+  docker_device: /dev/xvdb"
+fi
+
+if [ $DEPLOY_TO == "azure" ] ; then 
+check_files ${SSH_KEY} ${SSH_PUB}
+AZURE_CONFIG="azure: 
+  subscription_id: ${AZURE_SUBSCRIPTION_ID}
+  client_id: ${AZURE_CLIENT_ID}
+  client_secret: ${AZURE_CLIENT_SECRET}
+  tenant_id: ${AZURE_TENANT_ID}
+  vm_type: Standard_F4s
+  location: westus
+  ssh_user: robotest
+  key_path: /robotest/config/ops.pem
+  authorized_keys_path: /robotest/config/ops_rsa.pub
+  docker_device: /dev/sdd"
+fi
+
+if [ -n "${GCL_PROJECT_ID:-}" ] ; then
 	check_files ${GOOGLE_APPLICATION_CREDENTIALS}
 fi
 
@@ -100,12 +100,12 @@ P=$(pwd)
 export REPORT_FILE=$(date '+%m%d-%H%M')
 mkdir -p ${P}/wd_suite/state/${TAG}
 
-set -o xtrace 
+set -o xtrace
 
 docker run -t \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
-	-v ${SSH_PUB}:/robotest/config/ops_rsa.pub \
+	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
 	${INSTALLER_FILE:+'-v' "${INSTALLER_URL}:${INSTALLER_FILE}"} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
@@ -117,8 +117,7 @@ docker run -t \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
 	-tag=${TAG} -suite=sanity -os=${TEST_OS} -storage-driver=${STORAGE_DRIVER} \
-	$@ 
-#| tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt
+	$@ | tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt
 
 set +o xtrace
 

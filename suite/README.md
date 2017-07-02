@@ -19,15 +19,28 @@ export REPEAT_TESTS=1
 # When true, aborts all tests on first failure
 export FAIL_FAST=false 
 
+# OS could be ubuntu,centos,rhel 
+TEST_OS=${TEST_OS:-ubuntu}
+
+# storage driver: could be devicemapper,loopback,overlay,overlay2 
+# separate multiple values by comma for OS and storage driver
+STORAGE_DRIVER=${STORAGE_DRIVER:-devicemapper}
+
 # Keep or destroy allocated VMs for each successful or failed test
-export DESTROY_ON_SUCCESS=false
-export DESTROY_ON_FAILURE=false
+export DESTROY_ON_SUCCESS=true
+export DESTROY_ON_FAILURE=true
 
 # Valid combinations are latest, stable or specific version 
 export ROBOTEST_VERSION="stable"
 
 # Which cloud to deploy. Valid values are aws and azure
 export DEPLOY_TO=aws
+
+# Path to SSH key 
+export SSH_KEY=
+
+# Path to public part of SSH key, only required for Azure
+export SSH_PUB=
 
 # Define to enable all log forwarding to google cloud logger and dashboard
 export GCL_PROJECT_ID=kubeadm-167321
@@ -37,7 +50,8 @@ export INSTALLER_URL='s3://s3.gravitational.io/builds/c1b6794-telekube-3.56.4-in
 
 set -o pipefail
 
-docker run --pull \
+docker pull quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION}
+docker run \
   quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
   cat /usr/bin/run_suite.sh | /bin/bash -s 'install={"nodes":1,"flavor":"one"}'
 
