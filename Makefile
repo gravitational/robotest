@@ -45,10 +45,6 @@ vendor: glide.yaml
 	rm -rf ./.glide ./vendor
 	cd $(SRCDIR) && glide install
 
-build/go-junit-report:
-	go get -u github.com/jstemmer/go-junit-report
-	go build -o build/go-junit-report github.com/jstemmer/go-junit-report 
-
 .PHONY: clean
 clean:
 	@rm -rf $(BUILDDIR)/* 

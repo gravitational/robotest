@@ -8,7 +8,7 @@ and defining few dynamic configuration variables plus necessary cloud environmen
 
 # Robotest dynamically generates test names and corresponding cloud resource groups 
 # TAG is used to prefix them. Keep it short (i.e. 4 chars), as cloud resource groups have length limits
-export TAG=sanity/install
+export TAG=
 
 # Amount of parallel tests to run. Use it to constraint cloud resource usage to avoid hitting quota.
 export PARALLEL_TESTS=1
