@@ -97,7 +97,7 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 	for _, node := range nodes {
 		go func(node infra.Node) {
-			val, err := configureVM(ctx, log.WithField("node", node), node, params)
+			val, err := configureVM(ctx, log, node, params)
 			nodeChan <- val
 			errChan <- err
 		}(node)

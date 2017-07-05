@@ -37,7 +37,20 @@ func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag stri
 	}
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
-	return trace.Wrap(err)
+	if err = trace.Wrap(err); err != nil {
+		return trace.Wrap(err)
+	}
+
+	// only forward node logs to the cloud
+	if c.suite.client == nil {
+		return nil
+	}
+
+	for _, node := range nodes {
+		go node.(*gravity).fetchLogs(c.parent, "telekube-system.log")
+	}
+
+	return nil
 }
 
 // OfflineInstall sets up cluster using nodes provided

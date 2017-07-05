@@ -7,21 +7,22 @@ import (
 )
 
 // ConsoleLogger returns logger which writes everything to file plus console for events above certain level
-func ConsoleLogger(consoleLevel logrus.Level) *logrus.Logger {
+func ConsoleLogger(consoleLevel logrus.Level, stackDepth int) *logrus.Logger {
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
 	log.Out = ioutil.Discard
 
 	consoleLog := logrus.New()
 	consoleLog.Level = consoleLevel
-	log.Hooks.Add(&consoleHook{consoleLog, consoleLevel})
+	log.Hooks.Add(&consoleHook{consoleLog, consoleLevel, stackDepth})
 
 	return log
 }
 
 type consoleHook struct {
-	console *logrus.Logger
-	level   logrus.Level
+	console    *logrus.Logger
+	level      logrus.Level
+	stackDepth int
 }
 
 func (hook *consoleHook) Fire(e *logrus.Entry) error {
@@ -36,11 +37,15 @@ func (hook *consoleHook) Fire(e *logrus.Entry) error {
 		log = hook.console
 	}
 
+	if hook.stackDepth > 0 {
+		log = log.WithField("where", where(hook.stackDepth))
+	}
+
 	switch e.Level {
 	case logrus.PanicLevel:
-		log.Panic(e.Message)
+		log.WithField("message", e.Message).Error("**** log.Panic() SHOULD NOT BE INVOKED  ****")
 	case logrus.FatalLevel:
-		log.Fatal(e.Message)
+		log.WithField("message", e.Message).Error("**** log.Fatal() SHOULD NOT BE INVOKED  ****")
 	case logrus.ErrorLevel:
 		log.Error(e.Message)
 	case logrus.WarnLevel:

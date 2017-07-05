@@ -71,8 +71,8 @@ AZURE_CONFIG="azure:
   client_id: ${AZURE_CLIENT_ID}
   client_secret: ${AZURE_CLIENT_SECRET}
   tenant_id: ${AZURE_TENANT_ID}
-  vm_type: Standard_F4s
-  location: westus
+  vm_type: ${AZURE_VM}
+  location: ${AZURE_REGION}
   ssh_user: robotest
   key_path: /robotest/config/ops.pem
   authorized_keys_path: /robotest/config/ops_rsa.pub
@@ -92,9 +92,9 @@ ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
 "
 
-# will make verbose logging to console
-LOG_CONSOLE=${LOG_CONSOLE:-'-test.v'}
-
+# will make verbose logging to console, pass -test.v if needed
+LOG_CONSOLE=${LOG_CONSOLE:-''}
+DOCKER_RUN_FLAGS=${DOCKER_RUN_FLAGS:-'-it'}
 
 P=$(pwd)
 export REPORT_FILE=$(date '+%m%d-%H%M')
@@ -102,7 +102,7 @@ mkdir -p ${P}/wd_suite/state/${TAG}
 
 set -o xtrace
 
-docker run -t \
+exec docker run ${DOCKER_RUN_FLAGS} \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
@@ -117,8 +117,4 @@ docker run -t \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
 	-tag=${TAG} -suite=sanity -os=${TEST_OS} -storage-driver=${STORAGE_DRIVER} \
-	$@ | tee ${P}/wd_suite/state/${TAG}/${REPORT_FILE}.txt
-
-set +o xtrace
-
-echo "Operation log in ${P}/wd_suite/state/${REPORT_FILE}.txt"
+	$@

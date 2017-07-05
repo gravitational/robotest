@@ -7,7 +7,7 @@ import (
 type upgradeParam struct {
 	installParam
 	// BaseInstallerURL is initial app installer URL
-	BaseInstallerURL string `json:"upgrade_from" validate:"required"`
+	BaseInstallerURL string `json:"from" validate:"required"`
 }
 
 func upgrade(p interface{}) (gravity.TestFunc, error) {

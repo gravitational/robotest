@@ -105,17 +105,17 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 		select {
 		case <-ctx.Done():
 			session.Signal(ssh.SIGTERM)
-			log.WithError(ctx.Err()).Error("context terminated, sent SIGTERM")
+			log.WithError(ctx.Err()).Debug("context terminated, sent SIGTERM")
 			return exitStatusUndefined, err
 		case err = <-errCh:
 			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
 				err = trace.Wrap(exitErr)
-				log.WithError(err).Error(exitErr.Error())
+				log.WithError(err).Debugf("%s : %s", cmd, exitErr.Error())
 				return exitErr.ExitStatus(), err
 			}
 			if err != nil {
 				err = trace.Wrap(err)
-				log.WithError(err).Error("unexpected error")
+				log.WithError(err).Debugf("unexpected error")
 				return exitStatusUndefined, err
 			}
 		}
@@ -148,7 +148,7 @@ type readLogger struct {
 func (l *readLogger) Read(p []byte) (n int, err error) {
 	n, err = l.r.Read(p)
 	if err != nil && err != io.EOF {
-		l.log.WithError(err).Error("unexpected I/O error")
+		l.log.WithError(err).Debug("unexpected I/O error")
 	} else if n > 0 {
 		l.log.Debug(string(p[0:n]))
 	}

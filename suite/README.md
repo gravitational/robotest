@@ -32,6 +32,7 @@ export DESTROY_ON_FAILURE=true
 
 # Valid combinations are latest, stable or specific version 
 export ROBOTEST_VERSION="stable"
+export REPO=quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION}
 
 # Which cloud to deploy. Valid values are aws and azure
 export DEPLOY_TO=aws
@@ -50,10 +51,11 @@ export INSTALLER_URL='s3://s3.gravitational.io/builds/c1b6794-telekube-3.56.4-in
 
 set -o pipefail
 
-docker pull quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION}
-docker run \
-  quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
-  cat /usr/bin/run_suite.sh | /bin/bash -s 'install={"nodes":1,"flavor":"one"}'
+docker pull ${REPO}
+SCRIPT=$(mktemp -d)/runsuite.sh
+docker run ${REPO} cat /usr/bin/run_suite.sh > ${SCRIPT}
+chmod +x ${SCRIPT}
+${SCRIPT} install='{"nodes":1,"flavor":"one"}'
 
 ```
 
@@ -111,7 +113,10 @@ Currently deployment to AWS and Azure is supported.
 When deploying to AWS or using S3:// installer URLs, you need define `AWS_REGION, AWS_KEYPAIR, AWS_ACCESS_KEY, AWS_SECRET_KEY` environment variables. See [AWS EC2 docs](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html) for details.
 
 ### Azure Configuration
-When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
+When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` authentication variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
+
+* `AZURE_REGION` is region to deploy to; default is `westus`. Use `az account list-locations` for options.
+* `AZURE_VM` is [VM size](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes); default is `Standard_F4s`. Use `az vm list-sizes --location ${AZURE_REGION}` to check which VMs are available.
 
 ### Cloud Logging
 Robotest can optionally send detailed execution logs to Google Cloud Logging platform.

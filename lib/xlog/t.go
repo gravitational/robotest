@@ -28,8 +28,16 @@ func (hook *TestingHook) Levels() []logrus.Level {
 	}
 }
 
+// NewLogger returns logger which also prints everything to console
 func NewLogger(client *GCLClient, t *testing.T, commonFields logrus.Fields) logrus.FieldLogger {
-	log := ConsoleLogger(logrus.InfoLevel)
+	consoleLevel := logrus.InfoLevel
+	consoleStack := 1
+	if client == nil {
+		consoleLevel = logrus.DebugLevel
+		consoleStack = 3
+	}
+
+	log := ConsoleLogger(consoleLevel, consoleStack)
 
 	if client != nil {
 		log.Hooks.Add(client.Hook(t.Name(), commonFields))

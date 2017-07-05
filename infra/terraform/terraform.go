@@ -270,7 +270,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 	}
 
 	out, err := r.command(ctx, []string{
-		"apply",
+		"apply", "-input=false",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),

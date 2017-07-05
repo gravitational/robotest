@@ -135,12 +135,14 @@ func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLog
 		client, err := node.Client()
 
 		if err == nil {
+			log.Debug("connected via SSH")
 			return client, nil
 		}
 
 		log.WithFields(logrus.Fields{"error": err, "retry_in": retrySSH}).Debug("waiting for SSH")
 		select {
 		case <-ctx.Done():
+			log.WithError(ctx.Err()).Debug("context cancelled or timed out, SSH connection cancelled")
 			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
 		case <-time.After(retrySSH):
 		}
@@ -148,8 +150,7 @@ func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLog
 }
 
 func (g *gravity) Logger() logrus.FieldLogger {
-	return g.log.WithField("elapsed",
-		fmt.Sprintf("%v", (time.Since(g.ts)/time.Second)*time.Second))
+	return g.log
 }
 
 // String returns public and private addresses of the node
