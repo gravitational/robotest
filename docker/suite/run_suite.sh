@@ -51,7 +51,7 @@ if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
 	exit 1
 fi
 
-if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] ; then
+if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] || [[ $UPGRADE_FROM = 's3://'* ]]; then
 check_files ${SSH_KEY} 
 AWS_CONFIG="aws:
   access_key: ${AWS_ACCESS_KEY}
