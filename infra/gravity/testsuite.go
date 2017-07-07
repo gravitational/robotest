@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type TestFunc func(c TestContext, config ProvisionerConfig)
+type TestFunc func(c *TestContext, config ProvisionerConfig)
 
 type TestSuite interface {
 	// Cancel requests teardown for all subordinate tests
@@ -30,41 +30,53 @@ type TestSuite interface {
 	Close()
 }
 
+const (
+	// TestStatusPassed means test was scheduled
+	TestStatusScheduled = "SCHEDULED"
+	// TestStatusRunning means test is running now
+	TestStatusRunning = "RUNNING"
+	// TestStatusPassed means test successfully passed end to end
+	TestStatusPassed = "PASSED"
+	// TestStatusFailed means test failed due to test logic not passing
+	TestStatusFailed = "FAILED"
+	// TestStatusCancelled means test execution was interrupted due to test suite cancellation
+	TestStatusCancelled = "CANCELED"
+)
+
 // TestStatus represents high level test status on completion
 type TestStatus struct {
 	UID, SuiteUID string
 	Name          string
-	Failed        bool
+	Status        string
 	LogUrl        string
 	Param         interface{}
 }
 
 // testRun logically groups multiple test runs for centralized progress and status reporting
 type testSuite struct {
-	sync.Mutex
+	sync.RWMutex
 
 	googleProjectID string
 	client          *xlog.GCLClient
 	uid             string
 
-	tests     []TestContext
+	tests     []*TestContext
 	scheduled map[string]func(t *testing.T)
 	t, runner *testing.T
 
-	ctx      context.Context
-	cancelFn func()
+	failFast, isFailingFast bool
+	ctx                     context.Context
+	cancelFn                func()
 
 	logger logrus.FieldLogger
 }
 
 // NewRun creates new group run environment
-func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields logrus.Fields) TestSuite {
+func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields logrus.Fields, failFast bool) TestSuite {
 	uid := uuid.NewV4().String()
 	fields["__uuid__"] = uid
 
 	scheduled := map[string]func(t *testing.T){}
-
-	ctx, cancelFn := context.WithCancel(ctx)
 
 	client, err := xlog.NewGCLClient(ctx, googleProjectID)
 	logger := xlog.NewLogger(client, t, fields)
@@ -72,9 +84,11 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 		logger.WithError(err).Error("cloud logging not available")
 	}
 
-	return &testSuite{sync.Mutex{}, googleProjectID, client, uid,
-		[]TestContext{}, scheduled, t, nil,
-		ctx, cancelFn, logger}
+	ctx, cancelFn := context.WithCancel(ctx)
+
+	return &testSuite{sync.RWMutex{}, googleProjectID, client, uid,
+		[]*TestContext{}, scheduled, t, nil,
+		failFast, false, ctx, cancelFn, logger}
 }
 
 func (s *testSuite) Logger() logrus.FieldLogger {
@@ -83,8 +97,22 @@ func (s *testSuite) Logger() logrus.FieldLogger {
 
 // Cancel will request everything to teardown
 func (s *testSuite) Cancel(reason string) {
+	if s.failingFast() {
+		return
+	}
+	s.Lock()
+	s.isFailingFast = true
+	s.Unlock()
+
 	s.cancelFn()
-	s.Logger().WithField("reason", reason).Debug("test suite canceled")
+	s.Logger().WithField("reason", reason).Warn("test suite canceled")
+}
+
+func (s *testSuite) failingFast() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.isFailingFast
 }
 
 func (s *testSuite) Close() {
@@ -132,6 +160,7 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 	if s.client != nil {
 		labels["__uuid__"] = uid
 		labels["__suite__"] = s.uid
+		labels["__param__"] = param
 		logLink, err = s.getLogLink(uid)
 		if err != nil {
 			s.Logger().WithError(err).Error("Failed to create short log link")
@@ -139,7 +168,7 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 	}
 
 	return func(t *testing.T) {
-		cx := TestContext{
+		cx := &TestContext{
 			t:        t,
 			name:     cfg.Tag(),
 			parent:   s.ctx,
@@ -151,11 +180,19 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 			log:      xlog.NewLogger(s.client, t, labels).WithField("name", cfg.Tag()),
 		}
 		defer func() {
-			if t.Failed() {
-				cx.log.Error("failed")
-			} else {
-				cx.log.Info("passed")
+			if s.failingFast() {
+				cx.updateStatus(TestStatusCancelled)
+				return
 			}
+			if !t.Failed() {
+				cx.updateStatus(TestStatusPassed)
+				return
+			}
+			cx.updateStatus(TestStatusFailed)
+			if s.failFast {
+				s.Cancel(fmt.Sprintf("test %s failed, FailFast=true, cancelling other", t.Name()))
+			}
+			return
 		}()
 
 		s.Lock()
@@ -166,9 +203,9 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 			cx.log = cx.log.WithField("logs", logLink)
 		}
 
-		cx.log.Infof("scheduled")
+		cx.updateStatus(TestStatusScheduled)
 		t.Parallel()
-		cx.log.Infof("started")
+		cx.updateStatus(TestStatusRunning)
 
 		fn(cx, cfg)
 	}
@@ -187,7 +224,7 @@ func (s *testSuite) Run() []TestStatus {
 	for _, test := range s.tests {
 		status = append(status, TestStatus{
 			Name:     test.name,
-			Failed:   test.t.Failed(),
+			Status:   test.status,
 			Param:    test.param,
 			UID:      test.uid,
 			SuiteUID: test.suite.uid,

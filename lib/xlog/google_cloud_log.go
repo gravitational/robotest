@@ -35,6 +35,7 @@ type GCLClient struct {
 	gclClient       *cl.Client
 	pubsubClient    *pubsub.Client
 	topic           *pubsub.Topic
+	ctx             context.Context
 }
 
 func (client *GCLClient) Close() {
@@ -54,7 +55,7 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 		return nil, trace.Errorf("no cloud logging project ID provided")
 	}
 
-	client = &GCLClient{}
+	client = &GCLClient{ctx: ctx}
 
 	// URL shortener API
 	client.shortenerClient, err = google.DefaultClient(ctx, urlShortenerScope)
@@ -95,6 +96,12 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 	}
 
 	return client, nil
+}
+
+// Context returns context instance this client was initialized with
+// as it may survive local function context which is i.e. cancelled or timed out
+func (c *GCLClient) Context() context.Context {
+	return c.ctx
 }
 
 // Hook returns logrus log hook

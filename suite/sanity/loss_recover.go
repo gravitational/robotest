@@ -39,7 +39,7 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		for _, nodeRoleType := range []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup, nodeRegularNode} {
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
@@ -66,7 +66,7 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	param := p.(lossAndRecoveryParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.NodeCount + 1)
 
 		allNodes, destroyFn, err := g.Provision(config)
@@ -118,7 +118,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	}, nil
 }
 
-func removeNode(g gravity.TestContext,
+func removeNode(g *gravity.TestContext,
 	nodes []gravity.Gravity,
 	nodeRoleType string, powerOff bool) (remaining []gravity.Gravity, removed gravity.Gravity, err error) {
 

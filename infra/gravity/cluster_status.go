@@ -12,7 +12,7 @@ import (
 )
 
 // Status walks around all nodes and checks whether they all feel OK
-func (c TestContext) Status(nodes []Gravity) error {
+func (c *TestContext) Status(nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
@@ -48,7 +48,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 }
 
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits
-func (c TestContext) CheckTimeSync(nodes []Gravity) error {
+func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 	timeNodes := []sshutils.SshNode{}
 	for _, n := range timeNodes {
 		timeNodes = append(timeNodes, n)
@@ -63,7 +63,7 @@ func (c TestContext) CheckTimeSync(nodes []Gravity) error {
 }
 
 // SiteReport runs site report command across nodes
-func (c TestContext) SiteReport(nodes []Gravity) error {
+func (c *TestContext) SiteReport(nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
@@ -81,7 +81,7 @@ func (c TestContext) SiteReport(nodes []Gravity) error {
 
 // PullLogs requests logs from all nodes
 // prefix `postmortem` is reserved for cleanup procedure
-func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
+func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.CollectLogs)
 	defer cancel()
 
@@ -116,7 +116,7 @@ type ClusterNodesByRole struct {
 }
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
-func (c TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
+func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
 	if len(nodes) < 1 {
 		return nil, trace.BadParameter("at least one node required")
 	}

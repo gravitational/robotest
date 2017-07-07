@@ -112,7 +112,7 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
 	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
-	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=false \
+	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \

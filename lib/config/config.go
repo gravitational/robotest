@@ -28,6 +28,24 @@ type Entry struct {
 	Param    interface{}
 }
 
+type TestSet map[string]Entry
+
+func (t TestSet) add(key string, e Entry) {
+	if _, there := t[key]; !there {
+		t[key] = e
+		return
+	}
+
+	for i := 2; ; i++ {
+		k := fmt.Sprintf("%s%d", key, i)
+		if _, there := t[k]; there {
+			continue
+		}
+		t[k] = e
+		return
+	}
+}
+
 type Config struct {
 	entries map[string]entry
 }
@@ -42,7 +60,7 @@ func (c *Config) Add(key string, fn ConfigFn, defaults interface{}) {
 }
 
 // Parse will take list of function=JSON, base config map, and return list of initialized test functions to run
-func (c *Config) Parse(args []string) (fns map[string]Entry, err error) {
+func (c *Config) Parse(args []string) (fns TestSet, err error) {
 	var errs []error
 	fns = map[string]Entry{}
 
@@ -70,7 +88,7 @@ func (c *Config) Parse(args []string) (fns map[string]Entry, err error) {
 			continue
 		}
 
-		fns[key] = *e
+		fns.add(key, *e)
 	}
 
 	if len(errs) != 0 {

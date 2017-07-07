@@ -122,9 +122,7 @@ func TestMain(t *testing.T) {
 		DestroyOnSuccess:  *destroyOnSuccess,
 		DestroyOnFailure:  *destroyOnFailure,
 		AlwaysCollectLogs: *collectLogs,
-		FailFast:          *failFast,
 		ResourceListFile:  *resourceListFile,
-		CancelAllFn:       cancelFn,
 	}
 	gravity.SetProvisionerPolicy(policy)
 
@@ -136,7 +134,8 @@ func TestMain(t *testing.T) {
 		"os_flavors":         osFlavors,
 		"storage_drivers":    storageDrivers,
 		"repeat":             *repeat,
-	})
+		"fail_fast":          *failFast,
+	}, *failFast)
 	defer suite.Close()
 	setupSignals(suite)
 
@@ -157,10 +156,6 @@ func TestMain(t *testing.T) {
 	result := suite.Run()
 	for _, res := range result {
 		log := suite.Logger()
-		if res.Failed {
-			log.Errorf("%s FAILED %q %+v", res.Name, res.LogUrl, res.Param)
-		} else {
-			log.Infof("%s PASSED %q %+v", res.Name, res.LogUrl, res.Param)
-		}
+		log.Infof("%s %s %q %+v", res.Name, res.Status, res.LogUrl, res.Param)
 	}
 }

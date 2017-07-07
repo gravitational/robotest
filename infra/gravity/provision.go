@@ -117,7 +117,7 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 }
 
 // Provision gets VMs up, running and ready to use
-func (c TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	validateConfig(c.t, cfg)
 	params := makeDynamicParams(c.t, cfg)
 

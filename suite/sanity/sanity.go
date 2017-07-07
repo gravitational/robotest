@@ -13,7 +13,7 @@ var defaultInstallParam = installParam{InstallParam: gravity.InstallParam{Role: 
 func Suite() *config.Config {
 	cfg := config.New()
 
-	cfg.Add("noop", noop, struct{}{})
+	cfg.Add("noop", noop, noopParam{})
 	cfg.Add("provision", provision, defaultInstallParam)
 	cfg.Add("resize", resize, resizeParam{installParam: defaultInstallParam})
 	cfg.Add("install", install, defaultInstallParam)

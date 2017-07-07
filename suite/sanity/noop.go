@@ -6,16 +6,23 @@ import (
 	"github.com/gravitational/robotest/infra/gravity"
 )
 
+type noopParam struct {
+	SleepSeconds int  `json:"sleep"`
+	Fail         bool `json:"fail"`
+}
+
 func noop(p interface{}) (gravity.TestFunc, error) {
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		defer g.Logger().Info("deferred")
+	param := p.(noopParam)
+
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		select {
 		case <-g.Context().Done():
 			g.Logger().Infof("context cancel")
-			g.Require("CANCEL", false)
-		case <-time.After(time.Second * 6):
+		case <-time.After(time.Second * time.Duration(param.SleepSeconds)):
 			g.Logger().Info("timer elapsed")
-			g.Require("TIMER", false)
+		}
+		if param.Fail {
+			g.FailNow()
 		}
 	}, nil
 }
