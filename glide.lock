@@ -1,14 +1,17 @@
-hash: 6633a6a429df8b536cdac08a57a0c137905b767e722a480958b0e8c8602aeab3
-updated: 2017-07-01T16:00:06.87527282Z
+hash: b55f3b516e8463a917610ba9b9099ab89b67f92e9ba5cdb8872da3de602b8e32
+updated: 2017-07-07T18:43:18.515938144Z
 imports:
 - name: cloud.google.com/go
-  version: a5913b3f7deecba45e98ff33cefbac4fd204ddd7
+  version: 7ce8b92dd61a3d280e64a64aecf225f25062c4f1
   subpackages:
   - compute/metadata
+  - iam
   - internal/version
   - logging
   - logging/apiv2
   - logging/internal
+  - pubsub
+  - pubsub/apiv1
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
   subpackages:
@@ -47,7 +50,7 @@ imports:
 - name: github.com/gravitational/log
   version: 8e1bbf1bba0515719dbb17adf1da20b5390ac8da
 - name: github.com/gravitational/trace
-  version: 10194f0485158ed39c9b9e088a8447d4a924dd9e
+  version: 640274f75816ce3975e730e844290c14936f6288
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/jonboulle/clockwork
@@ -117,14 +120,14 @@ imports:
 - name: github.com/tebeka/selenium
   version: 92ef4ae9dbd7b5028bbcff66c923414755c8abb6
 - name: golang.org/x/crypto
-  version: 5ef0053f77724838734b6945dd364d3847e5de1d
+  version: a48ac81e47fd6f9ed1258f3b60ae9e75f93cb7ed
   subpackages:
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
   - ssh
 - name: golang.org/x/net
-  version: 1f9224279e98554b6a6432d4dd998a739f8b2b7c
+  version: 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
   subpackages:
   - context
   - context/ctxhttp
@@ -147,13 +150,14 @@ imports:
 - name: golang.org/x/sync
   version: f52d1811a62927559de87708c8913c1650ce4f26
   subpackages:
+  - errgroup
   - semaphore
 - name: golang.org/x/sys
-  version: 4ed4d404df456f81e878683a0363ed3013a59003
+  version: 739734461d1c916b6c72a63d7efda2b27edb369f
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 2bf8f2a19ec09c670e931282edfe6567f6be21c9
+  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
   subpackages:
   - encoding
   - encoding/charmap
@@ -174,7 +178,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: e6586c9293b9d514c7f5d5076731ec977cff1be6
+  version: bb4e0b1b53539118e8d3a704d31cb69a81a9c140
   subpackages:
   - googleapi/transport
   - internal
@@ -183,7 +187,7 @@ imports:
   - support/bundler
   - transport
 - name: google.golang.org/appengine
-  version: d11fc8a8dccf41ab5bd3c51a3ea52051240e325c
+  version: 6f8a8d299d1aef52402b4523f12f9265037ce869
   subpackages:
   - internal
   - internal/app_identity
@@ -204,11 +208,14 @@ imports:
   - googleapis/api/label
   - googleapis/api/metric
   - googleapis/api/monitoredres
+  - googleapis/iam/v1
   - googleapis/logging/type
   - googleapis/logging/v2
+  - googleapis/pubsub/v1
   - googleapis/rpc/status
+  - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: 3c33c26290b747350f8650c7d38bcc51b42dc785
+  version: 41d9b6ea2a6335f3a22074ed35c0542c9da1baf4
   subpackages:
   - codes
   - credentials
