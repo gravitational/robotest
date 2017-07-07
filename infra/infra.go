@@ -14,7 +14,7 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // New creates a new cluster from the specified config and an optional
@@ -141,6 +141,8 @@ type Node interface {
 	Client() (*ssh.Client, error)
 }
 
+var defaultLogger = log.New()
+
 // Distribute executes the specified command on given nodes
 // and waits for execution to complete before returning
 func Distribute(command string, nodes ...Node) error {
@@ -180,7 +182,7 @@ func Run(node Node, command string, w io.Writer) (err error) {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	return sshutils.RunCommandWithOutput(session, command, w)
+	return sshutils.RunCommandWithOutput(session, defaultLogger, command, w)
 }
 
 // ScpText copies remoteFile from specified node into localFile

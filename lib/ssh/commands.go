@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	"github.com/gravitational/trace"
+
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 // Cmd defines command to execute on remote host
@@ -17,14 +20,14 @@ type Cmd struct {
 }
 
 // RunCommands executes commands sequentially
-func RunCommands(ctx context.Context, node SshNode, commands []Cmd) error {
+func RunCommands(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, commands []Cmd) error {
 	for _, cmd := range commands {
-		exit, err := RunAndParse(ctx, node, cmd.Command, cmd.Env, ParseDiscard)
+		exit, err := RunAndParse(ctx, client, log, cmd.Command, cmd.Env, ParseDiscard)
 		if err != nil {
 			return trace.Wrap(err, cmd.Command)
 		}
 		if exit != 0 {
-			return trace.Errorf("[%v] %s returned %d", node, cmd.Command, exit)
+			return trace.Errorf("%s returned %d", cmd.Command, exit)
 		}
 	}
 	return nil
@@ -37,8 +40,8 @@ const (
 
 // RunScript will run a .sh script on remote host
 // if script should not be executed it should have internal flag files and terminate
-func RunScript(ctx context.Context, node SshNode, scriptPath string, sudo bool) error {
-	remotePath, err := PutFile(ctx, node, scriptPath, tmpDir)
+func RunScript(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, scriptPath string, sudo bool) error {
+	remotePath, err := PutFile(ctx, client, log, scriptPath, tmpDir)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -48,6 +51,6 @@ func RunScript(ctx context.Context, node SshNode, scriptPath string, sudo bool) 
 		cmd = fmt.Sprintf("sudo %s", cmd)
 	}
 
-	err = Run(ctx, node, cmd, nil)
+	err = Run(ctx, client, log, cmd, nil)
 	return trace.Wrap(err)
 }

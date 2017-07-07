@@ -10,9 +10,9 @@ import (
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
 
-	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/gomega"
 	. "github.com/sclevine/agouti/matchers"
+	log "github.com/sirupsen/logrus"
 )
 
 // ServerPage is cluster server page ui model

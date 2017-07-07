@@ -2,8 +2,10 @@ package gravity
 
 import (
 	"context"
+	"fmt"
 	"regexp"
-	"strings"
+
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 )
@@ -25,37 +27,63 @@ func ResolveInPlanet(ctx context.Context, g Gravity, name string) (string, error
 	return addr, trace.Wrap(err)
 }
 
-var reSpaces = regexp.MustCompile(`\s+`)
+// RelocateClusterMaster will check which node currently runs gravity-site master
+// and will try to evict it from that node so that it'll get picked up by some other
+func RelocateClusterMaster(ctx context.Context, g Gravity) error {
+	return wait.Retry(ctx, func() error { return doRelocate(ctx, g) })
+}
 
-// GetGravitySiteNodes will parse `kubectl get pods` output to figure out which nodes run gravity site master
-func GetGravitySiteNodes(ctx context.Context, g Gravity) (master string, backup []string, err error) {
-	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", "get", "pods", "-o=wide", "--namespace=kube-system")
+func doRelocate(ctx context.Context, g Gravity) error {
+	pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
 	if err != nil {
-		return "", nil, trace.Wrap(err)
+		return wait.Abort(trace.Wrap(err))
 	}
 
-	backup = []string{}
-	for i, line := range strings.Split(out, "\n") {
-		if i == 0 || line == "" {
-			continue
-		}
-		// NAME                             READY     STATUS     RESTARTS   AGE       IP            NODE
-		// bandwagon-66870618-g9b55         1/1       Running    0          11h       10.244.25.3   10.40.2.5
-		vals := reSpaces.Split(line, -1)
-		if len(vals) != 7 {
-			return "", nil, trace.Errorf("unexpected string %q", line)
-		}
-
-		if !strings.HasPrefix(vals[0], "gravity-site") {
-			continue
-		}
-
-		if vals[1] == "1/1" {
-			master = vals[6]
-		} else {
-			backup = append(backup, vals[6])
+	var master *Pod
+	for _, pod := range pods {
+		if pod.Ready {
+			master = &pod
+			break
 		}
 	}
+	if master == nil {
+		return wait.Abort(trace.Errorf("no current cluster master: %+v", pods))
+	}
 
-	return master, backup, nil
+	if err = KubectlDeletePod(ctx, g, kubeSystemNS, master.Name); err != nil {
+		return wait.Abort(trace.Wrap(err, "removing pod %s", master.Name))
+	}
+
+	var newMaster *Pod
+	// wait for relocation to complete
+	err = wait.Retry(ctx, func() error {
+		pods, err := KubectlGetPods(ctx, g, kubeSystemNS, appGravityLabel)
+		if err != nil {
+			return wait.Abort(err)
+		}
+
+		for _, pod := range pods {
+			if pod.Ready {
+				newMaster = &pod
+				return nil
+			}
+		}
+
+		return wait.Continue("waiting for gravity-site master to be ready")
+	})
+
+	if err != nil {
+		return wait.Abort(err)
+	}
+
+	if newMaster == nil {
+		return wait.Abort(trace.Errorf("new master was not located"))
+	}
+
+	if newMaster.NodeIP == master.NodeIP {
+		return wait.Continue(fmt.Sprintf(
+			"new master %+v was elected on same node as old %+v", newMaster, master))
+	}
+
+	return nil
 }

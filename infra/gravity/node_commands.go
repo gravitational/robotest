@@ -3,8 +3,8 @@ package gravity
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -13,10 +13,10 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
-	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -59,7 +59,7 @@ type Gravity interface {
 	// Text representation
 	String() string
 	// Will log using extended info such as current tag, node info, etc
-	Logf(format string, args ...interface{})
+	Logger() logrus.FieldLogger
 }
 
 type Graceful bool
@@ -108,21 +108,23 @@ type GravityStatus struct {
 }
 
 type gravity struct {
-	logFn      utils.LogFnType
 	node       infra.Node
 	ssh        *ssh.Client
 	installDir string
 	param      cloudDynamicParams
 	ts         time.Time
+	log        logrus.FieldLogger
 }
 
-const (
-	retrySSH    = time.Second * 10
-	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
-)
+func (g *gravity) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"public_ip": g.node.Addr(),
+		"ip":        g.node.PrivateAddr(),
+	})
+}
 
 // waits for SSH to be up on node and returns client
-func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.Node) (*ssh.Client, error) {
+func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLogger) (*ssh.Client, error) {
 	ctx, cancel := context.WithTimeout(baseContext, deadlineSSH)
 	defer cancel()
 
@@ -130,28 +132,27 @@ func sshClient(baseContext context.Context, logFn utils.LogFnType, node infra.No
 		client, err := node.Client()
 
 		if err == nil {
+			log.Debug("connected via SSH")
 			return client, nil
 		}
 
-		logFn("waiting for SSH on %s, retry in %v, error was %v", node.Addr(), retrySSH, err)
+		log.WithFields(logrus.Fields{"error": err, "retry_in": retrySSH}).Debug("waiting for SSH")
 		select {
 		case <-ctx.Done():
+			log.WithError(ctx.Err()).Debug("context cancelled or timed out, SSH connection cancelled")
 			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
 		case <-time.After(retrySSH):
 		}
 	}
 }
 
-// Logf logs simultaneously to stdout and testing interface
-func (g *gravity) Logf(format string, args ...interface{}) {
-	elapsed := (time.Since(g.ts) / time.Second) * time.Second
-	log.Printf("%s [%v %v] %s", g.param.Tag(), g, elapsed, fmt.Sprintf(format, args...))
-	g.logFn("[%v %v] %s", g, elapsed, fmt.Sprintf(format, args...))
+func (g *gravity) Logger() logrus.FieldLogger {
+	return g.log
 }
 
 // String returns public and private addresses of the node
 func (g *gravity) String() string {
-	return fmt.Sprintf("%s %s", g.node.PrivateAddr(), g.node.Addr())
+	return fmt.Sprintf("%s/%s", g.node.PrivateAddr(), g.node.Addr())
 }
 
 func (g *gravity) Node() infra.Node {
@@ -173,21 +174,21 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)
 	}
 
-	err := sshutils.Run(ctx, g, cmd, nil)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
 // SiteReport queries site report
 // TODO: parse
 func (g *gravity) SiteReport(ctx context.Context) error {
-	return trace.Wrap(sshutils.Run(ctx, g, "gravity site report", nil))
+	return trace.Wrap(sshutils.Run(ctx, g.Client(), g.Logger(), "gravity site report", nil))
 }
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
 	status := GravityStatus{}
-	exit, err := sshutils.RunAndParse(ctx, g, cmd, nil, parseStatus(&status))
+	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 
 	if err != nil {
 		return nil, trace.Wrap(err, cmd)
@@ -230,7 +231,7 @@ func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g, buf.String(), nil)
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
 	return trace.Wrap(err, cmd)
 }
 
@@ -260,7 +261,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
 	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
-	err := sshutils.Run(ctx, g, cmd, nil)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
 
@@ -273,7 +274,7 @@ func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 		cmd = "sudo poweroff -f"
 	}
 
-	sshutils.RunAndParse(ctx, g, cmd, nil, nil)
+	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
 	g.ssh = nil
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
@@ -291,10 +292,10 @@ func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 	} else {
 		cmd = "sudo reboot -f"
 	}
-	sshutils.RunAndParse(ctx, g, cmd, nil, nil)
+	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 
-	client, err := sshClient(ctx, g.logFn, g.Node())
+	client, err := sshClient(ctx, g.Node(), g.Logger())
 	if err != nil {
 		return trace.Wrap(err, "SSH reconnect")
 	}
@@ -314,21 +315,23 @@ func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error
 		fmt.Sprintf("%s/*/*.log", g.param.homeDir),
 	}
 	localPath := filepath.Join(g.param.StateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
-	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g, files, localPath))
+	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g.Client(), g.Logger(), files, localPath))
 }
 
 // SetInstaller overrides default installer into
 func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir string) error {
 	installDir := filepath.Join(g.param.homeDir, subdir)
-	g.Logf("installer %s => %s", installerUrl, installDir)
+	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerUrl, "install_dir": installDir})
 
-	tgz, err := sshutils.TransferFile(ctx, g, installerUrl, installDir, g.param.env)
+	log.Debug("set installer")
+
+	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerUrl, installDir, g.param.env)
 	if err != nil {
-		g.Logf("Failed to transfer installer %s : %v", installerUrl, err)
-		return trace.Wrap(err, installerUrl)
+		log.WithError(err).Error("Failed to transfer installer")
+		return trace.Wrap(err)
 	}
 
-	err = sshutils.Run(ctx, g, fmt.Sprintf("tar -xvf %s -C %s", tgz, installDir), nil)
+	err = sshutils.Run(ctx, g.Client(), log, fmt.Sprintf("tar -xvf %s -C %s", tgz, installDir), nil)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -339,7 +342,7 @@ func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir 
 
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
-	err := sshutils.Run(ctx, g, fmt.Sprintf(`cd %s && sudo ./upload`, g.installDir), nil)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), fmt.Sprintf(`cd %s && sudo ./upload`, g.installDir), nil)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -353,7 +356,7 @@ var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\"
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
-	_, err := sshutils.RunAndParse(ctx, g,
+	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet`, g.installDir, command),
 		nil, sshutils.ParseAsString(&code))
 	if err != nil {
@@ -371,7 +374,7 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 	err = retry.Do(ctx, func() error {
 		var response string
 		cmd := fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code)
-		_, err := sshutils.RunAndParse(ctx, g,
+		_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 			cmd, nil, sshutils.ParseAsString(&response))
 		if err != nil {
 			return wait.Continue(cmd)
@@ -394,7 +397,7 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 		g.installDir, cmd, strings.Join(args, " "))
 
 	var out string
-	_, err := sshutils.RunAndParse(ctx, g, c, nil, sshutils.ParseAsString(&out))
+	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), c, nil, sshutils.ParseAsString(&out))
 	if err != nil {
 		return "", trace.Wrap(err)
 	}

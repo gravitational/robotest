@@ -9,28 +9,22 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/gravitational/robotest/lib/utils"
-
 	"github.com/gravitational/trace"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
 type OutputParseFn func(r *bufio.Reader) error
 
-const exitStatusUndefined = -1
-
-type SshNode interface {
-	Client() *ssh.Client
-	Logf(format string, args ...interface{})
-	String() string
-}
+const (
+	exitStatusUndefined = -1
+	exitCode            = "exit"
+)
 
 // Run is a simple method to run external program and don't care about its output or exit status
-func Run(ctx context.Context, node SshNode, cmd string, env map[string]string) error {
-	exit, err := RunAndParse(ctx, node,
-		cmd, env, ParseDiscard)
-
+func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
+	exit, err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
 	if err != nil {
 		return trace.Wrap(err, cmd)
 	}
@@ -44,8 +38,8 @@ func Run(ctx context.Context, node SshNode, cmd string, env map[string]string) e
 
 // RunAndParse runs remote SSH command with environment variables set by `env`
 // exitStatus is -1 if undefined
-func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
-	session, err := node.Client().NewSession()
+func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
+	session, err := client.NewSession()
 	if err != nil {
 		return exitStatusUndefined, trace.Wrap(err, "ssh session")
 	}
@@ -70,28 +64,31 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 		return exitStatusUndefined, trace.Wrap(err)
 	}
 
+	log = log.WithField("cmd", cmd)
+
 	errCh := make(chan error, 2)
 	expectErrs := 1
 	if parse != nil {
 		expectErrs++
 		go func() {
 			err := parse(bufio.NewReader(
-				&readLogger{fmt.Sprintf("%s [stdout]", cmd), node.Logf, stdout}))
+				&readLogger{log.WithField("stream", "stdout"), stdout}))
 			errCh <- trace.Wrap(err)
 		}()
 	}
 
 	go func() {
-		node.Logf("(starting) %s", cmd)
+		log.Debug(cmd)
 		errCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
 	}()
 
 	go func() {
 		r := bufio.NewReader(stderr)
+		stderrLog := log.WithField("stream", "stderr")
 		for {
 			line, err := r.ReadString('\n')
 			if line != "" {
-				node.Logf("%s [stderr] %s", cmd, line)
+				stderrLog.Debug(line)
 			}
 			if parse == nil {
 				session.Close()
@@ -106,26 +103,24 @@ func RunAndParse(ctx context.Context, node SshNode, cmd string, env map[string]s
 
 	for i := 0; i < expectErrs; i++ {
 		select {
-		case ctxErr := <-ctx.Done():
-			err := session.Signal(ssh.SIGTERM)
-			err = trace.Errorf("[%v] %s %v, sending SIGTERM: %v",
-				node, cmd, ctxErr, err)
-			node.Logf(err.Error())
+		case <-ctx.Done():
+			session.Signal(ssh.SIGTERM)
+			log.WithError(ctx.Err()).Debug("context terminated, sent SIGTERM")
 			return exitStatusUndefined, err
 		case err = <-errCh:
 			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-				err := trace.Errorf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
-				node.Logf(err.Error())
+				err = trace.Wrap(exitErr)
+				log.WithError(err).Debugf("%s : %s", cmd, exitErr.Error())
 				return exitErr.ExitStatus(), err
 			}
 			if err != nil {
-				err := trace.Wrap(err, cmd)
-				node.Logf(err.Error())
+				err = trace.Wrap(err)
+				log.WithError(err).Debug("unexpected error")
 				return exitStatusUndefined, err
 			}
 		}
 	}
-	node.Logf("(exit=0) %s", cmd)
+	log.Debug("exit=0")
 	return 0, nil
 }
 
@@ -146,17 +141,16 @@ func ParseAsString(out *string) OutputParseFn {
 }
 
 type readLogger struct {
-	prefix string
-	logFn  utils.LogFnType
-	r      io.Reader
+	log logrus.FieldLogger
+	r   io.Reader
 }
 
 func (l *readLogger) Read(p []byte) (n int, err error) {
 	n, err = l.r.Read(p)
 	if err != nil && err != io.EOF {
-		l.logFn("%s %s: %v", l.prefix, string(p[0:n]), err)
+		l.log.WithError(err).Debug("unexpected I/O error")
 	} else if n > 0 {
-		l.logFn("%s %s", l.prefix, string(p[0:n]))
+		l.log.Debug(string(p[0:n]))
 	}
 	return n, err
 }

@@ -1,7 +1,8 @@
 TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
-LATEST := latest
+TAG ?= latest
+PULL ?= --pull
 
 TERRAFORM_VERSION := 0.9.3
 CHROMEDRIVER_VERSION := 2.29
@@ -24,10 +25,9 @@ $(TARGETS): $(BINARIES)
 	fi;
 	mkdir -p $(TEMPDIR)/build
 	cp -r ../assets/terraform $(TEMPDIR)
-	cp -a ../build/go-junit-report $(TEMPDIR)/build/
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
-	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true --pull -t $(IMAGE) .
+	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) .
 	rm -rf $(TEMPDIR)
 	@echo Built $(IMAGE)
 
@@ -41,8 +41,8 @@ publish: $(DOCKER_IMG)
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
 	docker push $@:$(VERSION)
-	docker tag $@:$(VERSION) $@:$(LATEST)
-	docker push $@:$(LATEST)
+	docker tag $@:$(VERSION) $@:$(TAG)
+	docker push $@:$(TAG)
 
 .PHONY: what-version
 what-version:

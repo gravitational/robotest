@@ -5,12 +5,15 @@ import:
 - package: github.com/onsi/gomega
 - package: github.com/sclevine/agouti
 
-- package: github.com/Sirupsen/logrus
+- package: github.com/sirupsen/logrus
+  version: v1.0.0
 - package: github.com/gravitational/configure
   subpackages:
   - cstrings
 - package: github.com/gravitational/trace
+  version: denis/logger-up
 - package: github.com/tebeka/selenium
+- package: github.com/satori/go.uuid
 - package: golang.org/x/crypto
   subpackages:
   - ssh

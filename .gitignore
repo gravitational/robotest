@@ -20,4 +20,5 @@ robotest
 /build
 wd
 wd_suite
-run_*.sh
+run.sh
+*.sublime-workspace

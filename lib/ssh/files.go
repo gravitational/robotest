@@ -8,15 +8,20 @@ import (
 	"time"
 
 	"github.com/gravitational/trace"
+
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 // TransferFile takes file URL which may be S3 or HTTP or local file and transfers it to remote the machine
 // fileUrl - file to download, could be S3:// or http(s)://
-func TransferFile(ctx context.Context, node SshNode, fileUrl, dstDir string, env map[string]string) (path string, err error) {
+func TransferFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, fileUrl, dstDir string, env map[string]string) (path string, err error) {
 	u, err := url.Parse(fileUrl)
 	if err != nil {
 		return "", trace.Wrap(err, "parsing %s", fileUrl)
 	}
+
+	log = log.WithFields(logrus.Fields{"file_url": fileUrl, "dst_dir": dstDir})
 
 	fname := filepath.Base(u.Path)
 	dstPath := filepath.Join(dstDir, fname)
@@ -28,7 +33,7 @@ func TransferFile(ctx context.Context, node SshNode, fileUrl, dstDir string, env
 	case "https":
 		cmd = fmt.Sprintf("wget %s -O %s/", fileUrl, dstPath)
 	case "":
-		remotePath, err := PutFile(ctx, node, fileUrl, dstDir)
+		remotePath, err := PutFile(ctx, client, log, fileUrl, dstDir)
 		return remotePath, trace.Wrap(err)
 	case "gs":
 	default:
@@ -36,7 +41,7 @@ func TransferFile(ctx context.Context, node SshNode, fileUrl, dstDir string, env
 		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	err = RunCommands(ctx, node, []Cmd{
+	err = RunCommands(ctx, client, log, []Cmd{
 		{fmt.Sprintf("mkdir -p %s", dstDir), nil},
 		{cmd, env},
 	})
@@ -55,9 +60,9 @@ const (
 
 // TestFile tests remote file using `test` command.
 // It returns trace.NotFound in case test fails, nil is test passes, and unspecified error otherwise
-func TestFile(ctx context.Context, node SshNode, path, test string) error {
+func TestFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, path, test string) error {
 	cmd := fmt.Sprintf("sudo test %s %s", test, path)
-	exit, err := RunAndParse(ctx, node, cmd, nil, ParseDiscard)
+	exit, err := RunAndParse(ctx, client, log, cmd, nil, ParseDiscard)
 
 	/*
 	   The test utility exits with one of the following values:
@@ -76,15 +81,14 @@ func TestFile(ctx context.Context, node SshNode, path, test string) error {
 }
 
 // WaitForFile waits for a test to become true against a remote file (or context to expire)
-func WaitForFile(ctx context.Context, node SshNode, path, test string, sleepDuration time.Duration) error {
+func WaitForFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, path, test string, sleepDuration time.Duration) error {
 	for {
-		err := TestFile(ctx, node, path, test)
+		err := TestFile(ctx, client, log, path, test)
 
 		if trace.IsNotFound(err) {
-			node.Logf("waiting for %s, will retry in %v", path, sleepDuration)
 			select {
 			case <-ctx.Done():
-				return trace.Errorf("[%v] timed out waiting for %s", node, path)
+				return trace.Errorf("timed out waiting for %s", path)
 			case <-time.After(sleepDuration):
 				continue
 			}
@@ -94,6 +98,6 @@ func WaitForFile(ctx context.Context, node SshNode, path, test string, sleepDura
 			return nil
 		}
 
-		return trace.Wrap(err, "[%v] waiting for %s", node, path)
+		return trace.Wrap(err, "waiting for %s", path)
 	}
 }

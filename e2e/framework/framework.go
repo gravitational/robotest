@@ -16,10 +16,10 @@ import (
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
+	log "github.com/sirupsen/logrus"
 )
 
 // driver is a test-global web driver instance

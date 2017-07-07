@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/robotest/infra"
+	log "github.com/sirupsen/logrus"
 )
 
 func TestParsesSSHConfig(t *testing.T) {

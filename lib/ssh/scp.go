@@ -14,17 +14,18 @@ import (
 
 	"github.com/gravitational/trace"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
 // CopyFile transfers local file to remote host directory
-func PutFile(ctx context.Context, node SshNode, srcPath, dstDir string) (remotePath string, err error) {
+func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, srcPath, dstDir string) (remotePath string, err error) {
 	mkdirCmd := fmt.Sprintf("mkdir -p %s", dstDir)
-	err = Run(ctx, node, mkdirCmd, nil)
+	err = Run(ctx, client, log, mkdirCmd, nil)
 	if err != nil {
-		return "", trace.Wrap(err, "%v : %v", node, mkdirCmd)
+		return "", trace.Wrap(err, mkdirCmd)
 	}
-	session, err := node.Client().NewSession()
+	session, err := client.NewSession()
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -98,9 +99,8 @@ func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
 
 // GetTgz will pick up number of remote files and store it locally as .tgz
 // files should be absolute paths
-func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error {
-	cmd := fmt.Sprintf("sudo sync && sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
-	session, err := node.Client().NewSession()
+func GetTgz(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, files []string, dst string) error {
+	session, err := client.NewSession()
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -128,17 +128,15 @@ func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error
 	}
 	defer tgz.Close()
 
+	cmd := fmt.Sprintf("sudo sync && sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
+	log = log.WithField("cmd", cmd)
 	errCh := make(chan error, 3)
 
 	go func() {
-		node.Logf("(starting) %s", cmd)
+		log.Debug(cmd)
 		err := session.Run(cmd)
 		if err != nil {
-			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-				node.Logf("(exit=%d) %s", exitErr.ExitStatus(), cmd)
-			} else {
-				node.Logf("(error) %s, error=%v", err)
-			}
+			log.WithError(err).Error(err.Error())
 		}
 		errCh <- trace.Wrap(err)
 	}()
@@ -149,12 +147,12 @@ func GetTgz(ctx context.Context, node SshNode, files []string, dst string) error
 	}()
 
 	go io.Copy(ioutil.Discard,
-		&readLogger{fmt.Sprintf("%s [stderr]", cmd), node.Logf, stderr})
+		&readLogger{log.WithField("stream", "stderr"), stderr})
 
 	select {
 	case <-ctx.Done():
 		session.Signal(ssh.SIGKILL)
-		return trace.Errorf("[%v] %s -> %s timed out", node, cmd, dst)
+		return trace.Errorf("%s -> %s timed out", cmd, dst)
 	case err = <-errCh:
 		return trace.Wrap(err)
 	}

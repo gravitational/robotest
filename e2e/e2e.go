@@ -8,9 +8,9 @@ import (
 	uidefaults "github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/lib/constants"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
 )
 
 // TestE2E runs e2e tests using the ginkgo runner.

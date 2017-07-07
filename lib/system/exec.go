@@ -9,7 +9,7 @@ import (
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // CommandOptionSetter defines an interface to configure child process

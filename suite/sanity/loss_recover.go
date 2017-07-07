@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"testing"
 	"time"
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/trace"
 
-	"github.com/stretchr/testify/require"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -26,8 +25,6 @@ const (
 
 type lossAndRecoveryParam struct {
 	installParam
-	// ReplaceNodes is how many nodes to loose and recover
-	ReplaceNodes uint `json:"replace" validate:"gte=0"`
 	// ReplaceNodeType : see killXXX constants
 	ReplaceNodeType string `json:"kill" validate:"required,eq=apimaster|clmaster|clbackup|worker"`
 	// ExpandBeforeShrink is whether to expand cluster before removing dead node
@@ -37,13 +34,13 @@ type lossAndRecoveryParam struct {
 }
 
 func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
-	template := p.(lossAndRecoveryParam)
+	template := lossAndRecoveryParam{installParam: p.(installParam)}
 
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeClusterMaster} { // , nodeApiMaster, nodeGravitySiteNode, nodeRegularNode} {
+	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+		for _, nodeRoleType := range []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup, nodeRegularNode} {
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
@@ -53,9 +50,12 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 					param.PowerOff = powerOff
 					fun, err := lossAndRecovery(param)
 					if err != nil {
-						t.Fatalf("got error for configuration %v: %v", param, err)
+						g.Logger().WithFields(logrus.Fields{
+							"param": param, "error": err,
+						}).Error("configuration error")
+						g.FailNow()
 					}
-					gravity.Run(ctx, t, cfg, fun, gravity.Parallel)
+					g.Run(fun, cfg, logrus.Fields{"param": param})
 				}
 			}
 		}
@@ -66,46 +66,45 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	param := p.(lossAndRecoveryParam)
 
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.NodeCount + 1)
 
-		allNodes, destroyFn, err := gravity.Provision(ctx, t, config)
-		require.NoError(t, err, "provision nodes")
-		defer destroyFn(ctx, t)
-
-		g := gravity.NewContext(ctx, t, param.Timeouts)
+		allNodes, destroyFn, err := g.Provision(config)
+		g.OK("provision nodes", err)
+		defer destroyFn()
 
 		g.OK("download installer", g.SetInstaller(allNodes, config.InstallerURL, "install"))
-
-		g.Logf("Loss and Recovery test param %+v", param)
 
 		nodes := allNodes[0:param.NodeCount]
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
 		g.OK("install status", g.Status(nodes))
 
-		nodes, removed, err := removeNode(g, t, nodes, param.ReplaceNodeType, param.PowerOff)
+		nodes, removed, err := removeNode(g, nodes, param.ReplaceNodeType, param.PowerOff)
 		g.OK(fmt.Sprintf("node for removal=%v, poweroff=%v", removed, param.PowerOff), err)
 
 		now := time.Now()
 		g.OK("wait for readiness", g.Status(nodes))
-		g.Logf("It took %v for cluster to become available", time.Since(now))
+		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": time.Since(now)}).
+			Info("cluster is available")
 
 		if param.ExpandBeforeShrink {
-			g.OK("replace node",
+			g.OK("add node",
 				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
 			nodes = append(nodes, allNodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node role after expand", err)
-			g.Logf("Roles after expand: %+v", roles)
+			g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).
+				Info("Roles after expand")
 
-			g.OK("remove lost node", g.RemoveNode(nodes, removed))
+			g.OK("remove old node", g.RemoveNode(nodes, removed))
 		} else {
 			g.OK("remove lost node", g.RemoveNode(nodes, removed))
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node role after remove", err)
-			g.Logf("Roles after remove: %+v", roles)
+			g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).
+				Info("Roles after remove")
 
 			g.OK("replace node",
 				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
@@ -114,27 +113,28 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 
 		roles, err := g.NodesByRole(nodes)
 		g.OK("final node roles", err)
-		g.Logf("Final Cluster Roles: %+v", roles)
+		g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).Info("Final Cluster Roles")
 
-		g.Logf("Cluster Roles: %+v", roles)
-		require.NotNil(t, roles.ApiMaster, "api master")
-		require.Len(t, roles.ClusterBackup, 2)
-		require.Len(t, roles.Regular, int(param.NodeCount-3))
 	}, nil
 }
 
-func removeNode(g gravity.TestContext, t *testing.T,
+func removeNode(g gravity.TestContext,
 	nodes []gravity.Gravity,
 	nodeRoleType string, powerOff bool) (remaining []gravity.Gravity, removed gravity.Gravity, err error) {
 
 	roles, err := g.NodesByRole(nodes)
 	g.OK("node roles", err)
-	g.Logf("Cluster Roles: %+v", roles)
+	g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).Info("Cluster Roles")
 
 	switch nodeRoleType {
 	case nodeApiMaster:
 		removed = roles.ApiMaster
 	case nodeClusterMaster:
+		if roles.ApiMaster == roles.ClusterMaster {
+			g.Logger().Warn("API and Cluster masters reside on same node, will try relocate")
+			g.OK("cluster master relocation", gravity.RelocateClusterMaster(g.Context(), roles.ApiMaster))
+			return removeNode(g, nodes, nodeRoleType, powerOff)
+		}
 		g.Require("gravity-site master != apiserver", roles.ApiMaster != roles.ClusterMaster)
 		removed = roles.ClusterMaster
 	case nodeClusterBackup:
@@ -146,10 +146,11 @@ func removeNode(g gravity.TestContext, t *testing.T,
 		}
 		removed = roles.ClusterBackup[idx]
 	case nodeRegularNode:
-		require.NotEmpty(t, roles.Regular)
+		g.Require("worker nodes exist", len(roles.Regular) > 0)
 		removed = roles.Regular[rand.Intn(len(roles.Regular))]
 	default:
-		t.Fatalf("unexpected node role type %s", nodeRoleType)
+		g.Logger().WithField("role", nodeRoleType).Error("unexpected node role")
+		g.FailNow()
 	}
 
 	remaining = excludeNode(nodes, removed)

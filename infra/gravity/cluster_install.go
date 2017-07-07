@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
@@ -14,6 +15,14 @@ import (
 const (
 	localOpsCenterURL = `https://gravity-site.kube-system.svc.cluster.local:3009`
 )
+
+// Simple hook to allow re-entrance to already initialized host
+func (c TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
+	for _, node := range nodes {
+		g := node.(*gravity)
+		g.installDir = filepath.Join(g.param.homeDir, subdir)
+	}
+}
 
 // ProvisionInstaller deploys a specific installer
 func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
@@ -28,7 +37,20 @@ func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag stri
 	}
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
-	return trace.Wrap(err)
+	if err = trace.Wrap(err); err != nil {
+		return trace.Wrap(err)
+	}
+
+	// only forward node logs to the cloud
+	if c.suite.client == nil {
+		return nil
+	}
+
+	for _, node := range nodes {
+		go node.(*gravity).streamLogs(c.parent, TelekubeSystemLog)
+	}
+
+	return nil
 }
 
 // OfflineInstall sets up cluster using nodes provided
@@ -60,7 +82,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 				Token:    param.Token,
 				Role:     param.Role})
 			if err != nil {
-				n.Logf("Join failed: %v", err)
+				n.Logger().WithError(err).Error("Join failed")
 			}
 			errs <- err
 		}(node)
@@ -68,7 +90,7 @@ func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
-		c.Logf("install failed: %v", err)
+		c.Logger().WithError(err).Error("install failed")
 		return trace.Wrap(err)
 	}
 

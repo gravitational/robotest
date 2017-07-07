@@ -14,6 +14,8 @@ import (
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
 	"github.com/gravitational/robotest/suite/sanity"
+
+	"github.com/sirupsen/logrus"
 )
 
 type valueList []string
@@ -42,14 +44,17 @@ var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources 
 var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
 var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
+var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
+
 var testSets, osFlavors, storageDrivers valueList
 
 func init() {
 	flag.Var(&osFlavors, "os", "comma delimited list of OS")
-	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storaga drivers: devicemapper,loopback,overlay,overlay2")
+	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storage drivers: devicemapper,loopback,overlay,overlay2")
 }
 
-var testTimeout = time.Hour * 12
+// max amount of time test will run
+var testMaxTime = time.Hour * 12
 
 var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
@@ -71,7 +76,7 @@ func in(val string, arr []string) bool {
 	return false
 }
 
-func setupSignals(cancelFn func()) {
+func setupSignals(suite gravity.TestSuite) {
 	c := make(chan os.Signal, 3)
 	signal.Notify(c, syscall.SIGTERM)
 	signal.Notify(c, syscall.SIGHUP)
@@ -79,8 +84,8 @@ func setupSignals(cancelFn func()) {
 
 	go func() {
 		for s := range c {
-			fmt.Println("GOT SIGNAL", s)
-			cancelFn()
+			suite.Logger().WithField("signal", s).Warn(s.String())
+			suite.Cancel(s.String())
 		}
 	}()
 }
@@ -98,8 +103,6 @@ func TestMain(t *testing.T) {
 	gravity.LoadConfig(t, []byte(*provision), &config)
 	config = config.WithTag(*tag)
 
-	t.Logf("CONFIG %q", config)
-
 	suiteCfg, there := suites[*testSuite]
 	if !there {
 		t.Fatalf("No such test suite \"%s\"", *testSuite)
@@ -112,35 +115,52 @@ func TestMain(t *testing.T) {
 
 	// testing package has internal 10 mins timeout, can be reset from command line only
 	// see docker/suite/entrypoint.sh
-	ctx, cancelFn := context.WithTimeout(context.Background(), testTimeout)
-	setupSignals(cancelFn)
+	ctx, cancelFn := context.WithTimeout(context.Background(), testMaxTime)
+	defer cancelFn()
 
-	gravity.SetProvisionerPolicy(gravity.ProvisionerPolicy{
+	policy := gravity.ProvisionerPolicy{
 		DestroyOnSuccess:  *destroyOnSuccess,
 		DestroyOnFailure:  *destroyOnFailure,
 		AlwaysCollectLogs: *collectLogs,
 		FailFast:          *failFast,
 		ResourceListFile:  *resourceListFile,
 		CancelAllFn:       cancelFn,
+	}
+	gravity.SetProvisionerPolicy(policy)
+
+	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, logrus.Fields{
+		"test_suite":         *testSuite,
+		"test_set":           testSet,
+		"provisioner_policy": policy,
+		"tag":                *tag,
+		"os_flavors":         osFlavors,
+		"storage_drivers":    storageDrivers,
+		"repeat":             *repeat,
 	})
+	defer suite.Close()
+	setupSignals(suite)
 
-	t.Run(*testSuite, func(t *testing.T) {
-		for r := 1; r <= *repeat; r++ {
-			for _, osFlavor := range osFlavors {
-				for ts, entry := range testSet {
-					for _, drv := range storageDrivers {
-						if in(drv, storageDriverOsCompat[osFlavor]) {
-							gravity.Run(ctx, t,
-								config.WithTag(fmt.Sprintf("%s-%d", ts, r)).WithOS(osFlavor).WithStorageDriver(drv),
-								entry.TestFunc, gravity.Parallel)
-
-							t.Logf("%s : %+v", ts, entry.Param)
-						}
+	for r := 1; r <= *repeat; r++ {
+		for _, osFlavor := range osFlavors {
+			for ts, entry := range testSet {
+				for _, drv := range storageDrivers {
+					if in(drv, storageDriverOsCompat[osFlavor]) {
+						cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).
+							WithOS(osFlavor).WithStorageDriver(drv)
+						suite.Schedule(entry.TestFunc, cfg, entry.Param)
 					}
 				}
 			}
 		}
-	})
+	}
 
-	t.Logf("SUITE %s completed", *testSuite)
+	result := suite.Run()
+	for _, res := range result {
+		log := suite.Logger()
+		if res.Failed {
+			log.Errorf("%s FAILED %q %+v", res.Name, res.LogUrl, res.Param)
+		} else {
+			log.Infof("%s PASSED %q %+v", res.Name, res.LogUrl, res.Param)
+		}
+	}
 }

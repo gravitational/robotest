@@ -1,33 +1,27 @@
 package sanity
 
 import (
-	"context"
 	"fmt"
-	"testing"
 
 	"github.com/gravitational/robotest/infra/gravity"
-
-	"github.com/stretchr/testify/require"
 )
 
-type expandParam struct {
+type resizeParam struct {
 	installParam
 	// TargetNodes is how many nodes cluster should have after expand
 	ToNodes uint `json:"to" validate:"required,gte=3"`
 }
 
-// basicExpand installs an initial cluster and then expands it to given number of nodes
-func basicExpand(p interface{}) (gravity.TestFunc, error) {
-	param := p.(expandParam)
+// resize installs an initial cluster and then expands or gracefully shrinks it to given number of nodes
+func resize(p interface{}) (gravity.TestFunc, error) {
+	param := p.(resizeParam)
 
-	return func(ctx context.Context, t *testing.T, baseConfig gravity.ProvisionerConfig) {
+	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.ToNodes)
 
-		nodes, destroyFn, err := gravity.Provision(ctx, t, config)
-		require.NoError(t, err, "provision nodes")
-		defer destroyFn(ctx, t)
-
-		g := gravity.NewContext(ctx, t, param.Timeouts)
+		nodes, destroyFn, err := g.Provision(config)
+		g.OK("provision nodes", err)
+		defer destroyFn()
 
 		g.OK("download installer", g.SetInstaller(nodes, config.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.NodeCount),

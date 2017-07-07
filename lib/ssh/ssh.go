@@ -12,7 +12,7 @@ import (
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Client creates a new SSH client specified by
@@ -61,12 +61,12 @@ func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
 // streams session's Stderr/Stdout into w.
 // The function takes ownership of session and will destroy it upon completion of
 // the command
-func RunCommandWithOutput(session *ssh.Session, command string, w io.Writer) (err error) {
+func RunCommandWithOutput(session *ssh.Session, log logrus.FieldLogger, command string, w io.Writer) (err error) {
 	defer func() {
 		if err != nil && session != nil {
 			errClose := session.Close()
 			if errClose != nil {
-				log.Errorf("failed to close SSH session: %v", errClose)
+				log.WithError(err).Error("failed to close SSH session")
 			}
 		}
 	}()

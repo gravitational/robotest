@@ -18,11 +18,11 @@ import (
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/go-yaml/yaml"
 	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
+	log "github.com/sirupsen/logrus"
 )
 
 // ConfigureFlags registers common command line flags, parses the command line
