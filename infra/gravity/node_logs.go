@@ -9,7 +9,7 @@ import (
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 )
 
-func (g *gravity) fetchLogs(ctx context.Context, file string) {
+func (g *gravity) streamLogs(ctx context.Context, file string) {
 	path := filepath.Join(g.installDir, file)
 	log := g.Logger().WithField("file_stream", path)
 

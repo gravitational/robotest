@@ -15,7 +15,7 @@ const (
 	Sequential = false
 )
 
-// OpTimeouts define per-node, per-operation timeouts which would be used to determine
+// OpTimeouts defines per-node, per-operation timeouts which would be used to determine
 // whether test must be failed
 // provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
 type OpTimeouts struct {
@@ -23,11 +23,11 @@ type OpTimeouts struct {
 }
 
 var DefaultTimeouts = OpTimeouts{
-	Install:     time.Minute * 15,
-	Uninstall:   time.Minute * 5,
+	Install:     time.Minute * 15, // install threshold per node
+	Uninstall:   time.Minute * 5,  // uninstall threshold per node
 	Status:      time.Minute * 30, // sufficient for failover procedures
-	Leave:       time.Minute * 15,
-	CollectLogs: time.Minute * 7,
+	Leave:       time.Minute * 15, // threshold to leave cluster
+	CollectLogs: time.Minute * 7,  // to collect logs from node
 }
 
 // TestContext aggregates common parameters for better test suite readability
@@ -48,7 +48,7 @@ func (cx TestContext) Run(fn TestFunc, cfg ProvisionerConfig, param interface{})
 	cx.suite.runner.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
 }
 
-// FailNow will request
+// FailNow will interrupt current test
 func (cx TestContext) FailNow() {
 	cx.log.Error("Failed")
 	cx.t.FailNow()

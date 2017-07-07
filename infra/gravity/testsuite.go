@@ -30,6 +30,7 @@ type TestSuite interface {
 	Close()
 }
 
+// TestStatus represents high level test status on completion
 type TestStatus struct {
 	UID, SuiteUID string
 	Name          string
@@ -89,6 +90,7 @@ func (s *testSuite) Cancel(reason string) {
 func (s *testSuite) Close() {
 	if s.client != nil {
 		s.client.Close()
+		s.client = nil
 	}
 }
 
@@ -172,17 +174,8 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 	}
 }
 
-// Will run tests
+// Run executes all tests in this suite and returns test results
 func (s *testSuite) Run() []TestStatus {
-	defer func() {
-		if r := recover(); r == nil {
-			s.Logger().Debug("no recovery")
-			return
-		}
-
-		s.Logger().Debug("panic in .Run()")
-	}()
-
 	s.t.Run("run", func(t *testing.T) {
 		s.runner = t
 		for tag, fn := range s.scheduled {

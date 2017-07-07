@@ -54,10 +54,7 @@ func init() {
 }
 
 // max amount of time test will run
-var testTimeout = time.Hour * 12
-
-// google cloud logger initialization threshold
-var gclTimeout = time.Minute
+var testMaxTime = time.Hour * 12
 
 var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
@@ -118,7 +115,7 @@ func TestMain(t *testing.T) {
 
 	// testing package has internal 10 mins timeout, can be reset from command line only
 	// see docker/suite/entrypoint.sh
-	ctx, cancelFn := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), testMaxTime)
 	defer cancelFn()
 
 	policy := gravity.ProvisionerPolicy{

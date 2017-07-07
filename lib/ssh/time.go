@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// SshNode is ssh node client and logger
 type SshNode struct {
 	Client *ssh.Client
 	Log    logrus.FieldLogger

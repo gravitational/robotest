@@ -117,12 +117,9 @@ type gravity struct {
 }
 
 func (g *gravity) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		PublicIP  string `json:"public_ip"`
-		PrivateIP string `json:"ip"`
-	}{
-		PublicIP:  g.node.Addr(),
-		PrivateIP: g.node.PrivateAddr(),
+	return json.Marshal(map[string]string{
+		"public_ip": g.node.Addr(),
+		"ip":        g.node.PrivateAddr(),
 	})
 }
 

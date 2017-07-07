@@ -30,7 +30,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 				if err != nil {
 					n.Logger().WithError(err).Error(status)
 				} else {
-					n.Logger().WithField("status", status).Debugf("status ok")
+					n.Logger().WithField("status", status).Debug("status ok")
 				}
 				errs <- err
 			}(node)

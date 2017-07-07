@@ -94,7 +94,7 @@ ${AZURE_CONFIG:-}
 
 # will make verbose logging to console, pass -test.v if needed
 LOG_CONSOLE=${LOG_CONSOLE:-''}
-DOCKER_RUN_FLAGS=${DOCKER_RUN_FLAGS:-'-it'}
+DOCKER_RUN_FLAGS=${DOCKER_RUN_FLAGS:-''}
 
 P=$(pwd)
 export REPORT_FILE=$(date '+%m%d-%H%M')

@@ -115,7 +115,7 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 			}
 			if err != nil {
 				err = trace.Wrap(err)
-				log.WithError(err).Debugf("unexpected error")
+				log.WithError(err).Debug("unexpected error")
 				return exitStatusUndefined, err
 			}
 		}

@@ -48,6 +48,7 @@ type GCLHook struct {
 	commonFields logrus.Fields
 }
 
+// NewGCLClient tries to establish connection to google cloud logger using default authentication method and project ID
 func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err error) {
 	if projectID == "" {
 		return nil, trace.Errorf("no cloud logging project ID provided")
@@ -96,6 +97,7 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 	return client, nil
 }
 
+// Hook returns logrus log hook
 func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 	labels := map[string]string{}
 	for k, v := range fields {
@@ -107,6 +109,7 @@ func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 		fields}
 }
 
+// Topic returns google pub/sub topic for test result status reporting
 func (c GCLClient) Topic() *pubsub.Topic {
 	return c.topic
 }

@@ -26,8 +26,7 @@ func KubectlGetPods(ctx context.Context, g Gravity, namespace, label string) ([]
 		`-ojsonpath='{range .items[*]}{.metadata.name},{.status.conditions[?(@.type=="Ready")].status},{.status.hostIP}{"\n"}{end}'`,
 	}
 	if label != "" {
-		args = append(args, "-l")
-		args = append(args, label)
+		args = append(args, "-l", label)
 	}
 	out, err := g.RunInPlanet(ctx, "/usr/bin/kubectl", args...)
 
