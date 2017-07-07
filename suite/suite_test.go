@@ -154,8 +154,9 @@ func TestMain(t *testing.T) {
 	}
 
 	result := suite.Run()
+	log := suite.Logger()
+	log.Info("******** TEST SUITE COMPLETED **********")
 	for _, res := range result {
-		log := suite.Logger()
 		log.Infof("%s %s %q %+v", res.Name, res.Status, res.LogUrl, res.Param)
 	}
 }

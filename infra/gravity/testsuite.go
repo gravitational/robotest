@@ -74,7 +74,7 @@ type testSuite struct {
 // NewRun creates new group run environment
 func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields logrus.Fields, failFast bool) TestSuite {
 	uid := uuid.NewV4().String()
-	fields["__uuid__"] = uid
+	fields["__suite__"] = uid
 
 	scheduled := map[string]func(t *testing.T){}
 
@@ -177,7 +177,7 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 			suite:    s,
 			param:    param,
 			logLink:  logLink,
-			log:      xlog.NewLogger(s.client, t, labels).WithField("name", cfg.Tag()),
+			log:      xlog.NewLogger(s.client, t, labels),
 		}
 		defer func() {
 			if s.failingFast() {

@@ -2,6 +2,7 @@ package xlog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -108,12 +109,25 @@ func (c *GCLClient) Context() context.Context {
 func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 	labels := map[string]string{}
 	for k, v := range fields {
-		labels[k] = fmt.Sprintf("%v", v)
+		switch v.(type) {
+		case string:
+			labels[k] = v.(string)
+		default:
+			labels[k] = toJSON(v)
+		}
 	}
 
 	return &GCLHook{
 		c.gclClient.Logger(name, cl.CommonLabels(labels)),
 		fields}
+}
+
+func toJSON(obj interface{}) string {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return fmt.Sprintf("%v", obj)
+	}
+	return string(data)
 }
 
 // Topic returns google pub/sub topic for test result status reporting

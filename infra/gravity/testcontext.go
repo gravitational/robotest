@@ -110,9 +110,7 @@ func (c *TestContext) updateStatus(status string) {
 
 	log := c.Logger().WithField("param", c.param)
 	switch c.status {
-	case TestStatusScheduled:
-	case TestStatusRunning:
-	case TestStatusPassed:
+	case TestStatusScheduled, TestStatusRunning, TestStatusPassed:
 		log.Info(c.status)
 	default:
 		log.Error(c.status)
