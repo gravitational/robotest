@@ -2,6 +2,7 @@ package suite
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -155,8 +156,20 @@ func TestMain(t *testing.T) {
 
 	result := suite.Run()
 	log := suite.Logger()
-	log.Info("******** TEST SUITE COMPLETED **********")
 	for _, res := range result {
-		log.Infof("%s %s %q %+v", res.Name, res.Status, res.LogUrl, res.Param)
+		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, toJSON(res.Param))
 	}
+
+	fmt.Println("\n******** TEST SUITE COMPLETED **********")
+	for _, res := range result {
+		fmt.Printf("%s %s %s %q\n", res.Status, res.Name, toJSON(res.Param), res.LogUrl)
+	}
+
+}
+
+func toJSON(obj interface{}) string {
+	if data, err := json.Marshal(obj); err == nil {
+		return string(data)
+	}
+	return fmt.Sprintf("%+v", obj)
 }
