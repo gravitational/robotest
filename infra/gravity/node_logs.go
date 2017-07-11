@@ -13,7 +13,7 @@ func (g *gravity) streamLogs(ctx context.Context, file string) {
 	path := filepath.Join(g.installDir, file)
 	log := g.Logger().WithField("file_stream", path)
 
-	err := sshutil.WaitForFile(ctx, g.Client(), log, path, sshutil.TestRegularFile, defaults.RetryDelay)
+	err := sshutil.WaitForFile(ctx, g.Client(), log, path, sshutil.TestRegularFile, defaults.RetryDelay*4)
 	if err != nil {
 		log.WithError(err).Error("error waiting for node logs, aborting")
 		return

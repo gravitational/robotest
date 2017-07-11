@@ -46,7 +46,7 @@ type TestContext struct {
 
 // Run allows a running test to spawn a subtest
 func (cx *TestContext) Run(fn TestFunc, cfg ProvisionerConfig, param interface{}) {
-	cx.suite.runner.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
+	cx.t.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
 }
 
 // FailNow will interrupt current test
@@ -108,7 +108,7 @@ type gclMessage struct {
 func (c *TestContext) updateStatus(status string) {
 	c.status = status
 
-	log := c.Logger().WithField("param", c.param)
+	log := c.Logger().WithFields(logrus.Fields{"param": c.param, "name": c.t.Name()})
 	switch c.status {
 	case TestStatusScheduled, TestStatusRunning, TestStatusPassed:
 		log.Info(c.status)

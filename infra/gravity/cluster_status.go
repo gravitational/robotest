@@ -26,12 +26,7 @@ func (c *TestContext) Status(nodes []Gravity) error {
 
 		for _, node := range nodes {
 			go func(n Gravity) {
-				status, err := n.Status(ctx)
-				if err != nil {
-					n.Logger().WithError(err).Error(status)
-				} else {
-					n.Logger().WithField("status", status).Debug("status ok")
-				}
+				_, err := n.Status(ctx)
 				errs <- err
 			}(node)
 		}

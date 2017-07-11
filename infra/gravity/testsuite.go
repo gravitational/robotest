@@ -62,7 +62,7 @@ type testSuite struct {
 
 	tests     []*TestContext
 	scheduled map[string]func(t *testing.T)
-	t, runner *testing.T
+	t         *testing.T
 
 	failFast, isFailingFast bool
 	ctx                     context.Context
@@ -87,7 +87,7 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	ctx, cancelFn := context.WithCancel(ctx)
 
 	return &testSuite{sync.RWMutex{}, googleProjectID, client, uid,
-		[]*TestContext{}, scheduled, t, nil,
+		[]*TestContext{}, scheduled, t,
 		failFast, false, ctx, cancelFn, logger}
 }
 
@@ -139,7 +139,8 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 			"advancedFilter": []string{
 				fmt.Sprintf(`resource.type="global"
 labels.__uuid__="%s"
-labels.__suite__="%s"`, testUID, s.uid)},
+labels.__suite__="%s"
+severity>=INFO`, testUID, s.uid)},
 		}.Encode()}
 
 	short, err := s.client.Shorten(s.ctx, longUrl.String())
@@ -214,7 +215,6 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 // Run executes all tests in this suite and returns test results
 func (s *testSuite) Run() []TestStatus {
 	s.t.Run("run", func(t *testing.T) {
-		s.runner = t
 		for tag, fn := range s.scheduled {
 			t.Run(tag, fn)
 		}
