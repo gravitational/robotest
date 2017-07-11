@@ -49,6 +49,7 @@ resource "azurerm_virtual_machine" "node" {
     caching             = "ReadWrite"
     create_option       = "FromImage"
     managed_disk_type   = "Premium_LRS"
+    disk_size_gb        = "64"
   }
 
   os_profile {
@@ -72,7 +73,7 @@ resource "azurerm_virtual_machine" "node" {
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 0
-    disk_size_gb      = "25"
+    disk_size_gb      = "64"
   }
 
   storage_data_disk {
@@ -80,7 +81,7 @@ resource "azurerm_virtual_machine" "node" {
     managed_disk_type = "Premium_LRS"
     create_option     = "Empty"
     lun               = 1
-    disk_size_gb      = "75"
+    disk_size_gb      = "64"
   }
 
 }
