@@ -83,19 +83,19 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 		g.OK(fmt.Sprintf("node for removal=%v, poweroff=%v", removed, param.PowerOff), err)
 
 		now := time.Now()
-		g.OK("wait for readiness", g.Status(nodes))
+		g.OK("wait for cluster to be ready", g.Status(nodes))
 		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": time.Since(now)}).
 			Info("cluster is available")
 
 		if param.ExpandBeforeShrink {
-			g.OK("add node",
+			g.OK("expand before shrinking",
 				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
 			nodes = append(nodes, allNodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
-			g.OK("node role after expand", err)
+			g.OK("node roles after expand", err)
 			g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).
-				Info("Roles after expand")
+				Info("roles after expand")
 
 			g.OK("remove old node", g.RemoveNode(nodes, removed))
 		} else {

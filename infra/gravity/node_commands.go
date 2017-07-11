@@ -22,14 +22,13 @@ import (
 
 // Gravity is interface to remote gravity CLI
 type Gravity interface {
+	json.Marshaler
 	// SetInstaller transfers and prepares installer package
 	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
 	// Install operates on initial master node
 	Install(ctx context.Context, param InstallParam) error
 	// Status retrieves status
 	Status(ctx context.Context) (*GravityStatus, error)
-	// SiteReport retrieves site report
-	SiteReport(ctx context.Context) error
 	// OfflineUpdate tries to upgrade application version
 	OfflineUpdate(ctx context.Context, installerUrl string) error
 	// Join asks to join existing cluster (or installation in progress)
@@ -166,7 +165,9 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallParam) error {
-	cmd := fmt.Sprintf("cd %s && ./gravity version && sudo ./gravity install --debug --advertise-addr=%s --token=%s --flavor=%s --docker-device=%s --storage-driver=%s",
+	cmd := fmt.Sprintf(`cd %s && ./gravity version && sudo ./gravity install --debug \
+		--advertise-addr=%s --token=%s --flavor=%s --docker-device=%s \
+		--storage-driver=%s --system-log-file=./telekube-system.log`,
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
 		g.param.dockerDevice, g.param.storageDriver)
 
@@ -178,15 +179,9 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	return trace.Wrap(err, cmd)
 }
 
-// SiteReport queries site report
-// TODO: parse
-func (g *gravity) SiteReport(ctx context.Context) error {
-	return trace.Wrap(sshutils.Run(ctx, g.Client(), g.Logger(), "gravity site report", nil))
-}
-
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity status", g.installDir)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity status --system-log-file=./telekube-system.log", g.installDir)
 	status := GravityStatus{}
 	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 
@@ -219,7 +214,8 @@ var joinCmdTemplate = template.Must(
 	template.New("gravity_join").Parse(
 		`cd {{.P.InstallDir}} && sudo ./gravity join {{.Cmd.PeerAddr}} \
 		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} --debug \
-		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}}`))
+		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}} \
+		--system-log-file=./telekube-system.log`))
 
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer
@@ -260,7 +256,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm`, g.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm --system-log-file=./telekube-system.log`, g.installDir)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
@@ -310,12 +306,9 @@ func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error
 		return "", trace.AccessDenied("node %v is poweroff", g)
 	}
 
-	files := []string{
-		"/var/lib/gravity/planet/log",
-		fmt.Sprintf("%s/*/*.log", g.param.homeDir),
-	}
 	localPath := filepath.Join(g.param.StateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
-	return localPath, trace.Wrap(sshutils.GetTgz(ctx, g.Client(), g.Logger(), files, localPath))
+	return localPath, trace.Wrap(sshutils.PipeCommand(ctx, g.Client(), g.Logger(),
+		fmt.Sprintf("cd %s && sudo ./gravity system report", g.installDir), localPath))
 }
 
 // SetInstaller overrides default installer into
@@ -357,7 +350,8 @@ var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\"
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
 	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet`, g.installDir, command),
+		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
+			g.installDir, command),
 		nil, sshutils.ParseAsString(&code))
 	if err != nil {
 		return trace.Wrap(err)

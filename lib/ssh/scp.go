@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gravitational/robotest/lib/constants"
 
@@ -97,9 +96,8 @@ func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
 	return nil
 }
 
-// GetTgz will pick up number of remote files and store it locally as .tgz
-// files should be absolute paths
-func GetTgz(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, files []string, dst string) error {
+// PipeCommand will run a remote command and store as local file
+func PipeCommand(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd, dst string) error {
 	session, err := client.NewSession()
 	if err != nil {
 		return trace.Wrap(err)
@@ -128,16 +126,12 @@ func GetTgz(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, fil
 	}
 	defer tgz.Close()
 
-	cmd := fmt.Sprintf("sudo sync && sudo tar cz -C / $(readlink -e %s)", strings.Join(files, " "))
 	log = log.WithField("cmd", cmd)
 	errCh := make(chan error, 3)
 
 	go func() {
 		log.Debug(cmd)
 		err := session.Run(cmd)
-		if err != nil {
-			log.WithError(err).Error(err.Error())
-		}
 		errCh <- trace.Wrap(err)
 	}()
 
@@ -151,10 +145,16 @@ func GetTgz(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, fil
 
 	select {
 	case <-ctx.Done():
+		err = trace.Errorf("%s -> %s killed due to context cancelled", cmd, dst)
+		log.WithError(err).Error(err.Error())
 		session.Signal(ssh.SIGKILL)
-		return trace.Errorf("%s -> %s timed out", cmd, dst)
+		return err
 	case err = <-errCh:
-		return trace.Wrap(err)
+		err = trace.Wrap(err)
+		if err != nil {
+			log.WithError(err).Errorf("%s: %s", cmd, err.Error())
+		}
+		return err
 	}
 	return nil
 }

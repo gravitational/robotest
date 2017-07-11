@@ -2,7 +2,6 @@ package suite
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
 	"github.com/sirupsen/logrus"
@@ -157,19 +157,12 @@ func TestMain(t *testing.T) {
 	result := suite.Run()
 	log := suite.Logger()
 	for _, res := range result {
-		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, toJSON(res.Param))
+		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
 	}
 
 	fmt.Println("\n******** TEST SUITE COMPLETED **********")
 	for _, res := range result {
-		fmt.Printf("%s %s %s %q\n", res.Status, res.Name, toJSON(res.Param), res.LogUrl)
+		fmt.Printf("%s %s %s %s\n", res.Status, res.Name, xlog.ToJSON(res.Param), res.LogUrl)
 	}
 
-}
-
-func toJSON(obj interface{}) string {
-	if data, err := json.Marshal(obj); err == nil {
-		return string(data)
-	}
-	return fmt.Sprintf("%+v", obj)
 }

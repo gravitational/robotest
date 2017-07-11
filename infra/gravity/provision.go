@@ -181,7 +181,7 @@ const cloudInitWait = time.Second * 10
 // bootstrapAzure workarounds some issues with Azure platform init
 func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(),
-		waagentProvisionFile, sshutil.TestRegularFile, cloudInitWait)
+		waagentProvisionFile, sshutil.TestRegularFile)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -198,7 +198,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 	err = sshutil.TestFile(ctx, g.Client(), g.Logger(), cloudInitSupportedFile, sshutil.TestRegularFile)
 	if err == nil {
 		g.Logger().Debug("cloud-init underway")
-		return sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+		return sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	}
 	if !trace.IsNotFound(err) {
 		return trace.Wrap(err)
@@ -213,7 +213,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 
 // bootstrapAWS is a simple workflow to wait for cloud-init to complete
 func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
-	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile, cloudInitWait)
+	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	return trace.Wrap(err)
 }
 

@@ -41,7 +41,7 @@ func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd st
 func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
 	session, err := client.NewSession()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err, "ssh session")
+		return exitStatusUndefined, trace.Wrap(err)
 	}
 	defer session.Close()
 
@@ -120,7 +120,6 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 			}
 		}
 	}
-	log.Debug("exit=0")
 	return 0, nil
 }
 

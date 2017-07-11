@@ -113,7 +113,7 @@ func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 		case string:
 			labels[k] = v.(string)
 		default:
-			labels[k] = toJSON(v)
+			labels[k] = ToJSON(v)
 		}
 	}
 
@@ -122,7 +122,7 @@ func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 		fields}
 }
 
-func toJSON(obj interface{}) string {
+func ToJSON(obj interface{}) string {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return fmt.Sprintf("%v", obj)

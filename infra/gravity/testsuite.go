@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"runtime/debug"
 	"sync"
 	"testing"
 
@@ -41,6 +42,8 @@ const (
 	TestStatusFailed = "FAILED"
 	// TestStatusCancelled means test execution was interrupted due to test suite cancellation
 	TestStatusCancelled = "CANCELED"
+	// TestStatusPaniced means test function had an unexpected panic
+	TestStatusPaniced = "PANICED"
 )
 
 // TestStatus represents high level test status on completion
@@ -181,6 +184,13 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 			log:      xlog.NewLogger(s.client, t, labels),
 		}
 		defer func() {
+			if r := recover(); r != nil {
+				cx.updateStatus(TestStatusPaniced)
+				cx.Logger().WithFields(logrus.Fields{
+					"stack": debug.Stack(),
+					"where": r}).Error("PANIC")
+				return
+			}
 			if s.failingFast() {
 				cx.updateStatus(TestStatusCancelled)
 				return

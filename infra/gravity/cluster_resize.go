@@ -23,7 +23,7 @@ func (c *TestContext) Expand(current, extra []Gravity, role string) error {
 	joinAddr := master.Node().PrivateAddr()
 	status, err := master.Status(ctx)
 	if err != nil {
-		trace.Wrap(err, "query status from [%v]", master)
+		return trace.Wrap(err, "query status from [%v]", master)
 	}
 
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))

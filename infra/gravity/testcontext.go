@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest/lib/xlog"
+
 	"cloud.google.com/go/pubsub"
 	"github.com/sirupsen/logrus"
 )
@@ -75,7 +77,7 @@ func (c *TestContext) OK(msg string, err error) {
 		c.log.WithFields(logrus.Fields{"name": c.name, "error": err}).Error(msg)
 		c.t.FailNow()
 	}
-	c.log.WithFields(logrus.Fields{"name": c.name}).Infof(msg)
+	c.log.WithFields(logrus.Fields{"name": c.name}).Info(msg)
 }
 
 // Require verifies condition is true, fails test otherwise
@@ -108,7 +110,7 @@ type gclMessage struct {
 func (c *TestContext) updateStatus(status string) {
 	c.status = status
 
-	log := c.Logger().WithFields(logrus.Fields{"param": c.param, "name": c.t.Name()})
+	log := c.Logger().WithFields(logrus.Fields{"param": xlog.ToJSON(c.param), "name": c.name})
 	switch c.status {
 	case TestStatusScheduled, TestStatusRunning, TestStatusPassed:
 		log.Info(c.status)

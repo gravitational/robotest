@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"time"
+
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
@@ -81,23 +82,19 @@ func TestFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, p
 }
 
 // WaitForFile waits for a test to become true against a remote file (or context to expire)
-func WaitForFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, path, test string, sleepDuration time.Duration) error {
-	for {
+func WaitForFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, path, test string) error {
+	err := wait.Retry(ctx, func() error {
 		err := TestFile(ctx, client, log, path, test)
-
-		if trace.IsNotFound(err) {
-			select {
-			case <-ctx.Done():
-				return trace.Errorf("timed out waiting for %s", path)
-			case <-time.After(sleepDuration):
-				continue
-			}
-		}
 
 		if err == nil {
 			return nil
 		}
 
-		return trace.Wrap(err, "waiting for %s", path)
-	}
+		if trace.IsNotFound(err) {
+			return wait.Continue(fmt.Sprintf("test %s %s false", path, test))
+		}
+
+		return wait.Abort(trace.Wrap(err, "waiting for %s", path))
+	})
+	return trace.Wrap(err)
 }
