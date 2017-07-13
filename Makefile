@@ -47,7 +47,7 @@ vendor: glide.yaml
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILDDIR)/* 
+	@rm -rf $(BUILDDIR)/* .glide vendor
 
 .PHONY: test
 test:
