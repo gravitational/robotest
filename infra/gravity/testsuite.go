@@ -172,10 +172,13 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 	}
 
 	return func(t *testing.T) {
+		ctx, cancelFn := context.WithCancel(s.ctx)
+		defer cancelFn()
+
 		cx := &TestContext{
 			t:        t,
 			name:     cfg.Tag(),
-			parent:   s.ctx,
+			parent:   ctx,
 			timeouts: DefaultTimeouts,
 			uid:      uid,
 			suite:    s,

@@ -84,7 +84,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 
 		now := time.Now()
 		g.OK("wait for cluster to be ready", g.Status(nodes))
-		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": time.Since(now)}).
+		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": fmt.Sprintf("%v", time.Since(now))}).
 			Info("cluster is available")
 
 		if param.ExpandBeforeShrink {

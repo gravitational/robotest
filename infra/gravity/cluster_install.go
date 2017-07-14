@@ -46,10 +46,6 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		return nil
 	}
 
-	for _, node := range nodes {
-		go node.(*gravity).streamLogs(c.parent, TelekubeSystemLog)
-	}
-
 	return nil
 }
 
