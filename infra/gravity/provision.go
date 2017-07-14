@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +13,11 @@ import (
 	"github.com/gravitational/robotest/infra/terraform"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
+	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
@@ -137,6 +140,11 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
+	c.Logger().Debug("Streaming logs")
+	for _, node := range gravityNodes {
+		go node.(*gravity).streamLogs(c.Context())
+	}
+
 	ctx, cancel = context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
@@ -149,7 +157,17 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	c.Logger().WithField("nodes", nodes).Debug("Provisioning complete")
+	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	defer cancel()
+	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
+	if err != nil {
+		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
+		c.Logger().WithError(err).Error(err.Error())
+		return nil, nil, err
+	}
+
+	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
 }
@@ -245,11 +263,53 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
 	default:
-		return nil, trace.Errorf("unexpected cloud provider %s", param.CloudProvider)
+		return nil, trace.Errorf("unsupported cloud provider %s", param.CloudProvider)
 	}
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
 	return g, nil
+}
+
+// waitIOStabilize is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
+// otherwise it'll fail telekube pre-install checks
+func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
+	errs := make(chan error, len(nodes))
+
+	for _, node := range nodes {
+		go func(node Gravity) {
+			errs <- waitDisk(ctx, node, paths, minDiskSpeed)
+		}(node)
+	}
+
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
+}
+
+// waitDisk will wait specific disk performance to report OK
+func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64) error {
+	err := wait.Retry(ctx, func() error {
+		for _, p := range paths {
+			if !strings.HasPrefix(p, "/dev") {
+				defer sshutil.Run(ctx, node.Client(), node.Logger(), fmt.Sprintf("sudo /bin/rm -f %s", p), nil)
+			}
+			var out string
+			_, err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
+				fmt.Sprintf("sudo dd if=/dev/zero of=%s bs=100K count=1024 conv=fdatasync 2>&1", p),
+				nil, sshutil.ParseAsString(&out))
+			if err != nil {
+				return wait.Abort(trace.Wrap(err))
+			}
+			speed, err := ParseDDOutput(out)
+			if err != nil {
+				return wait.Abort(trace.Wrap(err))
+			}
+			if speed < minSpeed {
+				return wait.Continue(fmt.Sprintf("%s has %v/s < minimum of %v/s",
+					p, humanize.Bytes(speed), humanize.Bytes(minSpeed)))
+			}
+		}
+		return nil
+	})
+	return trace.Wrap(err)
 }

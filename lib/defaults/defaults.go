@@ -20,4 +20,7 @@ const (
 
 	// SSHConnectTimeout defines the timeout for establishing an SSH connection
 	SSHConnectTimeout = 30 * time.Second
+
+	// MinDiskSpeed is minimum write performance
+	MinDiskSpeed = uint64(1e7)
 )
