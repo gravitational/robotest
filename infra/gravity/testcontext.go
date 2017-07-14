@@ -24,14 +24,6 @@ type OpTimeouts struct {
 	Install, Status, Uninstall, Leave, CollectLogs time.Duration
 }
 
-var DefaultTimeouts = OpTimeouts{
-	Install:     time.Minute * 15, // install threshold per node
-	Uninstall:   time.Minute * 5,  // uninstall threshold per node
-	Status:      time.Minute * 30, // sufficient for failover procedures
-	Leave:       time.Minute * 15, // threshold to leave cluster
-	CollectLogs: time.Minute * 7,  // to collect logs from node
-}
-
 // TestContext aggregates common parameters for better test suite readability
 type TestContext struct {
 	t        *testing.T

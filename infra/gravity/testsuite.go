@@ -32,7 +32,7 @@ type TestSuite interface {
 }
 
 const (
-	// TestStatusPassed means test was scheduled
+	// TestStatusScheduled means test was scheduled
 	TestStatusScheduled = "SCHEDULED"
 	// TestStatusRunning means test is running now
 	TestStatusRunning = "RUNNING"

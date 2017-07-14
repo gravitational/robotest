@@ -39,8 +39,13 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
+	nodeRoleTypes := []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup}
+	if template.NodeCount > 3 {
+		nodeRoleTypes = append(nodeRoleTypes, nodeRegularNode)
+	}
 	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup, nodeRegularNode} {
+		for _, nodeRoleType := range nodeRoleTypes {
+
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
