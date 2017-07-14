@@ -17,7 +17,7 @@ const (
 )
 
 // Simple hook to allow re-entrance to already initialized host
-func (c TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
+func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 	for _, node := range nodes {
 		g := node.(*gravity)
 		g.installDir = filepath.Join(g.param.homeDir, subdir)
@@ -25,7 +25,7 @@ func (c TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 }
 
 // ProvisionInstaller deploys a specific installer
-func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
+func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Install)
 	defer cancel()
 
@@ -46,15 +46,11 @@ func (c TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag stri
 		return nil
 	}
 
-	for _, node := range nodes {
-		go node.(*gravity).streamLogs(c.parent, TelekubeSystemLog)
-	}
-
 	return nil
 }
 
 // OfflineInstall sets up cluster using nodes provided
-func (c TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
+func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
@@ -116,7 +112,7 @@ func makePassword() string {
 
 // Uninstall makes nodes leave cluster and uninstall gravity
 // it is not asserting internally
-func (c TestContext) Uninstall(nodes []Gravity) error {
+func (c *TestContext) Uninstall(nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
@@ -132,7 +128,7 @@ func (c TestContext) Uninstall(nodes []Gravity) error {
 }
 
 // Upgrade tries to perform an upgrade procedure on all nodes
-func (c TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
+func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 

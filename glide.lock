@@ -1,14 +1,17 @@
-hash: 6633a6a429df8b536cdac08a57a0c137905b767e722a480958b0e8c8602aeab3
-updated: 2017-07-01T16:00:06.87527282Z
+hash: 19ae0cd2c44ef5853c022aa1ad674ec0013cc48911de63c9469db7696b731abd
+updated: 2017-07-14T00:43:10.658461952Z
 imports:
 - name: cloud.google.com/go
-  version: a5913b3f7deecba45e98ff33cefbac4fd204ddd7
+  version: 3e1507a0d90d17e4fdd8ef75e8f037ebecc854ba
   subpackages:
   - compute/metadata
+  - iam
   - internal/version
   - logging
   - logging/apiv2
   - logging/internal
+  - pubsub
+  - pubsub/apiv1
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
   subpackages:
@@ -19,6 +22,8 @@ imports:
   version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
+- name: github.com/dustin/go-humanize
+  version: 259d2a102b871d17f30e3cd9881a642961a1e486
 - name: github.com/go-playground/locales
   version: 1e5f1161c6416a5ff48840eb8724a394e48cc534
   subpackages:
@@ -26,9 +31,9 @@ imports:
 - name: github.com/go-playground/universal-translator
   version: 71201497bace774495daed26a3874fd339e0b538
 - name: github.com/go-yaml/yaml
-  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 - name: github.com/golang/protobuf
-  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
+  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
   subpackages:
   - proto
   - protoc-gen-go/descriptor
@@ -47,7 +52,7 @@ imports:
 - name: github.com/gravitational/log
   version: 8e1bbf1bba0515719dbb17adf1da20b5390ac8da
 - name: github.com/gravitational/trace
-  version: 10194f0485158ed39c9b9e088a8447d4a924dd9e
+  version: 640274f75816ce3975e730e844290c14936f6288
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/jonboulle/clockwork
@@ -117,14 +122,14 @@ imports:
 - name: github.com/tebeka/selenium
   version: 92ef4ae9dbd7b5028bbcff66c923414755c8abb6
 - name: golang.org/x/crypto
-  version: 5ef0053f77724838734b6945dd364d3847e5de1d
+  version: dd85ac7e6a88fc6ca420478e934de5f1a42dd3c6
   subpackages:
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
   - ssh
 - name: golang.org/x/net
-  version: 1f9224279e98554b6a6432d4dd998a739f8b2b7c
+  version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
   - context
   - context/ctxhttp
@@ -147,13 +152,14 @@ imports:
 - name: golang.org/x/sync
   version: f52d1811a62927559de87708c8913c1650ce4f26
   subpackages:
+  - errgroup
   - semaphore
 - name: golang.org/x/sys
-  version: 4ed4d404df456f81e878683a0363ed3013a59003
+  version: abf9c25f54453410d0c6668e519582a9e1115027
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 2bf8f2a19ec09c670e931282edfe6567f6be21c9
+  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
   subpackages:
   - encoding
   - encoding/charmap
@@ -174,7 +180,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: e6586c9293b9d514c7f5d5076731ec977cff1be6
+  version: e665075b5ff79143ba49c58fab02df9dc122afd5
   subpackages:
   - googleapi/transport
   - internal
@@ -183,7 +189,7 @@ imports:
   - support/bundler
   - transport
 - name: google.golang.org/appengine
-  version: d11fc8a8dccf41ab5bd3c51a3ea52051240e325c
+  version: ad2570cd3913654e00c5f0183b39d2f998e54046
   subpackages:
   - internal
   - internal/app_identity
@@ -197,18 +203,21 @@ imports:
   - socket
   - urlfetch
 - name: google.golang.org/genproto
-  version: aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
+  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
   subpackages:
   - googleapis/api/annotations
   - googleapis/api/distribution
   - googleapis/api/label
   - googleapis/api/metric
   - googleapis/api/monitoredres
+  - googleapis/iam/v1
   - googleapis/logging/type
   - googleapis/logging/v2
+  - googleapis/pubsub/v1
   - googleapis/rpc/status
+  - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: 3c33c26290b747350f8650c7d38bcc51b42dc785
+  version: d6723916d2e73e8824d22a1ba5c52f8e6255e6f8
   subpackages:
   - codes
   - credentials
@@ -229,5 +238,5 @@ imports:
 - name: gopkg.in/go-playground/validator.v9
   version: fb68f39656d7ebf8aa339ad4917aa0c260ecc237
 - name: gopkg.in/yaml.v2
-  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 testImports: []

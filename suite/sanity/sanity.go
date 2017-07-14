@@ -13,12 +13,13 @@ var defaultInstallParam = installParam{InstallParam: gravity.InstallParam{Role: 
 func Suite() *config.Config {
 	cfg := config.New()
 
-	cfg.Add("noop", noop, struct{}{})
+	cfg.Add("noop", noop, noopParam{})
+	cfg.Add("noopV", noopVariety, noopParam{})
 	cfg.Add("provision", provision, defaultInstallParam)
 	cfg.Add("resize", resize, resizeParam{installParam: defaultInstallParam})
 	cfg.Add("install", install, defaultInstallParam)
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
-	cfg.Add("recover_variety", lossAndRecoveryVariety, defaultInstallParam)
+	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
 	cfg.Add("upgrade3lts", upgrade, upgradeParam{installParam: defaultInstallParam})
 
 	return cfg

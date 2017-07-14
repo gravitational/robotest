@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,10 +97,10 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 		}
 
 		if !trace.IsRetryError(err) {
-			return nil, trace.Wrap(err, "Terraform creation failed")
+			return nil, trace.Wrap(err, "Terraform failed")
 		}
-		log.Warningf("terraform experienced transient error %s, will retry in %v",
-			err.Error(), terraformRepeatAfter)
+		log.WithError(err).Warningf("terraform experienced transient error, will retry in %v",
+			terraformRepeatAfter)
 
 		select {
 		case <-ctx.Done():
@@ -138,8 +137,10 @@ func (r *terraform) terraform(ctx context.Context) (err error) {
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
 	if len(privateIPs) != len(publicIPs) {
-		return trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
-			len(privateIPs), len(publicIPs))
+		return trace.Retry(
+			trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
+				len(privateIPs), len(publicIPs)),
+			"still allocating public IP addresses")
 	}
 
 	nodes := make([]infra.Node, 0, len(publicIPs))
@@ -256,12 +257,6 @@ func (r *terraform) State() infra.ProvisionerState {
 	}
 }
 
-// Write implements io.Writer
-func (r *terraform) Write(p []byte) (int, error) {
-	fmt.Fprint(os.Stderr, string(p))
-	return len(p), nil
-}
-
 func (r *terraform) boot(ctx context.Context) (output string, err error) {
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	err = r.saveVarsJSON(varsPath)
@@ -286,7 +281,7 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	cmd := exec.CommandContext(ctx, "terraform", args...)
 	var out bytes.Buffer
 	opts = append(opts, system.Dir(r.stateDir))
-	err := system.ExecL(cmd, io.MultiWriter(&out, r), r.Entry, opts...)
+	err := system.ExecL(cmd, &out, r.Entry, opts...)
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
 	}

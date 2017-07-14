@@ -64,6 +64,18 @@ ${SCRIPT} install='{"nodes":1,"flavor":"one"}'
 * [Compile and test specific telekube branch](https://jenkins.gravitational.io/view/robotest/job/robotest-run/)
 * [Compile and publish Robotest](https://jenkins.gravitational.io/view/robotest/job/Robotest-publish/)
 
+Additionaly `gravity-pr` pipelines are parameterized, and will run set of robotest suites from `scripts/robotest`.
+
+## In development
+
+The following commands in gravity repository will build telekube
+```
+$ make production telekube
+$ make run-robotest-suite ROBOTEST_SUITE=scripts/robotest/superlite.txt
+```
+
+see various suites defined in `scripts/robotest` folder of `gravity` repository.
+
 ## Supported Tests
 Every test is passed as argument to launch script as `testname={json}`. Mind the double-quotes for field names.
 

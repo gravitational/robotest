@@ -27,12 +27,8 @@ type ProvisionerPolicy struct {
 	DestroyOnFailure bool
 	// AlwaysCollectLogs requests to fetch logs also from VMs where tests completed OK
 	AlwaysCollectLogs bool
-	// FailFast requests to interrupt all other tests when any of the tests failed
-	FailFast bool
 	// ResourceListFile keeps record of allocated and not cleaned up resources
 	ResourceListFile string
-	// CancelAllFn is top-level context cancellation function which is used to implement FailFast behaviour
-	CancelAllFn func() `json:"-"`
 }
 
 var policy ProvisionerPolicy
@@ -46,7 +42,7 @@ var testStatus = map[bool]string{true: "failed", false: "ok"}
 const finalTeardownTimeout = time.Minute * 5
 
 // wrapDestroyFn implements a global conditional logic
-func wrapDestroyFn(c TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
+func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func() error {
 		defer func() {
 			if r := recover(); r != nil {
@@ -73,11 +69,6 @@ func wrapDestroyFn(c TestContext, tag string, nodes []Gravity, destroy func(cont
 			var cancel func()
 			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
 			defer cancel()
-		}
-
-		if c.t.Failed() && policy.FailFast {
-			log.Warn("test failed, FailFast=true requesting other tests teardown")
-			defer policy.CancelAllFn()
 		}
 
 		if !skipLogCollection && (c.t.Failed() || policy.AlwaysCollectLogs) {
@@ -189,10 +180,6 @@ func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, par
 
 		resourceAllocated(baseConfig.Tag())
 		return p.NodePool().Nodes(), p.Destroy, nil
-	}
-
-	if policy.FailFast {
-		policy.CancelAllFn()
 	}
 
 	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))

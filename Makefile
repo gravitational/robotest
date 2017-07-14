@@ -10,13 +10,13 @@ GLIDE_VER := v0.12.3
 
 # Rules below run on host
 
-.PHONY: all
-all: clean build
-
 .PHONY: build
 build: buildbox
 	mkdir -p build
 	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS)
+
+.PHONY: all
+all: clean build
 
 .PHONY: buildbox
 buildbox:
@@ -47,7 +47,7 @@ vendor: glide.yaml
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILDDIR)/* 
+	@rm -rf $(BUILDDIR)/* .glide vendor
 
 .PHONY: test
 test:

@@ -11,7 +11,6 @@ import:
   subpackages:
   - cstrings
 - package: github.com/gravitational/trace
-  version: denis/logger-up
 - package: github.com/tebeka/selenium
 - package: github.com/satori/go.uuid
 - package: golang.org/x/crypto
@@ -19,6 +18,7 @@ import:
   - ssh
 - package: gopkg.in/alecthomas/kingpin.v2
 - package: gopkg.in/go-playground/validator.v9
+- package: github.com/dustin/go-humanize
 - package: github.com/stretchr/testify
   subpackages:
   - assert

@@ -13,6 +13,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
 	"github.com/sirupsen/logrus"
@@ -122,9 +123,7 @@ func TestMain(t *testing.T) {
 		DestroyOnSuccess:  *destroyOnSuccess,
 		DestroyOnFailure:  *destroyOnFailure,
 		AlwaysCollectLogs: *collectLogs,
-		FailFast:          *failFast,
 		ResourceListFile:  *resourceListFile,
-		CancelAllFn:       cancelFn,
 	}
 	gravity.SetProvisionerPolicy(policy)
 
@@ -136,7 +135,8 @@ func TestMain(t *testing.T) {
 		"os_flavors":         osFlavors,
 		"storage_drivers":    storageDrivers,
 		"repeat":             *repeat,
-	})
+		"fail_fast":          *failFast,
+	}, *failFast)
 	defer suite.Close()
 	setupSignals(suite)
 
@@ -155,12 +155,14 @@ func TestMain(t *testing.T) {
 	}
 
 	result := suite.Run()
+	log := suite.Logger()
 	for _, res := range result {
-		log := suite.Logger()
-		if res.Failed {
-			log.Errorf("%s FAILED %q %+v", res.Name, res.LogUrl, res.Param)
-		} else {
-			log.Infof("%s PASSED %q %+v", res.Name, res.LogUrl, res.Param)
-		}
+		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
 	}
+
+	fmt.Println("\n******** TEST SUITE COMPLETED **********")
+	for _, res := range result {
+		fmt.Printf("%s %s %s %s\n", res.Status, res.Name, xlog.ToJSON(res.Param), res.LogUrl)
+	}
+
 }

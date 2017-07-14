@@ -51,7 +51,7 @@ if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
 	exit 1
 fi
 
-if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] ; then
+if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] || [[ ${UPGRADE_FROM:-} = 's3://'* ]]; then
 check_files ${SSH_KEY} 
 AWS_CONFIG="aws:
   access_key: ${AWS_ACCESS_KEY}
@@ -106,13 +106,14 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
+	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/teraform"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
 	${INSTALLER_FILE:+'-v' "${INSTALLER_URL}:${INSTALLER_FILE}"} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
 	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
-	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=false \
+	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \

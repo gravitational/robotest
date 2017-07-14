@@ -41,7 +41,8 @@ func NewLogger(client *GCLClient, t *testing.T, commonFields logrus.Fields) logr
 
 	if client != nil {
 		log.Hooks.Add(client.Hook(t.Name(), commonFields))
+	} else {
+		log.Hooks.Add(&TestingHook{t})
 	}
-	log.Hooks.Add(&TestingHook{t})
 	return log
 }

@@ -2,6 +2,7 @@ package xlog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -35,6 +36,7 @@ type GCLClient struct {
 	gclClient       *cl.Client
 	pubsubClient    *pubsub.Client
 	topic           *pubsub.Topic
+	ctx             context.Context
 }
 
 func (client *GCLClient) Close() {
@@ -54,7 +56,7 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 		return nil, trace.Errorf("no cloud logging project ID provided")
 	}
 
-	client = &GCLClient{}
+	client = &GCLClient{ctx: ctx}
 
 	// URL shortener API
 	client.shortenerClient, err = google.DefaultClient(ctx, urlShortenerScope)
@@ -97,16 +99,35 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 	return client, nil
 }
 
+// Context returns context instance this client was initialized with
+// as it may survive local function context which is i.e. cancelled or timed out
+func (c *GCLClient) Context() context.Context {
+	return c.ctx
+}
+
 // Hook returns logrus log hook
 func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 	labels := map[string]string{}
 	for k, v := range fields {
-		labels[k] = fmt.Sprintf("%v", v)
+		switch v.(type) {
+		case string:
+			labels[k] = v.(string)
+		default:
+			labels[k] = ToJSON(v)
+		}
 	}
 
 	return &GCLHook{
 		c.gclClient.Logger(name, cl.CommonLabels(labels)),
 		fields}
+}
+
+func ToJSON(obj interface{}) string {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return fmt.Sprintf("%v", obj)
+	}
+	return string(data)
 }
 
 // Topic returns google pub/sub topic for test result status reporting

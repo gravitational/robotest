@@ -39,8 +39,13 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 	var exp map[bool]string = map[bool]string{true: "expBfr", false: "expAft"}
 	var pwr map[bool]string = map[bool]string{true: "pwrOff", false: "pwrOn"}
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		for _, nodeRoleType := range []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup, nodeRegularNode} {
+	nodeRoleTypes := []string{nodeApiMaster, nodeClusterMaster, nodeClusterBackup}
+	if template.NodeCount > 3 {
+		nodeRoleTypes = append(nodeRoleTypes, nodeRegularNode)
+	}
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+		for _, nodeRoleType := range nodeRoleTypes {
+
 			for _, powerOff := range []bool{true, false} {
 				for _, expandBeforeShrink := range []bool{true, false} {
 					cfg := baseConfig.WithTag(fmt.Sprintf("%s-%s-%s", nodeRoleType, exp[expandBeforeShrink], pwr[powerOff]))
@@ -66,7 +71,7 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	param := p.(lossAndRecoveryParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.NodeCount + 1)
 
 		allNodes, destroyFn, err := g.Provision(config)
@@ -83,19 +88,19 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 		g.OK(fmt.Sprintf("node for removal=%v, poweroff=%v", removed, param.PowerOff), err)
 
 		now := time.Now()
-		g.OK("wait for readiness", g.Status(nodes))
-		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": time.Since(now)}).
+		g.OK("wait for cluster to be ready", g.Status(nodes))
+		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": fmt.Sprintf("%v", time.Since(now))}).
 			Info("cluster is available")
 
 		if param.ExpandBeforeShrink {
-			g.OK("add node",
+			g.OK("expand before shrinking",
 				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
 			nodes = append(nodes, allNodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
-			g.OK("node role after expand", err)
+			g.OK("node roles after expand", err)
 			g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).
-				Info("Roles after expand")
+				Info("roles after expand")
 
 			g.OK("remove old node", g.RemoveNode(nodes, removed))
 		} else {
@@ -118,7 +123,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	}, nil
 }
 
-func removeNode(g gravity.TestContext,
+func removeNode(g *gravity.TestContext,
 	nodes []gravity.Gravity,
 	nodeRoleType string, powerOff bool) (remaining []gravity.Gravity, removed gravity.Gravity, err error) {
 

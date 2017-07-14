@@ -12,7 +12,7 @@ import (
 )
 
 // Status walks around all nodes and checks whether they all feel OK
-func (c TestContext) Status(nodes []Gravity) error {
+func (c *TestContext) Status(nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
@@ -26,12 +26,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 
 		for _, node := range nodes {
 			go func(n Gravity) {
-				status, err := n.Status(ctx)
-				if err != nil {
-					n.Logger().WithError(err).Error(status)
-				} else {
-					n.Logger().WithField("status", status).Debug("status ok")
-				}
+				_, err := n.Status(ctx)
 				errs <- err
 			}(node)
 		}
@@ -48,7 +43,7 @@ func (c TestContext) Status(nodes []Gravity) error {
 }
 
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits
-func (c TestContext) CheckTimeSync(nodes []Gravity) error {
+func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 	timeNodes := []sshutils.SshNode{}
 	for _, n := range timeNodes {
 		timeNodes = append(timeNodes, n)
@@ -62,26 +57,9 @@ func (c TestContext) CheckTimeSync(nodes []Gravity) error {
 	return trace.Wrap(err)
 }
 
-// SiteReport runs site report command across nodes
-func (c TestContext) SiteReport(nodes []Gravity) error {
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
-	defer cancel()
-
-	errs := make(chan error, len(nodes))
-
-	for _, node := range nodes {
-		go func(n Gravity) {
-			err := n.SiteReport(ctx)
-			errs <- err
-		}(node)
-	}
-
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
-}
-
 // PullLogs requests logs from all nodes
 // prefix `postmortem` is reserved for cleanup procedure
-func (c TestContext) CollectLogs(prefix string, nodes []Gravity) error {
+func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.CollectLogs)
 	defer cancel()
 
@@ -116,7 +94,7 @@ type ClusterNodesByRole struct {
 }
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
-func (c TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
+func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
 	if len(nodes) < 1 {
 		return nil, trace.BadParameter("at least one node required")
 	}

@@ -16,7 +16,7 @@ type resizeParam struct {
 func resize(p interface{}) (gravity.TestFunc, error) {
 	param := p.(resizeParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.ToNodes)
 
 		nodes, destroyFn, err := g.Provision(config)

@@ -3,6 +3,7 @@ package wait
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/gravitational/robotest/lib/defaults"
@@ -76,7 +77,7 @@ func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
 		}
 
 		select {
-		case <-time.After(r.Delay):
+		case <-time.After(backoff(r.Delay, i)):
 		case <-ctx.Done():
 			r.Error("timed out")
 			return err
@@ -95,4 +96,13 @@ type Retryer struct {
 	Attempts int
 	// Entry specifies the log sink
 	*log.Entry
+}
+
+func backoff(baseDelay time.Duration, errCount int) time.Duration {
+	delay := baseDelay * time.Duration(math.Pow(2, float64(errCount)-1))
+	if delay > defaults.RetryMaxDelay {
+		return defaults.RetryMaxDelay
+	} else {
+		return delay
+	}
 }

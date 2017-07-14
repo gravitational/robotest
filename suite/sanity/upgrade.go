@@ -13,7 +13,7 @@ type upgradeParam struct {
 func upgrade(p interface{}) (gravity.TestFunc, error) {
 	param := p.(upgradeParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		cfg := baseConfig.WithNodes(param.NodeCount)
 
 		nodes, destroyFn, err := g.Provision(cfg)

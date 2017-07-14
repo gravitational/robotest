@@ -14,6 +14,7 @@ func ConsoleLogger(consoleLevel logrus.Level, stackDepth int) *logrus.Logger {
 
 	consoleLog := logrus.New()
 	consoleLog.Level = consoleLevel
+	consoleLog.Formatter = &logrus.TextFormatter{DisableTimestamp: true}
 	log.Hooks.Add(&consoleHook{consoleLog, consoleLevel, stackDepth})
 
 	return log

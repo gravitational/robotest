@@ -13,7 +13,7 @@ type installParam struct {
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		cfg := baseConfig.WithNodes(param.NodeCount)
 		nodes, destroyFn, err := g.Provision(cfg)
 		g.OK("VMs ready", err)
@@ -28,7 +28,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
+	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		cfg := baseConfig.WithNodes(param.NodeCount)
 		nodes, destroyFn, err := g.Provision(cfg)
 		g.OK("provision nodes", err)

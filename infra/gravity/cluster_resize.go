@@ -11,7 +11,7 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func (c TestContext) Expand(current, extra []Gravity, role string) error {
+func (c *TestContext) Expand(current, extra []Gravity, role string) error {
 	if len(current) == 0 || len(extra) == 0 {
 		return trace.Errorf("empty node list")
 	}
@@ -23,7 +23,7 @@ func (c TestContext) Expand(current, extra []Gravity, role string) error {
 	joinAddr := master.Node().PrivateAddr()
 	status, err := master.Status(ctx)
 	if err != nil {
-		trace.Wrap(err, "query status from [%v]", master)
+		return trace.Wrap(err, "query status from [%v]", master)
 	}
 
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
@@ -70,7 +70,7 @@ func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 }
 
 // ShrinkLeave will gracefully leave cluster
-func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
+func (c *TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Leave, len(nodesToRemove)))
 	defer cancel()
 
@@ -86,7 +86,7 @@ func (c TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
 }
 
 // RemoveNode simulates sudden nodes loss within an existing cluster followed by node eviction
-func (c TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
+func (c *TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
 	if len(nodesToKeep) == 0 {
 		return trace.BadParameter("node list empty")
 	}
