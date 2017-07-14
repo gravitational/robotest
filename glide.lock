@@ -1,8 +1,8 @@
-hash: b55f3b516e8463a917610ba9b9099ab89b67f92e9ba5cdb8872da3de602b8e32
-updated: 2017-07-07T18:43:18.515938144Z
+hash: 19ae0cd2c44ef5853c022aa1ad674ec0013cc48911de63c9469db7696b731abd
+updated: 2017-07-14T00:43:10.658461952Z
 imports:
 - name: cloud.google.com/go
-  version: 7ce8b92dd61a3d280e64a64aecf225f25062c4f1
+  version: 3e1507a0d90d17e4fdd8ef75e8f037ebecc854ba
   subpackages:
   - compute/metadata
   - iam
@@ -22,6 +22,8 @@ imports:
   version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
+- name: github.com/dustin/go-humanize
+  version: 259d2a102b871d17f30e3cd9881a642961a1e486
 - name: github.com/go-playground/locales
   version: 1e5f1161c6416a5ff48840eb8724a394e48cc534
   subpackages:
@@ -29,9 +31,9 @@ imports:
 - name: github.com/go-playground/universal-translator
   version: 71201497bace774495daed26a3874fd339e0b538
 - name: github.com/go-yaml/yaml
-  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 - name: github.com/golang/protobuf
-  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
+  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
   subpackages:
   - proto
   - protoc-gen-go/descriptor
@@ -120,14 +122,14 @@ imports:
 - name: github.com/tebeka/selenium
   version: 92ef4ae9dbd7b5028bbcff66c923414755c8abb6
 - name: golang.org/x/crypto
-  version: a48ac81e47fd6f9ed1258f3b60ae9e75f93cb7ed
+  version: dd85ac7e6a88fc6ca420478e934de5f1a42dd3c6
   subpackages:
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
   - ssh
 - name: golang.org/x/net
-  version: 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
+  version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
   - context
   - context/ctxhttp
@@ -153,7 +155,7 @@ imports:
   - errgroup
   - semaphore
 - name: golang.org/x/sys
-  version: 739734461d1c916b6c72a63d7efda2b27edb369f
+  version: abf9c25f54453410d0c6668e519582a9e1115027
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -178,7 +180,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: bb4e0b1b53539118e8d3a704d31cb69a81a9c140
+  version: e665075b5ff79143ba49c58fab02df9dc122afd5
   subpackages:
   - googleapi/transport
   - internal
@@ -187,7 +189,7 @@ imports:
   - support/bundler
   - transport
 - name: google.golang.org/appengine
-  version: 6f8a8d299d1aef52402b4523f12f9265037ce869
+  version: ad2570cd3913654e00c5f0183b39d2f998e54046
   subpackages:
   - internal
   - internal/app_identity
@@ -201,7 +203,7 @@ imports:
   - socket
   - urlfetch
 - name: google.golang.org/genproto
-  version: aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
+  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
   subpackages:
   - googleapis/api/annotations
   - googleapis/api/distribution
@@ -215,7 +217,7 @@ imports:
   - googleapis/rpc/status
   - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: 41d9b6ea2a6335f3a22074ed35c0542c9da1baf4
+  version: d6723916d2e73e8824d22a1ba5c52f8e6255e6f8
   subpackages:
   - codes
   - credentials
@@ -236,5 +238,5 @@ imports:
 - name: gopkg.in/go-playground/validator.v9
   version: fb68f39656d7ebf8aa339ad4917aa0c260ecc237
 - name: gopkg.in/yaml.v2
-  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
 testImports: []

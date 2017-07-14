@@ -18,6 +18,7 @@ import:
   - ssh
 - package: gopkg.in/alecthomas/kingpin.v2
 - package: gopkg.in/go-playground/validator.v9
+- package: github.com/dustin/go-humanize
 - package: github.com/stretchr/testify
   subpackages:
   - assert
