@@ -92,6 +92,13 @@ ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
 "
 
+# additional context-dependent arguments
+args=()
+
+if [ -n "${UPGRADE_FROM:-}" ] ; then
+  args+=("-from=${UPGRADE_FROM}")
+fi
+
 # will make verbose logging to console, pass -test.v if needed
 LOG_CONSOLE=${LOG_CONSOLE:-''}
 DOCKER_RUN_FLAGS=${DOCKER_RUN_FLAGS:-''}
@@ -118,4 +125,5 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
 	-tag=${TAG} -suite=sanity -os=${TEST_OS} -storage-driver=${STORAGE_DRIVER} \
+	"${args[@]}" \
 	$@
