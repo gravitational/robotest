@@ -83,6 +83,8 @@ type InstallParam struct {
 	EnableRemoteSupport bool `json:"remote_support"`
 	// LicenseURL (Optional) is license file, could be local or s3 or http(s) url
 	LicenseURL string `json:"license,omitempty"`
+	// CloudProvider defines tighter integration with cloud vendor, i.e. use AWS networking on Amazon
+	CloudProvider string `json:"cloud_provider,omitempty"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -167,9 +169,10 @@ func (g *gravity) Client() *ssh.Client {
 func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	cmd := fmt.Sprintf(`cd %s && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr=%s --token=%s --flavor=%s --docker-device=%s \
-		--storage-driver=%s --system-log-file=./telekube-system.log`,
+		--storage-driver=%s --system-log-file=./telekube-system.log \
+		--cloud-provider=%s`,
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
-		g.param.dockerDevice, g.param.storageDriver)
+		g.param.dockerDevice, g.param.storageDriver, param.CloudProvider)
 
 	if param.Cluster != "" {
 		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)

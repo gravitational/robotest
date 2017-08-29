@@ -106,9 +106,10 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
-	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/teraform"} \
+	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/terraform"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
 	${INSTALLER_FILE:+'-v' "${INSTALLER_URL}:${INSTALLER_FILE}"} \
+	${EXTRA_VOLUME_MOUNTS:-} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
