@@ -129,7 +129,7 @@ func (c *TestContext) Uninstall(nodes []Gravity) error {
 
 // Upgrade tries to perform an upgrade procedure on all nodes
 func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(2*c.timeouts.Install, len(nodes))) // DEBUG
 	defer cancel()
 
 	if len(nodes) == 0 {
@@ -142,6 +142,13 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	if err != nil {
 		return trace.Wrap(err)
 	}
+
+	err = node.Upload(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	time.Sleep(3 * time.Minute) // DEBUG
 
 	err = node.Upgrade(ctx)
 	return trace.Wrap(err)

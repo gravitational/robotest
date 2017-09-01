@@ -45,6 +45,8 @@ type Gravity interface {
 	Reboot(ctx context.Context, graceful Graceful) error
 	// CollectLogs will pull essential logs from node and store it in state dir under node-logs/prefix
 	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
+	// Upload uploads packages in current installer dir to cluster
+	Upload(ctx context.Context) error
 	// Upgrade takes currently active installer (see SetInstaller) and tries to perform upgrade
 	Upgrade(ctx context.Context) error
 	// RunInPlanet runs specific command inside Planet container and returns its result
@@ -336,13 +338,14 @@ func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir 
 	return nil
 }
 
+// Upload uploads packages in current installer dir to cluster
+func (g *gravity) Upload(ctx context.Context) error {
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), fmt.Sprintf(`cd %s && sudo ./upload`, g.installDir), nil)
+	return trace.Wrap(err)
+}
+
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
-	err := sshutils.Run(ctx, g.Client(), g.Logger(), fmt.Sprintf(`cd %s && sudo ./upload`, g.installDir), nil)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	return trace.Wrap(g.runOp(ctx, `upgrade $(./gravity app-package --state-dir=.)`))
 }
 
