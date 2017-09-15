@@ -31,7 +31,7 @@ variable "os_sku" {
 
 	default = {
 		"ubuntu" = "16.04-LTS"
-		"redhat" = "7.4"
+		"redhat" = "7.3"
 		"centos" = "7.3"
 		"debian" = "8"
 	}
@@ -42,7 +42,7 @@ variable "os_version" {
 
 	default = {
 		"ubuntu" = "latest"
-		"redhat" = "latest"
+		"redhat" = "7.3.2017090723"
 		"centos" = "latest"
 		"debian" = "latest"
 	}
