@@ -10,7 +10,7 @@ if [ -f $INSTALLER_URL ] ; then
 	INSTALLER_FILE='/robotest/installer.tar'
 fi
 
-# OS could be ubuntu,centos,rhel 
+# OS could be ubuntu,centos,redhat 
 # storage driver: could be devicemapper,loopback,overlay,overlay2 
 #  separate multiple values by comma for OS and storage driver
 TEST_OS=${TEST_OS:-ubuntu}

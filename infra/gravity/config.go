@@ -34,7 +34,7 @@ type ProvisionerConfig struct {
 	// NodeCount defines amount of nodes to be provisioned
 	nodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
-	os string `validate:"required,eq=ubuntu|eq=debian|eq=rhel|eq=centos"`
+	os string `validate:"required,eq=ubuntu|eq=debian|eq=redhat|eq=centos"`
 	// dockerStorageDriver defines Docker storage driver
 	storageDriver string `validate:"required,eq=overlay|overlay2|devicemapper|loopback"`
 	// dockerDevice is a physical volume where docker data would be stored

@@ -31,7 +31,7 @@ variable "os_sku" {
 
 	default = {
 		"ubuntu" = "16.04-LTS"
-		"redhat" = "7.3"
+		"redhat" = "7.4"
 		"centos" = "7.3"
 		"debian" = "8"
 	}

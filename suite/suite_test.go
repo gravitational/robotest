@@ -61,13 +61,6 @@ var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
 }
 
-var storageDriverOsCompat = map[string][]string{
-	"ubuntu": []string{"overlay2", "overlay", "devicemapper", "loopback"},
-	"debian": []string{"overlay2", "overlay", "devicemapper", "loopback"},
-	"centos": []string{"overlay2", "overlay", "devicemapper", "loopback"},
-	"rhel":   []string{"devicemapper", "loopback"},
-}
-
 func in(val string, arr []string) bool {
 	for _, v := range arr {
 		if val == v {
@@ -144,11 +137,9 @@ func TestMain(t *testing.T) {
 		for _, osFlavor := range osFlavors {
 			for ts, entry := range testSet {
 				for _, drv := range storageDrivers {
-					if in(drv, storageDriverOsCompat[osFlavor]) {
-						cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).
-							WithOS(osFlavor).WithStorageDriver(drv)
-						suite.Schedule(entry.TestFunc, cfg, entry.Param)
-					}
+					cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).
+						WithOS(osFlavor).WithStorageDriver(drv)
+					suite.Schedule(entry.TestFunc, cfg, entry.Param)
 				}
 			}
 		}

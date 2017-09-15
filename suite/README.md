@@ -19,7 +19,7 @@ export REPEAT_TESTS=1
 # When true, aborts all tests on first failure
 export FAIL_FAST=false 
 
-# OS could be ubuntu,centos,rhel 
+# OS could be ubuntu,centos,redhat 
 TEST_OS=${TEST_OS:-ubuntu}
 
 # storage driver: could be devicemapper,loopback,overlay,overlay2 
