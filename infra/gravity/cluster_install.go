@@ -132,17 +132,23 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
-	if len(nodes) == 0 {
-		return trace.Errorf("no nodes provided")
-	}
-
-	node := nodes[0]
-
-	err := node.SetInstaller(ctx, installerUrl, subdir)
+	roles, err := c.NodesByRole(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = node.Upgrade(ctx)
+	master := roles.ApiMaster
+
+	err = master.SetInstaller(ctx, installerUrl, subdir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = master.Upload(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
 }

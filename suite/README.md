@@ -19,7 +19,7 @@ export REPEAT_TESTS=1
 # When true, aborts all tests on first failure
 export FAIL_FAST=false 
 
-# OS could be ubuntu,centos,rhel 
+# OS could be ubuntu,centos,redhat 
 TEST_OS=${TEST_OS:-ubuntu}
 
 # storage driver: could be devicemapper,loopback,overlay,overlay2 
@@ -124,6 +124,49 @@ Currently deployment to AWS and Azure is supported.
 
 When deploying to AWS or using S3:// installer URLs, you need define `AWS_REGION, AWS_KEYPAIR, AWS_ACCESS_KEY, AWS_SECRET_KEY` environment variables. See [AWS EC2 docs](http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html) for details.
 
+In order to use AWS VPC networking, instances will be assigned IAM Instance Profile `robotest-node` with the following policy. Note this IAM Instance Profile is not created dynamically.
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:Describe*",
+                "ec2:AttachVolume",
+                "ec2:DetachVolume"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateRoute",
+                "ec2:DeleteRoute",
+                "ec2:ReplaceRoute"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeInstances"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:DescribeLoadBalancers"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ### Azure Configuration
 When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` authentication variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
 
@@ -136,3 +179,5 @@ Robotest can optionally send detailed execution logs to Google Cloud Logging pla
 1. [Create and generate key for the service account](https://cloud.google.com/docs/authentication/getting-started) and set `GOOGLE_APPLICATION_CREDENTIALS` environment variable accordingly.
 2. Assign `Logging/Log Writer` and `Pub-Sub/Topic Writer` permissions to the service account.
 3. Enable [Cloud Logging](https://console.cloud.google.com/logs/viewer) project and set `GCL_PROJECT_ID` env variable to [google project ID](https://console.cloud.google.com/iam-admin/settings/project).
+
+### Altering terraform scripts

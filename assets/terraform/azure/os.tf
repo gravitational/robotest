@@ -42,7 +42,7 @@ variable "os_version" {
 
 	default = {
 		"ubuntu" = "latest"
-		"redhat" = "latest"
+		"redhat" = "7.3.2017090723"
 		"centos" = "latest"
 		"debian" = "latest"
 	}

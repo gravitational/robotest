@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/utils"
 
 	"github.com/gravitational/trace"
 
@@ -52,17 +53,15 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 		errCh <- trace.Wrap(err)
 	}()
 
-	for c := 0; c < 2; c++ {
-		select {
-		case <-ctx.Done():
-			session.Signal(ssh.SIGTERM)
-			return "", trace.Errorf("scp timed out")
-		case err := <-errCh:
-			if err != nil {
-				return "", trace.Wrap(err)
-			}
-		}
+	err = utils.CollectErrors(ctx, errCh)
+	if ctx.Err() != nil {
+		session.Signal(ssh.SIGTERM)
+		return "", trace.Errorf("scp timed out")
 	}
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
 	remotePath = filepath.Join(dstDir, filepath.Base(srcPath))
 	return remotePath, nil
 }
@@ -127,7 +126,7 @@ func PipeCommand(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 	defer tgz.Close()
 
 	log = log.WithField("cmd", cmd)
-	errCh := make(chan error, 3)
+	errCh := make(chan error, 2)
 
 	go func() {
 		log.Debug(cmd)
@@ -143,18 +142,14 @@ func PipeCommand(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 	go io.Copy(ioutil.Discard,
 		&readLogger{log.WithField("stream", "stderr"), stderr})
 
-	select {
-	case <-ctx.Done():
-		err = trace.Errorf("%s -> %s killed due to context cancelled", cmd, dst)
-		log.WithError(err).Error(err.Error())
-		session.Signal(ssh.SIGKILL)
-		return err
-	case err = <-errCh:
-		err = trace.Wrap(err)
-		if err != nil {
-			log.WithError(err).Errorf("%s: %s", cmd, err.Error())
-		}
-		return err
+	err = utils.CollectErrors(ctx, errCh)
+	if ctx.Err() != nil {
+		session.Signal(ssh.SIGTERM)
+		trace.Errorf("%s -> %s killed due to context cancelled", cmd, dst)
 	}
+	if err != nil {
+		trace.Wrap(err)
+	}
+
 	return nil
 }

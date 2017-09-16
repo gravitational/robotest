@@ -3,7 +3,6 @@ package gravity
 import (
 	"context"
 
-	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -29,17 +28,7 @@ func (c *TestContext) Expand(current, extra []Gravity, role string) error {
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
 	defer cancel()
 
-	retry := wait.Retryer{
-		Attempts: 1000,
-		Delay:    defaults.RetryDelay,
-	}
 	for _, node := range extra {
-		// workaround for bug #2324
-		err = retry.Do(ctx, waitEtcdHealthOk(ctx, master))
-		if err != nil {
-			return trace.Wrap(err, "error waiting for ETCD health on node %s: %v", node.String(), err)
-		}
-
 		err = node.Join(ctx, JoinCmd{
 			PeerAddr: joinAddr,
 			Token:    status.Token,

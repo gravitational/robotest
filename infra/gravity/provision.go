@@ -45,13 +45,13 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicP
 		"azure": map[string]string{
 			"ubuntu": "robotest",
 			"debian": "admin",
-			"rhel":   "redhat", // TODO: check
+			"redhat": "redhat", // TODO: check
 			"centos": "centos",
 		},
 		"aws": map[string]string{
 			"ubuntu": "ubuntu",
 			"debian": "admin",
-			"rhel":   "redhat",
+			"redhat": "redhat",
 			"centos": "centos",
 		},
 	}
@@ -232,6 +232,10 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 // bootstrapAWS is a simple workflow to wait for cloud-init to complete
 func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	return trace.Wrap(err)
 }
 
