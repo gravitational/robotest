@@ -29,5 +29,14 @@ sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 umount /dev/sdd1 || : 
 wipefs -af /dev/sdd || :
 
+#
+# configure firewall rules
+# 
+firewall-cmd --zone=trusted --add-source=10.244.0.0/16 --permanent # pod subnet
+firewall-cmd --zone=trusted --add-source=10.100.0.0/16 --permanent # service subnet
+firewall-cmd --zone=trusted --add-masquerade --permanent # masquerading so packets can be routed back
+firewall-cmd --reload
+systemctl restart firewalld
+
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete
