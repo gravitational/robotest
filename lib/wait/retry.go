@@ -68,20 +68,24 @@ func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
 			return nil
 		}
 
+		le := r.FieldLogger
+		if deadline, ok := ctx.Deadline(); ok {
+			le = le.WithField("timeout-in", fmt.Sprintf("%v", time.Until(deadline)))
+		}
 		switch origErr := err.(type) {
 		case AbortRetry:
-			r.WithError(err).Error("aborted")
+			le.WithError(err).Error("aborted")
 			return origErr.Err
 		case ContinueRetry:
-			r.Debugf("%v retry in %v", origErr.Message, r.Delay)
+			le.Debugf("%v retry in %v", origErr.Message, r.Delay)
 		default:
-			r.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), r.Delay)
+			le.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), r.Delay)
 		}
 
 		select {
 		case <-time.After(backoff(r.Delay, i)):
 		case <-ctx.Done():
-			r.Error("timed out")
+			r.Error("context timed out")
 			return err
 		}
 	}

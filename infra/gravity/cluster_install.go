@@ -129,15 +129,15 @@ func (c *TestContext) Uninstall(nodes []Gravity) error {
 
 // Upgrade tries to perform an upgrade procedure on all nodes
 func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
-	defer cancel()
-
 	roles, err := c.NodesByRole(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	master := roles.ApiMaster
+
+	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	defer cancel()
 
 	err = master.SetInstaller(ctx, installerUrl, subdir)
 	if err != nil {
@@ -148,6 +148,9 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	if err != nil {
 		return trace.Wrap(err)
 	}
+
+	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Upgrade, len(nodes)))
+	defer cancel()
 
 	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
