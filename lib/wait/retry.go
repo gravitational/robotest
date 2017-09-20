@@ -53,8 +53,8 @@ func Retry(ctx context.Context, fn func() error) error {
 // Do retries the given function fn for the configured number of attempts until it succeeds
 // or all attempts have been exhausted
 func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
-	if r.Entry == nil {
-		r.Entry = log.NewEntry(log.StandardLogger())
+	if r.FieldLogger == nil {
+		r.FieldLogger = log.NewEntry(log.StandardLogger())
 	}
 
 	if ctx.Err() != nil {
@@ -64,22 +64,28 @@ func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
 	for i := 1; i <= r.Attempts; i += 1 {
 		err = fn()
 		if err == nil {
+			r.Debug("succeded")
 			return nil
 		}
 
+		le := r.FieldLogger
+		if deadline, ok := ctx.Deadline(); ok {
+			le = le.WithField("timeout-in", fmt.Sprintf("%v", time.Until(deadline)))
+		}
 		switch origErr := err.(type) {
 		case AbortRetry:
+			le.WithError(err).Error("aborted")
 			return origErr.Err
 		case ContinueRetry:
-			r.Debugf("%v retry in %v", origErr.Message, r.Delay)
+			le.Debugf("%v retry in %v", origErr.Message, r.Delay)
 		default:
-			r.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), r.Delay)
+			le.Debugf("unsuccessful attempt %v: %v, retry in %v", i, trace.UserMessage(err), r.Delay)
 		}
 
 		select {
 		case <-time.After(backoff(r.Delay, i)):
 		case <-ctx.Done():
-			r.Error("timed out")
+			r.Error("context timed out")
 			return err
 		}
 	}
@@ -94,8 +100,8 @@ type Retryer struct {
 	// Attempts specifies the number of attempts to execute before failing.
 	// Should be >= 1, zero value is not useful
 	Attempts int
-	// Entry specifies the log sink
-	*log.Entry
+	// FieldLogger specifies the log sink
+	log.FieldLogger
 }
 
 func backoff(baseDelay time.Duration, errCount int) time.Duration {

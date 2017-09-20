@@ -367,8 +367,9 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 	}
 
 	retry := wait.Retryer{
-		Attempts: 1000,
-		Delay:    time.Second * 20,
+		Attempts:    1000,
+		Delay:       time.Second * 20,
+		FieldLogger: g.Logger().WithField("retry-operation", code),
 	}
 
 	err = retry.Do(ctx, func() error {

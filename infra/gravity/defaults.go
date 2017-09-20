@@ -23,6 +23,7 @@ const (
 
 var DefaultTimeouts = OpTimeouts{
 	Install:     time.Minute * 15, // install threshold per node
+	Upgrade:     time.Minute * 30, // upgrade threshold per node
 	Uninstall:   time.Minute * 5,  // uninstall threshold per node
 	Status:      time.Minute * 30, // sufficient for failover procedures
 	Leave:       time.Minute * 15, // threshold to leave cluster
