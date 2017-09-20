@@ -147,6 +147,11 @@ func (hook *GCLHook) Fire(e *logrus.Entry) error {
 		delete(p, key)
 	}
 
+	switch err := p["error"].(type) {
+	case trace.Error:
+		p["error"] = trace.DebugReport(err)
+	}
+
 	hook.log.Log(cl.Entry{
 		Payload:  p,
 		Severity: severity})
