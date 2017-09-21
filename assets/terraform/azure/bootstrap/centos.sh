@@ -34,7 +34,8 @@ wipefs -af /dev/sdd || :
 # 
 firewall-cmd --zone=trusted --add-source=10.244.0.0/16 --permanent # pod subnet
 firewall-cmd --zone=trusted --add-source=10.100.0.0/16 --permanent # service subnet
-firewall-cmd --zone=trusted --add-masquerade --permanent # masquerading so packets can be routed back
+firewall-cmd --zone=trusted --add-interface=eth0 --permanent       # enable eth0 in trusted zone so nodes can communicate
+firewall-cmd --zone=trusted --add-masquerade --permanent           # masquerading so packets can be routed back
 firewall-cmd --reload
 systemctl restart firewalld
 
