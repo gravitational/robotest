@@ -4,6 +4,20 @@
 #
 set -euo pipefail
 
+function devices {
+    lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
+}
+
+function get_docker_device {
+    for device in $(devices --output=NAME); do
+        local partitions=$(devices --output=NAME /dev/$device | wc -l)
+        if (( $partitions==1 )) && [[ -z "$(devices --output=FSTYPE /dev/$device)" ]]; then
+            echo $device
+            exit 0
+        fi
+    done
+}
+
 touch /var/lib/bootstrap_started
 
 systemctl stop dnsmasq
@@ -25,9 +39,9 @@ mount /var/lib/gravity/planet/etcd
 chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
-# apparently centos WAAgent on azure will auto create FS and mount all data disks, need undo that
-umount /dev/sdd1 || : 
-wipefs -af /dev/sdd || :
+docker_device=$(get_docker_device)
+[ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
+echo "/dev/$docker_device" > ~/.gravity_docker_device
 
 #
 # configure firewall rules

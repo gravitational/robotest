@@ -267,7 +267,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
 	default:
-		return nil, trace.Errorf("unsupported cloud provider %s", param.CloudProvider)
+		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
 	}
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -276,7 +276,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	return g, nil
 }
 
-// waitIOStabilize is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
+// waitDisks is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
 // otherwise it'll fail telekube pre-install checks
 func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
 	errs := make(chan error, len(nodes))
