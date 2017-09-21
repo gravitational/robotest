@@ -41,7 +41,7 @@ sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 docker_device=$(get_docker_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
-echo "/dev/$docker_device" > ~/.gravity_docker_device
+echo "/dev/$docker_device" > /tmp/.gravity_docker_device
 
 #
 # configure firewall rules
