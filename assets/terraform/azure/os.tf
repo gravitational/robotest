@@ -41,7 +41,7 @@ variable "os_version" {
 	type = "map"
 
 	default = {
-		"ubuntu" = "latest"
+		"ubuntu" = "16.04.201708151"
 		"redhat" = "7.3.2017090723"
 		"centos" = "latest"
 		"debian" = "latest"
