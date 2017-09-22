@@ -169,18 +169,21 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallParam) error {
-	cmd := fmt.Sprintf(`cd %s && ./gravity version && sudo ./gravity install --debug \
-		--advertise-addr=%s --token=%s --flavor=%s --docker-device=%s \
+	cmd := fmt.Sprintf(`source /tmp/gravity_environment >/dev/null 2>&1 || true; \
+	cd %s && ./gravity version && sudo ./gravity install --debug \
+		--advertise-addr=%s --token=%s --flavor=%s --docker-device=$%s \
 		--storage-driver=%s --system-log-file=./telekube-system.log \
 		--cloud-provider=%s`,
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
-		g.param.dockerDevice, g.param.storageDriver, param.CloudProvider)
+		constants.EnvDeviceDocker, g.param.storageDriver, param.CloudProvider)
 
 	if param.Cluster != "" {
 		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)
 	}
 
-	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, map[string]string{
+		constants.EnvDockerDevice: g.param.dockerDevice,
+	})
 	return trace.Wrap(err, cmd)
 }
 
