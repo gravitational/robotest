@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
@@ -175,7 +176,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		--storage-driver=%s --system-log-file=./telekube-system.log \
 		--cloud-provider=%s`,
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
-		constants.EnvDeviceDocker, g.param.storageDriver, param.CloudProvider)
+		constants.EnvDockerDevice, g.param.storageDriver, param.CloudProvider)
 
 	if param.Cluster != "" {
 		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)
