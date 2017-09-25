@@ -10,8 +10,8 @@ if [ -f $INSTALLER_URL ] ; then
 	INSTALLER_FILE='/robotest/installer.tar'
 fi
 
-# OS could be ubuntu,centos,redhat 
-# storage driver: could be devicemapper,loopback,overlay,overlay2 
+# OS could be ubuntu,centos,redhat
+# storage driver: could be devicemapper,loopback,overlay,overlay2
 #  separate multiple values by comma for OS and storage driver
 TEST_OS=${TEST_OS:-ubuntu}
 STORAGE_DRIVER=${STORAGE_DRIVER:-devicemapper}
@@ -35,13 +35,13 @@ ROBOTEST_VERSION=${ROBOTEST_VERSION:-stable}
 check_files () {
 	ABORT=
 	for v in $@ ; do
-		if [ ! -f "${v}" ] ; then 
+		if [ ! -f "${v}" ] ; then
 			echo "${v} does not exist"
 			ABORT=true
 		fi
 	done
 
-	if [ ! -z $ABORT ] ; then 
+	if [ ! -z $ABORT ] ; then
 		exit 1 ;
 	fi
 }
@@ -52,7 +52,7 @@ if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
 fi
 
 if [ $DEPLOY_TO == "aws" ] || [[ $INSTALLER_URL = 's3://'* ]] || [[ ${UPGRADE_FROM:-} = 's3://'* ]]; then
-check_files ${SSH_KEY} 
+check_files ${SSH_KEY}
 AWS_CONFIG="aws:
   access_key: ${AWS_ACCESS_KEY}
   secret_key: ${AWS_SECRET_KEY}
@@ -64,9 +64,9 @@ AWS_CONFIG="aws:
   docker_device: /dev/xvdb"
 fi
 
-if [ $DEPLOY_TO == "azure" ] ; then 
+if [ $DEPLOY_TO == "azure" ] ; then
 check_files ${SSH_KEY} ${SSH_PUB}
-AZURE_CONFIG="azure: 
+AZURE_CONFIG="azure:
   subscription_id: ${AZURE_SUBSCRIPTION_ID}
   client_id: ${AZURE_CLIENT_ID}
   client_secret: ${AZURE_CLIENT_SECRET}

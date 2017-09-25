@@ -23,4 +23,10 @@ const (
 
 	// MinDiskSpeed is minimum write performance
 	MinDiskSpeed = uint64(1e7)
+
+	// NodeRole is the default role when installing/joining a node
+	NodeRole = "node"
+
+	// GravityDir is the default location of all gravity data on a node
+	GravityDir = "/var/lib/gravity"
 )

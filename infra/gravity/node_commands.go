@@ -66,7 +66,7 @@ type Gravity interface {
 
 type Graceful bool
 
-// InstallCmd install parameters passed to first node
+// InstallParam represents install parameters passed to first node
 type InstallParam struct {
 	// Token is initial token to use during cluster setup
 	Token string `json:"-"`
@@ -88,6 +88,8 @@ type InstallParam struct {
 	LicenseURL string `json:"license,omitempty"`
 	// CloudProvider defines tighter integration with cloud vendor, i.e. use AWS networking on Amazon
 	CloudProvider string `json:"cloud_provider,omitempty"`
+	// StateDir is the directory where all gravity data will be stored on the node
+	StateDir string `json:"state_dir" validate:"required"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -96,8 +98,12 @@ type JoinCmd struct {
 	InstallDir string
 	// PeerAddr is other node (i.e. master)
 	PeerAddr string
-	Token    string
-	Role     string
+	// Token is the join token
+	Token string
+	// Role is the role of the joining node
+	Role string
+	// StateDir is where all gravity data will be stored on the joining node
+	StateDir string
 }
 
 // GravityStatus is serialized form of `gravity status` CLI.
@@ -105,7 +111,7 @@ type GravityStatus struct {
 	Application string
 	Cluster     string
 	Status      string
-	// Token is secure token which prevents rogue nodes from joining the cluster during installation.
+	// Token is secure token which prevents rogue nodes from joining the cluster during installation
 	Token string `validation:"required"`
 	// Nodes defines nodes the cluster observes
 	Nodes []string
@@ -174,9 +180,10 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	cd %s && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr=%s --token=%s --flavor=%s --docker-device=$%s \
 		--storage-driver=%s --system-log-file=./telekube-system.log \
-		--cloud-provider=%s`,
+		--cloud-provider=%s --state-dir=%s`,
 		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
-		constants.EnvDockerDevice, g.param.storageDriver, param.CloudProvider)
+		constants.EnvDockerDevice, g.param.storageDriver, param.CloudProvider,
+		param.StateDir)
 
 	if param.Cluster != "" {
 		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)
@@ -224,7 +231,7 @@ var joinCmdTemplate = template.Must(
 		`cd {{.P.InstallDir}} && sudo ./gravity join {{.Cmd.PeerAddr}} \
 		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} --debug \
 		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}} \
-		--system-log-file=./telekube-system.log`))
+		--system-log-file=./telekube-system.log --state-dir={{.Cmd.StateDir}}`))
 
 func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer

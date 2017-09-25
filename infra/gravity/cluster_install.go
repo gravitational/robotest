@@ -76,9 +76,11 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    param.Token,
-				Role:     param.Role})
+				Role:     param.Role,
+				StateDir: param.StateDir,
+			})
 			if err != nil {
-				n.Logger().WithError(err).Error("Join failed")
+				n.Logger().WithError(err).Error("join failed")
 			}
 			errs <- err
 		}(node)
