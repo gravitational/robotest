@@ -94,7 +94,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 
 		if param.ExpandBeforeShrink {
 			g.OK("expand before shrinking",
-				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
+				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
 			nodes = append(nodes, allNodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
@@ -112,7 +112,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 				Info("Roles after remove")
 
 			g.OK("replace node",
-				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.Role))
+				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
 			nodes = append(nodes, allNodes[param.NodeCount])
 		}
 
