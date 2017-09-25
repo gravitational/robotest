@@ -30,7 +30,8 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 		g.OK("time sync", g.CheckTimeSync(nodes))
 
 		g.OK(fmt.Sprintf("expand to %d nodes", param.ToNodes),
-			g.Expand(nodes[0:param.NodeCount], nodes[param.NodeCount:param.ToNodes], param.Role))
+			g.Expand(nodes[0:param.NodeCount], nodes[param.NodeCount:param.ToNodes],
+				param.InstallParam))
 		g.OK("status", g.Status(nodes[0:param.ToNodes]))
 	}, nil
 }

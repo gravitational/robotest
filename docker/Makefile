@@ -6,7 +6,10 @@ PULL ?= --pull
 
 TERRAFORM_VERSION := 0.9.3
 CHROMEDRIVER_VERSION := 2.29
-BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) --build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
+
+E2E_BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
+  --build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
+SUITE_BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION)
 
 .PHONY: containers
 containers: $(TARGETS)
@@ -27,12 +30,16 @@ $(TARGETS): $(BINARIES)
 	cp -r ../assets/terraform $(TEMPDIR)
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
-	cd $(TEMPDIR) && docker build $(BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) .
+	if [ "$@" = "e2e" ]; then \
+	  cd $(TEMPDIR) && docker build $(E2E_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	else \
+	  cd $(TEMPDIR) && docker build $(SUITE_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	fi
 	rm -rf $(TEMPDIR)
 	@echo Built $(IMAGE)
 
-# Publish 
- 
+# Publish
+
 DOCKER_IMG = $(addprefix $(DOCKER_REPO)/robotest-,$(TARGETS))
 
 .PHONY: publish

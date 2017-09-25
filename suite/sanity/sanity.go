@@ -1,15 +1,19 @@
 package sanity
 
 import (
-	"github.com/gravitational/robotest/lib/config"
-
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/defaults"
 )
 
-var defaultInstallParam = installParam{InstallParam: gravity.InstallParam{Role: "node"}}
+var defaultInstallParam = installParam{
+	InstallParam: gravity.InstallParam{
+		Role:     defaults.NodeRole,
+		StateDir: defaults.GravityDir,
+	},
+}
 
 // Suite returns base configuration for a suite which may be further customized
-
 func Suite() *config.Config {
 	cfg := config.New()
 

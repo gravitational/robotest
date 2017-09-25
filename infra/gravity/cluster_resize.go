@@ -10,7 +10,7 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func (c *TestContext) Expand(current, extra []Gravity, role string) error {
+func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	if len(current) == 0 || len(extra) == 0 {
 		return trace.Errorf("empty node list")
 	}
@@ -32,7 +32,9 @@ func (c *TestContext) Expand(current, extra []Gravity, role string) error {
 		err = node.Join(ctx, JoinCmd{
 			PeerAddr: joinAddr,
 			Token:    status.Token,
-			Role:     role})
+			Role:     p.Role,
+			StateDir: p.StateDir,
+		})
 		if err != nil {
 			return trace.Wrap(err, "error joining cluster on node %s: %v", node.String(), err)
 		}

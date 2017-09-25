@@ -78,7 +78,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 				Token:    param.Token,
 				Role:     param.Role})
 			if err != nil {
-				n.Logger().WithError(err).Error("Join failed")
+				n.Logger().WithError(err).Error("join failed")
 			}
 			errs <- err
 		}(node)

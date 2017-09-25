@@ -99,7 +99,7 @@ func TestMain(t *testing.T) {
 
 	suiteCfg, there := suites[*testSuite]
 	if !there {
-		t.Fatalf("No such test suite \"%s\"", *testSuite)
+		t.Fatalf("no such test suite %q", *testSuite)
 	}
 
 	testSet, err := suiteCfg.Parse(flag.Args())
