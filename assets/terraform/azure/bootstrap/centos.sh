@@ -39,6 +39,7 @@ mount /var/lib/gravity/planet/etcd
 chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
+sync
 docker_device=$(get_docker_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
