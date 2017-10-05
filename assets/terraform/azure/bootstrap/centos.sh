@@ -44,8 +44,8 @@ docker_device=$(get_docker_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-systemctl enable firewalld || true
-systemctl start firewalld || true
+systemctl enable firewalld
+systemctl start firewalld
 #
 # configure firewall rules
 # 
