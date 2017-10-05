@@ -8,7 +8,7 @@ function devices {
     lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
 }
 
-function get_docker_device {
+function get_empty_device {
     for device in $(devices --output=NAME); do
         local partitions=$(devices --output=NAME /dev/$device | wc -l)
         if (( $partitions==1 )) && [[ -z "$(devices --output=FSTYPE /dev/$device)" ]]; then
@@ -30,8 +30,11 @@ curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
 unzip awscli-bundle.zip
 ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
 
-mkfs.ext4 -F /dev/sdc
-echo -e '/dev/sdc\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2' >> /etc/fstab
+etcd_device=$(get_empty_device)
+[ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
+
+mkfs.ext4 -F /dev/$etcd_device
+echo -e "/dev/${etcd_device}\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2" >> /etc/fstab
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
 mount /var/lib/gravity/planet/etcd
@@ -40,7 +43,7 @@ chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 sync
-docker_device=$(get_docker_device)
+docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
