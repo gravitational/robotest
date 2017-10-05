@@ -176,24 +176,52 @@ func (g *gravity) Client() *ssh.Client {
 
 // Install runs gravity install with params
 func (g *gravity) Install(ctx context.Context, param InstallParam) error {
-	cmd := fmt.Sprintf(`source /tmp/gravity_environment >/dev/null 2>&1 || true; \
-	cd %s && ./gravity version && sudo ./gravity install --debug \
-		--advertise-addr=%s --token=%s --flavor=%s --docker-device=$%s \
-		--storage-driver=%s --system-log-file=./telekube-system.log \
-		--cloud-provider=%s --state-dir=%s`,
-		g.installDir, g.node.PrivateAddr(), param.Token, param.Flavor,
-		constants.EnvDockerDevice, g.param.storageDriver, param.CloudProvider,
-		param.StateDir)
-
-	if param.Cluster != "" {
-		cmd = fmt.Sprintf("%s --cluster=%s", cmd, param.Cluster)
+	// cmd specify additional configuration for the install command
+	// collected from defaults and/or computed values
+	type cmd struct {
+		InstallDir      string
+		PrivateAddr     string
+		Token           string
+		Flavor          string
+		EnvDockerDevice string
+		StorageDriver   string
+		CloudProvider   string
+		Cluster         string
+		InstallParam
 	}
 
-	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, map[string]string{
+	var buf bytes.Buffer
+	err := installCmdTemplate.Execute(&buf, cmd{
+		InstallDir:      g.installDir,
+		PrivateAddr:     g.Node().PrivateAddr(),
+		EnvDockerDevice: constants.EnvDockerDevice,
+		StorageDriver:   g.param.storageDriver,
+		CloudProvider:   param.CloudProvider,
+		Token:           param.Token,
+		Flavor:          param.Flavor,
+		Cluster:         param.Cluster,
+		InstallParam:    param,
+	})
+	if err != nil {
+		return trace.Wrap(err, buf.String())
+	}
+
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
 		constants.EnvDockerDevice: g.param.dockerDevice,
 	})
-	return trace.Wrap(err, cmd)
+	return trace.Wrap(err, param)
 }
+
+var installCmdTemplate = template.Must(
+	template.New("gravity_install").Parse(`
+		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
+		cd {{.InstallDir}} && ./gravity version && sudo ./gravity install --debug \
+		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
+		--docker-device=${{.EnvDockerDevice}} \
+		--storage-driver={{.StorageDriver}} --system-log-file=./telekube-system.log \
+		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
+		{{if .Cluster}}--cluster={{.Cluster}}{{end}}
+`))
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
@@ -217,35 +245,38 @@ func (g *gravity) OfflineUpdate(ctx context.Context, installerUrl string) error 
 	return nil
 }
 
-// autoVals are set by command itself based on configuration
-type autoVals struct{ InstallDir, PrivateAddr, DockerDevice string }
+func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
+	// cmd specify additional configuration for the install command
+	// collected from defaults and/or computed values
+	type cmd struct {
+		InstallDir, PrivateAddr, EnvDockerDevice string
+		JoinCmd
+	}
 
-// cmdEx are extended parameters passed to gravity
-type cmdEx struct {
-	P   autoVals
-	Cmd interface{}
-}
-
-var joinCmdTemplate = template.Must(
-	template.New("gravity_join").Parse(
-		`cd {{.P.InstallDir}} && sudo ./gravity join {{.Cmd.PeerAddr}} \
-		--advertise-addr={{.P.PrivateAddr}} --token={{.Cmd.Token}} --debug \
-		--role={{.Cmd.Role}} --docker-device={{.P.DockerDevice}} \
-		--system-log-file=./telekube-system.log --state-dir={{.Cmd.StateDir}}`))
-
-func (g *gravity) Join(ctx context.Context, cmd JoinCmd) error {
 	var buf bytes.Buffer
-	err := joinCmdTemplate.Execute(&buf, cmdEx{
-		P:   autoVals{g.installDir, g.Node().PrivateAddr(), g.param.dockerDevice},
-		Cmd: cmd,
+	err := joinCmdTemplate.Execute(&buf, cmd{
+		InstallDir:      g.installDir,
+		PrivateAddr:     g.Node().PrivateAddr(),
+		EnvDockerDevice: constants.EnvDockerDevice,
+		JoinCmd:         param,
 	})
 	if err != nil {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
-	return trace.Wrap(err, cmd)
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
+		constants.EnvDockerDevice: g.param.dockerDevice,
+	})
+	return trace.Wrap(err, param)
 }
+
+var joinCmdTemplate = template.Must(
+	template.New("gravity_join").Parse(`
+		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
+		cd {{.InstallDir}} && sudo ./gravity join {{.PeerAddr}} \
+		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --debug \
+		--role={{.Role}} --docker-device=${{.EnvDockerDevice}} \
+		--system-log-file=./telekube-system.log --state-dir={{.StateDir}}`))
 
 // Leave makes given node leave the cluster
 func (g *gravity) Leave(ctx context.Context, graceful Graceful) error {
