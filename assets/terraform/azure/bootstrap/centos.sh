@@ -30,6 +30,8 @@ curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
 unzip awscli-bundle.zip
 ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
 
+# dump devices
+lsblk -I 8,9,202,252,253,259 --output-all -P
 etcd_device=$(get_empty_device)
 [ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
 
@@ -43,6 +45,8 @@ chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 sync
+# dump devices
+lsblk -I 8,9,202,252,253,259 --output-all -P
 docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
