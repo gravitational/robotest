@@ -181,12 +181,8 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	type cmd struct {
 		InstallDir      string
 		PrivateAddr     string
-		Token           string
-		Flavor          string
 		EnvDockerDevice string
 		StorageDriver   string
-		CloudProvider   string
-		Cluster         string
 		InstallParam
 	}
 
@@ -196,10 +192,6 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		PrivateAddr:     g.Node().PrivateAddr(),
 		EnvDockerDevice: constants.EnvDockerDevice,
 		StorageDriver:   g.param.storageDriver,
-		CloudProvider:   param.CloudProvider,
-		Token:           param.Token,
-		Flavor:          param.Flavor,
-		Cluster:         param.Cluster,
 		InstallParam:    param,
 	})
 	if err != nil {
@@ -246,7 +238,7 @@ func (g *gravity) OfflineUpdate(ctx context.Context, installerUrl string) error 
 }
 
 func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
-	// cmd specify additional configuration for the install command
+	// cmd specify additional configuration for the join command
 	// collected from defaults and/or computed values
 	type cmd struct {
 		InstallDir, PrivateAddr, EnvDockerDevice string
