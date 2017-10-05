@@ -18,10 +18,33 @@ function get_empty_device {
     done
 }
 
+function get_vmbus_attr {
+  local dev_path=$1
+  local attr=$2
+
+  cat $dev_path/$attr | head -n1
+}
+
+function get_timesync_bus_name {
+  local timesync_bus_id='{9527e630-d0ae-497b-adce-e80ab0175caf}'
+  local vmbus_sys_path='/sys/bus/vmbus/devices'
+
+  for device in $vmbus_sys_path/*; do
+    local id=$(get_vmbus_attr $device "id")
+    local class_id=$(get_vmbus_attr $device "class_id")
+    if [ "$class_id" == "$timesync_bus_id" ]; then
+      echo vmbus_$id; exit 0
+    fi
+  done
+}
+
 touch /var/lib/bootstrap_started
 
-# disable Hyper-V host time sync 
-echo vmbus_12 > /sys/bus/vmbus/drivers/hv_util/unbind
+timesync_bus_name=$(get_timesync_bus_name)
+if [ ! -z "$timesync_bus_name" ]; then
+  # disable Hyper-V host time sync 
+  echo $timesync_bus_name > /sys/bus/vmbus/drivers/hv_util/unbind
+fi
 
 systemctl stop dnsmasq
 systemctl disable dnsmasq
