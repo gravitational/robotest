@@ -13,6 +13,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
@@ -380,7 +381,8 @@ func (g *gravity) Upload(ctx context.Context) error {
 
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
-	return trace.Wrap(g.runOp(ctx, `upgrade $(./gravity app-package --state-dir=.)`))
+	return trace.Wrap(g.runOp(ctx,
+		fmt.Sprintf("upgrade $(./gravity app-package --state-dir=.) --etcd-retry-timeout=%v", defaults.EtcdRetryTimeout)))
 }
 
 // for cases when gravity doesn't return just opcode but an extended message

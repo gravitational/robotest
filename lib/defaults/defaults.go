@@ -29,4 +29,8 @@ const (
 
 	// GravityDir is the default location of all gravity data on a node
 	GravityDir = "/var/lib/gravity"
+
+	// EtcdRetryTimeout specifies the total timeout for retrying etcd commands
+	// in case of transient errors
+	EtcdRetryTimeout = 5 * time.Minute
 )
