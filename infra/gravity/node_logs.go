@@ -8,5 +8,5 @@ import (
 
 func (g *gravity) streamLogs(ctx context.Context) {
 	sshutil.Run(ctx, g.Client(), g.Logger().WithField("source", "journalctl"),
-		"/bin/journalctl -f -o cat", nil)
+		"sudo /bin/journalctl -f -o cat", nil)
 }
