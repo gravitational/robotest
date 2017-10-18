@@ -34,7 +34,9 @@ const (
 	// in case of transient errors
 	EtcdRetryTimeout = 5 * time.Minute
 
-	// InstallerWaitTimeout defines timeout waiting for installer file to become available
-	// which is used to make robotest provision infrastructure
-	InstallerWaitTimeout = time.Minute * 20
+	// TerraformRetryDelay
+	TerraformRetryDelay = 5 * time.Minute
+
+	// TerraformRetries
+	TerraformRetries = 2
 )

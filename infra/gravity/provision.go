@@ -126,7 +126,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	params := makeDynamicParams(c.t, cfg)
 
 	c.Logger().Debug("Provisioning VMs")
-	nodes, destroyFn, err := runTerraform(c.Context(), cfg, params)
+	nodes, destroyFn, err := runTerraform(c.Context(), cfg, params, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}

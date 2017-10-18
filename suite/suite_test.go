@@ -13,6 +13,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
@@ -62,7 +63,7 @@ var suites = map[string]*config.Config{
 }
 
 func flavorSupported(os, version, storageDriver string) bool {
-	if os != "rhel" {
+	if os != constants.OSRedHat {
 		return true
 	}
 
@@ -70,7 +71,7 @@ func flavorSupported(os, version, storageDriver string) bool {
 		return true
 	}
 
-	if storageDriver == "devicemapper" {
+	if storageDriver == constants.DeviceMapper {
 		return true
 	}
 

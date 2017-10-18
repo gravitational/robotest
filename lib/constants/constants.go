@@ -24,4 +24,10 @@ const (
 
 	// EnvDockerDevice specifies the name of the environment variable with docker device name
 	EnvDockerDevice = "DOCKER_DEVICE"
+
+	// OSRedHat is RedHat Enterprise Linux
+	OSRedHat = "rhel"
+
+	// DeviceMapper is devicemapper storage driver name
+	DeviceMapper = "devicemapper"
 )

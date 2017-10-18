@@ -11,6 +11,8 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
@@ -146,8 +148,35 @@ func saveResourceAllocations() error {
 	return nil
 }
 
+func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, err error) {
+	retr := wait.Retryer{
+		Delay:       defaults.TerraformRetryDelay,
+		Attempts:    defaults.TerraformRetries,
+		FieldLogger: logger,
+	}
+
+	retry := 0
+	cfg := baseConfig
+	err = retr.Do(ctx, func() error {
+		if retry != 0 {
+			cfg = baseConfig.WithTag(fmt.Sprintf("R%d", retry))
+		}
+		retry++
+		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, params)
+		if err == nil {
+			return nil
+		}
+		return wait.Continue(err.Error())
+	})
+
+	if err == nil {
+		return nodes, destroyFn, nil
+	}
+	return nil, nil, trace.Wrap(err)
+}
+
 // terraform deals with underlying terraform provisioner
-func runTerraform(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
+func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
