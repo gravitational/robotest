@@ -47,6 +47,7 @@ func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicP
 			"debian": "admin",
 			"redhat": "redhat", // TODO: check
 			"centos": "centos",
+			"suse":   "robotest",
 		},
 		"aws": map[string]string{
 			"ubuntu": "ubuntu",

@@ -12,6 +12,7 @@ variable "os_publisher" {
 		"redhat" = "RedHat"
 		"centos" = "OpenLogic"
 		"debian" = "credativ"
+		"suse"	 = "SUSE"
 	}
 }
 
@@ -23,6 +24,7 @@ variable "os_offer" {
 		"redhat" = "RHEL"
 		"centos" = "CentOS"
 		"debian" = "Debian"
+		"suse" 	 = "SLES"
 	}
 }
 
@@ -30,15 +32,16 @@ variable "os_sku" {
 	type = "map"
 
 	default = {
-		"ubuntu" = "16.04-LTS"
-		"redhat" = "7.3"
+		"ubuntu" 	 = "16.04-LTS"
+		"redhat" 	 = "7.3"
 		"redhat:7.2" = "7.2"
 		"redhat:7.3" = "7.3"
 		"redhat:7.4" = "7-RAW"
-		"centos" = "7.3"
+		"centos" 	 = "7.3"
 		"centos:7.2" = "7.2"
 		"centos:7.3" = "7.3"
-		"debian" = "8"
+		"debian" 	 = "8"
+		"suse"		 = "12-SP3"
 	}
 }
 
@@ -56,5 +59,6 @@ variable "os_version" {
 		"centos:7.3" = "7.3.20170925"
 		"centos:7.2" = "7.2.20170517"
 		"debian" 	 = "latest"
+		"suse"		 = "2017.09.07"
 	}
 }

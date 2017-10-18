@@ -7,7 +7,7 @@ set -eu -o pipefail
 #
 
 if [ -f $INSTALLER_URL ] ; then
-	INSTALLER_FILE='/robotest/installer.tar'
+	INSTALLER_FILE='/installer/installer.tar'
 fi
 
 # OS could be ubuntu,centos,redhat
