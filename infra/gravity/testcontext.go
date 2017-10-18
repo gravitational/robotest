@@ -21,7 +21,7 @@ const (
 // whether test must be failed
 // provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
 type OpTimeouts struct {
-	Install, Upgrade, Status, Uninstall, Leave, CollectLogs time.Duration
+	Install, Upgrade, Status, Uninstall, Leave, CollectLogs, WaitForInstaller time.Duration
 }
 
 // TestContext aggregates common parameters for better test suite readability

@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/url"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gravitational/robotest/lib/utils"
+	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 )
@@ -26,7 +29,13 @@ func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 
 // ProvisionInstaller deploys a specific installer
 func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Install)
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
+	if err := waitFileInstaller(ctx, installerUrl); err != nil {
+		return trace.Wrap(err)
+	}
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(c.parent, c.timeouts.Install)
 	defer cancel()
 
 	errs := make(chan error, len(nodes))
@@ -98,6 +107,30 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 			fmt.Sprintf("--ops-url=%s", localOpsCenterURL),
 			master.param.Tag())
 	}
+
+	return trace.Wrap(err)
+}
+
+func waitFileInstaller(ctx context.Context, file string) error {
+	u, err := url.Parse(file)
+	if err != nil {
+		return trace.Wrap(err, "parsing %s", file)
+	}
+
+	if u.Scheme != "" {
+		return nil // real URL
+	}
+
+	err = wait.Retry(ctx, func() error {
+		_, err := os.Stat(file)
+		if err == nil {
+			return nil
+		}
+		if os.IsNotExist(err) {
+			return wait.Continue(fmt.Sprintf("waiting for installer file %"))
+		}
+		return wait.Abort(trace.ConvertSystemError(err))
+	})
 
 	return trace.Wrap(err)
 }
