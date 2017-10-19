@@ -6,8 +6,9 @@ set -eu -o pipefail
 # installer could be local .tar installer or s3:// or http(s) URL
 #
 
-if [ -f $INSTALLER_URL ] ; then
-	INSTALLER_FILE='/robotest/installer.tar'
+if [ -d $(dirname ${INSTALLER_URL}) ]; then
+	INSTALLER_FILE='/installer/'$(basename ${INSTALLER_URL})
+	EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
 fi
 
 # OS could be ubuntu,centos,redhat
@@ -108,7 +109,6 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
 	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/terraform"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
-	${INSTALLER_FILE:+'-v' "${INSTALLER_URL}:${INSTALLER_FILE}"} \
 	${EXTRA_VOLUME_MOUNTS:-} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \

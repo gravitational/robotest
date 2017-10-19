@@ -24,4 +24,19 @@ const (
 
 	// EnvDockerDevice specifies the name of the environment variable with docker device name
 	EnvDockerDevice = "DOCKER_DEVICE"
+
+	// OSRedHat is RedHat Enterprise Linux
+	OSRedHat = "rhel"
+
+	// DeviceMapper is devicemapper storage driver name
+	DeviceMapper = "devicemapper"
+
+	// Loopback is local storage
+	Loopback = "loopback"
+
+	// AWS is amazon cloud
+	AWS = "aws"
+
+	// Azure is microsoft azure cloud
+	Azure = "azure"
 )

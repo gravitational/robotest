@@ -13,6 +13,7 @@ import (
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
@@ -59,6 +60,22 @@ var testMaxTime = time.Hour * 12
 
 var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
+}
+
+func flavorSupported(os, version, storageDriver string) bool {
+	if os != constants.OSRedHat {
+		return true
+	}
+
+	if version == "7.4" {
+		return true
+	}
+
+	if storageDriver == constants.DeviceMapper {
+		return true
+	}
+
+	return false
 }
 
 func in(val string, arr []string) bool {
@@ -135,10 +152,22 @@ func TestMain(t *testing.T) {
 
 	for r := 1; r <= *repeat; r++ {
 		for _, osFlavor := range osFlavors {
-			for ts, entry := range testSet {
-				for _, drv := range storageDrivers {
+			var osVendor, osVersion = osFlavor, ""
+			if split := strings.Split(osFlavor, ":"); len(split) == 2 {
+				osVendor = split[0]
+				osVersion = split[1]
+			}
+			for _, drv := range storageDrivers {
+				if !flavorSupported(osVendor, osVersion, drv) {
+					continue
+				}
+				for ts, entry := range testSet {
 					cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).
-						WithOS(osFlavor).WithStorageDriver(drv)
+						WithOS(osVendor)
+					if osVersion != "" {
+						cfg = cfg.WithTag(osVersion)
+					}
+					cfg = cfg.WithStorageDriver(drv)
 					suite.Schedule(entry.TestFunc, cfg, entry.Param)
 				}
 			}

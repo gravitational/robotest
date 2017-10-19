@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
+
+	"github.com/gravitational/trace"
 
 	"github.com/go-yaml/yaml"
 	"github.com/stretchr/testify/require"
@@ -101,8 +104,8 @@ func (config ProvisionerConfig) WithOS(os string) ProvisionerConfig {
 // WithStorageDriver returns copy of config with specific storage driver
 func (config ProvisionerConfig) WithStorageDriver(storageDriver string) ProvisionerConfig {
 	cfg := config
-	if storageDriver == "loopback" {
-		cfg.storageDriver = "devicemapper"
+	if storageDriver == constants.Loopback {
+		cfg.storageDriver = constants.DeviceMapper
 		cfg.dockerDevice = ""
 	} else {
 		cfg.storageDriver = storageDriver
@@ -114,17 +117,24 @@ func (config ProvisionerConfig) WithStorageDriver(storageDriver string) Provisio
 }
 
 // validateConfig checks that key parameters are present
-func validateConfig(t *testing.T, config ProvisionerConfig) {
-	err := validator.New().Struct(&config)
-	if err == nil {
-		return
+func validateConfig(config ProvisionerConfig) error {
+	switch config.CloudProvider {
+	case constants.AWS, constants.Azure:
+	default:
+		return trace.BadParameter("unknown cloud provider %s", config.CloudProvider)
 	}
 
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		t.Errorf("Errors in config: %+v", config)
-		for _, fieldError := range validationErrors {
-			t.Errorf(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag())
-		}
-		require.FailNow(t, "Fix ProvisionerConfig")
+	err := validator.New().Struct(&config)
+	if err == nil {
+		return nil
 	}
+
+	var errs []error
+	if validationErrors, ok := err.(validator.ValidationErrors); ok {
+		for _, fieldError := range validationErrors {
+			errs = append(errs,
+				trace.BadParameter(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag()))
+		}
+	}
+	return trace.NewAggregate(errs...)
 }

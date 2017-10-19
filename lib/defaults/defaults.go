@@ -33,4 +33,10 @@ const (
 	// EtcdRetryTimeout specifies the total timeout for retrying etcd commands
 	// in case of transient errors
 	EtcdRetryTimeout = 5 * time.Minute
+
+	// TerraformRetryDelay
+	TerraformRetryDelay = 5 * time.Minute
+
+	// TerraformRetries
+	TerraformRetries = 2
 )

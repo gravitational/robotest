@@ -38,8 +38,8 @@ resource "azurerm_virtual_machine" "node" {
   delete_data_disks_on_termination = "true"
 
   storage_image_reference {
-    publisher = "${lookup(var.os_publisher, var.os)}"
-    offer     = "${lookup(var.os_offer,     var.os)}"
+    publisher = "${lookup(var.os_publisher, element(split(":",var.os),0))}"
+    offer     = "${lookup(var.os_offer,     element(split(":",var.os),0))}"
     sku       = "${lookup(var.os_sku,       var.os)}"
     version   = "${lookup(var.os_version,   var.os)}"
   }
