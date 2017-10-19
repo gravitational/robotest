@@ -148,7 +148,67 @@ func saveResourceAllocations() error {
 	return nil
 }
 
-func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, err error) {
+// makeDynamicParams takes base config, validates it and returns cloudDynamicParams
+func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error) {
+	param := cloudDynamicParams{ProvisionerConfig: baseConfig}
+
+	// OS name is cloud-init script specific
+	// enforce compatible values
+	var ok bool
+	usernames := map[string]map[string]string{
+		"azure": map[string]string{
+			"ubuntu": "robotest",
+			"debian": "admin",
+			"redhat": "redhat", // TODO: check
+			"centos": "centos",
+			"suse":   "robotest",
+		},
+		"aws": map[string]string{
+			"ubuntu": "ubuntu",
+			"debian": "admin",
+			"redhat": "redhat",
+			"centos": "centos",
+		},
+	}
+
+	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os]
+	if !ok {
+		return nil, trace.BadParameter("%s ")
+	}
+
+	param.homeDir = filepath.Join("/home", param.user)
+
+	param.tf = terraform.Config{
+		CloudProvider: baseConfig.CloudProvider,
+		ScriptPath:    baseConfig.ScriptPath,
+		NumNodes:      int(baseConfig.nodeCount),
+		OS:            baseConfig.os,
+	}
+
+	if baseConfig.AWS != nil {
+		aws := *baseConfig.AWS
+		param.tf.AWS = &aws
+		param.tf.AWS.ClusterName = baseConfig.tag
+		param.tf.AWS.SSHUser = param.user
+
+		param.env = map[string]string{
+			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
+			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
+			"AWS_DEFAULT_REGION":    param.tf.AWS.Region,
+		}
+	}
+
+	if baseConfig.Azure != nil {
+		azure := *baseConfig.Azure
+		param.tf.Azure = &azure
+		param.tf.Azure.ResourceGroup = baseConfig.tag
+		param.tf.Azure.SSHUser = param.user
+	}
+
+	return &param, nil
+}
+
+func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, params *cloudDynamicParams, err error) {
 	retr := wait.Retryer{
 		Delay:       defaults.TerraformRetryDelay,
 		Attempts:    defaults.TerraformRetries,
@@ -157,12 +217,19 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, params clou
 
 	retry := 0
 	cfg := baseConfig
+
 	err = retr.Do(ctx, func() error {
 		if retry != 0 {
 			cfg = baseConfig.WithTag(fmt.Sprintf("R%d", retry))
 		}
 		retry++
-		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, params)
+
+		params, err = makeDynamicParams(cfg)
+		if err != nil {
+			return wait.Abort(trace.Wrap(err))
+		}
+		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, *params)
+
 		if err == nil {
 			return nil
 		}
@@ -170,9 +237,9 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, params clou
 	})
 
 	if err == nil {
-		return nodes, destroyFn, nil
+		return nodes, destroyFn, params, nil
 	}
-	return nil, nil, trace.Wrap(err)
+	return nil, nil, nil, trace.Wrap(err)
 }
 
 // terraform deals with underlying terraform provisioner

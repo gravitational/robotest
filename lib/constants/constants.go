@@ -30,4 +30,13 @@ const (
 
 	// DeviceMapper is devicemapper storage driver name
 	DeviceMapper = "devicemapper"
+
+	// Loopback is local storage
+	Loopback = "loopback"
+
+	// AWS is amazon cloud
+	AWS = "aws"
+
+	// Azure is microsoft azure cloud
+	Azure = "azure"
 )

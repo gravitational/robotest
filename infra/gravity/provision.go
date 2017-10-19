@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 )
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
@@ -29,67 +27,6 @@ type cloudDynamicParams struct {
 	homeDir string
 	tf      terraform.Config
 	env     map[string]string
-}
-
-// makeDynamicParams takes base config, validates it and returns cloudDynamicParams
-func makeDynamicParams(t *testing.T, baseConfig ProvisionerConfig) cloudDynamicParams {
-	require.NotNil(t, baseConfig)
-	require.Contains(t, []string{"aws", "azure"}, baseConfig.CloudProvider)
-
-	param := cloudDynamicParams{ProvisionerConfig: baseConfig}
-
-	// OS name is cloud-init script specific
-	// enforce compatible values
-	var ok bool
-	usernames := map[string]map[string]string{
-		"azure": map[string]string{
-			"ubuntu": "robotest",
-			"debian": "admin",
-			"redhat": "redhat", // TODO: check
-			"centos": "centos",
-			"suse":   "robotest",
-		},
-		"aws": map[string]string{
-			"ubuntu": "ubuntu",
-			"debian": "admin",
-			"redhat": "redhat",
-			"centos": "centos",
-		},
-	}
-
-	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os]
-	require.True(t, ok, baseConfig.os)
-
-	param.homeDir = filepath.Join("/home", param.user)
-
-	param.tf = terraform.Config{
-		CloudProvider: baseConfig.CloudProvider,
-		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      int(baseConfig.nodeCount),
-		OS:            baseConfig.os,
-	}
-
-	if baseConfig.AWS != nil {
-		aws := *baseConfig.AWS
-		param.tf.AWS = &aws
-		param.tf.AWS.ClusterName = baseConfig.tag
-		param.tf.AWS.SSHUser = param.user
-
-		param.env = map[string]string{
-			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
-			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
-			"AWS_DEFAULT_REGION":    param.tf.AWS.Region,
-		}
-	}
-
-	if baseConfig.Azure != nil {
-		azure := *baseConfig.Azure
-		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.tag
-		param.tf.Azure.SSHUser = param.user
-	}
-
-	return param
 }
 
 func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
@@ -122,11 +59,13 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 // Provision gets VMs up, running and ready to use
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
-	validateConfig(c.t, cfg)
-	params := makeDynamicParams(c.t, cfg)
+	err := validateConfig(cfg)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
 
 	c.Logger().Debug("Provisioning VMs")
-	nodes, destroyFn, err := runTerraform(c.Context(), cfg, params, c.Logger())
+	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
@@ -135,7 +74,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	defer cancel()
 
 	c.Logger().Debug("Configuring VMs")
-	gravityNodes, err := configureVMs(ctx, c.Logger(), params, nodes)
+	gravityNodes, err := configureVMs(ctx, c.Logger(), *params, nodes)
 	if err != nil {
 		c.Logger().WithError(err).Error("some nodes initialization failed, teardown this setup as non-usable")
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
