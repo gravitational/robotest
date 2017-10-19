@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gravitational/robotest/lib/xlog"
 
@@ -220,6 +221,7 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 		cx.updateStatus(TestStatusScheduled)
 		t.Parallel()
 		cx.updateStatus(TestStatusRunning)
+		cx.timestamp = time.Now()
 
 		fn(cx, cfg)
 	}

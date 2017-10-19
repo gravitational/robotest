@@ -26,16 +26,17 @@ type OpTimeouts struct {
 
 // TestContext aggregates common parameters for better test suite readability
 type TestContext struct {
-	t        *testing.T
-	name     string
-	parent   context.Context
-	timeouts OpTimeouts
-	log      logrus.FieldLogger
-	uid      string
-	suite    *testSuite
-	param    interface{}
-	logLink  string
-	status   string
+	t         *testing.T
+	timestamp time.Time
+	name      string
+	parent    context.Context
+	timeouts  OpTimeouts
+	log       logrus.FieldLogger
+	uid       string
+	suite     *testSuite
+	param     interface{}
+	logLink   string
+	status    string
 }
 
 // Run allows a running test to spawn a subtest
@@ -65,11 +66,20 @@ func (c *TestContext) SetTimeouts(tm OpTimeouts) {
 
 // OK is equivalent to require.NoError
 func (c *TestContext) OK(msg string, err error) {
+	now := time.Now()
+	elapsed := now.Sub(c.timestamp)
+	c.timestamp = now
+
+	fields := logrus.Fields{
+		"name":    c.name,
+		"elapsed": elapsed.String(),
+	}
 	if err != nil {
-		c.log.WithFields(logrus.Fields{"name": c.name, "error": err}).Error(msg)
+		fields["error"] = err
+		c.log.WithFields(fields).Error(msg)
 		c.t.FailNow()
 	}
-	c.log.WithFields(logrus.Fields{"name": c.name}).Info(msg)
+	c.log.WithFields(fields).Info(msg)
 }
 
 // Require verifies condition is true, fails test otherwise
