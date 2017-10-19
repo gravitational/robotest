@@ -221,6 +221,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 	err = retr.Do(ctx, func() error {
 		if retry != 0 {
 			cfg = baseConfig.WithTag(fmt.Sprintf("R%d", retry))
+			logger.Info("retrying terraform provisioning")
 		}
 		retry++
 
@@ -233,6 +234,8 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		if err == nil {
 			return nil
 		}
+
+		logger.WithError(err).Warn("terraform provisioning failed")
 		return wait.Continue(err.Error())
 	})
 
