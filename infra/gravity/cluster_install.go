@@ -13,6 +13,8 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -30,7 +32,8 @@ func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 // ProvisionInstaller deploys a specific installer
 func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
-	if err := waitFileInstaller(ctx, installerUrl); err != nil {
+	err := waitFileInstaller(ctx, installerUrl, c.Logger())
+	if err != nil {
 		return trace.Wrap(err)
 	}
 	defer cancel()
@@ -45,7 +48,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		}(node)
 	}
 
-	_, err := utils.Collect(ctx, cancel, errs, nil)
+	_, err = utils.Collect(ctx, cancel, errs, nil)
 	if err = trace.Wrap(err); err != nil {
 		return trace.Wrap(err)
 	}
@@ -111,7 +114,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 	return trace.Wrap(err)
 }
 
-func waitFileInstaller(ctx context.Context, file string) error {
+func waitFileInstaller(ctx context.Context, file string, logger log.FieldLogger) error {
 	u, err := url.Parse(file)
 	if err != nil {
 		return trace.Wrap(err, "parsing %s", file)
@@ -128,6 +131,7 @@ func waitFileInstaller(ctx context.Context, file string) error {
 		}
 		if os.IsNotExist(err) {
 			return wait.Continue(fmt.Sprintf("waiting for installer file %"))
+			logger.Warn("waiting for installer file to become available")
 		}
 		return wait.Abort(trace.ConvertSystemError(err))
 	})
