@@ -28,5 +28,5 @@ var DefaultTimeouts = OpTimeouts{
 	Status:           time.Minute * 30, // sufficient for failover procedures
 	Leave:            time.Minute * 15, // threshold to leave cluster
 	CollectLogs:      time.Minute * 7,  // to collect logs from node
-	WaitForInstaller: time.Minute * 10, // wait for build to complete in parallel
+	WaitForInstaller: time.Minute * 30, // wait for build to complete in parallel
 }
