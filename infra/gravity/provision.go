@@ -164,7 +164,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 
 	// apparently cloud-init scripts are not supported for given OS
 	err = sshutil.RunScript(ctx, g.Client(), g.Logger(),
-		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os)),
+		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os.Vendor)),
 		sshutil.SUDO)
 	return trace.Wrap(err)
 }

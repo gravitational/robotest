@@ -21,6 +21,8 @@ variable "os" {
 	description = "ubuntu | redhat | centos | debian"
 }
 
+variable random_password { }
+
 # 
 # Access credentials:
 #   https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal

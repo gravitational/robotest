@@ -155,9 +155,6 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 	uid := uuid.NewV4().String()
 
 	labels := logrus.Fields{}
-	labels["__tag__"] = cfg.Tag()
-	labels["__os__"] = cfg.os
-	labels["__storage__"] = cfg.storageDriver
 
 	var logLink string
 	var err error

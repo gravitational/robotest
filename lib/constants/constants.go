@@ -26,13 +26,22 @@ const (
 	EnvDockerDevice = "DOCKER_DEVICE"
 
 	// OSRedHat is RedHat Enterprise Linux
-	OSRedHat = "rhel"
+	OSRedHat = "redhat"
 
 	// DeviceMapper is devicemapper storage driver name
 	DeviceMapper = "devicemapper"
 
+	// Overlay is overlay storage driver name
+	Overlay = "overlay"
+
+	// Overlay2 is version 2 of overlay storage driver
+	Overlay2 = "overlay2"
+
 	// Loopback is local storage
 	Loopback = "loopback"
+
+	// ManifestStorageDriver is empty string identifying that install should use driver defined by the manifest
+	ManifestStorageDriver = ""
 
 	// AWS is amazon cloud
 	AWS = "aws"

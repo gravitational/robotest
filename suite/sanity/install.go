@@ -10,12 +10,17 @@ type installParam struct {
 	NodeCount uint `json:"nodes" validate:"gte=1"`
 }
 
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {
+	return g.Provision(cfg.WithOS(param.OSFlavor).
+		WithStorageDriver(param.DockerStorageDriver).
+		WithNodes(param.NodeCount))
+}
+
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := g.Provision(cfg)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
@@ -28,9 +33,8 @@ func install(p interface{}) (gravity.TestFunc, error) {
 func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := g.Provision(cfg)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
 		defer destroyFn()
 

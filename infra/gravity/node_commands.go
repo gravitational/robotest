@@ -91,6 +91,10 @@ type InstallParam struct {
 	CloudProvider string `json:"cloud_provider,omitempty"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
+	// OSVendorVersion is operating system and optional version separated by ':'
+	OSFlavor OS `json:"os" validate:"required"`
+	// DockerStorageDriver is one of supported storage drivers
+	DockerStorageDriver StorageDriver `json:"storage_driver"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -192,7 +196,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallDir:      g.installDir,
 		PrivateAddr:     g.Node().PrivateAddr(),
 		EnvDockerDevice: constants.EnvDockerDevice,
-		StorageDriver:   g.param.storageDriver,
+		StorageDriver:   g.param.storageDriver.Driver(),
 		InstallParam:    param,
 	})
 	if err != nil {
@@ -211,7 +215,8 @@ var installCmdTemplate = template.Must(
 		cd {{.InstallDir}} && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
 		--docker-device=${{.EnvDockerDevice}} \
-		--storage-driver={{.StorageDriver}} --system-log-file=./telekube-system.log \
+		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
+		--system-log-file=./telekube-system.log \
 		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}}
 `))

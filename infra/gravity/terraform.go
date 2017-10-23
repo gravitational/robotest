@@ -171,7 +171,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		},
 	}
 
-	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os]
+	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
 	if !ok {
 		return nil, trace.BadParameter("%s ")
 	}
@@ -182,7 +182,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.nodeCount),
-		OS:            baseConfig.os,
+		OS:            baseConfig.os.String(),
 	}
 
 	if baseConfig.AWS != nil {

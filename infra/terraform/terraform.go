@@ -20,6 +20,7 @@ import (
 	"github.com/gravitational/robotest/lib/system"
 	"github.com/gravitational/trace"
 
+	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -268,6 +269,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		"apply", "-input=false",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
+		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	})
 	if err != nil {
