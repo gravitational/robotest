@@ -46,8 +46,11 @@ if [ ! -z "$timesync_bus_name" ]; then
   echo $timesync_bus_name > /sys/bus/vmbus/drivers/hv_util/unbind
 fi
 
-systemctl stop dnsmasq || true
-systemctl disable dnsmasq
+systemctl is-active dnsmasq
+if [ $? -eq 0 ] ; then 
+  systemctl stop dnsmasq || true
+  systemctl disable dnsmasq 
+fi
 
 mount
 
