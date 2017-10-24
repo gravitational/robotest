@@ -37,7 +37,7 @@ func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd st
 }
 
 const (
-	term  = "xterm"
+	term  = "dumb"
 	termH = 40
 	termW = 80
 )
