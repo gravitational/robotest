@@ -153,8 +153,13 @@ func (config ProvisionerConfig) WithOS(os OS) ProvisionerConfig {
 func (config ProvisionerConfig) WithStorageDriver(storageDriver StorageDriver) ProvisionerConfig {
 	cfg := config
 	cfg.storageDriver = storageDriver
-	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, storageDriver.Driver())
-	cfg.StateDir = filepath.Join(cfg.StateDir, storageDriver.Driver())
+
+	tag := storageDriver.Driver()
+	if tag == "" {
+		tag = "none"
+	}
+	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, tag)
+	cfg.StateDir = filepath.Join(cfg.StateDir, tag)
 
 	return cfg
 }

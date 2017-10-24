@@ -17,7 +17,9 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 	param := p.(resizeParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param.installParam)
+		nodes, destroyFn, err := g.Provision(cfg.WithOS(param.OSFlavor).
+			WithStorageDriver(param.DockerStorageDriver).
+			WithNodes(param.ToNodes))
 		g.OK("provision nodes", err)
 		defer destroyFn()
 
