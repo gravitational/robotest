@@ -33,7 +33,7 @@ function get_timesync_bus_name {
     local id=$(get_vmbus_attr $device "id")
     local class_id=$(get_vmbus_attr $device "class_id")
     if [ "$class_id" == "$timesync_bus_id" ]; then
-      echo vmbus_$id; exit 0
+      echo $(basename $device); exit 0
     fi
   done
 }
