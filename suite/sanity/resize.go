@@ -16,14 +16,12 @@ type resizeParam struct {
 func resize(p interface{}) (gravity.TestFunc, error) {
 	param := p.(resizeParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		config := baseConfig.WithNodes(param.ToNodes)
-
-		nodes, destroyFn, err := g.Provision(config)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		nodes, destroyFn, err := provisionNodes(g, cfg, param.installParam)
 		g.OK("provision nodes", err)
 		defer destroyFn()
 
-		g.OK("download installer", g.SetInstaller(nodes, config.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.NodeCount),
 			g.OfflineInstall(nodes[0:param.NodeCount], param.InstallParam))
 		g.OK("status", g.Status(nodes[0:param.NodeCount]))
