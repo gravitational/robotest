@@ -59,10 +59,12 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 	}
 	defer session.Close()
 
-	err = session.RequestPty(term, termH, termW, termModes)
-	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
-	}
+	/*
+		err = session.RequestPty(term, termH, termW, termModes)
+		if err != nil {
+			return exitStatusUndefined, trace.Wrap(err)
+		}
+	*/
 
 	envStrings := []string{}
 	if env != nil {
