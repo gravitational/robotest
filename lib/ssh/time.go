@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math"
 	"strconv"
-	"strings"
 
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -94,17 +93,16 @@ func timeInRange(values []interface{}) bool {
 
 func parseTime(ts *float64) OutputParseFn {
 	return func(r *bufio.Reader) error {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			return trace.Wrap(err)
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			var err error
+			*ts, err = strconv.ParseFloat(scanner.Text(), 64)
+			io.Copy(ioutil.Discard, r)
+			return trace.ConvertSystemError(err)
 		}
-
-		*ts, err = strconv.ParseFloat(strings.TrimRight(line, "\n"), 64)
-		if err != nil {
-			return trace.Wrap(err, line)
+		if err := scanner.Err(); err != nil {
+			return trace.ConvertSystemError(err)
 		}
-
-		io.Copy(ioutil.Discard, r)
-		return nil
+		return trace.BadParameter("did not read any lines")
 	}
 }

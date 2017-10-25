@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"bufio"
-	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,15 +18,9 @@ var rStatusNodeIp = regexp.MustCompile(`^[\s\w\-\d]+\((?P<ip>[\d\.]+)\).*`)
 // parse `gravity status`
 func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
 	return func(r *bufio.Reader) error {
-		for {
-			line, err := r.ReadString('\n')
-			if err == io.EOF {
-				return nil
-			}
-			if err != nil {
-				return trace.Wrap(err)
-			}
-
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			line := scanner.Text()
 			vars := rStatusKV.FindStringSubmatch(line)
 			if len(vars) == 3 {
 				populateStatus(vars[1], vars[2], status)
@@ -37,12 +30,9 @@ func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
 			vars = rStatusNodeIp.FindStringSubmatch(line)
 			if len(vars) == 2 {
 				status.Nodes = append(status.Nodes, vars[1])
-				continue
 			}
-
 		}
-
-		return nil
+		return trace.ConvertSystemError(scanner.Err())
 	}
 }
 

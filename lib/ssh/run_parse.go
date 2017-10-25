@@ -37,7 +37,7 @@ func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd st
 }
 
 const (
-	term  = "dumb"
+	term  = "unknown"
 	termH = 40
 	termW = 80
 )
@@ -153,7 +153,7 @@ func ParseAsString(out *string) OutputParseFn {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		*out = string(b)
+		*out = strings.Replace(string(b), `\r`, ``, -1)
 		return nil
 	}
 }
