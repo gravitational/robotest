@@ -53,6 +53,8 @@ if [ $dnsrunning -eq 0 ] ; then
   systemctl disable dnsmasq 
 fi
 
+modprobe overlay
+
 mount
 
 yum install -y chrony python unzip lvm2 device-mapper-persistent-data
