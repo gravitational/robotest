@@ -59,12 +59,13 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 // Provision gets VMs up, running and ready to use
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
+
 	err := validateConfig(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("Provisioning VMs")
 	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)

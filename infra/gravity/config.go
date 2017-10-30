@@ -2,9 +2,11 @@ package gravity
 
 import (
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
@@ -101,6 +103,7 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	case "azure":
 		require.NotNil(t, cfg.Azure)
 		cfg.dockerDevice = cfg.Azure.DockerDevice
+		azureRegions = NewCloudRegions(strings.Split(cfg.Azure.Location, ","))
 	case "aws":
 		require.NotNil(t, cfg.AWS)
 		cfg.dockerDevice = cfg.AWS.DockerDevice
@@ -186,3 +189,30 @@ func validateConfig(config ProvisionerConfig) error {
 	}
 	return trace.NewAggregate(errs...)
 }
+
+// CloudRegions is used for round-robin distribution of workload across regions
+type CloudRegions struct {
+	sync.Mutex
+	idx     int
+	regions []string
+}
+
+func NewCloudRegions(regions []string) *CloudRegions {
+	out := make([]string, len(regions))
+	perm := rand.Perm(len(regions))
+	for i, v := range perm {
+		out[v] = regions[i]
+	}
+
+	return &CloudRegions{idx: 0, regions: regions}
+}
+
+func (r *CloudRegions) Next() (region string) {
+	r.Lock()
+	defer r.Unlock()
+
+	r.idx = (r.idx + 1) % len(r.regions)
+	return r.regions[r.idx]
+}
+
+var azureRegions *CloudRegions

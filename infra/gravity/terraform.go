@@ -203,6 +203,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.tf.Azure = &azure
 		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
+		param.tf.Azure.Location = azureRegions.Next()
 	}
 
 	return &param, nil
