@@ -141,7 +141,10 @@ func (c *TestContext) updateStatus(status string) {
 
 	log := c.Logger().WithFields(logrus.Fields{"param": xlog.ToJSON(c.param), "name": c.name})
 	switch c.status {
-	case TestStatusScheduled, TestStatusRunning, TestStatusPassed:
+	case TestStatusScheduled, TestStatusRunning:
+		log.Info(c.status)
+		return
+	case TestStatusPassed:
 		log.Info(c.status)
 	default:
 		log.Error(c.status)
