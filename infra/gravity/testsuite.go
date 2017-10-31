@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/xlog"
 
 	"github.com/gravitational/trace"
@@ -62,6 +63,7 @@ type testSuite struct {
 
 	googleProjectID string
 	client          *xlog.GCLClient
+	progress        *xlog.ProgressReporter
 	uid             string
 
 	tests     []*TestContext
@@ -88,9 +90,14 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 		logger.WithError(err).Error("cloud logging not available")
 	}
 
+	progress, err := xlog.NewProgressReporter(ctx, googleProjectID, defaults.BQDataset, defaults.BQTable)
+	if err != nil {
+		logger.WithError(err).Error("cloud progress reporting not available")
+	}
 	ctx, cancelFn := context.WithCancel(ctx)
 
-	return &testSuite{sync.RWMutex{}, googleProjectID, client, uid,
+	return &testSuite{sync.RWMutex{}, googleProjectID,
+		client, progress, uid,
 		[]*TestContext{}, scheduled, t,
 		failFast, false, ctx, cancelFn, logger}
 }

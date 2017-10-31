@@ -2,12 +2,23 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+
+	"cloud.google.com/go/bigquery"
 )
 
 type installParam struct {
 	gravity.InstallParam
 	// NodeCount is how many nodes
 	NodeCount uint `json:"nodes" validate:"gte=1"`
+}
+
+func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row = make(map[string]bigquery.Value)
+	row["os"] = p.InstallParam.OSFlavor.Vendor
+	row["os_version"] = p.InstallParam.OSFlavor.Version
+	row["nodes"] = int(p.NodeCount)
+
+	return row, "", nil
 }
 
 func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {

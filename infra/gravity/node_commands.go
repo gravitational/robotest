@@ -91,7 +91,7 @@ type InstallParam struct {
 	CloudProvider string `json:"cloud_provider,omitempty"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
-	// OSVendorVersion is operating system and optional version separated by ':'
+	// OSFlavor is operating system and optional version separated by ':'
 	OSFlavor OS `json:"os" validate:"required"`
 	// DockerStorageDriver is one of supported storage drivers
 	DockerStorageDriver StorageDriver `json:"storage_driver"`

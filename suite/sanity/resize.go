@@ -4,12 +4,25 @@ import (
 	"fmt"
 
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/gravitational/trace"
+
+	"cloud.google.com/go/bigquery"
 )
 
 type resizeParam struct {
 	installParam
 	// TargetNodes is how many nodes cluster should have after expand
 	ToNodes uint `json:"to" validate:"required,gte=3"`
+}
+
+func (p resizeParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row, _, err = p.installParam.Save()
+	if err != nil {
+		return nil, "", trace.Wrap(err)
+	}
+
+	row["resize_to"] = int(p.ToNodes)
+	return row, "", nil
 }
 
 // resize installs an initial cluster and then expands or gracefully shrinks it to given number of nodes

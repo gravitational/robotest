@@ -39,6 +39,12 @@ const (
 
 	// TerraformRetries
 	TerraformRetries = 2
+
+	// BQDataset is bigquery dataset where run data is stored
+	BQDataset = "robotest"
+
+	// BQTable is bigquery table where run data is stored
+	BQTable = "progress"
 )
 
 var (

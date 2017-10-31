@@ -2,13 +2,13 @@ package gravity
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/gravitational/robotest/lib/xlog"
+	"github.com/gravitational/trace"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/bigquery"
 	"github.com/sirupsen/logrus"
 )
 
@@ -104,9 +104,36 @@ func withDuration(d time.Duration, n int) time.Duration {
 	return d * time.Duration(n)
 }
 
-type gclMessage struct {
-	Status string `json:"status"`
-	UUID   string `json:"uuid"`
+type progressMessage struct {
+	status      string
+	suite, uuid string
+	name        string
+	param       interface{}
+}
+
+func (msg progressMessage) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row = make(map[string]bigquery.Value)
+	row["ts"] = time.Now()
+
+	// identifiers of specific test and group of tests
+	row["uuid"] = msg.uuid
+	row["suite"] = msg.suite
+
+	row["name"] = msg.name
+	row["status"] = msg.status
+
+	bqParam, ok := msg.param.(bigquery.ValueSaver)
+	if !ok {
+		return nil, "", trace.BadParameter("param is not bigquery.ValueSaver")
+	}
+	paramRow, _, err := bqParam.Save()
+	if err != nil {
+		return nil, "", trace.Wrap(err)
+	}
+	for k, v := range paramRow {
+		row[k] = v
+	}
+	return row, "", nil
 }
 
 func (c *TestContext) updateStatus(status string) {
@@ -120,18 +147,28 @@ func (c *TestContext) updateStatus(status string) {
 		log.Error(c.status)
 	}
 
-	client := c.suite.client
-	if client == nil {
+	progress := c.suite.progress
+	if progress == nil {
 		return
 	}
-	data, err := json.Marshal(&gclMessage{status, c.uid})
-	if err != nil {
-		log.WithError(err).Error("can't json serialize test status")
-		return
+
+	msg := progressMessage{
+		status: status,
+		uuid:   c.uid,
+		suite:  c.suite.uid,
+		name:   c.name,
+		param:  c.param,
 	}
-	res := client.Topic().Publish(client.Context(), &pubsub.Message{Data: data})
-	_, err = res.Get(client.Context())
+	data, _, err := msg.Save()
 	if err != nil {
-		log.WithError(err).Error("failed to report test status due to pubsub error")
+		log.WithError(err).Error("BQ MSG FAILED")
+		return
+	} else {
+		log.WithField("data", data).Info("BQ SAVE")
+	}
+
+	err = progress.Put(c.Context(), msg)
+	if err != nil {
+		log.WithError(err).Error("BQ status update failed")
 	}
 }

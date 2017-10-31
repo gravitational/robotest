@@ -2,12 +2,25 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/gravitational/trace"
+
+	"cloud.google.com/go/bigquery"
 )
 
 type upgradeParam struct {
 	installParam
 	// BaseInstallerURL is initial app installer URL
 	BaseInstallerURL string `json:"from" validate:"required"`
+}
+
+func (p upgradeParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row, _, err = p.installParam.Save()
+	if err != nil {
+		return nil, "", trace.Wrap(err)
+	}
+
+	row["upgrade_from"] = p.BaseInstallerURL
+	return row, "", nil
 }
 
 func upgrade(p interface{}) (gravity.TestFunc, error) {
