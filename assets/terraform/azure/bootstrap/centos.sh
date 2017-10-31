@@ -79,18 +79,14 @@ docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-systemctl enable firewalld
-systemctl start firewalld
-#
-# configure firewall rules
-# 
-firewall-cmd --zone=trusted --add-source=10.40.0.0/16 --permanent  # local net
-firewall-cmd --zone=trusted --add-source=10.244.0.0/16 --permanent # pod subnet
-firewall-cmd --zone=trusted --add-source=10.100.0.0/16 --permanent # service subnet
-firewall-cmd --zone=trusted --add-interface=eth0 --permanent       # enable eth0 in trusted zone so nodes can communicate
-firewall-cmd --zone=trusted --add-masquerade --permanent           # masquerading so packets can be routed back
-firewall-cmd --reload
-systemctl restart firewalld
+systemctl disable firewalld || true
+systemctl stop firewalld || true
+iptables --flush
+iptables --delete-chain
+iptables --table nat --flush
+iptables --table filter --flush
+iptables --table nat --delete-chain
+iptables --table filter --delete-chain
 
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete
