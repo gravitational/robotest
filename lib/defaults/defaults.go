@@ -46,8 +46,3 @@ const (
 	// BQTable is bigquery table where run data is stored
 	BQTable = "progress"
 )
-
-var (
-	// AzureRegions are list of regions the workload would be distributed to in a round-robin manner
-	AzureRegions = []string{"westus", "westus2", "centralus", "canadacentral"}
-)
