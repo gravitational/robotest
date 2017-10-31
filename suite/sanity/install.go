@@ -17,6 +17,7 @@ func (p installParam) Save() (row map[string]bigquery.Value, insertID string, er
 	row["os"] = p.InstallParam.OSFlavor.Vendor
 	row["os_version"] = p.InstallParam.OSFlavor.Version
 	row["nodes"] = int(p.NodeCount)
+	row["storage"] = p.InstallParam.DockerStorageDriver
 
 	return row, "", nil
 }
