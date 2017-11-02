@@ -45,4 +45,7 @@ const (
 
 	// BQTable is bigquery table where run data is stored
 	BQTable = "progress"
+
+	// MaxRetriesPerTest
+	MaxRetriesPerTest = 3
 )

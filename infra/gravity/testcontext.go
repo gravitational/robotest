@@ -2,7 +2,7 @@ package gravity
 
 import (
 	"context"
-	"testing"
+	"fmt"
 	"time"
 
 	"github.com/gravitational/robotest/lib/xlog"
@@ -26,7 +26,7 @@ type OpTimeouts struct {
 
 // TestContext aggregates common parameters for better test suite readability
 type TestContext struct {
-	t         *testing.T
+	err       error
 	timestamp time.Time
 	name      string
 	parent    context.Context
@@ -41,12 +41,9 @@ type TestContext struct {
 
 // Run allows a running test to spawn a subtest
 func (cx *TestContext) Run(fn TestFunc, cfg ProvisionerConfig, param interface{}) {
-	cx.t.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
-}
-
-// FailNow will interrupt current test
-func (cx *TestContext) FailNow() {
-	cx.t.FailNow()
+	t := cx.suite.t
+	t.Helper()
+	t.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
 }
 
 // Context provides a context for a current test run
@@ -64,7 +61,17 @@ func (c *TestContext) SetTimeouts(tm OpTimeouts) {
 	c.timeouts = tm
 }
 
-// OK is equivalent to require.NoError
+// Failed checks if this test failed
+func (c *TestContext) Failed() bool {
+	return c.err != nil
+}
+
+// Error returns reason this test failed
+func (c *TestContext) Error() error {
+	return c.err
+}
+
+// Checkpoint marks milestone within a test
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()
 	elapsed := now.Sub(c.timestamp)
@@ -77,9 +84,18 @@ func (c *TestContext) OK(msg string, err error) {
 	if err != nil {
 		fields["error"] = err
 		c.log.WithFields(fields).Error(msg)
-		c.t.FailNow()
+		c.err = trace.Wrap(err)
+		panic(msg)
 	}
 	c.log.WithFields(fields).Info(msg)
+}
+
+// FailNow requests this test suite to abort
+func (c *TestContext) FailNow() {
+	if c.err == nil {
+		c.err = fmt.Errorf("request to cancel")
+	}
+	panic(c.err.Error())
 }
 
 // Require verifies condition is true, fails test otherwise
@@ -88,7 +104,7 @@ func (c *TestContext) Require(msg string, condition bool, args ...interface{}) {
 		return
 	}
 	c.log.WithField("args", args).Errorf("failed check: %s", msg)
-	c.t.FailNow()
+	panic(msg)
 }
 
 // Sleep will just sleep with log message
