@@ -393,6 +393,11 @@ func (g *gravity) Upgrade(ctx context.Context) error {
 // for cases when gravity doesn't return just opcode but an extended message
 var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\".*`)
 
+const (
+	opStatusCompleted = "completed"
+	opStatusFailed    = "failed"
+)
+
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
@@ -421,14 +426,15 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 		if err != nil {
 			return wait.Continue(cmd)
 		}
-		if strings.Contains(response, "complete") {
-			return nil
-		}
-		if strings.Contains(response, "fail") {
-			return wait.Abort(trace.Errorf("%s: response=%, err=%v", cmd, response, err))
-		}
 
-		return wait.Continue(cmd)
+		switch strings.TrimSpace(response) {
+		case opStatusCompleted:
+			return nil
+		case opStatusFailed:
+			return wait.Abort(trace.Errorf("%s: response=%s, err=%v", cmd, response, err))
+		default:
+			return trace.BadParameter("non-final / unknown op status: %q", response)
+		}
 	})
 	return trace.Wrap(err)
 }
