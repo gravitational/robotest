@@ -48,12 +48,7 @@ var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from node
 
 var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
 
-var testSets, osFlavors, storageDrivers valueList
-
-func init() {
-	flag.Var(&osFlavors, "os", "comma delimited list of OS")
-	flag.Var(&storageDrivers, "storage-driver", "comma delimited list of Docker storage drivers: devicemapper,loopback,overlay,overlay2")
-}
+var testSets valueList
 
 // max amount of time test will run
 var testMaxTime = time.Hour * 12
@@ -142,8 +137,6 @@ func TestMain(t *testing.T) {
 		"test_set":           testSet,
 		"provisioner_policy": policy,
 		"tag":                *tag,
-		"os_flavors":         osFlavors,
-		"storage_drivers":    storageDrivers,
 		"repeat":             *repeat,
 		"fail_fast":          *failFast,
 	}, *failFast)
@@ -151,26 +144,10 @@ func TestMain(t *testing.T) {
 	setupSignals(suite)
 
 	for r := 1; r <= *repeat; r++ {
-		for _, osFlavor := range osFlavors {
-			var osVendor, osVersion = osFlavor, ""
-			if split := strings.Split(osFlavor, ":"); len(split) == 2 {
-				osVendor = split[0]
-				osVersion = split[1]
-			}
-			for _, drv := range storageDrivers {
-				if !flavorSupported(osVendor, osVersion, drv) {
-					continue
-				}
-				for ts, entry := range testSet {
-					cfg := config.WithTag(fmt.Sprintf("%s-%d", ts, r)).
-						WithOS(osVendor)
-					if osVersion != "" {
-						cfg = cfg.WithTag(osVersion)
-					}
-					cfg = cfg.WithStorageDriver(drv)
-					suite.Schedule(entry.TestFunc, cfg, entry.Param)
-				}
-			}
+		for ts, entry := range testSet {
+			suite.Schedule(entry.TestFunc,
+				config.WithTag(fmt.Sprintf("%s-%d", ts, r)),
+				entry.Param)
 		}
 	}
 

@@ -2,7 +2,11 @@ package gravity
 
 import (
 	"fmt"
+	"math/rand"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
@@ -14,6 +18,52 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/go-playground/validator.v9"
 )
+
+// OS represents OS vendor/version
+type OS struct {
+	Vendor, Version string
+}
+
+// Split returns os vendor and version
+func (os *OS) UnmarshalJSON(b []byte) error {
+	str, err := strconv.Unquote(string(b))
+	if err != nil {
+		return trace.ConvertSystemError(err)
+	}
+	split := strings.Split(str, ":")
+	if len(split) != 2 {
+		return trace.BadParameter("OS should be in format vendor:version, got %q", b)
+	}
+	os.Vendor = split[0]
+	os.Version = split[1]
+	return nil
+}
+
+// Key returns back to serialized form
+func (os *OS) String() string {
+	return fmt.Sprintf("%s:%s", os.Vendor, os.Version)
+}
+
+type StorageDriver string
+
+func (drv *StorageDriver) UnmarshalJSON(b []byte) error {
+	name, err := strconv.Unquote(string(b))
+	if err != nil {
+		return trace.ConvertSystemError(err)
+	}
+	switch name {
+	case constants.DeviceMapper, constants.Overlay, constants.Overlay2, constants.Loopback, constants.ManifestStorageDriver:
+		*drv = StorageDriver(name)
+		return nil
+	default:
+		return trace.BadParameter("unknown storage driver %s", name)
+	}
+}
+
+// Driver validates and returns driver name
+func (drv StorageDriver) Driver() string {
+	return string(drv)
+}
 
 // ProvisionerConfig defines parameters required to provision hosts
 // CloudProvider, AWS, Azure, ScriptPath and InstallerURL
@@ -37,9 +87,9 @@ type ProvisionerConfig struct {
 	// NodeCount defines amount of nodes to be provisioned
 	nodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
-	os string `validate:"required,eq=ubuntu|eq=debian|eq=redhat|eq=centos"`
+	os OS `validate:"required"`
 	// dockerStorageDriver defines Docker storage driver
-	storageDriver string `validate:"required,eq=overlay|overlay2|devicemapper|loopback"`
+	storageDriver StorageDriver
 	// dockerDevice is a physical volume where docker data would be stored
 	dockerDevice string `validate:"required"`
 }
@@ -53,6 +103,7 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	case "azure":
 		require.NotNil(t, cfg.Azure)
 		cfg.dockerDevice = cfg.Azure.DockerDevice
+		azureRegions = NewCloudRegions(strings.Split(cfg.Azure.Location, ","))
 	case "aws":
 		require.NotNil(t, cfg.AWS)
 		cfg.dockerDevice = cfg.AWS.DockerDevice
@@ -92,26 +143,26 @@ func (config ProvisionerConfig) WithNodes(nodes uint) ProvisionerConfig {
 }
 
 // WithOS returns copy of config with specific OS
-func (config ProvisionerConfig) WithOS(os string) ProvisionerConfig {
+func (config ProvisionerConfig) WithOS(os OS) ProvisionerConfig {
 	cfg := config
 	cfg.os = os
-	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, os)
-	cfg.StateDir = filepath.Join(cfg.StateDir, os)
+	cfg.tag = fmt.Sprintf("%s-%s%s", cfg.tag, os.Vendor, os.Version)
+	cfg.StateDir = filepath.Join(cfg.StateDir, fmt.Sprintf("%s%s", os.Vendor, os.Version))
 
 	return cfg
 }
 
 // WithStorageDriver returns copy of config with specific storage driver
-func (config ProvisionerConfig) WithStorageDriver(storageDriver string) ProvisionerConfig {
+func (config ProvisionerConfig) WithStorageDriver(storageDriver StorageDriver) ProvisionerConfig {
 	cfg := config
-	if storageDriver == constants.Loopback {
-		cfg.storageDriver = constants.DeviceMapper
-		cfg.dockerDevice = ""
-	} else {
-		cfg.storageDriver = storageDriver
+	cfg.storageDriver = storageDriver
+
+	tag := storageDriver.Driver()
+	if tag == "" {
+		tag = "none"
 	}
-	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, storageDriver)
-	cfg.StateDir = filepath.Join(cfg.StateDir, storageDriver)
+	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, tag)
+	cfg.StateDir = filepath.Join(cfg.StateDir, tag)
 
 	return cfg
 }
@@ -138,3 +189,30 @@ func validateConfig(config ProvisionerConfig) error {
 	}
 	return trace.NewAggregate(errs...)
 }
+
+// CloudRegions is used for round-robin distribution of workload across regions
+type CloudRegions struct {
+	sync.Mutex
+	idx     int
+	regions []string
+}
+
+func NewCloudRegions(regions []string) *CloudRegions {
+	out := make([]string, len(regions))
+	perm := rand.Perm(len(regions))
+	for i, v := range perm {
+		out[v] = regions[i]
+	}
+
+	return &CloudRegions{idx: 0, regions: regions}
+}
+
+func (r *CloudRegions) Next() (region string) {
+	r.Lock()
+	defer r.Unlock()
+
+	r.idx = (r.idx + 1) % len(r.regions)
+	return r.regions[r.idx]
+}
+
+var azureRegions *CloudRegions

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/robotest/lib/xlog"
 
 	"github.com/gravitational/trace"
@@ -62,6 +64,7 @@ type testSuite struct {
 
 	googleProjectID string
 	client          *xlog.GCLClient
+	progress        *xlog.ProgressReporter
 	uid             string
 
 	tests     []*TestContext
@@ -88,9 +91,14 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 		logger.WithError(err).Error("cloud logging not available")
 	}
 
+	progress, err := xlog.NewProgressReporter(ctx, googleProjectID, defaults.BQDataset, defaults.BQTable)
+	if err != nil {
+		logger.WithError(err).Error("cloud progress reporting not available")
+	}
 	ctx, cancelFn := context.WithCancel(ctx)
 
-	return &testSuite{sync.RWMutex{}, googleProjectID, client, uid,
+	return &testSuite{sync.RWMutex{}, googleProjectID,
+		client, progress, uid,
 		[]*TestContext{}, scheduled, t,
 		failFast, false, ctx, cancelFn, logger}
 }
@@ -151,16 +159,70 @@ severity>=INFO`, testUID, s.uid)},
 	return short, trace.Wrap(err)
 }
 
-func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) func(t *testing.T) {
+func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interface{}) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		t.Parallel()
+
+		retry := wait.Retryer{
+			Delay:       time.Second,
+			Attempts:    defaults.MaxRetriesPerTest,
+			FieldLogger: s.Logger(),
+		}
+
+		try := 0
+		err := retry.Do(s.ctx, func() error {
+			t.Helper()
+
+			try++
+			cfg := baseConfig
+			if try > 1 {
+				cfg = baseConfig.WithTag(fmt.Sprintf("T%d", try))
+				s.Logger().Warnf("retrying %q (%d/%d)",
+					cfg.Tag(), try, retry.Attempts)
+			}
+
+			err := s.runTestFunc(t, fn, cfg, param)
+			if err == nil {
+				return nil
+			}
+
+			s.Logger().WithError(err).Warnf("test %q completed with error", cfg.Tag())
+
+			if s.failingFast() {
+				t.Skip("context cancelled")
+				return nil
+			}
+
+			if trace.IsBadParameter(err) {
+				// this usually means either a panic inside test,
+				// or bad configuration parameters passed to it
+				// there's no reason to retry it
+				return wait.Abort(trace.Wrap(err))
+			}
+
+			// an error will be retried
+			return trace.Wrap(err)
+		})
+
+		if err == nil {
+			return
+		}
+
+		if s.failFast {
+			s.Cancel(fmt.Sprintf("test %s failed, FailFast=true, cancelling other", t.Name()))
+		}
+
+		t.Error(trace.Wrap(err))
+	}
+}
+
+func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig, param interface{}) (err error) {
 	uid := uuid.NewV4().String()
 
 	labels := logrus.Fields{}
-	labels["__tag__"] = cfg.Tag()
-	labels["__os__"] = cfg.os
-	labels["__storage__"] = cfg.storageDriver
 
 	var logLink string
-	var err error
 
 	if s.client != nil {
 		labels["__uuid__"] = uid
@@ -172,59 +234,61 @@ func (s *testSuite) wrap(fn TestFunc, cfg ProvisionerConfig, param interface{}) 
 		}
 	}
 
-	return func(t *testing.T) {
-		ctx, cancelFn := context.WithCancel(s.ctx)
-		defer cancelFn()
+	ctx, cancelFn := context.WithCancel(s.ctx)
+	defer cancelFn()
 
-		cx := &TestContext{
-			t:        t,
-			name:     cfg.Tag(),
-			parent:   ctx,
-			timeouts: DefaultTimeouts,
-			uid:      uid,
-			suite:    s,
-			param:    param,
-			logLink:  logLink,
-			log:      xlog.NewLogger(s.client, t, labels),
-		}
-		defer func() {
-			if r := recover(); r != nil {
-				cx.updateStatus(TestStatusPaniced)
-				cx.Logger().WithFields(logrus.Fields{
-					"stack": debug.Stack(),
-					"where": r}).Error("PANIC")
-				return
-			}
-			if s.failingFast() {
-				cx.updateStatus(TestStatusCancelled)
-				return
-			}
-			if !t.Failed() {
-				cx.updateStatus(TestStatusPassed)
-				return
-			}
-			cx.updateStatus(TestStatusFailed)
-			if s.failFast {
-				s.Cancel(fmt.Sprintf("test %s failed, FailFast=true, cancelling other", t.Name()))
-			}
-			return
-		}()
-
-		s.Lock()
-		s.tests = append(s.tests, cx)
-		s.Unlock()
-
-		if logLink != "" {
-			cx.log = cx.log.WithField("logs", logLink)
-		}
-
-		cx.updateStatus(TestStatusScheduled)
-		t.Parallel()
-		cx.updateStatus(TestStatusRunning)
-		cx.timestamp = time.Now()
-
-		fn(cx, cfg)
+	cx := &TestContext{
+		name:     cfg.Tag(),
+		parent:   ctx,
+		timeouts: DefaultTimeouts,
+		uid:      uid,
+		suite:    s,
+		param:    param,
+		logLink:  logLink,
+		log:      xlog.NewLogger(s.client, t, labels),
 	}
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			cx.updateStatus(TestStatusPassed)
+			return
+		}
+
+		if s.failingFast() {
+			cx.updateStatus(TestStatusCancelled)
+			return
+		}
+
+		if cx.Failed() {
+			cx.updateStatus(TestStatusFailed)
+			err = cx.Error()
+			return
+		}
+
+		// genuine panic by test itself, not after cx.OK()
+		// usually that is a logical error in a test itself
+		// there is no reason to retry it
+		cx.updateStatus(TestStatusPaniced)
+		cx.Logger().WithFields(logrus.Fields{
+			"stack": debug.Stack(),
+			"where": r}).Error("PANIC")
+		err = trace.BadParameter("panic inside test - aborted")
+	}()
+
+	if logLink != "" {
+		cx.log = cx.log.WithField("logs", logLink)
+	}
+
+	s.Lock()
+	s.tests = append(s.tests, cx)
+	s.Unlock()
+	cx.updateStatus(TestStatusRunning)
+
+	cx.timestamp = time.Now()
+	fn(cx, cfg)
+
+	return nil
 }
 
 // Run executes all tests in this suite and returns test results

@@ -2,13 +2,13 @@ package gravity
 
 import (
 	"context"
-	"encoding/json"
-	"testing"
+	"fmt"
 	"time"
 
 	"github.com/gravitational/robotest/lib/xlog"
+	"github.com/gravitational/trace"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/bigquery"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,7 +26,7 @@ type OpTimeouts struct {
 
 // TestContext aggregates common parameters for better test suite readability
 type TestContext struct {
-	t         *testing.T
+	err       error
 	timestamp time.Time
 	name      string
 	parent    context.Context
@@ -41,12 +41,9 @@ type TestContext struct {
 
 // Run allows a running test to spawn a subtest
 func (cx *TestContext) Run(fn TestFunc, cfg ProvisionerConfig, param interface{}) {
-	cx.t.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
-}
-
-// FailNow will interrupt current test
-func (cx *TestContext) FailNow() {
-	cx.t.FailNow()
+	t := cx.suite.t
+	t.Helper()
+	t.Run(cfg.Tag(), cx.suite.wrap(fn, cfg, param))
 }
 
 // Context provides a context for a current test run
@@ -64,7 +61,17 @@ func (c *TestContext) SetTimeouts(tm OpTimeouts) {
 	c.timeouts = tm
 }
 
-// OK is equivalent to require.NoError
+// Failed checks if this test failed
+func (c *TestContext) Failed() bool {
+	return c.err != nil
+}
+
+// Error returns reason this test failed
+func (c *TestContext) Error() error {
+	return c.err
+}
+
+// Checkpoint marks milestone within a test
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()
 	elapsed := now.Sub(c.timestamp)
@@ -77,9 +84,18 @@ func (c *TestContext) OK(msg string, err error) {
 	if err != nil {
 		fields["error"] = err
 		c.log.WithFields(fields).Error(msg)
-		c.t.FailNow()
+		c.err = trace.Wrap(err)
+		panic(msg)
 	}
 	c.log.WithFields(fields).Info(msg)
+}
+
+// FailNow requests this test suite to abort
+func (c *TestContext) FailNow() {
+	if c.err == nil {
+		c.err = fmt.Errorf("request to cancel")
+	}
+	panic(c.err.Error())
 }
 
 // Require verifies condition is true, fails test otherwise
@@ -88,7 +104,7 @@ func (c *TestContext) Require(msg string, condition bool, args ...interface{}) {
 		return
 	}
 	c.log.WithField("args", args).Errorf("failed check: %s", msg)
-	c.t.FailNow()
+	panic(msg)
 }
 
 // Sleep will just sleep with log message
@@ -104,9 +120,36 @@ func withDuration(d time.Duration, n int) time.Duration {
 	return d * time.Duration(n)
 }
 
-type gclMessage struct {
-	Status string `json:"status"`
-	UUID   string `json:"uuid"`
+type progressMessage struct {
+	status      string
+	suite, uuid string
+	name        string
+	param       interface{}
+}
+
+func (msg progressMessage) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row = make(map[string]bigquery.Value)
+	row["ts"] = time.Now()
+
+	// identifiers of specific test and group of tests
+	row["uuid"] = msg.uuid
+	row["suite"] = msg.suite
+
+	row["name"] = msg.name
+	row["status"] = msg.status
+
+	bqParam, ok := msg.param.(bigquery.ValueSaver)
+	if !ok {
+		return nil, "", trace.BadParameter("param is not bigquery.ValueSaver")
+	}
+	paramRow, _, err := bqParam.Save()
+	if err != nil {
+		return nil, "", trace.Wrap(err)
+	}
+	for k, v := range paramRow {
+		row[k] = v
+	}
+	return row, "", nil
 }
 
 func (c *TestContext) updateStatus(status string) {
@@ -114,24 +157,37 @@ func (c *TestContext) updateStatus(status string) {
 
 	log := c.Logger().WithFields(logrus.Fields{"param": xlog.ToJSON(c.param), "name": c.name})
 	switch c.status {
-	case TestStatusScheduled, TestStatusRunning, TestStatusPassed:
+	case TestStatusScheduled, TestStatusRunning:
+		log.Info(c.status)
+		return
+	case TestStatusPassed:
 		log.Info(c.status)
 	default:
 		log.Error(c.status)
 	}
 
-	client := c.suite.client
-	if client == nil {
+	progress := c.suite.progress
+	if progress == nil {
 		return
 	}
-	data, err := json.Marshal(&gclMessage{status, c.uid})
-	if err != nil {
-		log.WithError(err).Error("can't json serialize test status")
-		return
+
+	msg := progressMessage{
+		status: status,
+		uuid:   c.uid,
+		suite:  c.suite.uid,
+		name:   c.name,
+		param:  c.param,
 	}
-	res := client.Topic().Publish(client.Context(), &pubsub.Message{Data: data})
-	_, err = res.Get(client.Context())
+	data, _, err := msg.Save()
 	if err != nil {
-		log.WithError(err).Error("failed to report test status due to pubsub error")
+		log.WithError(err).Error("BQ MSG FAILED")
+		return
+	} else {
+		log.WithField("data", data).Info("BQ SAVE")
+	}
+
+	err = progress.Put(c.Context(), msg)
+	if err != nil {
+		log.WithError(err).Error("BQ status update failed")
 	}
 }

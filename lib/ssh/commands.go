@@ -46,7 +46,7 @@ func RunScript(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, 
 		return trace.Wrap(err)
 	}
 
-	cmd := fmt.Sprintf("/bin/sh -x %s", remotePath)
+	cmd := fmt.Sprintf("/bin/bash -x %s", remotePath)
 	if sudo {
 		cmd = fmt.Sprintf("sudo %s", cmd)
 	}

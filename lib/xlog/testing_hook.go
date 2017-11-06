@@ -12,6 +12,7 @@ type TestingHook struct {
 }
 
 func (hook *TestingHook) Fire(e *logrus.Entry) error {
+	hook.t.Helper()
 	hook.t.Log(e.Message, fmt.Sprint(e.Data))
 	return nil
 }

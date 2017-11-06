@@ -170,7 +170,7 @@ In order to use AWS VPC networking, instances will be assigned IAM Instance Prof
 ### Azure Configuration
 When deploying to Azure, you need define `AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID` authentication variables. See [Azure docs](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal) for more details. 
 
-* `AZURE_REGION` is region to deploy to; default is `westus`. Use `az account list-locations` for options.
+* `AZURE_REGION` are comma-separated regions to deploy to; Use `az account list-locations` for options.
 * `AZURE_VM` is [VM size](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes); default is `Standard_F4s`. Use `az vm list-sizes --location ${AZURE_REGION}` to check which VMs are available.
 
 ### Cloud Logging

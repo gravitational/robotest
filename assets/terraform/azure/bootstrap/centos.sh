@@ -33,7 +33,7 @@ function get_timesync_bus_name {
     local id=$(get_vmbus_attr $device "id")
     local class_id=$(get_vmbus_attr $device "class_id")
     if [ "$class_id" == "$timesync_bus_id" ]; then
-      echo vmbus_$id; exit 0
+      echo $(basename $device); exit 0
     fi
   done
 }
@@ -46,10 +46,27 @@ if [ ! -z "$timesync_bus_name" ]; then
   echo $timesync_bus_name > /sys/bus/vmbus/drivers/hv_util/unbind
 fi
 
-systemctl stop dnsmasq
-systemctl disable dnsmasq
+dnsrunning=0
+systemctl is-active --quiet dnsmasq || dnsrunning=$?
+if [ $dnsrunning -eq 0 ] ; then 
+  systemctl stop dnsmasq || true
+  systemctl disable dnsmasq 
+fi
+
+modprobe overlay
 
 mount
+
+if [[ $(source /etc/os-release ; echo $VERSION_ID ) == "7.2" ]] ; then
+  yum install -y yum-plugin-versionlock
+  yum versionlock \
+        lvm2-2.02.166-1.el7_3.4.x86_64 \
+        device-mapper-persistent-data-0.6.3-1.el7.x86_64 \
+        device-mapper-event-libs-1.02.135-1.el7_3.4.x86_64 \
+        device-mapper-event-7:1.02.135-1.el7_3.4.x86_64 \
+        device-mapper-libs-7:1.02.135-1.el7_3.4.x86_64 \
+        device-mapper-7:1.02.135-1.el7_3.4.x86_64
+fi
 
 yum install -y chrony python unzip lvm2 device-mapper-persistent-data
 curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
@@ -73,17 +90,17 @@ docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-systemctl enable firewalld
-systemctl start firewalld
-#
-# configure firewall rules
-# 
-firewall-cmd --zone=trusted --add-source=10.244.0.0/16 --permanent # pod subnet
-firewall-cmd --zone=trusted --add-source=10.100.0.0/16 --permanent # service subnet
-firewall-cmd --zone=trusted --add-interface=eth0 --permanent       # enable eth0 in trusted zone so nodes can communicate
-firewall-cmd --zone=trusted --add-masquerade --permanent           # masquerading so packets can be routed back
-firewall-cmd --reload
-systemctl restart firewalld
+systemctl disable firewalld || true
+systemctl stop firewalld || true
+iptables --flush
+iptables --delete-chain
+iptables --table nat --flush
+iptables --table filter --flush
+iptables --table nat --delete-chain
+iptables --table filter --delete-chain
+
+modprobe br_netfilter
+sysctl -w net.bridge.bridge-nf-call-iptables=1
 
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete

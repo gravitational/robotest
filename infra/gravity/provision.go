@@ -59,12 +59,13 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 // Provision gets VMs up, running and ready to use
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
+
 	err := validateConfig(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("Provisioning VMs")
 	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
@@ -164,7 +165,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 
 	// apparently cloud-init scripts are not supported for given OS
 	err = sshutil.RunScript(ctx, g.Client(), g.Logger(),
-		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os)),
+		filepath.Join(param.ScriptPath, "bootstrap", fmt.Sprintf("%s.sh", param.os.Vendor)),
 		sshutil.SUDO)
 	return trace.Wrap(err)
 }

@@ -2,6 +2,8 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+
+	"cloud.google.com/go/bigquery"
 )
 
 type installParam struct {
@@ -10,12 +12,27 @@ type installParam struct {
 	NodeCount uint `json:"nodes" validate:"gte=1"`
 }
 
+func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
+	row = make(map[string]bigquery.Value)
+	row["os"] = p.InstallParam.OSFlavor.Vendor
+	row["os_version"] = p.InstallParam.OSFlavor.Version
+	row["nodes"] = int(p.NodeCount)
+	row["storage"] = p.InstallParam.DockerStorageDriver
+
+	return row, "", nil
+}
+
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {
+	return g.Provision(cfg.WithOS(param.OSFlavor).
+		WithStorageDriver(param.DockerStorageDriver).
+		WithNodes(param.NodeCount))
+}
+
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := g.Provision(cfg)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
@@ -28,9 +45,8 @@ func install(p interface{}) (gravity.TestFunc, error) {
 func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		cfg := baseConfig.WithNodes(param.NodeCount)
-		nodes, destroyFn, err := g.Provision(cfg)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
 		defer destroyFn()
 

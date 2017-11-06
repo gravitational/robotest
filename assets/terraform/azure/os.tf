@@ -32,12 +32,10 @@ variable "os_sku" {
     type = "map"
 
     default = {
-        "ubuntu"     = "16.04-LTS"
-        "redhat"     = "7.3"
+        "ubuntu:latest" = "16.04-LTS"
         "redhat:7.2" = "7.2"
         "redhat:7.3" = "7.3"
         "redhat:7.4" = "7-RAW"
-        "centos"     = "7.3"
         "centos:7.2" = "7.2"
         "centos:7.3" = "7.3"
         "debian"     = "8"
@@ -49,11 +47,10 @@ variable "os_version" {
     type = "map"
 
     default = {
-        "ubuntu"     = "16.04.201708151"
-        "redhat"     = "7.3.2017090723"
-        "redhat:7.3" = "7.3.2017090723"
+        "ubuntu:latest"     = "16.04.201708151"
+        "redhat:7.3" = "latest"
         "redhat:7.2" = "latest"
-        "redhat:7.4" = "7.4.2017080923"
+        "redhat:7.4" = "latest"
         "centos"     = "latest"
         "centos:7.4" = "7.4.20170919"
         "centos:7.3" = "7.3.20170925"

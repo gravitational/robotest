@@ -53,11 +53,10 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   os_profile {
-    custom_data    = "${file("./bootstrap/${var.os}.sh")}"
     computer_name  = "node-${count.index}"
     # REQUIRED ...
     admin_username = "${var.ssh_user}"
-    admin_password = "Password1234!"
+    admin_password = "${var.random_password}"
   }
 
   os_profile_linux_config {

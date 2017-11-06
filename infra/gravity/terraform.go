@@ -55,7 +55,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 		log := c.Logger().WithFields(logrus.Fields{
 			"nodes":              nodes,
 			"provisioner_policy": policy,
-			"test_status":        testStatus[c.t.Failed()]})
+			"test_status":        testStatus[c.Failed()]})
 
 		skipLogCollection := false
 		ctx := c.Context()
@@ -73,7 +73,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			defer cancel()
 		}
 
-		if !skipLogCollection && (c.t.Failed() || policy.AlwaysCollectLogs) {
+		if !skipLogCollection && (c.Failed() || policy.AlwaysCollectLogs) {
 			log.Debug("collecting logs from nodes...")
 			err := c.CollectLogs("postmortem", nodes)
 			if err != nil {
@@ -82,7 +82,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 		}
 
 		if (policy.DestroyOnSuccess == false) ||
-			(c.t.Failed() && policy.DestroyOnFailure == false) {
+			(c.Failed() && policy.DestroyOnFailure == false) {
 			log.Info("not destroying VMs per policy")
 			return nil
 		}
@@ -171,9 +171,9 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		},
 	}
 
-	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os]
+	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
 	if !ok {
-		return nil, trace.BadParameter("%s ")
+		return nil, trace.BadParameter(baseConfig.os.Vendor)
 	}
 
 	param.homeDir = filepath.Join("/home", param.user)
@@ -182,7 +182,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.nodeCount),
-		OS:            baseConfig.os,
+		OS:            baseConfig.os.String(),
 	}
 
 	if baseConfig.AWS != nil {
@@ -203,6 +203,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.tf.Azure = &azure
 		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
+		param.tf.Azure.Location = azureRegions.Next()
 	}
 
 	return &param, nil

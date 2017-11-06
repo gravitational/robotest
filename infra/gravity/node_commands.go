@@ -91,6 +91,10 @@ type InstallParam struct {
 	CloudProvider string `json:"cloud_provider,omitempty"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
+	// OSFlavor is operating system and optional version separated by ':'
+	OSFlavor OS `json:"os" validate:"required"`
+	// DockerStorageDriver is one of supported storage drivers
+	DockerStorageDriver StorageDriver `json:"storage_driver"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -192,7 +196,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallDir:      g.installDir,
 		PrivateAddr:     g.Node().PrivateAddr(),
 		EnvDockerDevice: constants.EnvDockerDevice,
-		StorageDriver:   g.param.storageDriver,
+		StorageDriver:   g.param.storageDriver.Driver(),
 		InstallParam:    param,
 	})
 	if err != nil {
@@ -211,7 +215,8 @@ var installCmdTemplate = template.Must(
 		cd {{.InstallDir}} && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
 		--docker-device=${{.EnvDockerDevice}} \
-		--storage-driver={{.StorageDriver}} --system-log-file=./telekube-system.log \
+		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
+		--system-log-file=./telekube-system.log \
 		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}}
 `))
@@ -388,6 +393,11 @@ func (g *gravity) Upgrade(ctx context.Context) error {
 // for cases when gravity doesn't return just opcode but an extended message
 var reGravityExtended = regexp.MustCompile(`launched operation \"([a-z0-9\-]+)\".*`)
 
+const (
+	opStatusCompleted = "completed"
+	opStatusFailed    = "failed"
+)
+
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
@@ -416,14 +426,15 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 		if err != nil {
 			return wait.Continue(cmd)
 		}
-		if strings.Contains(response, "complete") {
-			return nil
-		}
-		if strings.Contains(response, "fail") {
-			return wait.Abort(trace.Errorf("%s: response=%, err=%v", cmd, response, err))
-		}
 
-		return wait.Continue(cmd)
+		switch strings.TrimSpace(response) {
+		case opStatusCompleted:
+			return nil
+		case opStatusFailed:
+			return wait.Abort(trace.Errorf("%s: response=%s, err=%v", cmd, response, err))
+		default:
+			return trace.BadParameter("non-final / unknown op status: %q", response)
+		}
 	})
 	return trace.Wrap(err)
 }

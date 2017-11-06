@@ -36,6 +36,20 @@ func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd st
 	return nil
 }
 
+const (
+	term  = "unknown"
+	termH = 40
+	termW = 80
+)
+
+var (
+	termModes = ssh.TerminalModes{
+		ssh.ECHO:          0,     // disable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+)
+
 // RunAndParse runs remote SSH command with environment variables set by `env`
 // exitStatus is -1 if undefined
 func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
@@ -44,6 +58,11 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 		return exitStatusUndefined, trace.Wrap(err)
 	}
 	defer session.Close()
+
+	err = session.RequestPty(term, termH, termW, termModes)
+	if err != nil {
+		return exitStatusUndefined, trace.Wrap(err)
+	}
 
 	envStrings := []string{}
 	if env != nil {
@@ -134,7 +153,7 @@ func ParseAsString(out *string) OutputParseFn {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		*out = string(b)
+		*out = strings.Replace(string(b), `\r`, ``, -1)
 		return nil
 	}
 }
