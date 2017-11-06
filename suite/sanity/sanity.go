@@ -8,7 +8,6 @@ import (
 
 var defaultInstallParam = installParam{
 	InstallParam: gravity.InstallParam{
-		Role:     defaults.NodeRole,
 		StateDir: defaults.GravityDir,
 	},
 }
