@@ -99,7 +99,8 @@ iptables --table filter --flush
 iptables --table nat --delete-chain
 iptables --table filter --delete-chain
 
-modprobe br_netfilter
+modprobe br_netfilter || true
+modprobe overlay || true
 sysctl -w net.bridge.bridge-nf-call-iptables=1
 
 # robotest might SSH before bootstrap script is complete (and will fail)
