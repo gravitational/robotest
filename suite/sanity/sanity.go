@@ -12,6 +12,11 @@ var defaultInstallParam = installParam{
 	},
 }
 
+const (
+	checkpointProvision = "provision"
+	checkpointInstall   = "provision"
+)
+
 // Suite returns base configuration for a suite which may be further customized
 func Suite() *config.Config {
 	cfg := config.New()

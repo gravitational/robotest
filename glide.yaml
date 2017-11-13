@@ -23,3 +23,7 @@ import:
   subpackages:
   - assert
   - require
+- package: github.com/Azure/azure-sdk-for-go
+  subpackages:
+  - arm
+- package: github.com/Azure/go-autorest

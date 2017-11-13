@@ -10,6 +10,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -27,6 +28,10 @@ type cloudDynamicParams struct {
 	homeDir string
 	tf      terraform.Config
 	env     map[string]string
+
+	// options
+	syncClocks bool
+	waitDisks  bool
 }
 
 func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
@@ -57,18 +62,43 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 	return sorted(gravityNodes), nil
 }
 
+// RestoreCheckpoint
+func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string, param interface{}) ([]Gravity, error) {
+	/*
+		if c.suite.imageRegistry == nil {
+			return nil, trace.NotFound("image registry service unavailable")
+		}
+	*/
+	cfg.Azure = &(*cfg.Azure)
+	cfg.FromImage = &infra.VmImage{
+		Region:        "westus",
+		ResourceGroup: "R293-INSTALL-1-REDHAT7.4-OVERLAY2-3N",
+	}
+	/*
+		cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(), checkpoint, param)
+		if err != nil {
+			if trace.IsNotFound(err) {
+				return trace.Wrap(err)
+			}
+			c.Logger().WithError(err).Warn("Azure image locator failed for %q/%v", checkpoint, param)
+			return trace.NotFound("Image locator internal error")
+		}
+	*/
+	return c.Provision(cfg)
+}
+
 // Provision gets VMs up, running and ready to use
-func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
 
 	err := validateConfig(cfg)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
 	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
@@ -78,7 +108,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	gravityNodes, err := configureVMs(ctx, c.Logger(), *params, nodes)
 	if err != nil {
 		c.Logger().WithError(err).Error("some nodes initialization failed, teardown this setup as non-usable")
-		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
+		return nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
 	c.Logger().Debug("Streaming logs")
@@ -95,22 +125,26 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
+		return nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
-	if err != nil {
-		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
-		c.Logger().WithError(err).Error(err.Error())
-		return nil, nil, err
+	if cfg.waitDisks {
+		c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+		ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+		defer cancel()
+		err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
+		if err != nil {
+			err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
+			c.Logger().WithError(err).Error(err.Error())
+			return nil, err
+		}
 	}
 
 	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
-	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+	c.resourceDestroyFuncs = append(c.resourceDestroyFuncs,
+		wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn))
+	return gravityNodes, nil
 }
 
 // sort Interface implementation
@@ -203,9 +237,9 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	g.ssh = client
 
 	switch param.CloudProvider {
-	case "aws":
+	case constants.AWS:
 		err = bootstrapAWS(ctx, g, param)
-	case "azure":
+	case constants.Azure:
 		err = bootstrapAzure(ctx, g, param)
 	default:
 		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)

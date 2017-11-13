@@ -74,9 +74,8 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.NodeCount + 1)
 
-		allNodes, destroyFn, err := g.Provision(config)
+		allNodes, err := g.Provision(config)
 		g.OK("provision nodes", err)
-		defer destroyFn()
 
 		g.OK("download installer", g.SetInstaller(allNodes, config.InstallerURL, "install"))
 

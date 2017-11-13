@@ -81,6 +81,9 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 		return nil, trace.Errorf("No Terraform configs at %s", r.ScriptPath)
 	}
 
+	if r.Config.CloudProvider == constants.Azure {
+		r.azurePrepare(ctx)
+	}
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {
@@ -263,6 +266,14 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 	err = r.saveVarsJSON(varsPath)
 	if err != nil {
 		return "", trace.Wrap(err, "failed to store Terraform vars")
+	}
+
+	_, err = r.command(ctx, []string{
+		"init", "-input=false",
+		"-plugin-dir=/robotest/terraform-plugins",
+	})
+	if err != nil {
+		return "", trace.Wrap(err)
 	}
 
 	out, err := r.command(ctx, []string{

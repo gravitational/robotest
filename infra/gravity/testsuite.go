@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/robotest/lib/xlog"
@@ -75,7 +76,8 @@ type testSuite struct {
 	ctx                     context.Context
 	cancelFn                func()
 
-	logger logrus.FieldLogger
+	logger        logrus.FieldLogger
+	imageRegistry infra.VmRegistry
 }
 
 // NewRun creates new group run environment
@@ -97,10 +99,14 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	}
 	ctx, cancelFn := context.WithCancel(ctx)
 
-	return &testSuite{sync.RWMutex{}, googleProjectID,
-		client, progress, uid,
-		[]*TestContext{}, scheduled, t,
-		failFast, false, ctx, cancelFn, logger}
+	return &testSuite{
+		RWMutex:         sync.RWMutex{},
+		googleProjectID: googleProjectID,
+		client:          client, progress: progress, uid: uid,
+		tests: []*TestContext{}, scheduled: scheduled, t: t,
+		failFast: failFast, isFailingFast: false,
+		ctx: ctx, cancelFn: cancelFn, logger: logger,
+		imageRegistry: nil}
 }
 
 func (s *testSuite) Logger() logrus.FieldLogger {
@@ -274,6 +280,19 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 			"stack": debug.Stack(),
 			"where": r}).Error("PANIC")
 		err = trace.BadParameter("panic inside test - aborted")
+	}()
+
+	defer func() {
+		// FIXME: move to TF
+		if cx.noCleanup {
+			return
+		}
+		for _, fn := range cx.resourceDestroyFuncs {
+			err := fn()
+			if err != nil {
+				cx.log.WithError(err).Warn("error cleaning up allocated resources")
+			}
+		}
 	}()
 
 	if logLink != "" {

@@ -81,7 +81,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			}
 		}
 
-		if (policy.DestroyOnSuccess == false) ||
+		if (!c.Failed() && policy.DestroyOnSuccess == false) ||
 			(c.Failed() && policy.DestroyOnFailure == false) {
 			log.Info("not destroying VMs per policy")
 			return nil
@@ -200,10 +200,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	if baseConfig.Azure != nil {
 		azure := *baseConfig.Azure
+		azure.ResourceGroup = baseConfig.tag
+		azure.SSHUser = param.user
+		if baseConfig.FromImage != nil {
+			azure.Location = baseConfig.FromImage.Region
+		} else {
+			azure.Location = azureRegions.Next()
+		}
 		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.tag
-		param.tf.Azure.SSHUser = param.user
-		param.tf.Azure.Location = azureRegions.Next()
 	}
 
 	return &param, nil

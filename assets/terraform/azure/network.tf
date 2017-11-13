@@ -2,6 +2,30 @@
 # NETWORK
 # 
 
+resource "azurerm_public_ip" "node" {
+  count                        = "${var.nodes}"
+  name                         = "node-${count.index}"
+  location                     = "${var.location}"
+  resource_group_name          = "${azurerm_resource_group.robotest.name}"
+  public_ip_address_allocation = "dynamic"
+}
+
+resource "azurerm_network_interface" "node" {
+  count                = "${var.nodes}"
+  name                 = "node-${count.index}"
+  location             = "${var.location}"
+  resource_group_name  = "${azurerm_resource_group.robotest.name}"
+  enable_ip_forwarding = "true"
+  network_security_group_id = "${azurerm_network_security_group.robotest.id}"
+
+  ip_configuration {
+    name                          = "ipconfig-${count.index}"
+    subnet_id                     = "${azurerm_subnet.robotest_a.id}"
+    private_ip_address_allocation = "dynamic"
+    public_ip_address_id          = "${azurerm_public_ip.node.*.id[count.index]}"
+  }
+}
+
 resource "azurerm_network_security_group" "robotest" {
   name                = "robotest"
   location            = "${var.location}"

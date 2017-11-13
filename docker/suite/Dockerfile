@@ -19,7 +19,10 @@ RUN    curl https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 RUN mkdir -p /robotest
 WORKDIR /robotest
 COPY build/robotest-suite /usr/bin/robotest-suite
-COPY terraform /robotest/terraform
-COPY run_suite.sh /usr/bin/run_suite.sh
 
+RUN mkdir -p /robotest/terraform-plugins
+COPY build/terraform-provider-azurerm_v0.3.2_x4 /robotest/terraform-plugins
+COPY terraform /robotest/terraform
+
+COPY run_suite.sh /usr/bin/run_suite.sh
 RUN chmod +x /usr/bin/robotest-suite

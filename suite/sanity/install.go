@@ -2,6 +2,7 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -22,19 +23,30 @@ func (p installParam) Save() (row map[string]bigquery.Value, insertID string, er
 	return row, "", nil
 }
 
-func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {
-	return g.Provision(cfg.WithOS(param.OSFlavor).
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) (nodes []gravity.Gravity, err error) {
+	cfg = cfg.WithOS(param.OSFlavor).
 		WithStorageDriver(param.DockerStorageDriver).
-		WithNodes(param.NodeCount))
+		WithNodes(param.NodeCount)
+	nodes, err = g.RestoreCheckpoint(cfg, checkpointInstall, param)
+
+	if err == nil {
+		return nodes, err
+	}
+
+	if !trace.IsNotFound(err) {
+		return nil, trace.Wrap(err)
+	}
+
+	nodes, err = g.Provision(cfg)
+	return nodes, trace.Wrap(err)
 }
 
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		nodes, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
-		defer destroyFn()
 
 		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
@@ -46,9 +58,8 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		nodes, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
-		defer destroyFn()
 
 		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 	}, nil

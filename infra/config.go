@@ -1,6 +1,10 @@
 package infra
 
-import "github.com/gravitational/trace"
+import (
+	"context"
+
+	"github.com/gravitational/trace"
+)
 
 func (r *Config) Validate() error {
 	if r.ClusterName == "" {
@@ -72,6 +76,27 @@ type AWSConfig struct {
 // FIXME : replace with embedded validation rules
 func (r *AWSConfig) IsEmpty() bool {
 	return r.AccessKey == "" && r.SecretKey == ""
+}
+
+// VmImage defines parameters of an image restore VM from
+type VmImage struct {
+	// Cloud is cloud provider
+	Cloud string
+	// Region is region this specific resource group resides
+	Region string
+	// ResourceGroup is name of resource group which contains VM snapshots
+	ResourceGroup string
+}
+
+// VmCapture is an interface that stores current state of VM
+type VmCapture interface {
+	CaptureVM(context.Context) (VmImage, error)
+}
+
+// VmRegistry is a pre-captured VM locator
+type VmRegistry interface {
+	Locate(ctx context.Context, cloud, checkpoint string, param interface{}) (*VmImage, error)
+	Store(ctx context.Context, checkpoint string, param interface{}, image VmImage) error
 }
 
 // AzureConfig specifies Azure cloud specific parameters

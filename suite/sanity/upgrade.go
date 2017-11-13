@@ -27,13 +27,23 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 	param := p.(upgradeParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param.installParam)
-		g.OK("provision nodes", err)
-		defer destroyFn()
+		cfg = cfg.WithOS(param.OSFlavor).
+			WithStorageDriver(param.DockerStorageDriver).
+			WithNodes(param.NodeCount)
 
-		g.OK("base installer", g.SetInstaller(nodes, param.BaseInstallerURL, "base"))
-		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
-		g.OK("status", g.Status(nodes))
+		nodes, err := g.RestoreCheckpoint(cfg, checkpointInstall, param.installParam)
+
+		if trace.IsNotFound(err) {
+			nodes, err = provisionNodes(g, cfg, param.installParam)
+			g.OK("provision nodes", err)
+
+			g.OK("base installer", g.SetInstaller(nodes, param.BaseInstallerURL, "base"))
+			g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
+			g.OK("status", g.Status(nodes))
+		} else {
+			g.OK("checkpoint", err)
+		}
+
 		g.OK("upgrade", g.Upgrade(nodes, cfg.InstallerURL, "upgrade"))
 		g.OK("status", g.Status(nodes))
 	}, nil

@@ -74,6 +74,8 @@ type ProvisionerConfig struct {
 	AWS *infra.AWSConfig `yaml:"aws"`
 	// Azure defines Azure connection parameters
 	Azure *infra.AzureConfig `yaml:"azure"`
+	// FromImage is whether to provision this environment from VM image
+	FromImage *infra.VmImage
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
@@ -92,6 +94,8 @@ type ProvisionerConfig struct {
 	storageDriver StorageDriver
 	// dockerDevice is a physical volume where docker data would be stored
 	dockerDevice string `validate:"required"`
+	// waitDisks is whether to wait for disks to "spin up"
+	waitDisks bool
 }
 
 // LoadConfig loads essential parameters from YAML

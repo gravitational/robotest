@@ -1,4 +1,4 @@
-TARGETS := e2e suite
+TARGETS := suite
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)
@@ -30,6 +30,11 @@ containers:
 .PHONY: publish
 publish:
 	$(MAKE) -C docker -j publish TAG=$(TAG)
+
+.PHONY: vendor-update
+vendor-update: glide.yaml 
+	rm -rf ./.glide ./vendor
+	docker run $(DOCKERFLAGS) $(BUILDBOX) glide update
 
 #
 # Runs inside build container
