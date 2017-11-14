@@ -183,6 +183,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.nodeCount),
 		OS:            baseConfig.os.String(),
+		FromImage:     baseConfig.FromImage,
 	}
 
 	if baseConfig.AWS != nil {

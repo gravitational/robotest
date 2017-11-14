@@ -82,8 +82,21 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 	}
 
 	if r.Config.CloudProvider == constants.Azure {
-		r.azurePrepare(ctx)
+		err = r.azurePrepare(ctx)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	}
+
+	out, err := r.command(ctx, []string{
+		"init", "-input=false",
+		"-plugin-dir=/robotest/terraform-plugins",
+	})
+	if err != nil {
+		log.Error(out)
+		return nil, trace.Wrap(err)
+	}
+
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {
@@ -118,6 +131,7 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 func (r *terraform) terraform(ctx context.Context) (err error) {
 	output, err := r.boot(ctx)
 	if err != nil {
+		log.Error(output)
 		return trace.Wrap(err)
 	}
 
@@ -268,14 +282,6 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		return "", trace.Wrap(err, "failed to store Terraform vars")
 	}
 
-	_, err = r.command(ctx, []string{
-		"init", "-input=false",
-		"-plugin-dir=/robotest/terraform-plugins",
-	})
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
-
 	out, err := r.command(ctx, []string{
 		"apply", "-input=false",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
@@ -284,7 +290,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		fmt.Sprintf("-var-file=%s", varsPath),
 	})
 	if err != nil {
-		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
+		return "", trace.Retry(err, "failed to boot terraform cluster: %s", out)
 	}
 
 	return string(out), nil

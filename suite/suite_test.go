@@ -46,7 +46,9 @@ var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources 
 var resourceListFile = flag.String("resourcegroup-file", "", "file with list of resources created")
 var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
-var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
+var gcsProjectId = flag.String("gcl-project-id", "", "google cloud project ID for remote logging, VM registry and dashboard")
+
+var vmCaptureMode = flag.Bool("vm-capture", false, "capture VM checkpoints")
 
 var testSets valueList
 
@@ -132,7 +134,7 @@ func TestMain(t *testing.T) {
 	}
 	gravity.SetProvisionerPolicy(policy)
 
-	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, logrus.Fields{
+	suite := gravity.NewSuite(ctx, t, *gcsProjectId, logrus.Fields{
 		"test_suite":         *testSuite,
 		"test_set":           testSet,
 		"provisioner_policy": policy,
@@ -142,6 +144,10 @@ func TestMain(t *testing.T) {
 	}, *failFast)
 	defer suite.Close()
 	setupSignals(suite)
+
+	if *vmCaptureMode {
+
+	}
 
 	for r := 1; r <= *repeat; r++ {
 		for ts, entry := range testSet {

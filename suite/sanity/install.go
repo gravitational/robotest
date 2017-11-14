@@ -1,6 +1,8 @@
 package sanity
 
 import (
+	"time"
+
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/trace"
 
@@ -58,9 +60,10 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, err := provisionNodes(g, cfg, param)
+		_, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
+		time.Sleep(time.Minute * 5)
 
-		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		//g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 	}, nil
 }

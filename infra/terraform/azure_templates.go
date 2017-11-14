@@ -7,7 +7,7 @@ const (
 	tfDataFilename = "data.tf"
 )
 
-var tfVmInstallTemplate = template.Must(template.New("vm_install").Parse(`
+var tfVmImageTemplate = template.Must(template.New("vm_install").Parse(`
 data "azurerm_image" "node" {
   count                 = "${var.nodes}"
   name                  = "node-${count.index}"
@@ -26,10 +26,7 @@ resource "azurerm_virtual_machine" "node" {
   delete_data_disks_on_termination = "true"
 
   storage_image_reference {
-    publisher = "${lookup(var.os_publisher, element(split(":",var.os),0))}"
-    offer     = "${lookup(var.os_offer,     element(split(":",var.os),0))}"
-    sku       = "${lookup(var.os_sku,       var.os)}"
-    version   = "${lookup(var.os_version,   var.os)}"
+    id = "${data.azurerm_image.node.*.id[count.index]}"
   }
 
   storage_os_disk {
@@ -74,7 +71,7 @@ resource "azurerm_virtual_machine" "node" {
 }
 `))
 
-var tfVmImageTemplate = template.Must(template.New("vm_image").Parse(`
+var tfVmInstallTemplate = template.Must(template.New("vm_image").Parse(`
 resource "azurerm_virtual_machine" "node" {
   count                 = "${var.nodes}"
   name                  = "node-${count.index}"

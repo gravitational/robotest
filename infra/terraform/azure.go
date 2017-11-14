@@ -94,17 +94,19 @@ func AzureRemoveResourceGroup(ctx context.Context, token *AzureToken, subscripti
 // based on whether snapshot is available for given configuration
 func (r *terraform) azurePrepare(ctx context.Context) (err error) {
 	f, err := os.OpenFile(filepath.Join(r.stateDir, tfVmFilename),
-		os.O_WRONLY, constants.SharedReadWriteMask)
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.SharedReadWriteMask)
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
 	defer f.Close()
 
+	log.WithField("config", r.Config).Warn("azurePrepare")
+
 	if r.Config.FromImage == nil {
 		err = tfVmInstallTemplate.Execute(f, struct{}{})
 		return trace.Wrap(err)
 	} else {
-		err = tfVmInstallTemplate.Execute(f, struct{ ResourceGroup string }{r.Config.FromImage.ResourceGroup})
+		err = tfVmImageTemplate.Execute(f, struct{ ResourceGroup string }{r.Config.FromImage.ResourceGroup})
 		return trace.Wrap(err)
 	}
 }

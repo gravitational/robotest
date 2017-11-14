@@ -71,8 +71,8 @@ func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string
 	*/
 	cfg.Azure = &(*cfg.Azure)
 	cfg.FromImage = &infra.VmImage{
-		Region:        "westus",
-		ResourceGroup: "R293-INSTALL-1-REDHAT7.4-OVERLAY2-3N",
+		Region:        "westus2",
+		ResourceGroup: "R296-install-1-redhat7.4-overlay2-3n",
 	}
 	/*
 		cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(), checkpoint, param)
