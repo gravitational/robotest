@@ -21,7 +21,8 @@ resource "azurerm_network_interface" "node" {
   ip_configuration {
     name                          = "ipconfig-${count.index}"
     subnet_id                     = "${azurerm_subnet.robotest_a.id}"
-    private_ip_address_allocation = "dynamic"
+    private_ip_address            = "10.40.2.${count.index+4}"
+    private_ip_address_allocation = "static"
     public_ip_address_id          = "${azurerm_public_ip.node.*.id[count.index]}"
   }
 }
