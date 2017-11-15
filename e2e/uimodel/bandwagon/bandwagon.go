@@ -30,9 +30,15 @@ func Open(page *web.Page, domainName string) Bandwagon {
 // SubmitForm submits bandwagon form
 func (b *Bandwagon) SubmitForm(config framework.BandwagonConfig) {
 	log.Infof("trying to submit bandwagon form")
+	count, _ := b.page.FindByName("org").Count()
+	if count > 0 {
+		log.Infof("entering organization: %s", config.Organization)
+		Expect(b.page.FindByName("org").Fill(config.Organization)).To(Succeed(), "should enter organization")
+	}
+
 	log.Infof("entering email: %s", config.Email)
 	Expect(b.page.FindByName("email").Fill(config.Email)).To(Succeed(), "should enter email")
-	count, _ := b.page.FindByName("name").Count()
+	count, _ = b.page.FindByName("name").Count()
 	if count > 0 {
 		log.Infof("entering username: %s", config.Username)
 		Expect(b.page.FindByName("name").Fill(config.Username)).To(Succeed(), "should enter username")
