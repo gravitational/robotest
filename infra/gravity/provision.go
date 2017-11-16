@@ -62,28 +62,68 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 	return sorted(gravityNodes), nil
 }
 
-// RestoreCheckpoint
-func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string, param interface{}) ([]Gravity, error) {
-	/*
-		if c.suite.imageRegistry == nil {
-			return nil, trace.NotFound("image registry service unavailable")
-		}
-	*/
-	cfg.Azure = &(*cfg.Azure)
-	cfg.FromImage = &infra.VmImage{
-		Region:        "westus2",
-		ResourceGroup: "R296-install-1-redhat7.4-overlay2-3n",
+// AssertCheckpointDuplicate will ensure we won't ensure
+func (c *TestContext) AssertCheckpointDuplicate(cloudProvider, checkpoint string, param interface{}) {
+	if c.suite.imageRegistry == nil || c.suite.vmCaptureEnabled == false {
+		return
 	}
-	/*
-		cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(), checkpoint, param)
-		if err != nil {
-			if trace.IsNotFound(err) {
-				return trace.Wrap(err)
-			}
-			c.Logger().WithError(err).Warn("Azure image locator failed for %q/%v", checkpoint, param)
-			return trace.NotFound("Image locator internal error")
-		}
-	*/
+
+	img, err := c.suite.imageRegistry.Locate(c.Context(),
+		cloudProvider, checkpoint, param)
+	if err == nil {
+		// avoid duplicates
+		c.Logger().Infof("VM image already exists: %+v", img)
+		c.checkpointSaved = true
+		panic("VM image already exists")
+	}
+
+	if trace.IsNotFound(err) {
+		// proceed with creating image
+		return
+	}
+
+	c.OK("unexpected image registry issue", trace.Wrap(err))
+}
+
+// Checkpoint will save test state as VM image
+func (c *TestContext) Checkpoint(checkpoint string, nodes []Gravity) {
+	if !c.suite.vmCaptureEnabled {
+		return
+	}
+
+	if c.vmCapture == nil || c.suite.imageRegistry == nil {
+		c.Logger().Warn("Cannot make snapshot: VM capture/registry not available")
+		return
+	}
+
+	c.Logger().Infof("making checkpoint %q, param=%+v", checkpoint, c.param)
+
+	err := c.deprovision(nodes)
+	c.OK("deprovision", err)
+
+	image, err := c.vmCapture.CaptureVM(c.Context())
+	c.OK("VM checkpoint capture", trace.Wrap(err))
+
+	err = c.suite.imageRegistry.Store(c.Context(), checkpoint, c.param, *image)
+	c.OK("save VM image info to registry", trace.Wrap(err))
+
+	c.checkpointSaved = true
+	panic(checkpoint)
+}
+
+// RestoreCheckpoint will attempt to recover VMs with compatible configuration at given checkpoint
+func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string, param interface{}) (nodes []Gravity, err error) {
+	if c.suite.imageRegistry == nil {
+		return nil, trace.NotFound("image registry service unavailable")
+	}
+
+	cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(),
+		cfg.CloudProvider, checkpoint, param)
+	if err != nil {
+		c.Logger().WithError(err).Warnf("error locating VM for checkpoint=%q, param=%+v", checkpoint, param)
+		return nil, trace.Wrap(err)
+	}
+	c.Logger().WithField("checkpoint", checkpoint).Infof("using checkpoint %q images from %+v", checkpoint, cfg.FromImage)
 	return c.Provision(cfg)
 }
 
@@ -96,9 +136,13 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
+	nodes, destroyFn, vmCapture, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, trace.Wrap(err)
+	}
+
+	if c.suite.vmCaptureEnabled {
+		c.vmCapture = vmCapture
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
@@ -144,6 +188,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, error) {
 
 	c.resourceDestroyFuncs = append(c.resourceDestroyFuncs,
 		wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn))
+
 	return gravityNodes, nil
 }
 

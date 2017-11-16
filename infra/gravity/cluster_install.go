@@ -197,7 +197,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 }
 
 // Deprovision will prepare VMs to be generalized before capturing image
-func (c *TestContext) Deprovision(nodes []Gravity) error {
+func (c *TestContext) deprovision(nodes []Gravity) error {
 	errs := make(chan error, len(nodes))
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()

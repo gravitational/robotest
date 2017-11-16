@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/trace"
 
 	log "github.com/sirupsen/logrus"
@@ -43,21 +44,23 @@ func TestAzureCaptureVM(t *testing.T) {
 		t.Skip("requires resource group")
 	}
 
-	cfg := Config{
-		NumNodes: 3,
-		Azure: &infra.AzureConfig{
-			SubscriptionId: *azSubscription,
-			ClientId:       *azClientId,
-			ClientSecret:   *azClientSecret,
-			TenantId:       *azTenant,
-			ResourceGroup:  *azResourceGroup,
-			Location:       *azLocation,
-		},
+	cfg := infra.AzureConfig{
+		SubscriptionId: *azSubscription,
+		ClientId:       *azClientId,
+		ClientSecret:   *azClientSecret,
+		TenantId:       *azTenant,
+		ResourceGroup:  *azResourceGroup,
+		Location:       *azLocation,
 	}
 
-	capture, err := NewAzureVmCapture(cfg, log.StandardLogger())
+	capture, err := NewAzureVmCapture(cfg, 3, log.StandardLogger())
 	require.NoError(t, err, trace.DebugReport(err))
 
-	err = capture.CaptureVM(context.Background())
+	img, err := capture.CaptureVM(context.Background())
 	require.NoError(t, err, trace.DebugReport(err))
+	require.NotNil(t, img, "vm image")
+	require.Equal(t, infra.VmImage{
+		Cloud:         constants.Azure,
+		Region:        cfg.Location,
+		ResourceGroup: cfg.ResourceGroup}, *img)
 }

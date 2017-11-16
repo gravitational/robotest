@@ -90,7 +90,7 @@ type VmImage struct {
 
 // VmCapture is an interface that stores current state of VM
 type VmCapture interface {
-	CaptureVM(context.Context) (VmImage, error)
+	CaptureVM(context.Context) (*VmImage, error)
 }
 
 // VmRegistry is a pre-captured VM locator

@@ -103,5 +103,14 @@ modprobe br_netfilter || true
 modprobe overlay || true
 sysctl -w net.bridge.bridge-nf-call-iptables=1
 
+# make the changes permanent
+cat > /usr/lib/sysctl.d/50-telekube.conf <<EOF
+net.bridge.bridge-nf-call-iptables=1
+EOF
+cat > /etc/modules-load.d/telekube.conf <<EOF
+br_netfilter
+overlay
+EOF
+
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete

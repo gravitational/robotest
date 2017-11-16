@@ -78,22 +78,6 @@ func (c *TestContext) Error() error {
 	return c.err
 }
 
-// Checkpoint will save test state as VM image
-func (c *TestContext) Checkpoint(checkpoint string) {
-	if c.vmCapture == nil || c.suite.imageRegistry == nil {
-		return
-	}
-
-	image, err := c.vmCapture.CaptureVM(c.Context())
-	c.OK("VM checkpoint capture", trace.Wrap(err))
-
-	err = c.suite.imageRegistry.Store(c.Context(), checkpoint, c.param, image)
-	c.OK("save VM image info to registry", trace.Wrap(err))
-
-	c.checkpointSaved = true
-	panic(checkpoint)
-}
-
 // OK verifies that specific phase completed without error
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()

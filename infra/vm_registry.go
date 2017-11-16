@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/datastore"
@@ -24,7 +23,7 @@ type dsVmEntry struct {
 	Checkpoint    string
 	Region        string
 	ResourceGroup string
-	Param         []byte         `datastore:"param,noindex"`
+	Param         string         `datastore:"param,noindex"`
 	K             *datastore.Key `datastore:"__key__"`
 }
 
@@ -41,6 +40,7 @@ func GCSDatastoreVmRegistry(ctx context.Context, projectID string, logger log.Fi
 	return &dsVmRegistry{client, logger}, nil
 }
 
+// Locate returns VM image or trace.NotFound when none was found
 func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, param interface{}) (*VmImage, error) {
 	var entries []dsVmEntry
 	q := datastore.NewQuery(vmEntryKind)
@@ -62,15 +62,16 @@ func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, par
 
 	for _, rec := range entries {
 		if rec.Cloud != cloud ||
-			rec.Cloud != constants.Azure ||
 			rec.Checkpoint != checkpoint ||
 			!rec.Enabled {
 			continue
 		}
 
 		err = compareJSON(paramGeneralized, rec.Param)
+		r.logger.WithError(err).Info(rec.Param)
 		if err == nil {
 			return &VmImage{
+				Cloud:         rec.Cloud,
 				Region:        rec.Region,
 				ResourceGroup: rec.ResourceGroup,
 			}, nil
@@ -78,18 +79,14 @@ func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, par
 		if trace.IsCompareFailed(err) {
 			continue
 		}
-		r.logger.WithFields(log.Fields{
-			"error":  err,
-			"entity": rec,
-		}).Warn("failed to parse %q", rec.Param)
 	}
 
-	return nil, trace.NotFound("VM image not found for cloud=%q, checkpoint=%q, param=%q", cloud, checkpoint, param)
+	return nil, trace.NotFound("VM image not found for cloud=%q, checkpoint=%q, param=%+v", cloud, checkpoint, param)
 }
 
-func compareJSON(orig map[string]interface{}, data []byte) error {
+func compareJSON(orig map[string]interface{}, encoded string) error {
 	var param map[string]interface{}
-	err := json.Unmarshal(data, &param)
+	err := json.Unmarshal([]byte(encoded), &param)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -113,7 +110,7 @@ func (r *dsVmRegistry) Store(ctx context.Context, checkpoint string, param inter
 			Cloud:         image.Cloud,
 			Region:        image.Region,
 			ResourceGroup: image.ResourceGroup,
-			Param:         data,
+			Param:         string(data),
 		})
 	return trace.Wrap(err)
 }

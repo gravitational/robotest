@@ -100,8 +100,6 @@ func (r *terraform) azurePrepare(ctx context.Context) (err error) {
 	}
 	defer f.Close()
 
-	log.WithField("config", r.Config).Warn("azurePrepare")
-
 	if r.Config.FromImage == nil {
 		err = tfVmInstallTemplate.Execute(f, struct{}{})
 		return trace.Wrap(err)
@@ -112,7 +110,7 @@ func (r *terraform) azurePrepare(ctx context.Context) (err error) {
 }
 
 // azureToken returns auth token based on Azure config provided
-func azureToken(cfg *infra.AzureConfig) (*adal.ServicePrincipalToken, error) {
+func azureToken(cfg infra.AzureConfig) (*adal.ServicePrincipalToken, error) {
 	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint,
 		cfg.TenantId)
 	if err != nil {
@@ -125,7 +123,7 @@ func azureToken(cfg *infra.AzureConfig) (*adal.ServicePrincipalToken, error) {
 }
 
 type azureVmCapture struct {
-	numNodes  int
+	numNodes  uint
 	config    infra.AzureConfig
 	logger    log.FieldLogger
 	vmClient  compute.VirtualMachinesClient
@@ -133,11 +131,11 @@ type azureVmCapture struct {
 }
 
 // NewAzureVmCapture returns
-func NewAzureVmCapture(cfg Config, logger log.FieldLogger) (*azureVmCapture, error) {
-	vmClient := compute.NewVirtualMachinesClient(cfg.Azure.SubscriptionId)
-	imgClient := compute.NewImagesClient(cfg.Azure.SubscriptionId)
+func NewAzureVmCapture(cfg infra.AzureConfig, numNodes uint, logger log.FieldLogger) (infra.VmCapture, error) {
+	vmClient := compute.NewVirtualMachinesClient(cfg.SubscriptionId)
+	imgClient := compute.NewImagesClient(cfg.SubscriptionId)
 
-	token, err := azureToken(cfg.Azure)
+	token, err := azureToken(cfg)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -147,8 +145,8 @@ func NewAzureVmCapture(cfg Config, logger log.FieldLogger) (*azureVmCapture, err
 	imgClient.Authorizer = authorizer
 
 	return &azureVmCapture{
-		numNodes:  cfg.NumNodes,
-		config:    *cfg.Azure,
+		numNodes:  numNodes,
+		config:    cfg,
 		vmClient:  vmClient,
 		imgClient: imgClient,
 		logger:    logger,
@@ -159,9 +157,10 @@ func NewAzureVmCapture(cfg Config, logger log.FieldLogger) (*azureVmCapture, err
 // by performing the following steps:
 // 1. deallocate VM
 // 2. make snapshot
-func (r *azureVmCapture) CaptureVM(ctx context.Context) error {
+func (r *azureVmCapture) CaptureVM(ctx context.Context) (*infra.VmImage, error) {
+	r.logger.Warnf("CAPTURE VM nodes=%d, config=%+v", r.numNodes, r.config)
 	errCh := make(chan error, r.numNodes)
-	for i := 0; i < r.numNodes; i++ {
+	for i := uint(0); i < r.numNodes; i++ {
 		go func(name string) {
 			err := r.deallocateVM(ctx, name)
 			if err != nil {
@@ -184,7 +183,15 @@ func (r *azureVmCapture) CaptureVM(ctx context.Context) error {
 	}
 
 	err := utils.CollectErrors(ctx, errCh)
-	return trace.Wrap(err)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return &infra.VmImage{
+		Cloud:         constants.Azure,
+		Region:        r.config.Location,
+		ResourceGroup: r.config.ResourceGroup,
+	}, nil
 }
 
 func (r *azureVmCapture) deallocateVM(ctx context.Context, vmName string) error {

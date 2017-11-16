@@ -214,7 +214,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	return &param, nil
 }
 
-func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, params *cloudDynamicParams, err error) {
+func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, vmCapture infra.VmCapture, params *cloudDynamicParams, err error) {
 	retr := wait.Retryer{
 		Delay:       defaults.TerraformRetryDelay,
 		Attempts:    defaults.TerraformRetries,
@@ -237,18 +237,23 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		}
 		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, *params)
 
-		if err == nil {
+		if err != nil {
+			logger.WithError(err).Warn("terraform provisioning error")
+			return wait.Continue(err.Error())
+		}
+
+		if params.CloudProvider != constants.Azure {
 			return nil
 		}
 
-		logger.WithError(err).Warn("terraform provisioning failed")
-		return wait.Continue(err.Error())
+		vmCapture, err = terraform.NewAzureVmCapture(*params.tf.Azure, cfg.nodeCount, logger)
+		if err != nil {
+			return wait.Abort(trace.Wrap(err))
+		}
+		return nil
 	})
 
-	if err == nil {
-		return nodes, destroyFn, params, nil
-	}
-	return nil, nil, nil, trace.Wrap(err)
+	return nodes, destroyFn, vmCapture, params, trace.Wrap(err)
 }
 
 // terraform deals with underlying terraform provisioner

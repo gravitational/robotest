@@ -33,6 +33,8 @@ type TestSuite interface {
 	Logger() logrus.FieldLogger
 	// Close disposes background resources
 	Close()
+	// SetSnapshotCapture sets suite into checkpoint capture mode
+	SetSnapshotCapture()
 }
 
 const (
@@ -76,8 +78,9 @@ type testSuite struct {
 	ctx                     context.Context
 	cancelFn                func()
 
-	logger        logrus.FieldLogger
-	imageRegistry infra.VmRegistry
+	logger           logrus.FieldLogger
+	imageRegistry    infra.VmRegistry
+	vmCaptureEnabled bool
 }
 
 // NewRun creates new group run environment
@@ -93,6 +96,12 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 		logger.WithError(err).Error("cloud logging not available")
 	}
 
+	imageRegistry, err := infra.GCSDatastoreVmRegistry(ctx,
+		googleProjectID, logger)
+	if err != nil {
+		logger.WithError(err).Error("VM registry not available")
+	}
+
 	progress, err := xlog.NewProgressReporter(ctx, googleProjectID, defaults.BQDataset, defaults.BQTable)
 	if err != nil {
 		logger.WithError(err).Error("cloud progress reporting not available")
@@ -100,13 +109,17 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	ctx, cancelFn := context.WithCancel(ctx)
 
 	return &testSuite{
-		RWMutex:         sync.RWMutex{},
-		googleProjectID: googleProjectID,
-		client:          client, progress: progress, uid: uid,
-		tests: []*TestContext{}, scheduled: scheduled, t: t,
-		failFast: failFast, isFailingFast: false,
-		ctx: ctx, cancelFn: cancelFn, logger: logger,
-		imageRegistry: nil}
+		sync.RWMutex{},
+		googleProjectID,
+		client, progress, uid,
+		[]*TestContext{}, scheduled, t,
+		failFast, false,
+		ctx, cancelFn, logger,
+		imageRegistry, false}
+}
+
+func (s *testSuite) SetSnapshotCapture() {
+	s.vmCaptureEnabled = true
 }
 
 func (s *testSuite) Logger() logrus.FieldLogger {
@@ -257,6 +270,11 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 	defer func() {
 		r := recover()
 		if r == nil {
+			cx.updateStatus(TestStatusPassed)
+			return
+		}
+
+		if cx.checkpointSaved {
 			cx.updateStatus(TestStatusPassed)
 			return
 		}

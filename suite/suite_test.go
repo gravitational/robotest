@@ -146,7 +146,7 @@ func TestMain(t *testing.T) {
 	setupSignals(suite)
 
 	if *vmCaptureMode {
-
+		suite.SetSnapshotCapture()
 	}
 
 	for r := 1; r <= *repeat; r++ {
