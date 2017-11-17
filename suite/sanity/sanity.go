@@ -18,7 +18,7 @@ var defaultInstallParam = installParam{
 
 const (
 	checkpointProvision = "provision"
-	checkpointInstall   = "provision"
+	checkpointInstall   = "install"
 )
 
 // Suite returns base configuration for a suite which may be further customized

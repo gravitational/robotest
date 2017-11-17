@@ -18,13 +18,22 @@ type dsVmRegistry struct {
 }
 
 type dsVmEntry struct {
-	Enabled       bool
-	Cloud         string
-	Checkpoint    string
-	Region        string
-	ResourceGroup string
-	Param         string         `datastore:"param,noindex"`
-	K             *datastore.Key `datastore:"__key__"`
+	// Enabled is whether this snapshot could be used for restore
+	Enabled bool `datastore:"enabled"`
+	// Cloud is which cloud provider the snapshot belongs to
+	Cloud string `datastore:"cloud"`
+	// Checkpoint is milestone in the cluster lifecycle when VM snapshot has been taken
+	Checkpoint string `datastore:"checkpoint"`
+	// Region is cloud region
+	Region string `datastore:"region"`
+	// ResourceGroup is resource group the VM snapshot belongs to
+	ResourceGroup string `datastore:"resource_group"`
+	// Param is JSON serialized list of parameters related to Checkpoint
+	Param string `datastore:"param,noindex"`
+	// Dir is directory where installer is located on the machine
+	InstallDir string `datastore:"dir"`
+	// K is entity key
+	K *datastore.Key `datastore:"__key__"`
 }
 
 const (
@@ -74,6 +83,7 @@ func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, par
 				Cloud:         rec.Cloud,
 				Region:        rec.Region,
 				ResourceGroup: rec.ResourceGroup,
+				InstallDir:    rec.InstallDir,
 			}, nil
 		}
 		if trace.IsCompareFailed(err) {

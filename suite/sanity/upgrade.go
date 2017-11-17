@@ -10,7 +10,9 @@ import (
 type upgradeParam struct {
 	installParam
 	// BaseInstallerURL is initial app installer URL
-	BaseInstallerURL string `json:"from" validate:"required"`
+	// it may be left blank if there's a suitable snapshot to restore
+	// based on "version" from installParam
+	BaseInstallerURL string `json:"from,omitempty"`
 }
 
 func (p upgradeParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
@@ -34,6 +36,9 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 		nodes, err := g.RestoreCheckpoint(cfg, checkpointInstall, param.installParam)
 
 		if trace.IsNotFound(err) {
+			g.Require("when no snapshot is available, URL to install from is required",
+				param.BaseInstallerURL != "")
+
 			nodes, err = provisionNodes(g, cfg, param.provisionParam)
 			g.OK("provision nodes", err)
 
@@ -42,6 +47,7 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 			g.OK("status", g.Status(nodes))
 		} else {
 			g.OK("restoring install from checkpoint", err)
+			g.OK("status", g.Status(nodes))
 		}
 
 		g.OK("upgrade", g.Upgrade(nodes, cfg.InstallerURL, "upgrade"))

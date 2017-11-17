@@ -124,7 +124,16 @@ func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string
 		return nil, trace.Wrap(err)
 	}
 	c.Logger().WithField("checkpoint", checkpoint).Infof("using checkpoint %q images from %+v", checkpoint, cfg.FromImage)
-	return c.Provision(cfg)
+
+	nodes, err = c.Provision(cfg)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	for _, n := range nodes {
+		n.(*gravity).installDir = cfg.FromImage.InstallDir
+	}
+	return nodes, nil
 }
 
 // Provision gets VMs up, running and ready to use

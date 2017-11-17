@@ -57,6 +57,11 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			"provisioner_policy": policy,
 			"test_status":        testStatus[c.Failed()]})
 
+		if c.checkpointSaved {
+			log.Debug("not destroying resource group with VM images")
+			return nil
+		}
+
 		skipLogCollection := false
 		ctx := c.Context()
 

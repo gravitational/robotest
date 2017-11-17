@@ -86,6 +86,8 @@ type VmImage struct {
 	Region string
 	// ResourceGroup is name of resource group which contains VM snapshots
 	ResourceGroup string
+	// InstallDir is directory containing installer binaries
+	InstallDir string
 }
 
 // VmCapture is an interface that stores current state of VM
