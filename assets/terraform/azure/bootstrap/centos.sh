@@ -92,7 +92,7 @@ echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
 systemctl disable firewalld || true
 systemctl stop firewalld || true
-iptables --flush
+iptables --flush --wait
 iptables --delete-chain
 iptables --table nat --flush
 iptables --table filter --flush
