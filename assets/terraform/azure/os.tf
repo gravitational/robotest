@@ -50,7 +50,7 @@ variable "os_version" {
         "ubuntu:latest"     = "16.04.201708151"
         "redhat:7.3" = "latest"
         "redhat:7.2" = "latest"
-        "redhat:7.4" = "latest"
+        "redhat:7.4" = "7.4.2017080923"
         "centos"     = "latest"
         "centos:7.4" = "7.4.20170919"
         "centos:7.3" = "7.3.20170925"
