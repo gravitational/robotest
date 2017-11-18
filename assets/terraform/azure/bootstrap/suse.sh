@@ -40,38 +40,45 @@ function get_timesync_bus_name {
 
 touch /var/lib/bootstrap_started
 
+#
+# system configs
+#
+echo "DefaultTasksMax=infinity" >> /etc/systemd/system.conf
+systemctl daemon-reexec
+
+modprobe br_netfilter || true
+modprobe overlay || true
+sysctl -w net.bridge.bridge-nf-call-iptables=1
+
+cat > /usr/lib/sysctl.d/60-telekube.conf <<EOF
+net.bridge.bridge-nf-call-iptables=1
+EOF
+cat > /etc/modules-load.d/telekube.conf <<EOF
+br_netfilter
+overlay
+EOF
+
 timesync_bus_name=$(get_timesync_bus_name)
 if [ ! -z "$timesync_bus_name" ]; then
   # disable Hyper-V host time sync 
   echo $timesync_bus_name > /sys/bus/vmbus/drivers/hv_util/unbind
 fi
 
-dnsrunning=0
-systemctl is-active --quiet dnsmasq || dnsrunning=$?
-if [ $dnsrunning -eq 0 ] ; then 
-  systemctl stop dnsmasq || true
-  systemctl disable dnsmasq 
-fi
+#
+# packages 
+#
 
-modprobe overlay
+zypper --no-color --non-interactive install chrony python unzip lvm2
+systemctl start chronyd
 
-mount
-
-if [[ $(source /etc/os-release ; echo $VERSION_ID ) == "7.2" ]] ; then
-  yum install -y yum-plugin-versionlock
-  yum versionlock \
-        lvm2-2.02.166-1.el7_3.4.x86_64 \
-        device-mapper-persistent-data-0.6.3-1.el7.x86_64 \
-        device-mapper-event-libs-1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-event-7:1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-libs-7:1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-7:1.02.135-1.el7_3.4.x86_64
-fi
-
-yum install -y chrony python unzip lvm2 device-mapper-persistent-data
 curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
 unzip awscli-bundle.zip
 ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
+
+#
+# storage
+#
+mount
 
 etcd_device=$(get_empty_device)
 [ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
@@ -83,34 +90,13 @@ mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
 mount /var/lib/gravity/planet/etcd
 
 chown -R 1000:1000 /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
-sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 sync
 docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-systemctl disable firewalld || true
-systemctl stop firewalld || true
-iptables --flush --wait
-iptables --delete-chain
-iptables --table nat --flush
-iptables --table filter --flush
-iptables --table nat --delete-chain
-iptables --table filter --delete-chain
-
-modprobe br_netfilter || true
-modprobe overlay || true
-sysctl -w net.bridge.bridge-nf-call-iptables=1
-
-# make the changes permanent
-cat > /usr/lib/sysctl.d/50-telekube.conf <<EOF
-net.bridge.bridge-nf-call-iptables=1
-EOF
-cat > /etc/modules-load.d/telekube.conf <<EOF
-br_netfilter
-overlay
-EOF
-
-# robotest might SSH before bootstrap script is complete (and will fail)
+#
+#
+#
 touch /var/lib/bootstrap_complete

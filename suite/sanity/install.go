@@ -79,6 +79,6 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 		g.OK("provision nodes", err)
 		g.Checkpoint(checkpointProvision, nodes)
 
-		//g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 	}, nil
 }
