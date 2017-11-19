@@ -28,7 +28,6 @@ $(TARGETS): $(BINARIES)
 	fi;
 	mkdir -p $(TEMPDIR)/build
 	cp -r ../assets/terraform $(TEMPDIR)
-	cp -a ../build/terraform-* $(TEMPDIR)/build/
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	if [ "$@" = "e2e" ]; then \

@@ -21,7 +21,8 @@ WORKDIR /robotest
 COPY build/robotest-suite /usr/bin/robotest-suite
 
 RUN mkdir -p /robotest/terraform-plugins
-COPY build/terraform-provider-azurerm_v0.3.2_x4 /robotest/terraform-plugins
+RUN curl https://s3-us-west-2.amazonaws.com/s3.gravitational.io/robotest/terraform-provider-azurerm_v0.3.2_x4 -o /robotest/terraform-plugins/terraform-provider-azurerm_v0.3.2_x4
+RUN chmod +x /robotest/terraform-plugins/terraform-provider-azurerm_v0.3.2_x4
 COPY terraform /robotest/terraform
 
 COPY run_suite.sh /usr/bin/run_suite.sh
