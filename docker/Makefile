@@ -1,4 +1,4 @@
-TARGETS := e2e suite
+TARGETS := suite
 DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 TAG ?= latest
