@@ -120,7 +120,6 @@ func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string
 	cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(),
 		cfg.CloudProvider, checkpoint, param)
 	if err != nil {
-		c.Logger().WithError(err).Warnf("error locating VM for checkpoint=%q, param=%+v", checkpoint, param)
 		return nil, trace.Wrap(err)
 	}
 	c.Logger().WithField("checkpoint", checkpoint).Infof("using checkpoint %q images from %+v", checkpoint, cfg.FromImage)
