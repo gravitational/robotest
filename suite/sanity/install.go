@@ -17,7 +17,7 @@ type provisionParam struct {
 
 type installParam struct {
 	provisionParam
-	Version string `json:"version" validate:"required"`
+	Version string `json:"version"` // FIXME: required if we're making snapshots
 }
 
 func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
