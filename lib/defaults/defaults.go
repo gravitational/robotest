@@ -38,7 +38,7 @@ const (
 	TerraformRetryDelay = 5 * time.Minute
 
 	// TerraformRetries
-	TerraformRetries = 1
+	TerraformRetries = 2
 
 	// BQDataset is bigquery dataset where run data is stored
 	BQDataset = "robotest"
@@ -47,5 +47,5 @@ const (
 	BQTable = "progress"
 
 	// MaxRetriesPerTest
-	MaxRetriesPerTest = 1
+	MaxRetriesPerTest = 2
 )
