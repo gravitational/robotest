@@ -58,5 +58,7 @@ type Config struct {
 	// NumNodes defines the capacity of the cluster to provision
 	NumNodes int `json:"nodes" validate:"gte=1"`
 	// InstallerURL is AWS S3 URL with the installer
-	InstallerURL string `json:"installer_url" validate:"required,url`
+	InstallerURL string `json:"installer_url" validate:"required"`
+	// DockerDevice block device for docker data - set to /dev/xvdb
+	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }

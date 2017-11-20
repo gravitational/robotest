@@ -25,4 +25,6 @@ type Config struct {
 	InstallerURL string `json:"installer_url"`
 	// NumNodes defines the capacity of the cluster to provision
 	NumNodes int `json:"nodes"`
+	// DockerDevice block device for docker data - set to /dev/xvdb
+	DockerDevice string `json:"docker_device"`
 }
