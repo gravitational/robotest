@@ -83,6 +83,7 @@ fi
 if [ $DEPLOY_TO == "ops" ] ; then
 OPS_CONFIG="ops:
   url: ${OPS_URL}
+  ops_key: ${OPS_KEY}
   app: ${OPS_APP}
   access_key: ${AWS_ACCESS_KEY}
   secret_key: ${AWS_SECRET_KEY}

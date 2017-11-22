@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"os"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
@@ -85,6 +86,10 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 
 	// first, we need to create a cluster from a template, and write it to a file that can be imported
 	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
+	err = os.MkdirAll(cfg.StateDir, 0644)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
 	defn, err := generateClusterDefn(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
@@ -135,7 +140,7 @@ Loop:
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
-	
+
 
 
 
