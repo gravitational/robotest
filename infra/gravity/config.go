@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+  "os"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/constants"
@@ -113,6 +114,10 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 		require.NotNil(t, cfg.Ops)
 		// generate a random cluster name, with atleast 128 bits of random data for low collision probabilities
 		cfg.Ops.ClusterName = fmt.Sprint("robotest-", rand.Uint64(), "-", rand.Uint64())
+
+    // set AWS environment variables to be used by subsequent commands
+    os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
+    os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.SecretKey)
 	default:
 		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
 	}
