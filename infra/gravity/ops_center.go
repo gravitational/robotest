@@ -56,23 +56,23 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 // on the built in template, and the provided provisioner configuration
 func generateClusterDefn(cfg ProvisionerConfig) (string, error) {
 	template, err := template.New("cluster").Parse(`
-		kind: cluster
-		version: v2
-		metadata:
-		  labels:
-		    Name: {{ .Ops.ClusterName }}
-		  name: {{ .Ops.ClusterName }}
-		spec:
-		  app: {{ .Ops.App }}
-		  aws:
-		    keyName: ops
-		    region: {{ .Ops.Region }}
-		  nodes:
-		    - profile: node
-		      count: {{ .NodeCount }}
-		      instanceType: c4.large
-		  provider: aws
-	`)
+kind: cluster
+version: v2
+metadata:
+  labels:
+    Name: {{ .Ops.ClusterName }}
+  name: {{ .Ops.ClusterName }}
+  spec:
+    app: {{ .Ops.App }}
+    aws:
+      keyName: ops
+      region: {{ .Ops.Region }}
+    nodes:
+    - profile: node
+      count: {{ .NodeCount }}
+      instanceType: c4.large
+    provider: aws`)
+
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
