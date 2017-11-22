@@ -86,7 +86,7 @@ OPS_CONFIG="ops:
 	app: ${OPS_APP}
 	access_key: ${AWS_ACCESS_KEY}
 	secret_key: ${AWS_SECRET_KEY}
-	region: ${AWS_REGION}
+	region: ${AWS_REGION}"
 fi
 
 if [ -n "${GCL_PROJECT_ID:-}" ] ; then

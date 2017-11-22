@@ -101,6 +101,8 @@ func setupSignals(suite gravity.TestSuite) {
 // right now it'll just invoke sanity suite
 func TestMain(t *testing.T) {
 	if *testSuite == "" || *tag == "" {
+		logrus.Error("testSuite: ", testSuite)
+		logrus.Error("tag: ", tag)
 		flag.Usage()
 		t.Fatal("options required")
 	}
