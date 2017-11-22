@@ -29,7 +29,12 @@ func getTeleClusterStatus(clusterName string) (string, error) {
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
-	return parseClusterStatus(clusterName, bytes.NewReader(out))
+	res, err := parseClusterStatus(clusterName, bytes.NewReader(out))
+  if err != nil {
+    logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
+		return "", trace.WrapWithMessage(err, string(out))
+  }
+  return res, nil
 }
 
 func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
