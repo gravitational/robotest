@@ -18,6 +18,7 @@ import (
 	"github.com/go-yaml/yaml"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/go-playground/validator.v9"
+  "github.com/satori/go.uuid"
 )
 
 // OS represents OS vendor/version
@@ -112,8 +113,8 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 		cfg.dockerDevice = cfg.AWS.DockerDevice
 	case "ops":
 		require.NotNil(t, cfg.Ops)
-		// generate a random cluster name, with atleast 128 bits of random data for low collision probabilities
-		cfg.Ops.ClusterName = fmt.Sprint("robotest-", rand.Uint64(), "-", rand.Uint64())
+		// generate a random cluster name
+		cfg.Ops.ClusterName = fmt.Sprint("robotest-", uuid.NewV4().String())
 
     // set AWS environment variables to be used by subsequent commands
     os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
