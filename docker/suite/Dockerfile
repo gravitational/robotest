@@ -16,6 +16,8 @@ RUN    curl https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
         /tmp/* \
         /terraform_linux_amd64.zip
 
+RUN (curl https://get.gravitational.io/telekube/install | bash)
+
 RUN mkdir -p /robotest
 WORKDIR /robotest
 COPY build/robotest-suite /usr/bin/robotest-suite

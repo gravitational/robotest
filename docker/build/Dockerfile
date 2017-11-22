@@ -21,6 +21,4 @@ RUN (wget https://github.com/Masterminds/glide/releases/download/$GLIDE_VER/glid
 	tar -xvf glide-$GLIDE_VER-linux-amd64.tar.gz -C /go/bin linux-amd64/glide --strip-components=1 && \
 	rm glide-$GLIDE_VER-linux-amd64.tar.gz)
 
-RUN (curl https://get.gravitational.io/telekube/install | bash)
-
 VOLUME ["/go/src/github.com/gravitational/robotest"]
