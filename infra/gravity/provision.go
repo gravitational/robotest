@@ -23,6 +23,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
+  "github.com/satori/go.uuid"
 )
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
@@ -79,6 +80,9 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
 
+  // generate a random cluster name
+  clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
+
 	err := validateConfig(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
@@ -90,7 +94,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
-	defn, err := generateClusterDefn(cfg)
+	defn, err := generateClusterDefn(cfg, clusterName)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
@@ -120,7 +124,7 @@ Loop:
 			return nil, nil, errors.New("clusterInitTimeout exceeded")
 		case <-tick:
 			// check provisioning status
-			status, err := getTeleClusterStatus(cfg.Ops.ClusterName)
+			status, err := getTeleClusterStatus(clusterName)
 			if err != nil {
 				return nil, nil, trace.Wrap(err)
 			}
@@ -142,7 +146,7 @@ Loop:
 
 
 
-	return nil, cfg.DestroyOpsFn(c), trace.Wrap(errors.New("not implemented"))
+	return nil, cfg.DestroyOpsFn(c, clusterName), trace.Wrap(errors.New("not implemented"))
 }
 
 // Provision gets VMs up, running and ready to use

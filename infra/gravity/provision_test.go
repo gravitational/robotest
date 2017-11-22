@@ -10,14 +10,13 @@ import (
 func TestGenerateOpsClusterDefn(t *testing.T) {
 	cfg := ProvisionerConfig{
 		Ops: &infra.OpsConfig{
-			ClusterName: "test",
-			App:         "abc:1.2.3",
-			Region:      "us-east-2",
+			App:    "abc:1.2.3",
+			Region: "us-east-2",
 		},
 		NodeCount: 5,
 	}
 
-	defn, err := generateClusterDefn(cfg)
+	defn, err := generateClusterDefn(cfg, "test")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()

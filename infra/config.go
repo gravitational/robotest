@@ -116,6 +116,4 @@ type OpsConfig struct {
 	SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
 	// Region specifies the EC2 region to install into
 	Region string `json:"region" yaml:"region" validate:"required"`
-	// ClusterName is the name of the cluster in ops center. It is automatically generated / assigned by robotest
-	ClusterName string `json:"cluster_name" yaml:"cluster_name"`
 }

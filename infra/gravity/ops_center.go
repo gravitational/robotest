@@ -25,6 +25,7 @@ var (
 func getTeleClusterStatus(clusterName string) (string, error) {
 	out, err := exec.Command("tele", "get", "clusters", clusterName).Output()
 	if err != nil {
+    logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
@@ -54,22 +55,22 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 
 // generateClusterConfig will generate the specified cluster configuration based
 // on the built in template, and the provided provisioner configuration
-func generateClusterDefn(cfg ProvisionerConfig) (string, error) {
+func generateClusterDefn(cfg ProvisionerConfig, clusterName string) (string, error) {
 	template, err := template.New("cluster").Parse(`
 kind: cluster
 version: v2
 metadata:
   labels:
-    Name: {{ .Ops.ClusterName }}
-  name: {{ .Ops.ClusterName }}
+    Name: {{ .ClusterName }}
+  name: {{ .ClusterName }}
 spec:
-  app: {{ .Ops.App }}
+  app: {{ .Cfg.Ops.App }}
   aws:
     keyName: ops
-    region: {{ .Ops.Region }}
+    region: {{ .Cfg.Ops.Region }}
   nodes:
   - profile: node
-    count: {{ .NodeCount }}
+    count: {{ .Cfg.NodeCount }}
     instanceType: c4.large
   provider: aws`)
 
@@ -77,7 +78,13 @@ spec:
 		return "", trace.Wrap(err)
 	}
 	buf := &bytes.Buffer{}
-	err = template.Execute(buf, cfg)
+	err = template.Execute(buf, struct {
+    Cfg ProvisionerConfig
+    ClusterName string
+  }{
+    cfg,
+    clusterName,
+  })
 	if err != nil {
 		return "", err
 	}
@@ -85,10 +92,10 @@ spec:
 }
 
 // DestroyOpsFn will delete the provisioned cluster
-func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext) func() error {
+func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) func() error {
 	return func() error {
     log := tc.Logger().WithFields(logrus.Fields{
-			"cluster": c.Ops.ClusterName,
+			"cluster": clusterName,
 		})
 
     // if the TestContext has an error, it means this robotest run failed
@@ -108,7 +115,7 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext) func() error {
     // Destroy the cluster
 		log.Info("destroying cluster")
 
-    out, err := exec.Command("tele", "rm", "cluster", c.Ops.ClusterName).Output()
+    out, err := exec.Command("tele", "rm", "cluster", clusterName).Output()
 		if err != nil {
 			return err
 		}
@@ -124,7 +131,7 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext) func() error {
 				return errors.New("clusterDestroy timeout exceeded")
 			case <-tick:
 				// check provisioning status
-				status, err := getTeleClusterStatus(c.Ops.ClusterName)
+				status, err := getTeleClusterStatus(clusterName)
 				if err != nil && err.Error() == errClusterNotFound.Error() {
 					// de-provisioning completed
           return nil
