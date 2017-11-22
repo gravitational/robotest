@@ -25,7 +25,7 @@ var (
 func getTeleClusterStatus(clusterName string) (string, error) {
 	out, err := exec.Command("tele", "get", "clusters", clusterName).Output()
 	if err != nil {
-		return "", err
+		return "", trace.WrapWithMessage(err, string(out))
 	}
 
 	return parseClusterStatus(clusterName, bytes.NewReader(out))

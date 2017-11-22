@@ -100,15 +100,13 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	}
 
 	// next, we need to login to the ops center and tell it to create our cluster
-	cmd := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey)
-	err = cmd.Run()
+	out, err := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey).Output()
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.WrapWithMessage(err, string(out))
 	}
-	cmd = exec.Command("tele", "create", clusterPath)
-	err = cmd.Run()
+	out, err = exec.Command("tele", "create", clusterPath).Output()
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.WrapWithMessage(err, string(out))
 	}
 
 	// monitor the cluster until it's created or times out

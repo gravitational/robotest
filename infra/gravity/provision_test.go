@@ -24,23 +24,22 @@ func TestGenerateOpsClusterDefn(t *testing.T) {
 	}
 
 	if defn != `
-		kind: cluster
-		version: v2
-		metadata:
-		  labels:
-		    Name: test
-		  name: test
-		spec:
-		  app: abc:1.2.3
-		  aws:
-		    keyName: ops
-		    region: us-east-2
-		  nodes:
-		    - profile: node
-		      count: 5
-		      instanceType: c4.large
-		  provider: aws
-	` {
+kind: cluster
+version: v2
+metadata:
+  labels:
+    Name: test
+  name: test
+spec:
+  app: abc:1.2.3
+  aws:
+    keyName: ops
+    region: us-east-2
+  nodes:
+  - profile: node
+    count: 5
+    instanceType: c4.large
+  provider: aws` {
 		t.Error("generated cluster configuration doesn't match expected output")
 		log.Info(defn)
 	}
