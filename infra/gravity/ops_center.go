@@ -62,16 +62,16 @@ metadata:
   labels:
     Name: {{ .Ops.ClusterName }}
   name: {{ .Ops.ClusterName }}
-  spec:
-    app: {{ .Ops.App }}
-    aws:
-      keyName: ops
-      region: {{ .Ops.Region }}
-    nodes:
-    - profile: node
-      count: {{ .NodeCount }}
-      instanceType: c4.large
-    provider: aws`)
+spec:
+  app: {{ .Ops.App }}
+  aws:
+    keyName: ops
+    region: {{ .Ops.Region }}
+  nodes:
+  - profile: node
+    count: {{ .NodeCount }}
+    instanceType: c4.large
+  provider: aws`)
 
 	if err != nil {
 		return "", trace.Wrap(err)
