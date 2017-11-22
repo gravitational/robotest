@@ -48,4 +48,7 @@ const (
 
 	// Azure is microsoft azure cloud
 	Azure = "azure"
+
+	// Ops is ops center
+	Ops = "ops"
 )

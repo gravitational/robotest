@@ -101,3 +101,21 @@ type AzureConfig struct {
 	// DockerDevice block device for docker data - set to /dev/sdd
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }
+
+// OpsConfig specified Ops center specific parameters
+type OpsConfig struct {
+	// URL to the ops center to use for deployment
+	URL string `json:"url" yaml:"url" validate:"required"`
+	// OpsKey is the key to connect to the ops center
+	OpsKey string `json:"ops_key" yaml:"ops_key" validate:"required"`
+	// APP on the ops center to deploy
+	App string `json:"app" yaml:"app" validate:"required"`
+	// AccessKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	AccessKey string `json:"access_key" yaml:"access_key" validate:"required"`
+	// SecretKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
+	// Region specifies the EC2 region to install into
+	Region string `json:"region" yaml:"region" validate:"required"`
+	// ClusterName is the name of the cluster in ops center. It is automatically generated / assigned by robotest
+	ClusterName string `json:"cluster_name" yaml:"cluster_name"`
+}

@@ -2,7 +2,11 @@ package gravity
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -57,8 +61,89 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 	return sorted(gravityNodes), nil
 }
 
-// Provision gets VMs up, running and ready to use
+// Provision will attempt to provision the requested cluster
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	switch cfg.CloudProvider {
+	case "azure", "aws":
+		return c.provisionCloud(cfg)
+	case "ops":
+		return c.provisionOps(cfg)
+	default:
+		return nil, nil, trace.Wrap(errors.New("unknown cloud provider"))
+	}
+}
+
+// provisionOps splits off the provisioning call flow to use an ops center and the provisioner specified by the app
+// to provision the cluster to test
+func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
+
+	err := validateConfig(cfg)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	// first, we need to create a cluster from a template, and write it to a file that can be imported
+	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
+	defn, err := generateClusterDefn(cfg)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	err = ioutil.WriteFile(clusterPath, []byte(defn), 0644)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	// next, we need to login to the ops center and tell it to create our cluster
+	cmd := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey)
+	err = cmd.Run()
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	cmd = exec.Command("tele", "create", clusterPath)
+	err = cmd.Run()
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	// monitor the cluster until it's created or times out
+	timeout := time.After(cloudInitTimeout)
+	tick := time.Tick(5 * time.Second)
+
+Loop:
+	for {
+		select {
+		case <-timeout:
+			return nil, nil, errors.New("clusterInitTimeout exceeded")
+		case <-tick:
+			// check provisioning status
+			status, err := getTeleClusterStatus(cfg.Ops.ClusterName)
+			if err != nil {
+				return nil, nil, trace.Wrap(err)
+			}
+
+			switch status {
+			case "installing":
+				// we're still installing, just continue the loop
+			case "active":
+				// the cluster install completed, we can continue the install process
+				break Loop
+			default:
+				return nil, nil, trace.Wrap(fmt.Errorf("unexpected cluster status: %v", status))
+			}
+		}
+	}
+
+	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
+	
+
+
+
+	return nil, cfg.DestroyOpsFn(c), trace.Wrap(errors.New("not implemented"))
+}
+
+// Provision gets VMs up, running and ready to use
+func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
 
 	err := validateConfig(cfg)

@@ -47,7 +47,7 @@ check_files () {
 	fi
 }
 
-if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] ; then
+if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] && [ $DEPLOY_TO != "ops" ] ; then
 	echo "Unsupported deployment cloud ${DEPLOY_TO}"
 	exit 1
 fi
@@ -80,6 +80,15 @@ AZURE_CONFIG="azure:
   docker_device: /dev/sdd"
 fi
 
+if [ $DEPLOY_TO == "ops" ] ; then
+OPS_CONFIG="ops:
+  url: ${OPS_URL}
+	app: ${OPS_APP}
+	access_key: ${AWS_ACCESS_KEY}
+	secret_key: ${AWS_SECRET_KEY}
+	region: ${AWS_REGION}
+fi
+
 if [ -n "${GCL_PROJECT_ID:-}" ] ; then
 	check_files ${GOOGLE_APPLICATION_CREDENTIALS}
 fi
@@ -91,6 +100,7 @@ state_dir: /robotest/state
 cloud: ${DEPLOY_TO}
 ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
+${OPS_CONFIG:-}
 "
 
 # will make verbose logging to console, pass -test.v if needed

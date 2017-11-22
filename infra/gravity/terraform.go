@@ -181,7 +181,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      int(baseConfig.nodeCount),
+		NumNodes:      int(baseConfig.NodeCount),
 		OS:            baseConfig.os.String(),
 	}
 

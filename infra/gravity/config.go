@@ -74,6 +74,8 @@ type ProvisionerConfig struct {
 	AWS *infra.AWSConfig `yaml:"aws"`
 	// Azure defines Azure connection parameters
 	Azure *infra.AzureConfig `yaml:"azure"`
+	// Ops defines Ops Center connection parameters
+	Ops *infra.OpsConfig `yaml:"ops"`
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
@@ -85,7 +87,7 @@ type ProvisionerConfig struct {
 	// Tag will group provisioned resources under for easy removal afterwards
 	tag string `validate:"required"`
 	// NodeCount defines amount of nodes to be provisioned
-	nodeCount uint `validate:"gte=1"`
+	NodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
 	os OS `validate:"required"`
 	// dockerStorageDriver defines Docker storage driver
@@ -107,6 +109,10 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	case "aws":
 		require.NotNil(t, cfg.AWS)
 		cfg.dockerDevice = cfg.AWS.DockerDevice
+	case "ops":
+		require.NotNil(t, cfg.Ops)
+		// generate a random cluster name, with atleast 128 bits of random data for low collision probabilities
+		cfg.Ops.ClusterName = fmt.Sprint("robotest-", rand.Uint64(), "-", rand.Uint64())
 	default:
 		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
 	}
@@ -135,7 +141,7 @@ func (config ProvisionerConfig) WithNodes(nodes uint) ProvisionerConfig {
 	extra := fmt.Sprintf("%dn", nodes)
 
 	cfg := config
-	cfg.nodeCount = nodes
+	cfg.NodeCount = nodes
 	cfg.tag = fmt.Sprintf("%s-%s", cfg.tag, extra)
 	cfg.StateDir = filepath.Join(cfg.StateDir, extra)
 
@@ -170,7 +176,7 @@ func (config ProvisionerConfig) WithStorageDriver(storageDriver StorageDriver) P
 // validateConfig checks that key parameters are present
 func validateConfig(config ProvisionerConfig) error {
 	switch config.CloudProvider {
-	case constants.AWS, constants.Azure:
+	case constants.AWS, constants.Azure, constants.Ops:
 	default:
 		return trace.BadParameter("unknown cloud provider %s", config.CloudProvider)
 	}
