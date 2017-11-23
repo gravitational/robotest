@@ -238,7 +238,7 @@ func (r *terraform) UploadUpdate(session *ssh.Session) error {
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
-	return fmt.Sprintf("/home/%s/installer/gravity.log", r.sshUser)
+	return fmt.Sprintf("/home/%s/installer/telekube-system.log", r.sshUser)
 }
 
 func (r *terraform) State() infra.ProvisionerState {
