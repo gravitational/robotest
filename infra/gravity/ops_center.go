@@ -23,7 +23,7 @@ var (
 // for now, it's just looking for the specific line of output from tele get clusters
 // but could parse the entire yaml structure if imported from gravity
 func getTeleClusterStatus(clusterName string) (string, error) {
-	out, err := exec.Command("tele", "get", "clusters", clusterName).Output()
+	out, err := exec.Command("tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
     logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
