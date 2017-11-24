@@ -169,8 +169,8 @@ Loop:
 	gravityNodes := []Gravity{}
 	for _, reservation := range resp.Reservations {
 		for _, inst := range reservation.Instances {
-			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress)
-			gravityNodes = append(gravityNodes, node.(Gravity), cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
+			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
+			gravityNodes = append(gravityNodes, node.(Gravity))
 		}
 	}
 
