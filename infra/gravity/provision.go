@@ -166,11 +166,21 @@ Loop:
 	}
 	resp, err := ec2svc.DescribeInstances(params)
 
+	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
+	defer cancel()
 	gravityNodes := []Gravity{}
 	for _, reservation := range resp.Reservations {
 		for _, inst := range reservation.Instances {
 			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
-			gravityNodes = append(gravityNodes, node.(Gravity))
+			cloudParams, err := makeDynamicParams(cfg)
+			if err != nil {
+				return nil, nil, trace.Wrap(err)
+			}
+			gravityNode, err := configureVM(ctx, c.Logger(), node, *cloudParams)
+			if err != nil {
+				return nil, nil, trace.Wrap(err)
+			}
+			gravityNodes = append(gravityNodes, gravityNode)
 		}
 	}
 
@@ -340,6 +350,8 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 		err = bootstrapAWS(ctx, g, param)
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
+	case "ops":
+		err = bootstrapAWS(ctx, g, param)
 	default:
 		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
 	}
