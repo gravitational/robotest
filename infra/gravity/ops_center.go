@@ -76,7 +76,7 @@ spec:
   nodes:
   - profile: node
     count: {{ .Cfg.NodeCount }}
-    instanceType: c4.large
+    instanceType: c4.2xlarge
   provider: aws`)
 
 	if err != nil {

@@ -37,7 +37,7 @@ spec:
   nodes:
   - profile: node
     count: 5
-    instanceType: c4.large
+    instanceType: c4.2xlarge
   provider: aws` {
 		t.Error("generated cluster configuration doesn't match expected output")
 		log.Info(defn)
