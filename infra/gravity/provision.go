@@ -70,14 +70,27 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 // Provision will attempt to provision the requested cluster
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	var nodes []Gravity
+	var destroy DestroyFn
+	var err error
 	switch cfg.CloudProvider {
 	case "azure", "aws":
-		return c.provisionCloud(cfg)
+		nodes, destroy, err = c.provisionCloud(cfg)
 	case "ops":
-		return c.provisionOps(cfg)
+		nodes, destroy, err = c.provisionOps(cfg)
 	default:
-		return nil, nil, trace.Wrap(errors.New("unknown cloud provider"))
+		nodes, destroy, err = nil, nil, trace.Wrap(errors.New("unknown cloud provider"))
 	}
+
+	// if we get an error during provision, let's try and call the DestroyFn if it's been provided to clean up any resources
+	if err != nil && destroy != nil {
+		dErr := destroy()
+		if dErr != nil {
+			err = trace.NewAggregate(err, dErr)
+		}
+	}
+
+	return nodes, destroy, err
 }
 
 // provisionOps splits off the provisioning call flow to use an ops center and the provisioner specified by the app
@@ -133,21 +146,25 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 		return nil, nil, trace.WrapWithMessage(err, string(out))
 	}
 
+	// now that we've requested cluster creation, let's setup our destroyFn so that we can clean up after ourselves
+	destroyFn := cfg.DestroyOpsFn(c, clusterName)
+
 	// monitor the cluster until it's created or times out
 	timeout := time.After(cloudInitTimeout)
-	tick := time.Tick(5 * time.Second)
+	tick := time.Tick(15 * time.Second)
 
 	c.Logger().Debug("waiting for ops center provisioning to complete")
 Loop:
 	for {
 		select {
 		case <-timeout:
-			return nil, nil, errors.New("clusterInitTimeout exceeded")
+			return nil, destroyFn, errors.New("clusterInitTimeout exceeded")
 		case <-tick:
 			// check provisioning status
 			status, err := getTeleClusterStatus(clusterName)
+			c.Logger().WithField("status", status).Debug("provisioning status")
 			if err != nil {
-				return nil, nil, trace.Wrap(err)
+				return nil, destroyFn, trace.Wrap(err)
 			}
 
 			switch status {
@@ -157,7 +174,7 @@ Loop:
 				// the cluster install completed, we can continue the install process
 				break Loop
 			default:
-				return nil, nil, trace.Wrap(fmt.Errorf("unexpected cluster status: %v", status))
+				return nil, destroyFn, trace.Wrap(fmt.Errorf("unexpected cluster status: %v", status))
 			}
 		}
 	}
@@ -175,7 +192,7 @@ Loop:
 	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
 	resp, err := ec2svc.DescribeInstances(params)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, destroyFn, trace.Wrap(err)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
@@ -188,12 +205,12 @@ Loop:
 			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
 			cloudParams, err := makeDynamicParams(cfg)
 			if err != nil {
-				return nil, nil, trace.Wrap(err)
+				return nil, destroyFn, trace.Wrap(err)
 			}
 			c.Logger().Debug("configureVM on gravity node")
 			gravityNode, err := configureVM(ctx, c.Logger(), node, *cloudParams)
 			if err != nil {
-				return nil, nil, trace.Wrap(err)
+				return nil, destroyFn, trace.Wrap(err)
 			}
 			gravityNodes = append(gravityNodes, gravityNode)
 		}
@@ -202,7 +219,7 @@ Loop:
 	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, destroyFn, trace.Wrap(err)
 	}
 
 	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
@@ -212,11 +229,11 @@ Loop:
 	if err != nil {
 		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
 		c.Logger().WithError(err).Error(err.Error())
-		return nil, nil, err
+		return nil, destroyFn, err
 	}
 
 	c.Logger().Info("provisioning complete")
-	return gravityNodes, cfg.DestroyOpsFn(c, clusterName), nil
+	return gravityNodes, destroyFn, nil
 }
 
 // Provision gets VMs up, running and ready to use
