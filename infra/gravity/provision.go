@@ -85,15 +85,33 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
 
+	// ensure third aprty connections are working first, before wasting a bunch of time
+	c.Logger().Debug("attempting to connect to AWS api")
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String(cfg.Ops.Region),
+		Credentials: credentials.NewStaticCredentials(cfg.Ops.AccessKey, cfg.Ops.SecretKey, ""),
+	})
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	c.Logger().Debug("logging into the ops center")
+	out, err := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey).Output()
+	if err != nil {
+		return nil, nil, trace.WrapWithMessage(err, string(out))
+	}
+
 	// generate a random cluster name
 	clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
+	c.Logger().Debug("Generated cluster name: ", clusterName)
 
-	err := validateConfig(cfg)
+	c.Logger().Debug("validating configuration")
+	err = validateConfig(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
 	// first, we need to create a cluster from a template, and write it to a file that can be imported
+	c.Logger().Debug("generating cluster.yaml for ops center")
 	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
 	err = os.MkdirAll(cfg.StateDir, 0777)
 	if err != nil {
@@ -108,11 +126,8 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 		return nil, nil, trace.Wrap(err)
 	}
 
-	// next, we need to login to the ops center and tell it to create our cluster
-	out, err := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey).Output()
-	if err != nil {
-		return nil, nil, trace.WrapWithMessage(err, string(out))
-	}
+	// next, we need to tell the ops center to create our cluster
+	c.Logger().Debug("requesting ops center to provision our cluster")
 	out, err = exec.Command("tele", "create", clusterPath).Output()
 	if err != nil {
 		return nil, nil, trace.WrapWithMessage(err, string(out))
@@ -122,6 +137,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	timeout := time.After(cloudInitTimeout)
 	tick := time.Tick(5 * time.Second)
 
+	c.Logger().Debug("waiting for ops center provisioning to complete")
 Loop:
 	for {
 		select {
@@ -147,14 +163,6 @@ Loop:
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(cfg.Ops.Region),
-		Credentials: credentials.NewStaticCredentials(cfg.Ops.AccessKey, cfg.Ops.SecretKey, ""),
-	})
-
-	if err != nil {
-		return nil, nil, trace.Wrap(err)
-	}
 	ec2svc := ec2.New(sess)
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -164,18 +172,25 @@ Loop:
 			},
 		},
 	}
+	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
 	resp, err := ec2svc.DescribeInstances(params)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 	gravityNodes := []Gravity{}
 	for _, reservation := range resp.Reservations {
 		for _, inst := range reservation.Instances {
+			c.Logger().Debugf("building new node for testing. public_ip: %v private_ip: %v ssh_user: %v ssh_key_path: %v",
+				*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
 			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
 			cloudParams, err := makeDynamicParams(cfg)
 			if err != nil {
 				return nil, nil, trace.Wrap(err)
 			}
+			c.Logger().Debug("configureVM on gravity node")
 			gravityNode, err := configureVM(ctx, c.Logger(), node, *cloudParams)
 			if err != nil {
 				return nil, nil, trace.Wrap(err)
@@ -184,11 +199,13 @@ Loop:
 		}
 	}
 
+	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
 
+	c.Logger().Info("provisioning complete")
 	return gravityNodes, cfg.DestroyOpsFn(c, clusterName), nil
 }
 
