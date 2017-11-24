@@ -395,7 +395,8 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
 	case "ops":
-
+		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
+		g.installDir = "/bin"
 	default:
 		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
 	}
