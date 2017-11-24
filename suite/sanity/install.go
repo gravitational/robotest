@@ -36,8 +36,11 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
-		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
-		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
+		// The OPS cloud provider will install the application during provisioning
+		if cfg.CloudProvider != "ops" {
+			g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+			g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
+		}
 		g.OK("status", g.Status(nodes))
 	}, nil
 }
