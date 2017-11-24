@@ -169,6 +169,9 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"redhat": "redhat",
 			"centos": "centos",
 		},
+		"ops": map[string]string{
+			"centos": "centos",
+		},
 	}
 
 	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
