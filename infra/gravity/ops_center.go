@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gravitational/trace"
-  "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -25,16 +25,16 @@ var (
 func getTeleClusterStatus(clusterName string) (string, error) {
 	out, err := exec.Command("tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
-    logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
+		logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
 	res, err := parseClusterStatus(clusterName, bytes.NewReader(out))
-  if err != nil {
-    logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
+	if err != nil {
+		logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
-  }
-  return res, nil
+	}
+	return res, nil
 }
 
 func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
@@ -84,12 +84,12 @@ spec:
 	}
 	buf := &bytes.Buffer{}
 	err = template.Execute(buf, struct {
-    Cfg ProvisionerConfig
-    ClusterName string
-  }{
-    cfg,
-    clusterName,
-  })
+		Cfg         ProvisionerConfig
+		ClusterName string
+	}{
+		cfg,
+		clusterName,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -99,12 +99,12 @@ spec:
 // DestroyOpsFn will delete the provisioned cluster
 func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) func() error {
 	return func() error {
-    log := tc.Logger().WithFields(logrus.Fields{
+		log := tc.Logger().WithFields(logrus.Fields{
 			"cluster": clusterName,
 		})
 
-    // if the TestContext has an error, it means this robotest run failed
-    if tc.Context().Err() != nil {
+		// if the TestContext has an error, it means this robotest run failed
+		if tc.Context().Err() != nil {
 			log.WithError(tc.Context().Err()).Info("error caught in testing")
 
 			if policy.DestroyOnFailure == false {
@@ -117,17 +117,17 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 			}
 		}
 
-    // Destroy the cluster
+		// Destroy the cluster
 		log.Info("destroying cluster")
 
-    out, err := exec.Command("tele", "rm", "cluster", clusterName).Output()
+		out, err := exec.Command("tele", "rm", "cluster", clusterName).Output()
 		if err != nil {
 			return err
 		}
-    log.Info("tele rm result: ", string(out))
+		log.Info("tele rm result: ", string(out))
 
 		// monitor the cluster until it's gone
-		timeout := time.After(cloudInitTimeout)
+		timeout := time.After(DefaultTimeouts.Uninstall)
 		tick := time.Tick(5 * time.Second)
 
 		for {
@@ -139,11 +139,11 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 				status, err := getTeleClusterStatus(clusterName)
 				if err != nil && err.Error() == errClusterNotFound.Error() {
 					// de-provisioning completed
-          return nil
+					return nil
 				}
-        if err != nil {
-          return trace.Wrap(err)
-        }
+				if err != nil {
+					return trace.Wrap(err)
+				}
 
 				switch status {
 				case "uninstalling":

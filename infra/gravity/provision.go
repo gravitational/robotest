@@ -5,15 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/ops"
 	"github.com/gravitational/robotest/infra/terraform"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
@@ -22,8 +27,8 @@ import (
 	"github.com/gravitational/trace"
 
 	"github.com/dustin/go-humanize"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-  "github.com/satori/go.uuid"
 )
 
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
@@ -80,8 +85,8 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
 
-  // generate a random cluster name
-  clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
+	// generate a random cluster name
+	clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
 
 	err := validateConfig(cfg)
 	if err != nil {
@@ -142,11 +147,39 @@ Loop:
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String(cfg.Ops.Region),
+		Credentials: credentials.NewStaticCredentials(cfg.Ops.AccessKey, cfg.Ops.SecretKey, ""),
+	})
 
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	ec2svc := ec2.New(sess)
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("tag:KubernetesCluster"),
+				Values: []*string{aws.String(clusterName)},
+			},
+		},
+	}
+	resp, err := ec2svc.DescribeInstances(params)
 
+	gravityNodes := []Gravity{}
+	for _, reservation := range resp.Reservations {
+		for _, inst := range reservation.Instances {
+			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress)
+			gravityNodes = append(gravityNodes, node.(Gravity), cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
+		}
+	}
 
+	err = c.postProvision(cfg, gravityNodes)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
 
-	return nil, cfg.DestroyOpsFn(c, clusterName), trace.Wrap(errors.New("not implemented"))
+	return gravityNodes, cfg.DestroyOpsFn(c, clusterName), nil
 }
 
 // Provision gets VMs up, running and ready to use
@@ -173,12 +206,23 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
+	err = c.postProvision(cfg, gravityNodes)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
+
+	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+}
+
+func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
 	c.Logger().Debug("Streaming logs")
 	for _, node := range gravityNodes {
 		go node.(*gravity).streamLogs(c.Context())
 	}
 
-	ctx, cancel = context.WithTimeout(c.Context(), clockSyncTimeout)
+	ctx, cancel := context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
 	c.Logger().Debug("Synchronizing clocks")
@@ -187,22 +231,19 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
+		return trace.Wrap(err)
 	}
 
 	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
 	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
 	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
+	err := waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
 	if err != nil {
 		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
 		c.Logger().WithError(err).Error(err.Error())
-		return nil, nil, err
+		return err
 	}
-
-	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
-
-	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+	return nil
 }
 
 // sort Interface implementation

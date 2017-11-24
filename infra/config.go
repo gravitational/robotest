@@ -116,4 +116,9 @@ type OpsConfig struct {
 	SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
 	// Region specifies the EC2 region to install into
 	Region string `json:"region" yaml:"region" validate:"required"`
+	// KeyPath specifies the location of the SSH key to use for remote access.
+	// Mandatory only with terraform provisioner
+	SSHKeyPath string `json:"key_path" yaml:"key_path"`
+	// SSHUser defines SSH user used to connect to the provisioned machines
+	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
 }
