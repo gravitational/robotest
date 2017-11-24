@@ -37,7 +37,6 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		if err != nil {
 			logrus.WithError(err).Error("failed to provision nodes: ", spew.Sdump(err))
-
 		}
 		g.OK("VMs ready", err)
 		defer destroyFn()

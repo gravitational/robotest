@@ -368,7 +368,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
 	case "ops":
-		err = bootstrapAWS(ctx, g, param)
+
 	default:
 		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
 	}
