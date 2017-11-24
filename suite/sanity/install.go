@@ -2,6 +2,7 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/sirupsen/logrus"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -33,6 +34,9 @@ func install(p interface{}) (gravity.TestFunc, error) {
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		if err != nil {
+			logrus.WithError(err).Error("failed to provision nodes")
+		}
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
