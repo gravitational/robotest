@@ -7,6 +7,7 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/trace"
 	"golang.org/x/crypto/ssh"
+  sshutils "github.com/gravitational/robotest/lib/ssh"
 )
 
 type node struct {
@@ -36,7 +37,7 @@ func (r *node) PrivateAddr() string {
 }
 
 func (r *node) Connect() (*ssh.Session, error) {
-	client, err := r.Client(addrIP)
+	client, err := r.Client()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
