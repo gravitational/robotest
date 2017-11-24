@@ -90,7 +90,7 @@ OPS_CONFIG="ops:
   region: ${AWS_REGION}
   ssh_user: centos
   key_path: /robotest/config/ops.pem
-  docker_device: /dev/xvdb"
+  docker_device: /var/lib/gravity"
 fi
 
 if [ -n "${GCL_PROJECT_ID:-}" ] ; then
