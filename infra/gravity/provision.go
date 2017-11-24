@@ -205,6 +205,16 @@ Loop:
 		return nil, nil, trace.Wrap(err)
 	}
 
+	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	defer cancel()
+	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")})
+	if err != nil {
+		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
+		c.Logger().WithError(err).Error(err.Error())
+		return nil, nil, err
+	}
+
 	c.Logger().Info("provisioning complete")
 	return gravityNodes, cfg.DestroyOpsFn(c, clusterName), nil
 }
@@ -238,6 +248,16 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 		return nil, nil, trace.Wrap(err)
 	}
 
+	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	defer cancel()
+	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
+	if err != nil {
+		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
+		c.Logger().WithError(err).Error(err.Error())
+		return nil, nil, err
+	}
+
 	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
@@ -259,16 +279,6 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
 		return trace.Wrap(err)
-	}
-
-	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-	err := waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
-	if err != nil {
-		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
-		c.Logger().WithError(err).Error(err.Error())
-		return err
 	}
 	return nil
 }
