@@ -3,12 +3,12 @@ package gravity
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
-  "os"
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/constants"
@@ -112,9 +112,11 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 		cfg.dockerDevice = cfg.AWS.DockerDevice
 	case "ops":
 		require.NotNil(t, cfg.Ops)
-    // set AWS environment variables to be used by subsequent commands
-    os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
-    os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.SecretKey)
+		// set AWS environment variables to be used by subsequent commands
+		os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.SecretKey)
+
+		cfg.dockerDevice = cfg.Ops.DockerDevice
 	default:
 		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
 	}

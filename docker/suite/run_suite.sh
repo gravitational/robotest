@@ -89,7 +89,8 @@ OPS_CONFIG="ops:
   secret_key: ${AWS_SECRET_KEY}
   region: ${AWS_REGION}
   ssh_user: centos
-  key_path: /robotest/config/ops.pem"
+  key_path: /robotest/config/ops.pem
+  docker_device: /dev/xvdb"
 fi
 
 if [ -n "${GCL_PROJECT_ID:-}" ] ; then
