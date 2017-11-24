@@ -1,6 +1,7 @@
 package sanity
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/sirupsen/logrus"
 
@@ -35,7 +36,8 @@ func install(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		nodes, destroyFn, err := provisionNodes(g, cfg, param)
 		if err != nil {
-			logrus.WithError(err).Error("failed to provision nodes")
+			logrus.WithError(err).Error("failed to provision nodes: ", spew.Sdump(err))
+
 		}
 		g.OK("VMs ready", err)
 		defer destroyFn()

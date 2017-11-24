@@ -1,5 +1,5 @@
-hash: 3529078146897db8b18b10c78971aea90b4a9535d9fa58cc817c3d0cd665784d
-updated: 2017-11-24T02:06:00.633338029-05:00
+hash: 3d1f13cf27a878747eaaa5cc6534a41cc48707fb8dfb14012f82aa657b27e7da
+updated: 2017-11-24T11:40:56.595976513-05:00
 imports:
 - name: cloud.google.com/go
   version: 3e1507a0d90d17e4fdd8ef75e8f037ebecc854ba
@@ -53,7 +53,7 @@ imports:
   - service/ec2
   - service/sts
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/dustin/go-humanize
