@@ -16,9 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/infra/ops"
 	"github.com/gravitational/robotest/infra/terraform"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
@@ -70,6 +68,9 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 
 // Provision will attempt to provision the requested cluster
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	// store the configuration used for provisioning
+	c.provisionerCfg = cfg
+
 	var nodes []Gravity
 	var destroy DestroyFn
 	var err error
@@ -115,6 +116,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 
 	// generate a random cluster name
 	clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
+	c.provisionerCfg.clusterName = clusterName
 	c.Logger().Debug("Generated cluster name: ", clusterName)
 
 	c.Logger().Debug("validating configuration")
@@ -180,41 +182,11 @@ Loop:
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
-	ec2svc := ec2.New(sess)
-	params := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("tag:KubernetesCluster"),
-				Values: []*string{aws.String(clusterName)},
-			},
-		},
-	}
 	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
-	resp, err := ec2svc.DescribeInstances(params)
-	if err != nil {
-		return nil, destroyFn, trace.Wrap(err)
-	}
+	gravityNodes, err := c.getAWSNodes(sess, "tag:KubernetesCluster", clusterName)
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
-	gravityNodes := []Gravity{}
-	for _, reservation := range resp.Reservations {
-		for _, inst := range reservation.Instances {
-			c.Logger().Debugf("building new node for testing. public_ip: %v private_ip: %v ssh_user: %v ssh_key_path: %v",
-				*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
-			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, cfg.Ops.SSHUser, cfg.Ops.SSHKeyPath)
-			cloudParams, err := makeDynamicParams(cfg)
-			if err != nil {
-				return nil, destroyFn, trace.Wrap(err)
-			}
-			c.Logger().Debug("configureVM on gravity node")
-			gravityNode, err := configureVM(ctx, c.Logger(), node, *cloudParams)
-			if err != nil {
-				return nil, destroyFn, trace.Wrap(err)
-			}
-			gravityNodes = append(gravityNodes, gravityNode)
-		}
-	}
 
 	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)

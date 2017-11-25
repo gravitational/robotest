@@ -95,6 +95,8 @@ type ProvisionerConfig struct {
 	storageDriver StorageDriver
 	// dockerDevice is a physical volume where docker data would be stored
 	dockerDevice string `validate:"required"`
+	// clusterName is the name of the cluster / asg / etc
+	clusterName string
 }
 
 // LoadConfig loads essential parameters from YAML

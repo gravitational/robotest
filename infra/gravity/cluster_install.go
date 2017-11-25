@@ -31,6 +31,11 @@ func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 
 // ProvisionInstaller deploys a specific installer
 func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
+	// Cloud Provider ops will install telekube for us, so we can just exit early
+	if c.provisionerCfg.CloudProvider == "ops" {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
 	err := waitFileInstaller(ctx, installerUrl, c.Logger())
 	if err != nil {
@@ -63,6 +68,11 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 
 // OfflineInstall sets up cluster using nodes provided
 func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
+	// Cloud Provider ops will install telekube for us, so we can just exit early
+	if c.provisionerCfg.CloudProvider == "ops" {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 

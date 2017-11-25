@@ -1,9 +1,7 @@
 package sanity
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gravitational/robotest/infra/gravity"
-	"github.com/sirupsen/logrus"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -35,17 +33,12 @@ func install(p interface{}) (gravity.TestFunc, error) {
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		nodes, destroyFn, err := provisionNodes(g, cfg, param)
-		if err != nil {
-			logrus.WithError(err).Error("failed to provision nodes: ", spew.Sdump(err))
-		}
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
-		// The OPS cloud provider will install the application during provisioning
-		if cfg.CloudProvider != "ops" {
-			g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
-			g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
-		}
+		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
+
 		g.OK("status", g.Status(nodes))
 	}, nil
 }
