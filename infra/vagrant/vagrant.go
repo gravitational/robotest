@@ -430,4 +430,4 @@ rm -rf /home/vagrant/installer; mkdir -p /home/vagrant/installer; \
 tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
 cd /home/vagrant/installer/; sudo ./upload`
 
-const installerLogPath = "/home/vagrant/installer/gravity.log"
+const installerLogPath = "/home/vagrant/installer/telekube-system.log"
