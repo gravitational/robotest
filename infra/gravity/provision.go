@@ -149,6 +149,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	}
 
 	// now that we've requested cluster creation, let's setup our destroyFn so that we can clean up after ourselves
+	// even if the rest of the provisioning process fails
 	destroyFn := cfg.DestroyOpsFn(c, clusterName)
 
 	// monitor the cluster until it's created or times out
@@ -252,6 +253,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
 }
 
+// postProvision runs common tasks for both ops and cloud provisioners once the VM's have been setup and are running
 func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
 	c.Logger().Debug("Streaming logs")
 	for _, node := range gravityNodes {

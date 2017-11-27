@@ -13,6 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// AutoScale will update the autoscaling group to the target number of nodes,
+// and return a new list of nodes to be used for testing
 func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	c.Logger().Debug("attempting to connect to AWS api")
 	sess, err := session.NewSession(&aws.Config{
@@ -31,6 +33,7 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 		DesiredCapacity:      aws.Int64(int64(target)),
 		HonorCooldown:        aws.Bool(false),
 	}
+	c.Logger().WithField("target_count", setCapacity).Debug("setting scaling group desired capacity")
 	_, err = svc.SetDesiredCapacity(setCapacity)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -74,7 +77,7 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 
 		nodes := []Gravity{}
 		for _, instance := range result.AutoScalingGroups[0].Instances {
-			// attempt to get the actual instance
+			// attempt to get the actual instance for each instance-id in the cluster
 			node, err := c.getAWSNodes(sess, "instance-id", *instance.InstanceId)
 			if err != nil {
 				return nil, trace.Wrap(err)
@@ -91,6 +94,7 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	}
 }
 
+// getAWSNodes will connect to the AWS api, and get a listing of nodes matching the specified filter.
 func (c *TestContext) getAWSNodes(sess *session.Session, filterName string, filterValue string) ([]Gravity, error) {
 	cloudParams, err := makeDynamicParams(c.provisionerCfg)
 	if err != nil {

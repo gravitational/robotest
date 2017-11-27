@@ -121,6 +121,4 @@ type OpsConfig struct {
 	SSHKeyPath string `json:"key_path" yaml:"key_path"`
 	// SSHUser defines SSH user used to connect to the provisioned machines
 	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
-	// DockerDevice block device for docker data - set to /dev/xvdb
-	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }

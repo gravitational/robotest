@@ -37,6 +37,8 @@ func getTeleClusterStatus(clusterName string) (string, error) {
 	return res, nil
 }
 
+// parseClusterStatus will look at the command output, and search for the string "status: abc" and return
+// the "abc" portion.
 func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 	scanner := bufio.NewScanner(rd)
 	for scanner.Scan() {
@@ -58,8 +60,8 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 	return "", trace.Wrap(errors.New("unable to parse tele output"))
 }
 
-// generateClusterConfig will generate the specified cluster configuration based
-// on the built in template, and the provided provisioner configuration
+// generateClusterConfig will generate a cluster configuration for the ops center based
+// on the built in template
 func generateClusterDefn(cfg ProvisionerConfig, clusterName string) (string, error) {
 	template, err := template.New("cluster").Parse(`
 kind: cluster
@@ -96,7 +98,7 @@ spec:
 	return buf.String(), nil
 }
 
-// DestroyOpsFn will delete the provisioned cluster
+// DestroyOpsFn will destroy the cluster by making a request to the ops center to de-provision the cluster
 func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) func() error {
 	return func() error {
 		log := tc.Logger().WithFields(logrus.Fields{
@@ -114,6 +116,7 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 		} else {
 			if !policy.DestroyOnSuccess {
 				log.Info("skipped destroy on success due to policy")
+				return nil
 			}
 		}
 

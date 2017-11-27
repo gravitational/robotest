@@ -117,10 +117,13 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 		// set AWS environment variables to be used by subsequent commands
 		os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
 		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.SecretKey)
-
-		cfg.dockerDevice = cfg.Ops.DockerDevice
+		// normally the docker device is set to /dev/abc before gravity is installed
+		// for throughput testing. However, when using the ops center for provisioning
+		// the raw block device will have a partition on it, so we want to instead test
+		// on the installation directory
+		cfg.dockerDevice = "/var/lib/gravity"
 	default:
-		t.Fatal("unknown cloud provider %s", cfg.CloudProvider)
+		t.Fatalf("unknown cloud provider %s", cfg.CloudProvider)
 	}
 }
 
