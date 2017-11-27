@@ -49,7 +49,7 @@ type AWSConfig struct {
 	// VPC defines the Amazon VPC to install into.
 	// Specify "Create new" to create a new VPC for this test run
 	VPC string `json:"vpc" yaml:"vpc" validate:"required"`
-	// KeyPath specifies the location of the SSH key to use for remote access.
+	// SSHKeyPath specifies the location of the SSH key to use for remote access.
 	// Mandatory only with terraform provisioner
 	SSHKeyPath string `json:"key_path" yaml:"key_path"`
 	// SSHUser defines SSH user used to connect to the provisioned machines
@@ -92,7 +92,7 @@ type AzureConfig struct {
 	// VM instance type
 	// https://docs.microsoft.com/en-us/cli/azure/vm#list-sizes
 	VmType string `json:"vm_type" yaml:"vm_type" validate:"required"`
-	// KeyPath specifies the location of the SSH private key to use for remote access
+	// SSHKeyPath specifies the location of the SSH private key to use for remote access
 	SSHKeyPath string `json:"-" yaml:"key_path" validate:"required"`
 	// AuthorizedKeysPath specifies ssh/authorized_keys file to be placed on remote machine
 	AuthorizedKeysPath string `json:"ssh_authorized_keys_path" yaml:"authorized_keys_path" validate:"required"`
@@ -108,15 +108,15 @@ type OpsConfig struct {
 	URL string `json:"url" yaml:"url" validate:"required"`
 	// OpsKey is the key to connect to the ops center
 	OpsKey string `json:"ops_key" yaml:"ops_key" validate:"required"`
-	// APP on the ops center to deploy
+	// App is the ops center application to deploy
 	App string `json:"app" yaml:"app" validate:"required"`
-	// AccessKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
-	AccessKey string `json:"access_key" yaml:"access_key" validate:"required"`
-	// SecretKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
-	SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
-	// Region specifies the EC2 region to install into
-	Region string `json:"region" yaml:"region" validate:"required"`
-	// KeyPath specifies the location of the SSH key to use for remote access.
+	// EC2AccessKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	EC2AccessKey string `json:"access_key" yaml:"access_key" validate:"required"`
+	// EC2SecretKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	EC2SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
+	// EC2Region specifies the EC2 region to install into
+	EC2Region string `json:"region" yaml:"region" validate:"required"`
+	// SSHKeyPath specifies the location of the SSH key to use for remote access.
 	// Mandatory only with terraform provisioner
 	SSHKeyPath string `json:"key_path" yaml:"key_path"`
 	// SSHUser defines SSH user used to connect to the provisioned machines

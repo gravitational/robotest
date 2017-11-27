@@ -4,7 +4,7 @@ import (
 	"github.com/gravitational/robotest/infra/gravity"
 )
 
-// resize installs an initial cluster and then expands or gracefully shrinks it to given number of nodes
+// autoscale installs an initial cluster and then expands or gracefully shrinks it to given number of nodes
 func autoscale(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 

@@ -176,7 +176,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
 	if !ok {
-		return nil, trace.BadParameter("os.Vendor not found: %v", baseConfig.os.Vendor)
+		return nil, trace.BadParameter("unknown OS vendor: %q", baseConfig.os.Vendor)
 	}
 
 	param.homeDir = filepath.Join("/home", param.user)

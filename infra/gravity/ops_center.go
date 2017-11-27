@@ -25,13 +25,13 @@ var (
 func getTeleClusterStatus(clusterName string) (string, error) {
 	out, err := exec.Command("tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
-		logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
+		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
 	res, err := parseClusterStatus(clusterName, bytes.NewReader(out))
 	if err != nil {
-		logrus.WithError(err).Error("Unable to parse tele get clusters: ", string(out))
+		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 	return res, nil
@@ -47,7 +47,7 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 			// we found the status line
 			split := strings.Split(trimmed, ": ")
 			if len(split) < 2 {
-				return "", trace.Wrap(fmt.Errorf("failed to parse status line: %v", trimmed))
+				return "", trace.BadParameter("invalid status line: %v", trimmed)
 			}
 			return split[1], nil
 		}
@@ -57,12 +57,12 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 		}
 	}
 
-	return "", trace.Wrap(errors.New("unable to parse tele output"))
+	return "", trace.BadParameter("invalid input")
 }
 
 // generateClusterConfig will generate a cluster configuration for the ops center based
 // on the built in template
-func generateClusterDefn(cfg ProvisionerConfig, clusterName string) (string, error) {
+func generateClusterConfig(cfg ProvisionerConfig, clusterName string) (string, error) {
 	template, err := template.New("cluster").Parse(`
 kind: cluster
 version: v2
@@ -93,7 +93,7 @@ spec:
 		clusterName,
 	})
 	if err != nil {
-		return "", err
+		return "", trace.Wrap(err)
 	}
 	return buf.String(), nil
 }
@@ -114,20 +114,19 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 				return trace.Wrap(tc.Context().Err())
 			}
 		} else {
-			if !policy.DestroyOnSuccess {
+			if policy.DestroyOnSuccess == false {
 				log.Info("skipped destroy on success due to policy")
 				return nil
 			}
 		}
 
-		// Destroy the cluster
 		log.Info("destroying cluster")
 
-		out, err := exec.Command("tele", "rm", "cluster", clusterName).Output()
+		out, err := exec.Command("tele", "rm", "cluster", clusterName).CombinedOutput()
 		if err != nil {
 			return err
 		}
-		log.Info("tele rm result: ", string(out))
+		log.Debug("tele rm result: ", string(out))
 
 		// monitor the cluster until it's gone
 		timeout := time.After(DefaultTimeouts.Uninstall)
@@ -136,11 +135,11 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 		for {
 			select {
 			case <-timeout:
-				return errors.New("clusterDestroy timeout exceeded")
+				return trace.LimitExceeded("clusterDestroy timeout exceeded")
 			case <-tick:
 				// check provisioning status
 				status, err := getTeleClusterStatus(clusterName)
-				if err != nil && err.Error() == errClusterNotFound.Error() {
+				if err != nil && trace.IsNotFound(err) {
 					// de-provisioning completed
 					return nil
 				}
@@ -150,9 +149,9 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 
 				switch status {
 				case "uninstalling":
-					// we're still installing, just continue the loop
+					// we're still uninstalling, just continue the loop
 				default:
-					return trace.Wrap(fmt.Errorf("unexpected cluster status: %v", status))
+					return trace.BadParameter("unexpected cluster status: %v", status)
 				}
 			}
 		}

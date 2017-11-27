@@ -95,7 +95,7 @@ type ProvisionerConfig struct {
 	storageDriver StorageDriver
 	// dockerDevice is a physical volume where docker data would be stored
 	dockerDevice string `validate:"required"`
-	// clusterName is the name of the cluster / asg / etc
+	// clusterName is the name of the cluster / auto-scaling group / etc
 	clusterName string
 }
 
@@ -115,8 +115,8 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	case "ops":
 		require.NotNil(t, cfg.Ops)
 		// set AWS environment variables to be used by subsequent commands
-		os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.AccessKey)
-		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.SecretKey)
+		os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.EC2AccessKey)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.Ops.EC2SecretKey)
 		// normally the docker device is set to /dev/abc before gravity is installed
 		// for throughput testing. However, when using the ops center for provisioning
 		// the raw block device will have a partition on it, so we want to instead test

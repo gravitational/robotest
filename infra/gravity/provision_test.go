@@ -4,19 +4,18 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
-	log "github.com/sirupsen/logrus"
 )
 
-func TestGenerateOpsClusterDefn(t *testing.T) {
+func TestGenerateOpsClusterConfig(t *testing.T) {
 	cfg := ProvisionerConfig{
 		Ops: &infra.OpsConfig{
-			App:    "abc:1.2.3",
-			Region: "us-east-2",
+			App:       "abc:1.2.3",
+			EC2Region: "us-east-2",
 		},
 		NodeCount: 5,
 	}
 
-	defn, err := generateClusterDefn(cfg, "test")
+	defn, err := generateClusterConfig(cfg, "test")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -40,6 +39,6 @@ spec:
     instanceType: c4.2xlarge
   provider: aws` {
 		t.Error("generated cluster configuration doesn't match expected output")
-		log.Info(defn)
+		t.Log(defn)
 	}
 }

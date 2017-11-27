@@ -1,16 +1,15 @@
 package gravity
 
 import (
-	"time"
+	"github.com/gravitational/robotest/infra/ops"
+	"github.com/gravitational/robotest/lib/wait"
+	"github.com/gravitational/trace"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gravitational/robotest/infra/ops"
-	"github.com/gravitational/trace"
-	"github.com/sirupsen/logrus"
 )
 
 // AutoScale will update the autoscaling group to the target number of nodes,
@@ -18,8 +17,8 @@ import (
 func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	c.Logger().Debug("attempting to connect to AWS api")
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(c.provisionerCfg.Ops.Region),
-		Credentials: credentials.NewStaticCredentials(c.provisionerCfg.Ops.AccessKey, c.provisionerCfg.Ops.SecretKey, ""),
+		Region:      aws.String(c.provisionerCfg.Ops.EC2Region),
+		Credentials: credentials.NewStaticCredentials(c.provisionerCfg.Ops.EC2AccessKey, c.provisionerCfg.Ops.EC2SecretKey, ""),
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -46,62 +45,64 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 		},
 	}
 
-	started := time.Now()
-
 	// we may need to wait for the nodes to get assigned by the autoscaling group
 	// so we need to repeat our API requests until we get the expected nodes
-	for {
-		if time.Now().Sub(started) > autoscaleDeadline {
-			return nil, trace.Errorf("autoscale deadline exceeded")
-		}
-		time.Sleep(autoscaleWait)
-
-		result, err := svc.DescribeAutoScalingGroups(describeASG)
-		if err != nil {
-			c.Logger().WithError(err).Debug("describe autoscaling groups error")
-			continue
-		}
-
-		if len(result.AutoScalingGroups) != 1 {
-			return nil, trace.Errorf("unexpected number of autoscaling groups found: 1 != %v", len(result.AutoScalingGroups))
-		}
-		if len(result.AutoScalingGroups[0].Instances) != target {
-			c.Logger().
-				WithFields(logrus.Fields{
-					"target_count":   target,
-					"instance_count": len(result.AutoScalingGroups[0].Instances),
-				}).
-				Debug("unexpected autoscaling count of instances")
-			continue
-		}
-
-		nodes := []Gravity{}
-		for _, instance := range result.AutoScalingGroups[0].Instances {
-			// attempt to get the actual instance for each instance-id in the cluster
-			node, err := c.getAWSNodes(sess, "instance-id", *instance.InstanceId)
-			if err != nil {
-				return nil, trace.Wrap(err)
-			}
-
-			if len(node) != 1 {
-				return nil, trace.Errorf("unexpected number of aws nodes found. 1 != %v", len(nodes))
-			}
-			nodes = append(nodes, node[0])
-
-		}
-
-		return nodes, nil
+	nodes := []Gravity{}
+	retryer := wait.Retryer{
+		Delay:    autoscaleWait,
+		Attempts: autoscaleRetries,
 	}
+
+	var result *autoscaling.DescribeAutoScalingGroupsOutput
+	err = retryer.Do(c.Context(), func() (err error) {
+		result, err = checkForNodeAssignment(svc, describeASG, target)
+		return trace.Wrap(err)
+	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	for _, instance := range result.AutoScalingGroups[0].Instances {
+		// attempt to get the actual instance for each instance-id in the cluster
+		ec2svc := ec2.New(sess)
+		node, err := c.getAWSNodes(ec2svc, "instance-id", *instance.InstanceId)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+
+		if len(node) != 1 {
+			return nil, trace.BadParameter("unexpected number of AWS nodes found. 1 != %v", len(nodes))
+		}
+		nodes = append(nodes, node[0])
+
+	}
+
+	return nodes, nil
 }
 
-// getAWSNodes will connect to the AWS api, and get a listing of nodes matching the specified filter.
-func (c *TestContext) getAWSNodes(sess *session.Session, filterName string, filterValue string) ([]Gravity, error) {
+// checkForNodeAssignment will check to see if our auto-scaling group has the requested number of nodes assigned
+func checkForNodeAssignment(svc *autoscaling.AutoScaling, describeASG *autoscaling.DescribeAutoScalingGroupsInput, target int) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	result, err := svc.DescribeAutoScalingGroups(describeASG)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	if len(result.AutoScalingGroups) != 1 {
+		return nil, trace.Errorf("unexpected number of autoscaling groups found: 1 != %v", len(result.AutoScalingGroups))
+	}
+	if len(result.AutoScalingGroups[0].Instances) != target {
+		return nil, trace.Errorf("unexpected autoscaling count of instances. expected: %v got: %v", target, len(result.AutoScalingGroups[0].Instances))
+	}
+	return result, nil
+}
+
+// getAWSNodes will connect to the AWS API, and get a listing of nodes matching the specified filter.
+func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValue string) ([]Gravity, error) {
 	cloudParams, err := makeDynamicParams(c.provisionerCfg)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	ec2svc := ec2.New(sess)
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{

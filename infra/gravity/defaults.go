@@ -17,8 +17,8 @@ const (
 	retrySSH    = time.Second * 10
 	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
 
-	autoscaleDeadline = time.Minute * 5  // total amount of time to wait for out target autoscale
-	autoscaleWait     = time.Second * 15 // amount of time to wait between attempts to autoscale the cluster
+	autoscaleRetries = 20               // total number of attempts when checking autoscale changes
+	autoscaleWait    = time.Second * 15 // amount of time to wait between attempts to autoscale the cluster
 
 	// minimum required disk speed (10MB/s)
 	minDiskSpeed = uint64(1e7)
