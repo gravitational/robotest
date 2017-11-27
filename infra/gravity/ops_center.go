@@ -74,7 +74,7 @@ spec:
   app: {{ .Cfg.Ops.App }}
   aws:
     keyName: ops
-    region: {{ .Cfg.Ops.Region }}
+    region: {{ .Cfg.Ops.EC2Region }}
   nodes:
   - profile: node
     count: {{ .Cfg.NodeCount }}
