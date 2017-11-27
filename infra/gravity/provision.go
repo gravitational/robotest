@@ -198,7 +198,7 @@ Loop:
 		return nil, destroyFn, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+	c.Logger().Debug("ensuring disk speed is adequate across nodes")
 	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
 	defer cancel()
 	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")})
