@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 
 TAG ?= latest
 PULL ?= --pull
 
-TERRAFORM_VERSION := 0.9.3
+TERRAFORM_VERSION := 0.11.0
 CHROMEDRIVER_VERSION := 2.29
 
 E2E_BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
