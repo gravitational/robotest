@@ -88,10 +88,10 @@ func checkForNodeAssignment(svc *autoscaling.AutoScaling, describeASG *autoscali
 	}
 
 	if len(result.AutoScalingGroups) != 1 {
-		return nil, trace.Errorf("unexpected number of autoscaling groups found: 1 != %v", len(result.AutoScalingGroups))
+		return nil, trace.BadParameter("unexpected number of autoscaling groups found: 1 != %v", len(result.AutoScalingGroups))
 	}
 	if len(result.AutoScalingGroups[0].Instances) != target {
-		return nil, trace.Errorf("unexpected autoscaling count of instances. expected: %v got: %v", target, len(result.AutoScalingGroups[0].Instances))
+		return nil, trace.BadParameter("unexpected autoscaling count of instances. expected: %v got: %v", target, len(result.AutoScalingGroups[0].Instances))
 	}
 	return result, nil
 }

@@ -3,6 +3,8 @@ package gravity
 import (
 	"strings"
 	"testing"
+
+	"github.com/gravitational/trace"
 )
 
 func TestParseClusterStatus(t *testing.T) {
@@ -10,7 +12,7 @@ func TestParseClusterStatus(t *testing.T) {
 		txt := `cluster kevin-ci.22.7 not found`
 
 		status, err := parseClusterStatus("kevin-ci.22.7", strings.NewReader(txt))
-		if err.Error() != errClusterNotFound.Error() {
+		if !trace.IsNotFound(err) {
 			t.Error("expected not found error:", err)
 		}
 		if status != "" {

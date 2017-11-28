@@ -119,7 +119,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	}
 
 	// generate a random cluster name
-	clusterName := fmt.Sprint("robotest-", uuid.NewV4().String())
+	clusterName := fmt.Sprint(c.name, "-", uuid.NewV4().String())
 	c.provisionerCfg.clusterName = clusterName
 	c.Logger().Debug("Generated cluster name: ", clusterName)
 
@@ -131,7 +131,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 
 	c.Logger().Debug("generating ops center cluster configuration")
 	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
-	err = os.MkdirAll(cfg.StateDir, 0755)
+	err = os.MkdirAll(cfg.StateDir, constants.SharedDirMask)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}

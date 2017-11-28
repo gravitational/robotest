@@ -3,7 +3,6 @@ package gravity
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -13,10 +12,6 @@ import (
 
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
-)
-
-var (
-	errClusterNotFound = errors.New("cluster not found")
 )
 
 // getTeleClusterStatus will attempt to get the cluster status from an ops center
@@ -53,7 +48,7 @@ func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
 		}
 
 		if strings.Contains(trimmed, fmt.Sprintf("cluster %v not found", clusterName)) {
-			return "", trace.Wrap(errClusterNotFound)
+			return "", trace.NotFound("cluster not found")
 		}
 	}
 
@@ -109,12 +104,12 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 		if tc.Context().Err() != nil {
 			log.WithError(tc.Context().Err()).Info("error caught in testing")
 
-			if policy.DestroyOnFailure == false {
+			if !policy.DestroyOnFailure {
 				log.Info("skipped destroy due to error")
 				return trace.Wrap(tc.Context().Err())
 			}
 		} else {
-			if policy.DestroyOnSuccess == false {
+			if !policy.DestroyOnSuccess {
 				log.Info("skipped destroy on success due to policy")
 				return nil
 			}
