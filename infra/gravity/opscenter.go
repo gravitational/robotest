@@ -1,15 +1,14 @@
 package gravity
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os/exec"
 	"strings"
 	"text/template"
 	"time"
 
+	"github.com/go-yaml/yaml"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
@@ -24,7 +23,7 @@ func getTeleClusterStatus(clusterName string) (string, error) {
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
-	res, err := parseClusterStatus(clusterName, bytes.NewReader(out))
+	res, err := parseClusterStatus(clusterName, out)
 	if err != nil {
 		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
@@ -32,27 +31,38 @@ func getTeleClusterStatus(clusterName string) (string, error) {
 	return res, nil
 }
 
-// parseClusterStatus will look at the command output, and search for the string "status: abc" and return
-// the "abc" portion.
-func parseClusterStatus(clusterName string, rd io.Reader) (string, error) {
-	scanner := bufio.NewScanner(rd)
-	for scanner.Scan() {
-		trimmed := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(trimmed, "status") {
-			// we found the status line
-			split := strings.Split(trimmed, ": ")
-			if len(split) < 2 {
-				return "", trace.BadParameter("invalid status line: %v", trimmed)
-			}
-			return split[1], nil
-		}
+// ClusterV2 spec is a minimal copy of the Cluster definition from the gravitational/gravity project
+// Unneeded fields have been removed, and only required fields are included in the local copy
+// https://github.com/gravitational/gravity/blob/20cfcef8d50ab403f0a9452376ccd52e145ae90c/lib/storage/cluster.go#L65
+type ClusterV2 struct {
+	// Spec contains cluster specification
+	Spec ClusterSpecV2 `json:"spec" yaml:"spec"`
+}
 
-		if strings.Contains(trimmed, fmt.Sprintf("cluster %v not found", clusterName)) {
-			return "", trace.NotFound("cluster not found")
-		}
+// ClusterSpecV2 is cluster V2 specification from gravitational/gravity project
+// it is a minimal copy of only needed fields
+type ClusterSpecV2 struct {
+	// Status is a cluster status, initialized for existing clusters only
+	Status string `json:"status,omitempty" yaml:"status,omitempty"`
+}
+
+// parseClusterStatus will attempt to unmarshal the cluster status from tele get clusters output
+func parseClusterStatus(clusterName string, data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", trace.BadParameter("missing cluster data")
 	}
 
-	return "", trace.BadParameter("invalid input")
+	if strings.Contains(string(data), fmt.Sprintf("cluster %v not found", clusterName)) {
+		return "", trace.NotFound("cluster not found")
+	}
+
+	cluster := ClusterV2{}
+	err := yaml.Unmarshal(data, &cluster)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	return cluster.Spec.Status, nil
 }
 
 // generateClusterConfig will generate a cluster configuration for the ops center based
