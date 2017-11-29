@@ -280,7 +280,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
-	})
+	}, system.SetEnv("TF_LOG=1"))
 	if err != nil {
 		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
