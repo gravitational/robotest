@@ -4,13 +4,20 @@ ARG TERRAFORM_VERSION
 ARG TERRAFORM_AZURERM_VERSION
 ARG TERRAFORM_AWS_VERSION
 
+ENV TF_TARBALL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+ENV TF_AWS_TARBALL https://releases.hashicorp.com/terraform-provider-aws/${TERRAFORM_AWS_VERSION}/terraform-provider-aws_${TERRAFORM_AWS_VERSION}_linux_amd64.zip
+# ENV TF_AZURERM_TARBALL https://releases.hashicorp.com/terraform-provider-azurerm/${TERRAFORM_AZURERM_VERSION}/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip
+# Use a local build as long as this is not merged upstream:
+# https://github.com/terraform-providers/terraform-provider-azurerm/pull/589
+ENV TF_AZURERM_TARBALL https://s3-us-west-2.amazonaws.com/s3.gravitational.io/robotest/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip
+
 RUN apt-get update && \
     apt-get install -y curl unzip
 
 RUN \
-    curl https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip && \
-    curl https://releases.hashicorp.com/terraform-provider-aws/${TERRAFORM_AWS_VERSION}/terraform-provider-aws_${TERRAFORM_AWS_VERSION}_linux_amd64.zip -o terraform_aws.zip && \
-    curl https://releases.hashicorp.com/terraform-provider-azurerm/${TERRAFORM_AZURERM_VERSION}/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip -o terraform_azurerm.zip && \
+    curl $TF_TARBALL -o terraform.zip && \
+    curl $TF_AWS_TARBALL -o terraform_aws.zip && \
+    curl $TF_AZURERM_TARBALL -o terraform_azurerm.zip && \
     unzip terraform.zip -d /usr/bin && \
     mkdir -p /etc/terraform/plugins && \
     unzip terraform_aws.zip -d /etc/terraform/plugins && \

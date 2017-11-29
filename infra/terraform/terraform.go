@@ -260,7 +260,7 @@ func (r *terraform) State() infra.ProvisionerState {
 
 func (r *terraform) boot(ctx context.Context) (output string, err error) {
 	out, err := r.command(ctx, []string{
-		"init", "-get-plugins=false",
+		"init", "-input=false", "-get-plugins=false",
 		fmt.Sprintf("-plugin-dir=%v", constants.TerraformPluginDir),
 		r.stateDir},
 	)
@@ -281,9 +281,9 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}, system.SetEnv(
-		// Turn on logging in terraform
-		"TF_LOG=1",
-		// Temporarily disable HTTP2 support
+		// FIXME: temporarily disable HTTP2 support
+		// See: https://github.com/terraform-providers/terraform-provider-azurerm/issues/526
+		// and https://github.com/terraform-providers/terraform-provider-azurerm/issues/503#issuecomment-345919279
 		"GODEBUG=http2client=0",
 	))
 	if err != nil {
