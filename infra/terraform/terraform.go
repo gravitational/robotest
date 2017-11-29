@@ -265,7 +265,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		r.stateDir},
 	)
 	if err != nil {
-		return "", trace.Wrap(err, "failed to init terraform state: %s", out)
+		return "", trace.Wrap(err, "failed to init terraform: %s", out)
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
