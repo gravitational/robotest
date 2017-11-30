@@ -204,3 +204,18 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
 }
+
+// ExecScript will run and execute a script on all nodes
+func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []string) error {
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
+
+	errs := make(chan error, len(nodes))
+	for _, node := range nodes {
+		go func(g Gravity) {
+			errs <- trace.Wrap(g.ExecScript(ctx, scriptUrl, args))
+		}(node)
+	}
+
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
+}

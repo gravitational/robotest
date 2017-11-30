@@ -74,6 +74,7 @@ func (i *Installer) InitAWSInstallation(domainName string) {
 // InitOnPremInstallation initilizes cluster install operation using OnPrem
 func (i *Installer) InitOnPremInstallation(domainName string) {
 	log.Infof("trying to initialize onprem install operation")
+	utils.PauseForPageJs()
 	Expect(i.IsCreateSiteStep()).To(BeTrue())
 	specifyDomainName(i.page, domainName)
 
@@ -214,7 +215,7 @@ func (i *Installer) IsInstallFailed() bool {
 func (i *Installer) NeedsBandwagon(domainName string) bool {
 	log.Infof("checking if bandwagon is required")
 	needsBandwagon := false
-	const jsTemplate = `		            
+	const jsTemplate = `
 		var ver1x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "final_install_step", "service_name"]);
 		var ver3x = window.reactor.evaluate(["sites", "%[1]v"]).getIn(["app", "manifest", "installer", "setupEndpoints"]);
 
@@ -222,7 +223,7 @@ func (i *Installer) NeedsBandwagon(domainName string) bool {
 			return true;
 		}
 
-		return false;			                        
+		return false;
 	`
 	js := fmt.Sprintf(jsTemplate, domainName)
 	Expect(i.page.RunScript(js, nil, &needsBandwagon)).To(Succeed(), "should detect if bandwagon is required")

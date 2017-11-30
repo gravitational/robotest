@@ -116,6 +116,15 @@ Inherits parameters from `install`, plus:
 
 `replace_variety` will generate a combination of `replace` parameterized tests.
 
+### Post installer transfer script
+When a certain application may require extra setup after provisioning and installer transfer is complete, this could be achieved by passing extra parameters to tests: 
+```json
+"script" : {
+    "url" : "local path, s3 or http(s) url",
+    "args" : ["args", "to", "script"],
+}
+```
+
 ## Cloud Environment Configuration
 
 Currently deployment to AWS and Azure is supported. 
@@ -180,4 +189,5 @@ Robotest can optionally send detailed execution logs to Google Cloud Logging pla
 2. Assign `Logging/Log Writer` and `Pub-Sub/Topic Writer` permissions to the service account.
 3. Enable [Cloud Logging](https://console.cloud.google.com/logs/viewer) project and set `GCL_PROJECT_ID` env variable to [google project ID](https://console.cloud.google.com/iam-admin/settings/project).
 
-### Altering terraform scripts
+### Using local files
+Robotest is executed from within a container, and therefore cannot access any local files directly. When you need to pass local file as installer tarball, mount them individually or a holding directory using `EXTRA_VOLUME_MOUNTS` variable, following docker's [volume mount](https://docs.docker.com/engine/admin/volumes/bind-mounts/) semantics `-v local_path:container_path`.

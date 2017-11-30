@@ -92,7 +92,7 @@ echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
 systemctl disable firewalld || true
 systemctl stop firewalld || true
-iptables --flush
+iptables --flush --wait
 iptables --delete-chain
 iptables --table nat --flush
 iptables --table filter --flush
@@ -101,7 +101,18 @@ iptables --table filter --delete-chain
 
 modprobe br_netfilter || true
 modprobe overlay || true
+modprobe ebtables || true
 sysctl -w net.bridge.bridge-nf-call-iptables=1
+
+# make the changes permanent
+cat > /usr/lib/sysctl.d/50-telekube.conf <<EOF
+net.bridge.bridge-nf-call-iptables=1
+EOF
+cat > /etc/modules-load.d/telekube.conf <<EOF
+br_netfilter
+overlay
+ebtables
+EOF
 
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete
