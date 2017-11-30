@@ -280,12 +280,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
-	}, system.SetEnv(
-		// FIXME: temporarily disable HTTP2 support
-		// See: https://github.com/terraform-providers/terraform-provider-azurerm/issues/526
-		// and https://github.com/terraform-providers/terraform-provider-azurerm/issues/503#issuecomment-345919279
-		"GODEBUG=http2client=0",
-	))
+	})
 	if err != nil {
 		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
