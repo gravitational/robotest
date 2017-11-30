@@ -2,14 +2,24 @@ package gravity
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -17,6 +27,7 @@ import (
 	"github.com/gravitational/trace"
 
 	"github.com/dustin/go-humanize"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -57,8 +68,155 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 	return sorted(gravityNodes), nil
 }
 
-// Provision gets VMs up, running and ready to use
+// Provision will attempt to provision the requested cluster
 func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	// store the configuration used for provisioning
+	c.provisionerCfg = cfg
+
+	var nodes []Gravity
+	var destroy DestroyFn
+	var err error
+	switch cfg.CloudProvider {
+	case "azure", "aws":
+		nodes, destroy, err = c.provisionCloud(cfg)
+	case "ops":
+		nodes, destroy, err = c.provisionOps(cfg)
+	default:
+		err = trace.BadParameter("unkown cloud provider: %v", cfg.CloudProvider)
+	}
+
+	// call `destroyFn` if provided to destroy infrastructure
+	if err != nil && destroy != nil {
+		dErr := destroy()
+		if dErr != nil {
+			err = trace.NewAggregate(err, dErr)
+		}
+		// if we destroy the cluster, make sure nodes and the destroy functions are returned as nil
+		nodes = nil
+		destroy = nil
+	}
+
+	return nodes, destroy, trace.Wrap(err)
+}
+
+// provisionOps utilizes an ops center installation flow to complete cluster installation
+func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
+
+	// verify connection before starting provisioning
+	c.Logger().Debug("attempting to connect to AWS api")
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String(cfg.Ops.EC2Region),
+		Credentials: credentials.NewStaticCredentials(cfg.Ops.EC2AccessKey, cfg.Ops.EC2SecretKey, ""),
+	})
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	c.Logger().Debug("logging into the ops center")
+	out, err := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey).CombinedOutput()
+	if err != nil {
+		return nil, nil, trace.WrapWithMessage(err, string(out))
+	}
+
+	// generate a random cluster name
+	clusterName := fmt.Sprint(c.name, "-", uuid.NewV4().String())
+	c.provisionerCfg.clusterName = clusterName
+	c.Logger().Debug("Generated cluster name: ", clusterName)
+
+	c.Logger().Debug("validating configuration")
+	err = validateConfig(cfg)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	c.Logger().Debug("generating ops center cluster configuration")
+	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
+	err = os.MkdirAll(cfg.StateDir, constants.SharedDirMask)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	defn, err := generateClusterConfig(cfg, clusterName)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+	err = ioutil.WriteFile(clusterPath, []byte(defn), constants.SharedReadMask)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	// next, we need to tell the ops center to create our cluster
+	c.Logger().Debug("requesting ops center to provision our cluster")
+	out, err = exec.Command("tele", "create", clusterPath).CombinedOutput()
+	if err != nil {
+		return nil, nil, trace.Wrap(err, string(out))
+	}
+
+	// destroyFn defines the clean up function that will destroy provisioned resources
+	destroyFn := cfg.DestroyOpsFn(c, clusterName)
+
+	// monitor the cluster until it's created or times out
+	timeout := time.After(cloudInitTimeout)
+	tick := time.Tick(15 * time.Second)
+
+	c.Logger().Debug("waiting for ops center provisioning to complete")
+Loop:
+	for {
+		select {
+		case <-timeout:
+			return nil, destroyFn, errors.New("clusterInitTimeout exceeded")
+		case <-tick:
+			// check provisioning status
+			status, err := getTeleClusterStatus(clusterName)
+			c.Logger().WithField("status", status).Debug("provisioning status")
+			if err != nil {
+				return nil, destroyFn, trace.Wrap(err)
+			}
+
+			switch status {
+			case "installing":
+				// we're still installing, just continue the loop
+			case "active":
+				// the cluster install completed, we can continue the install process
+				break Loop
+			default:
+				return nil, destroyFn, trace.BadParameter("unexpected cluster status: %v", status)
+			}
+		}
+	}
+
+	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
+	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
+	ec2svc := ec2.New(sess)
+	gravityNodes, err := c.getAWSNodes(ec2svc, "tag:KubernetesCluster", clusterName)
+	if err != nil {
+		return nil, destroyFn, trace.Wrap(err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
+	defer cancel()
+
+	c.Logger().Debugf("running post provisioning tasks")
+	err = c.postProvision(cfg, gravityNodes)
+	if err != nil {
+		return nil, destroyFn, trace.Wrap(err)
+	}
+
+	c.Logger().Debug("ensuring disk speed is adequate across nodes")
+	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	defer cancel()
+	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")})
+	if err != nil {
+		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
+		c.Logger().WithError(err).Error(err.Error())
+		return nil, destroyFn, trace.Wrap(err)
+	}
+
+	c.Logger().Info("provisioning complete")
+	return gravityNodes, destroyFn, nil
+}
+
+// provisionCloud gets VMs up, running and ready to use
+func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
 
 	err := validateConfig(cfg)
@@ -81,24 +239,12 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
 
-	c.Logger().Debug("Streaming logs")
-	for _, node := range gravityNodes {
-		go node.(*gravity).streamLogs(c.Context())
+	err = c.postProvision(cfg, gravityNodes)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
 	}
 
-	ctx, cancel = context.WithTimeout(c.Context(), clockSyncTimeout)
-	defer cancel()
-
-	c.Logger().Debug("Synchronizing clocks")
-	timeNodes := []sshutil.SshNode{}
-	for _, node := range gravityNodes {
-		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
-	}
-	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
-	}
-
-	c.Logger().Debug("Ensuring disk speed is adequate across nodes")
+	c.Logger().Debug("ensuring disk speed is adequate across nodes")
 	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
 	defer cancel()
 	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
@@ -111,6 +257,27 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+}
+
+// postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
+func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
+	c.Logger().Debug("streaming logs")
+	for _, node := range gravityNodes {
+		go node.(*gravity).streamLogs(c.Context())
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), clockSyncTimeout)
+	defer cancel()
+
+	c.Logger().Debug("synchronizing clocks")
+	timeNodes := []sshutil.SshNode{}
+	for _, node := range gravityNodes {
+		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
+	}
+	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
 }
 
 // sort Interface implementation
@@ -207,6 +374,9 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 		err = bootstrapAWS(ctx, g, param)
 	case "azure":
 		err = bootstrapAzure(ctx, g, param)
+	case "ops":
+		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
+		g.installDir = "/bin"
 	default:
 		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
 	}

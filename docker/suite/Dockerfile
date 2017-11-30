@@ -30,6 +30,9 @@ RUN \
         /terraform_aws.zip \
         /terraform_azurerm.zip
 
+
+RUN (curl https://get.gravitational.io/telekube/install | bash)
+
 RUN mkdir /robotest
 WORKDIR /robotest
 COPY build/robotest-suite /usr/bin/robotest-suite

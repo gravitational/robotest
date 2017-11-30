@@ -50,6 +50,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		}
 
 		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
+
 		g.OK("status", g.Status(nodes))
 	}, nil
 }

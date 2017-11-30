@@ -169,11 +169,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"redhat": "redhat",
 			"centos": "centos",
 		},
+		"ops": map[string]string{
+			"centos": "centos",
+		},
 	}
 
 	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
 	if !ok {
-		return nil, trace.BadParameter(baseConfig.os.Vendor)
+		return nil, trace.BadParameter("unknown OS vendor: %q", baseConfig.os.Vendor)
 	}
 
 	param.homeDir = filepath.Join("/home", param.user)
@@ -181,7 +184,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      int(baseConfig.nodeCount),
+		NumNodes:      int(baseConfig.NodeCount),
 		OS:            baseConfig.os.String(),
 	}
 
