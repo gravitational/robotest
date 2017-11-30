@@ -18,8 +18,8 @@ import (
 	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -259,14 +259,23 @@ func (r *terraform) State() infra.ProvisionerState {
 }
 
 func (r *terraform) boot(ctx context.Context) (output string, err error) {
+	out, err := r.command(ctx, []string{
+		"init", "-input=false", "-get-plugins=false",
+		fmt.Sprintf("-plugin-dir=%v", constants.TerraformPluginDir),
+		r.stateDir},
+	)
+	if err != nil {
+		return "", trace.Wrap(err, "failed to init terraform: %s", out)
+	}
+
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	err = r.saveVarsJSON(varsPath)
 	if err != nil {
-		return "", trace.Wrap(err, "failed to store Terraform vars")
+		return "", trace.Wrap(err, "failed to store terraform vars")
 	}
 
-	out, err := r.command(ctx, []string{
-		"apply", "-input=false",
+	out, err = r.command(ctx, []string{
+		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
