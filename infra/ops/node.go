@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/gravitational/robotest/infra"
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/trace"
 	"golang.org/x/crypto/ssh"
-  sshutils "github.com/gravitational/robotest/lib/ssh"
 )
 
 type node struct {

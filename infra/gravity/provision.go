@@ -188,6 +188,9 @@ Loop:
 	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
 	ec2svc := ec2.New(sess)
 	gravityNodes, err := c.getAWSNodes(ec2svc, "tag:KubernetesCluster", clusterName)
+	if err != nil {
+		return nil, destroyFn, trace.Wrap(err)
+	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()

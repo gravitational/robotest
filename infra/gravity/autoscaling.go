@@ -62,9 +62,9 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 		return nil, trace.Wrap(err)
 	}
 
+	ec2svc := ec2.New(sess)
 	for _, instance := range result.AutoScalingGroups[0].Instances {
 		// attempt to get the actual instance for each instance-id in the cluster
-		ec2svc := ec2.New(sess)
 		node, err := c.getAWSNodes(ec2svc, "instance-id", *instance.InstanceId)
 		if err != nil {
 			return nil, trace.Wrap(err)

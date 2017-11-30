@@ -110,9 +110,9 @@ type OpsConfig struct {
 	OpsKey string `json:"ops_key" yaml:"ops_key" validate:"required"`
 	// App is the ops center application to deploy
 	App string `json:"app" yaml:"app" validate:"required"`
-	// EC2AccessKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	// EC2AccessKey http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
 	EC2AccessKey string `json:"access_key" yaml:"access_key" validate:"required"`
-	// EC2SecretKey (EC2) http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+	// EC2SecretKey http://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
 	EC2SecretKey string `json:"secret_key" yaml:"secret_key" validate:"required"`
 	// EC2Region specifies the EC2 region to install into
 	EC2Region string `json:"region" yaml:"region" validate:"required"`
