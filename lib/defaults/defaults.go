@@ -51,4 +51,7 @@ const (
 
 	// MaxRetriesPerTest
 	MaxRetriesPerTest = 3
+
+	// TmpDir is temporary file folder
+	TmpDir = "/tmp"
 )

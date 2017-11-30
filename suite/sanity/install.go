@@ -10,6 +10,13 @@ type installParam struct {
 	gravity.InstallParam
 	// NodeCount is how many nodes
 	NodeCount uint `json:"nodes" validate:"gte=1"`
+	// Script if not empty would be executed with args provided after installer has been transferred
+	Script *scriptParam `json:"script"`
+}
+
+type scriptParam struct {
+	Url  string   `json:"url" validate:"required"`
+	Args []string `json:"args"`
 }
 
 func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
@@ -37,6 +44,11 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		defer destroyFn()
 
 		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		if param.Script != nil {
+			g.OK("post bootstrap script",
+				g.ExecScript(nodes, param.Script.Url, param.Script.Args))
+		}
+
 		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
 		g.OK("status", g.Status(nodes))
 	}, nil
