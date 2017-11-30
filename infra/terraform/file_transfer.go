@@ -56,7 +56,7 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 			do test -f /var/lib/bootstrap_complete && break || \
 			echo Waiting for bootstrap to complete && sleep 15 ; \
 		done &&  \
-		echo Cleaning up && rm -rf %[1]s/installer/* && 
+		echo Cleaning up && rm -rf %[1]s/installer/* && \
 		echo Downloading installer %[5]s to %[3]s ... && %[2]s && \
 		echo Creating installer dir && mkdir -p %[1]s/installer && \
 		echo Unpacking installer && tar -xvf %[3]s -C %[1]s/installer && \

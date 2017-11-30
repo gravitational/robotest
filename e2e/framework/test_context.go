@@ -424,6 +424,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		CloudProvider: TestContext.CloudProvider,
 		AWS:           TestContext.AWS,
 		Azure:         TestContext.Azure,
+		DockerDevice:  TestContext.Onprem.DockerDevice,
 	}
 
 	err = config.Validate()
@@ -449,6 +450,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			ScriptPath:   TestContext.Onprem.ScriptPath,
 			InstallerURL: TestContext.Onprem.InstallerURL,
 			NumNodes:     TestContext.Onprem.NumNodes,
+			DockerDevice: TestContext.Onprem.DockerDevice,
 		}
 		err := config.Validate()
 		if err != nil {
