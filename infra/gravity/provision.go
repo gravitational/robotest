@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -26,7 +27,6 @@ import (
 	"github.com/gravitational/trace"
 
 	"github.com/dustin/go-humanize"
-	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -118,7 +118,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	}
 
 	// generate a random cluster name
-	clusterName := fmt.Sprint(c.name, "-", uuid.NewV4().String())
+	clusterName := fmt.Sprint(c.name, "-", fmt.Sprintf("%x", rand.Uint64()))
 	c.provisionerCfg.clusterName = clusterName
 	c.Logger().Debug("Generated cluster name: ", clusterName)
 
