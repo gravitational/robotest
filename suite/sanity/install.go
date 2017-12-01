@@ -13,11 +13,19 @@ type provisionParam struct {
 	gravity.InstallParam
 	// NodeCount is how many nodes
 	NodeCount uint `json:"nodes" validate:"gte=1"`
+	// Script if not empty would be executed with args provided after installer has been transferred
+	Script *scriptParam `json:"script"`
+}
+
+type scriptParam struct {
+	Url  string   `json:"url" validate:"required"`
+	Args []string `json:"args"`
 }
 
 type installParam struct {
 	provisionParam
-	Version string `json:"version"` // FIXME: required if we're making snapshots
+	// Version is required when taking snapshots
+	Version string `json:"version"`
 }
 
 func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
@@ -57,15 +65,21 @@ func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		g.AssertCheckpointDuplicate(cfg.CloudProvider, checkpointInstall, param)
+		g.AssertNoSuchCheckpoint(cfg.CloudProvider, checkpointInstall, param)
 
-		nodes, err := provisionNodes(g, cfg, param.provisionParam)
+		nodes, err = provisionNodes(g, cfg, param.provisionParam)
 		g.OK("VMs ready", err)
 
 		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		if param.Script != nil {
+			g.OK("post bootstrap script",
+				g.ExecScript(nodes, param.Script.Url, param.Script.Args))
+		}
+
 		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
 		g.Checkpoint(checkpointInstall, nodes)
 		g.OK("status", g.Status(nodes))
+
 	}, nil
 }
 
@@ -73,7 +87,7 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(provisionParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		g.AssertCheckpointDuplicate(cfg.CloudProvider, checkpointProvision, param)
+		g.AssertNoSuchCheckpoint(cfg.CloudProvider, checkpointProvision, param)
 
 		nodes, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)

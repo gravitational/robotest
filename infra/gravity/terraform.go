@@ -174,11 +174,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"redhat": "redhat",
 			"centos": "centos",
 		},
+		"ops": map[string]string{
+			"centos": "centos",
+		},
 	}
 
 	param.user, ok = usernames[baseConfig.CloudProvider][baseConfig.os.Vendor]
 	if !ok {
-		return nil, trace.BadParameter(baseConfig.os.Vendor)
+		return nil, trace.BadParameter("unknown OS vendor: %q", baseConfig.os.Vendor)
 	}
 
 	param.homeDir = filepath.Join("/home", param.user)
@@ -186,7 +189,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	param.tf = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
-		NumNodes:      int(baseConfig.nodeCount),
+		NumNodes:      int(baseConfig.NodeCount),
 		OS:            baseConfig.os.String(),
 		FromImage:     baseConfig.FromImage,
 	}
@@ -251,7 +254,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 			return nil
 		}
 
-		vmCapture, err = terraform.NewAzureVmCapture(*params.tf.Azure, cfg.nodeCount, logger)
+		vmCapture, err = terraform.NewAzureVmCapture(*params.tf.Azure, cfg.NodeCount, logger)
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}

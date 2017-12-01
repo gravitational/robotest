@@ -22,12 +22,12 @@ type dsVmEntry struct {
 	Enabled bool `datastore:"enabled"`
 	// Cloud is which cloud provider the snapshot belongs to
 	Cloud string `datastore:"cloud"`
-	// Checkpoint is milestone in the cluster lifecycle when VM snapshot has been taken
-	Checkpoint string `datastore:"checkpoint"`
 	// Region is cloud region
 	Region string `datastore:"region"`
 	// ResourceGroup is resource group the VM snapshot belongs to
 	ResourceGroup string `datastore:"resource_group"`
+	// Checkpoint is milestone in the cluster lifecycle when VM snapshot has been taken
+	Checkpoint string `datastore:"checkpoint"`
 	// Param is JSON serialized list of parameters related to Checkpoint
 	Param string `datastore:"param,noindex"`
 	// Dir is directory where installer is located on the machine
@@ -37,6 +37,7 @@ type dsVmEntry struct {
 }
 
 const (
+	// vmEntryKind is google datastore entry code
 	vmEntryKind = "VmImage"
 )
 
@@ -77,7 +78,6 @@ func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, par
 		}
 
 		err = compareJSON(paramGeneralized, rec.Param)
-		r.logger.WithError(err).Info(rec.Param)
 		if err == nil {
 			return &VmImage{
 				Cloud:         rec.Cloud,
@@ -89,6 +89,7 @@ func (r *dsVmRegistry) Locate(ctx context.Context, cloud, checkpoint string, par
 		if trace.IsCompareFailed(err) {
 			continue
 		}
+		return nil, trace.Wrap(err)
 	}
 
 	return nil, trace.NotFound("VM image not found for cloud=%q, checkpoint=%q, param=%+v", cloud, checkpoint, param)
@@ -121,6 +122,7 @@ func (r *dsVmRegistry) Store(ctx context.Context, checkpoint string, param inter
 			Region:        image.Region,
 			ResourceGroup: image.ResourceGroup,
 			Param:         string(data),
+			InstallDir:    image.InstallDir,
 		})
 	return trace.Wrap(err)
 }

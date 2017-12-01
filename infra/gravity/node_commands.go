@@ -27,6 +27,8 @@ type Gravity interface {
 	json.Marshaler
 	// SetInstaller transfers and prepares installer package
 	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
+	// ExecScript transfers and executes script with predefined parameters
+	ExecScript(ctx context.Context, scriptUrl string, args []string) error
 	// Install operates on initial master node
 	Install(ctx context.Context, param InstallParam) error
 	// Status retrieves status
@@ -376,6 +378,25 @@ func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir 
 
 	g.installDir = installDir
 	return nil
+}
+
+// ExecScript will transfer and execute script provided with given args
+func (g *gravity) ExecScript(ctx context.Context, scriptUrl string, args []string) error {
+	log := g.Logger().WithFields(logrus.Fields{
+		"script": scriptUrl, "args": args})
+
+	log.Debug("execute")
+
+	spath, err := sshutils.TransferFile(ctx, g.Client(), log,
+		scriptUrl, defaults.TmpDir, g.param.env)
+	if err != nil {
+		log.WithError(err).Error("failed to transfer script")
+		return trace.Wrap(err)
+	}
+
+	err = sshutils.Run(ctx, g.Client(), log,
+		fmt.Sprintf("sudo /bin/bash -x %s %s", spath, strings.Join(args, " ")), nil)
+	return trace.Wrap(err)
 }
 
 // Upload uploads packages in current installer dir to cluster

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/trace"
 
 	"github.com/sirupsen/logrus"
@@ -34,14 +35,13 @@ func RunCommands(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 }
 
 const (
-	tmpDir = "/tmp"
-	SUDO   = true
+	SUDO = true
 )
 
 // RunScript will run a .sh script on remote host
 // if script should not be executed it should have internal flag files and terminate
 func RunScript(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, scriptPath string, sudo bool) error {
-	remotePath, err := PutFile(ctx, client, log, scriptPath, tmpDir)
+	remotePath, err := PutFile(ctx, client, log, scriptPath, defaults.TmpDir)
 	if err != nil {
 		return trace.Wrap(err)
 	}

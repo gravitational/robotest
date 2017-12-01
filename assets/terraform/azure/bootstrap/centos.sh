@@ -101,6 +101,7 @@ iptables --table filter --delete-chain
 
 modprobe br_netfilter || true
 modprobe overlay || true
+modprobe ebtables || true
 sysctl -w net.bridge.bridge-nf-call-iptables=1
 
 # make the changes permanent
@@ -110,6 +111,7 @@ EOF
 cat > /etc/modules-load.d/telekube.conf <<EOF
 br_netfilter
 overlay
+ebtables
 EOF
 
 # robotest might SSH before bootstrap script is complete (and will fail)

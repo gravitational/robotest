@@ -14,6 +14,9 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	if len(current) == 0 || len(extra) == 0 {
 		return trace.Errorf("empty node list")
 	}
+	if c.provisionerCfg.CloudProvider == "ops" {
+		return trace.Errorf("not implemented")
+	}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()

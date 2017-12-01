@@ -1,8 +1,8 @@
-hash: 4d95fd1a51a80dcae7db68d55c41a09060444f6666c5ada1931b6af27ea8ff6c
-updated: 2017-11-13T02:26:22.767317778Z
+hash: fc8b006fb24f0a1dccc21693caba3d3b0e621fb54255f729be43e209fcf1409e
+updated: 2017-11-30T14:29:24.753981-05:00
 imports:
 - name: cloud.google.com/go
-  version: 5ae2503431f9a389c495847186d217217d11f2bf
+  version: 28b507a1143b9134490384bc95088187dde1b96a
   subpackages:
   - bigquery
   - civil
@@ -25,13 +25,42 @@ imports:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/aws/aws-sdk-go
+  version: cd721c97ef6fcfcb76b4feb14fcfead57fb01e5e
+  subpackages:
+  - aws
+  - aws/awserr
+  - aws/awsutil
+  - aws/client
+  - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/stscreds
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/endpoints
+  - aws/request
+  - aws/session
+  - aws/signer/v4
+  - internal/shareddefaults
+  - private/protocol
+  - private/protocol/ec2query
+  - private/protocol/query
+  - private/protocol/query/queryutil
+  - private/protocol/rest
+  - private/protocol/xml/xmlutil
+  - service/autoscaling
+  - service/ec2
+  - service/sts
 - name: github.com/Azure/azure-sdk-for-go
   version: 7692b0cef22674113fcf71cc17ac3ccc1a7fef48
   subpackages:
   - arm
   - arm/compute
 - name: github.com/Azure/go-autorest
-  version: ab5671379918d9af294b6f0e3d8aaa98c829416d
+  version: c67b24a8e30d876542a85022ebbdecf0e5a935e8
   subpackages:
   - autorest
   - autorest/adal
@@ -40,13 +69,15 @@ imports:
   - autorest/to
   - autorest/validation
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: dbeaa9332f19a944acb5736b4456cfcc02140e29
 - name: github.com/dustin/go-humanize
   version: bb3d318650d48840a39aa21a027c6630e198e626
+- name: github.com/go-ini/ini
+  version: 32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a
 - name: github.com/go-playground/locales
   version: e4cbcb5d0652150d40ad0646651076b6bd2be4f6
   subpackages:
@@ -54,9 +85,9 @@ imports:
 - name: github.com/go-playground/universal-translator
   version: 71201497bace774495daed26a3874fd339e0b538
 - name: github.com/go-yaml/yaml
-  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+  version: 287cf08546ab5e7e37d55a84f7ed3fd1db036de5
 - name: github.com/golang/protobuf
-  version: 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
+  version: 1e59b77b52bf8e4b449a57e6f79f21226d571845
   subpackages:
   - proto
   - protoc-gen-go/descriptor
@@ -76,9 +107,11 @@ imports:
 - name: github.com/gravitational/log
   version: 8e1bbf1bba0515719dbb17adf1da20b5390ac8da
 - name: github.com/gravitational/trace
-  version: 77f42dab0785f2fa2923c08cba5c37dec0687572
+  version: 0bd13642feb8f57acc0d8e3a568edc34e05a74b9
 - name: github.com/hashicorp/go-version
-  version: fc61389e27c71d120f87031ca8c88a3428f372dd
+  version: 4fe82ae3040f80a03d04d2cccb5606a626b8e1ee
+- name: github.com/jmespath/go-jmespath
+  version: dd801d4f4ce7ac746e7e7b4489d2fa600b3b096b
 - name: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
 - name: github.com/kr/pretty
@@ -86,7 +119,7 @@ imports:
 - name: github.com/kr/text
   version: 7cafcd837844e784b526369c9bce262804aebc60
 - name: github.com/onsi/ginkgo
-  version: 652e15c9a27e1cec563e065568014f29eecf6bd9
+  version: 7a241e9c6c7fb89adf3965bd763b7369b88a51eb
   subpackages:
   - config
   - internal/codelocation
@@ -146,14 +179,14 @@ imports:
 - name: github.com/tebeka/selenium
   version: f5eb1c2e783ecdec3611e4ba176c2e360992c342
 - name: golang.org/x/crypto
-  version: 6a293f2d4b14b8e6d3f0539e383f6d0d30fce3fd
+  version: 94eea52f7b742c7cbe0b03b22f0c4c8631ece122
   subpackages:
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
   - ssh
 - name: golang.org/x/net
-  version: a337091b0525af65de94df2eb7e98bd9962dcbe2
+  version: a8b9294777976932365dabb6640cf1468d95c70f
   subpackages:
   - context
   - context/ctxhttp
@@ -167,7 +200,7 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: 9ff8ebcc8e241d46f52ecc5bff0e5a2f2dbef402
+  version: f95fa95eaa936d9d87489b15d1d18b97c1ba9c28
   subpackages:
   - google
   - internal
@@ -179,11 +212,11 @@ imports:
   - errgroup
   - semaphore
 - name: golang.org/x/sys
-  version: 1e2299c37cc91a509f1b12369872d27be0ce98a6
+  version: 8b4580aae2a0dd0c231a45d3ccb8434ff533b840
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 88f656faf3f37f690df1a32515b479415e1a6769
+  version: 75cc3cad82b5f47d3fb229ddda8c5167da14f294
   repo: https://github.com/golang/text.git
   vcs: git
   subpackages:
@@ -207,7 +240,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: a0c31fb0028e0111b942a29b9fc2e9235202c48b
+  version: 88d8826ad7655f8bdc7328b1ec3774f3851c3a44
   subpackages:
   - bigquery/v2
   - gensupport
@@ -236,7 +269,7 @@ imports:
   - socket
   - urlfetch
 - name: google.golang.org/genproto
-  version: 11c7f9e547da6db876260ce49ea7536985904c9b
+  version: 7f0da29060c682909f650ad8ed4e515bd74fa12a
   subpackages:
   - googleapis/api/annotations
   - googleapis/api/distribution
@@ -252,7 +285,7 @@ imports:
   - googleapis/type/latlng
   - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: de2209a968d48e8970546c8a710189f7461370f7
+  version: a62701e4aa1d276bec70311251d62a478404d63f
   subpackages:
   - balancer
   - balancer/roundrobin
@@ -270,6 +303,7 @@ imports:
   - peer
   - resolver
   - resolver/dns
+  - resolver/manual
   - resolver/passthrough
   - stats
   - status
@@ -278,7 +312,7 @@ imports:
 - name: gopkg.in/alecthomas/kingpin.v2
   version: 1087e65c9441605df944fb12c33f0fe7072d18ca
 - name: gopkg.in/go-playground/validator.v9
-  version: 1304298bf10d085adec514b076772a79c9cadb6b
+  version: 61caf9d3038e1af346dbf5c2e16f6678e1548364
 - name: gopkg.in/yaml.v2
-  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+  version: 287cf08546ab5e7e37d55a84f7ed3fd1db036de5
 testImports: []

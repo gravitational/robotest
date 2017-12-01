@@ -295,7 +295,7 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 		// there is no reason to retry it
 		cx.updateStatus(TestStatusPaniced)
 		cx.Logger().WithFields(logrus.Fields{
-			"stack": debug.Stack(),
+			"stack": string(debug.Stack()),
 			"where": r}).Error("PANIC")
 		err = trace.BadParameter("panic inside test - aborted")
 	}()

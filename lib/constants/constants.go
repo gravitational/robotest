@@ -48,4 +48,10 @@ const (
 
 	// Azure is microsoft azure cloud
 	Azure = "azure"
+
+	// Ops specifies a special cloud provider - a telekube Ops Center
+	Ops = "ops"
+
+	// TerraformPluginDir specifies the location of terraform plugins
+	TerraformPluginDir = "/etc/terraform/plugins"
 )
