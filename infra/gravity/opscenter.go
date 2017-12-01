@@ -2,6 +2,7 @@ package gravity
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/go-yaml/yaml"
+	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
@@ -16,8 +19,8 @@ import (
 // getTeleClusterStatus will attempt to get the cluster status from an ops center
 // for now, it's just looking for the specific line of output from tele get clusters
 // but could parse the entire yaml structure if imported from gravity
-func getTeleClusterStatus(clusterName string) (string, error) {
-	out, err := exec.Command("tele", "get", "clusters", clusterName, "--format", "yaml").Output()
+func getTeleClusterStatus(ctx context.Context, clusterName string) (string, error) {
+	out, err := exec.CommandContext(ctx, "tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
 		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
@@ -110,6 +113,9 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 			"cluster": clusterName,
 		})
 
+		ctx, cancel := context.WithTimeout(tc.Context(), defaults.DestroyOpsTimeout)
+		defer cancel()
+
 		// if the TestContext has an error, it means this robotest run failed
 		if tc.Context().Err() != nil {
 			log.WithError(tc.Context().Err()).Info("error caught in testing")
@@ -127,38 +133,39 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 
 		log.Info("destroying cluster")
 
-		out, err := exec.Command("tele", "rm", "cluster", clusterName).CombinedOutput()
+		out, err := exec.CommandContext(ctx, "tele", "rm", "cluster", clusterName).CombinedOutput()
 		if err != nil {
 			return err
 		}
 		log.Debug("tele rm result: ", string(out))
 
-		// monitor the cluster until it's gone
-		timeout := time.After(DefaultTimeouts.Uninstall)
-		tick := time.Tick(5 * time.Second)
-
-		for {
-			select {
-			case <-timeout:
-				return trace.LimitExceeded("clusterDestroy timeout exceeded")
-			case <-tick:
-				// check provisioning status
-				status, err := getTeleClusterStatus(clusterName)
-				if err != nil && trace.IsNotFound(err) {
-					// de-provisioning completed
-					return nil
-				}
-				if err != nil {
-					return trace.Wrap(err)
-				}
-
-				switch status {
-				case "uninstalling":
-					// we're still uninstalling, just continue the loop
-				default:
-					return trace.BadParameter("unexpected cluster status: %v", status)
-				}
-			}
+		retryer := wait.Retryer{
+			Delay:    5 * time.Second,
+			Attempts: 120,
 		}
+
+		err = retryer.Do(ctx, func() (err error) {
+			// check provisioning status
+			status, err := getTeleClusterStatus(tc.Context(), clusterName)
+			if err != nil && trace.IsNotFound(err) {
+				// de-provisioning completed
+				return nil
+			}
+			if err != nil {
+				return trace.Wrap(err)
+			}
+
+			switch status {
+			case "uninstalling":
+				return trace.BadParameter("still uninstalling")
+			default:
+				return wait.Abort(trace.BadParameter("unexpected cluster status: %v", status))
+			}
+		})
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
+		return nil
 	}
 }
