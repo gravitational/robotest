@@ -1,8 +1,8 @@
 hash: fc8b006fb24f0a1dccc21693caba3d3b0e621fb54255f729be43e209fcf1409e
-updated: 2017-11-30T14:29:24.753981-05:00
+updated: 2017-12-04T16:57:58.627688241Z
 imports:
 - name: cloud.google.com/go
-  version: 28b507a1143b9134490384bc95088187dde1b96a
+  version: 442eb1fa2d4349a51f117d9dc016894499650f6d
   subpackages:
   - bigquery
   - civil
@@ -139,7 +139,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 1eecca0ba8e6f5ea5a431ce21d3aee2af0b4c90b
+  version: 9aef6c6952f2e285f6fef1caaf7638ef51c81e6e
   subpackages:
   - format
   - internal/assertion
@@ -216,7 +216,7 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 75cc3cad82b5f47d3fb229ddda8c5167da14f294
+  version: 57961680700a5336d15015c8c50686ca5ba362a4
   repo: https://github.com/golang/text.git
   vcs: git
   subpackages:
@@ -240,7 +240,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: 88d8826ad7655f8bdc7328b1ec3774f3851c3a44
+  version: 8cfdc57a0663729cc2811afefb5b7cd3d901e97c
   subpackages:
   - bigquery/v2
   - gensupport
@@ -285,7 +285,7 @@ imports:
   - googleapis/type/latlng
   - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: a62701e4aa1d276bec70311251d62a478404d63f
+  version: cd563b81ec334abe62cda34a33b8640ea67ef5ba
   subpackages:
   - balancer
   - balancer/roundrobin

@@ -13,19 +13,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
@@ -358,7 +359,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.NewAggregate(err, destroyFn(c.Context()))
 	}
 
 	c.Logger().Debug("ensuring disk speed is adequate across nodes")
@@ -389,10 +390,18 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	for _, node := range gravityNodes {
 		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
 	}
-	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return trace.Wrap(err)
+
+	retry := wait.Retryer{
+		Delay:       defaults.RetryDelay,
+		Attempts:    defaults.RetryAttempts,
+		FieldLogger: c.Logger(),
 	}
-	return nil
+
+	err := retry.Do(ctx, func() error {
+		return trace.Wrap(sshutil.WaitTimeSync(ctx, timeNodes))
+	})
+
+	return trace.Wrap(err)
 }
 
 // sort Interface implementation

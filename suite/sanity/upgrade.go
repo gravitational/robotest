@@ -29,6 +29,10 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 	param := p.(upgradeParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		cfg = cfg.WithOS(param.OSFlavor).
+			WithStorageDriver(param.DockerStorageDriver).
+			WithNodes(param.NodeCount)
+
 		nodes, err := g.RestoreCheckpoint(cfg, checkpointInstall, param.installParam)
 
 		if trace.IsNotFound(err) {

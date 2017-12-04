@@ -1,4 +1,4 @@
-TARGETS := suite 
+TARGETS := suite e2e
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)

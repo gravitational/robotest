@@ -88,15 +88,6 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 		}
 	}
 
-	out, err := r.command(ctx, []string{
-		"init", "-input=false",
-		"-plugin-dir=/robotest/terraform-plugins",
-	})
-	if err != nil {
-		log.Error(out)
-		return nil, trace.Wrap(err)
-	}
-
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {

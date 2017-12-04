@@ -67,7 +67,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		g.AssertNoSuchCheckpoint(cfg.CloudProvider, checkpointInstall, param)
 
-		nodes, err = provisionNodes(g, cfg, param.provisionParam)
+		nodes, err := provisionNodes(g, cfg, param.provisionParam)
 		g.OK("VMs ready", err)
 
 		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
