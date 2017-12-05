@@ -60,8 +60,10 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 		echo Downloading installer %[5]s to %[3]s ... && %[2]s && \
 		echo Creating installer dir && mkdir -p %[1]s/installer && \
 		echo Unpacking installer && tar -xvf %[3]s -C %[1]s/installer && \
+		echo Checking existence of post-downloading installer script and executing it && \
+		if [[ -f %[6]s ]]; then sudo bash -x %[6]s; fi && \
 		echo Launching command %[4]s && cd %[1]s/installer && %[4]s`,
-		homeDir, fetchCmd, outFile, command, fileUrl)
+		homeDir, fetchCmd, outFile, command, fileUrl, t.Config.PostInstallerScript)
 
 	return cmd, nil
 }

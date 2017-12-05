@@ -258,6 +258,10 @@ type OnpremConfig struct {
 	// ScriptPath defines the path to the provisioner script.
 	// TODO: if unspecified, scripts in assets/<provisioner> are used
 	ScriptPath string `json:"script_path" yaml:"script_path"`
+	// PostInstallerScript defines the path on remote node
+	// to the script which should be called on installer node
+	// after downloading of the installer
+	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
 	// ExpandProfile specifies an optional name of the server profile for On-Premise expand operation.
 	// If the profile is unspecified, the test will use the first available.
 	ExpandProfile string `json:"expand_profile" yaml:"expand_profile"`
@@ -416,15 +420,16 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 	}
 
 	config = &terraform.Config{
-		Config:        infraConfig,
-		ScriptPath:    TestContext.Onprem.ScriptPath,
-		InstallerURL:  TestContext.Onprem.InstallerURL,
-		NumNodes:      TestContext.Onprem.NumNodes,
-		OS:            TestContext.Onprem.OS,
-		CloudProvider: TestContext.CloudProvider,
-		AWS:           TestContext.AWS,
-		Azure:         TestContext.Azure,
-		DockerDevice:  TestContext.Onprem.DockerDevice,
+		Config:              infraConfig,
+		ScriptPath:          TestContext.Onprem.ScriptPath,
+		InstallerURL:        TestContext.Onprem.InstallerURL,
+		NumNodes:            TestContext.Onprem.NumNodes,
+		OS:                  TestContext.Onprem.OS,
+		CloudProvider:       TestContext.CloudProvider,
+		AWS:                 TestContext.AWS,
+		Azure:               TestContext.Azure,
+		DockerDevice:        TestContext.Onprem.DockerDevice,
+		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
 	}
 
 	err = config.Validate()
