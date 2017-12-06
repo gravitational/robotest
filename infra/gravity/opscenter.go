@@ -29,7 +29,7 @@ func getTeleClusterStatus(ctx context.Context, clusterName string) (string, erro
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 
-	res, err := parseClusterStatus(clusterName, out)
+	res, err := parseClusterStatus(out)
 	if err != nil {
 		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
@@ -65,7 +65,7 @@ type ClusterSpecV2 struct {
 }
 
 // parseClusterStatus will attempt to unmarshal the cluster status from tele get clusters output
-func parseClusterStatus(clusterName string, data []byte) (string, error) {
+func parseClusterStatus(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", trace.BadParameter("missing cluster data")
 	}
