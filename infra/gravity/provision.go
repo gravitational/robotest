@@ -173,8 +173,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 
 		switch status {
 		case "installing":
-			// we're still installing, just continue the loop
-			return trace.BadParameter("installation not complete")
+			return trace.Retry(trace.BadParameter("installation not complete"), "installation not complete")
 		case "active":
 			// the cluster install completed, we can continue the install process
 			return nil

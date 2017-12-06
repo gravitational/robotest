@@ -3,7 +3,6 @@ package gravity
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 	"text/template"
@@ -22,12 +21,8 @@ import (
 func getTeleClusterStatus(ctx context.Context, clusterName string) (string, error) {
 	out, err := exec.CommandContext(ctx, "tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
-		// tele get clusters will get a non zero exit status code if the cluster is not found, but we want to make sure
-		// it maps to a NOT found error if the cluster isn't found
-		if out != nil {
-			if strings.Contains(string(out), fmt.Sprintf("cluster %v not found", clusterName)) {
-				return "", trace.NotFound("cluster not found")
-			}
+		if isClusterNotFoundError(out) {
+			return "", trace.NotFound("cluster not found")
 		}
 
 		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
@@ -40,6 +35,18 @@ func getTeleClusterStatus(ctx context.Context, clusterName string) (string, erro
 		return "", trace.WrapWithMessage(err, string(out))
 	}
 	return res, nil
+}
+
+func isClusterNotFoundError(buf []byte) bool {
+	if buf == nil {
+		return false
+	}
+
+	s := string(buf)
+	if strings.Contains(s, "cluster") && strings.Contains(s, "not found") {
+		return true
+	}
+	return false
 }
 
 // ClusterV2 spec is a minimal copy of the Cluster definition from the gravitational/gravity project
@@ -63,7 +70,7 @@ func parseClusterStatus(clusterName string, data []byte) (string, error) {
 		return "", trace.BadParameter("missing cluster data")
 	}
 
-	if strings.Contains(string(data), fmt.Sprintf("cluster %v not found", clusterName)) {
+	if isClusterNotFoundError(data) {
 		return "", trace.NotFound("cluster not found")
 	}
 
@@ -165,7 +172,7 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 
 			switch status {
 			case "uninstalling":
-				return trace.BadParameter("still uninstalling")
+				return trace.Retry(trace.BadParameter("uninstall not complete"), "uninstall not complete")
 			default:
 				return wait.Abort(trace.BadParameter("unexpected cluster status: %v", status))
 			}
