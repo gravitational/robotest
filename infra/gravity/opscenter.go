@@ -22,6 +22,14 @@ import (
 func getTeleClusterStatus(ctx context.Context, clusterName string) (string, error) {
 	out, err := exec.CommandContext(ctx, "tele", "get", "clusters", clusterName, "--format", "yaml").Output()
 	if err != nil {
+		// tele get clusters will get a non zero exit status code if the cluster is not found, but we want to make sure
+		// it maps to a NOT found error if the cluster isn't found
+		if out != nil {
+			if strings.Contains(string(out), fmt.Sprintf("cluster %v not found", clusterName)) {
+				return "", trace.NotFound("cluster not found")
+			}
+		}
+
 		logrus.WithError(err).Error("unable to parse tele get clusters: ", string(out))
 		return "", trace.WrapWithMessage(err, string(out))
 	}
