@@ -36,7 +36,8 @@ RUN (curl https://get.gravitational.io/telekube/install | bash)
 RUN mkdir /robotest
 WORKDIR /robotest
 COPY build/robotest-suite /usr/bin/robotest-suite
-COPY terraform /robotest/terraform
-COPY run_suite.sh /usr/bin/run_suite.sh
 
+COPY terraform /robotest/terraform
+
+COPY run_suite.sh /usr/bin/run_suite.sh
 RUN chmod +x /usr/bin/robotest-suite

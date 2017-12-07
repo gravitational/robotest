@@ -131,5 +131,5 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
-	-tag=${TAG} -suite=sanity \
+	-tag=${TAG} -suite=sanity -vm-capture=${VM_CAPTURE:-false} \
 	$@

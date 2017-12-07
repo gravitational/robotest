@@ -13,19 +13,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
@@ -38,6 +39,10 @@ type cloudDynamicParams struct {
 	homeDir string
 	tf      terraform.Config
 	env     map[string]string
+
+	// options
+	syncClocks bool
+	waitDisks  bool
 }
 
 func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
@@ -68,8 +73,119 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 	return sorted(gravityNodes), nil
 }
 
-// Provision will attempt to provision the requested cluster
-func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+// CheckpointExists will check if checkpoint with given parameters exists, returns nil, error otherwise
+func (c *TestContext) CheckpointExists(cloudProvider, checkpoint string, param interface{}) error {
+	if c.suite.imageRegistry == nil {
+		return trace.BadParameter("no image registry")
+	}
+
+	_, err := c.suite.imageRegistry.Locate(c.Context(),
+		cloudProvider, checkpoint, param)
+	return trace.Wrap(err)
+}
+
+// AssertNoSuchCheckpoint will gracefully abort test in case we're in snapshot capture mode and such checkpoint already exists
+func (c *TestContext) AssertNoSuchCheckpoint(cloudProvider, checkpoint string, param interface{}) {
+	if c.suite.imageRegistry == nil || c.suite.vmCaptureEnabled == false {
+		return
+	}
+
+	img, err := c.suite.imageRegistry.Locate(c.Context(),
+		cloudProvider, checkpoint, param)
+	if err == nil {
+		// avoid duplicates
+		c.Logger().Infof("VM image already exists: %+v", img)
+		c.checkpointSaved = true
+		panic("VM image already exists")
+	}
+
+	if trace.IsNotFound(err) {
+		// proceed with creating image
+		return
+	}
+
+	c.OK("unexpected image registry issue", trace.Wrap(err))
+}
+
+func getSingleInstallDir(nodes []Gravity) (dir string, err error) {
+	for _, node := range nodes {
+		gn, ok := node.(*gravity)
+		if !ok {
+			return "", trace.BadParameter("invalid type")
+		}
+
+		if dir == "" {
+			gn.installDir = dir
+		}
+
+		if dir != gn.installDir {
+			return "", trace.BadParameter("all nodes must have uniform current installer dir")
+		}
+	}
+
+	return dir, nil
+}
+
+// Checkpoint will save test state as VM image
+func (c *TestContext) Checkpoint(checkpoint string, nodes []Gravity) {
+	if !c.suite.vmCaptureEnabled {
+		return
+	}
+
+	if c.vmCapture == nil || c.suite.imageRegistry == nil {
+		c.Logger().Warn("Cannot make snapshot: VM capture/registry not available")
+		return
+	}
+
+	installDir, err := getSingleInstallDir(nodes)
+	if err != nil {
+		c.Logger().WithError(err).Error("install dir across nodes")
+		return
+	}
+
+	c.Logger().Infof("making checkpoint %q, param=%+v", checkpoint, c.param)
+
+	err = c.deprovision(nodes)
+	c.OK("deprovision", err)
+
+	image, err := c.vmCapture.CaptureVM(c.Context())
+	image.InstallDir = installDir
+
+	c.OK("VM checkpoint capture", trace.Wrap(err))
+
+	err = c.suite.imageRegistry.Store(c.Context(), checkpoint, c.param, *image)
+	c.OK("save VM image info to registry", trace.Wrap(err))
+
+	c.checkpointSaved = true
+	panic(checkpoint)
+}
+
+// RestoreCheckpoint will attempt to recover VMs with compatible configuration at given checkpoint
+func (c *TestContext) RestoreCheckpoint(cfg ProvisionerConfig, checkpoint string, param interface{}) (nodes []Gravity, err error) {
+	if c.suite.imageRegistry == nil {
+		return nil, trace.NotFound("image registry service unavailable")
+	}
+
+	cfg.FromImage, err = c.suite.imageRegistry.Locate(c.Context(),
+		cfg.CloudProvider, checkpoint, param)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	c.Logger().WithField("checkpoint", checkpoint).Infof("using checkpoint %q images from %+v", checkpoint, cfg.FromImage)
+
+	nodes, err = c.Provision(cfg)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	for _, n := range nodes {
+		n.(*gravity).installDir = cfg.FromImage.InstallDir
+	}
+	return nodes, nil
+}
+
+// Provision gets VMs up, running and ready to use
+func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, error) {
 	// store the configuration used for provisioning
 	c.provisionerCfg = cfg
 
@@ -77,26 +193,24 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	var destroy DestroyFn
 	var err error
 	switch cfg.CloudProvider {
-	case "azure", "aws":
+	case constants.Azure, constants.AWS:
 		nodes, destroy, err = c.provisionCloud(cfg)
-	case "ops":
+	case constants.Ops:
 		nodes, destroy, err = c.provisionOps(cfg)
 	default:
-		err = trace.BadParameter("unkown cloud provider: %v", cfg.CloudProvider)
+		err = trace.BadParameter("unknown cloud provider: %v", cfg.CloudProvider)
 	}
 
-	// call `destroyFn` if provided to destroy infrastructure
-	if err != nil && destroy != nil {
-		dErr := destroy()
-		if dErr != nil {
-			err = trace.NewAggregate(err, dErr)
-		}
-		// if we destroy the cluster, make sure nodes and the destroy functions are returned as nil
-		nodes = nil
-		destroy = nil
+	if err == nil {
+		c.resourceDestroyFuncs = append(c.resourceDestroyFuncs, destroy)
+		return nodes, nil
 	}
 
-	return nodes, destroy, trace.Wrap(err)
+	if destroy == nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return nil, trace.NewAggregate(err, destroy())
 }
 
 // provisionOps utilizes an ops center installation flow to complete cluster installation
@@ -224,9 +338,13 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 		return nil, nil, trace.Wrap(err)
 	}
 
-	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
+	nodes, destroyFn, vmCapture, params, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
+	}
+
+	if c.suite.vmCaptureEnabled {
+		c.vmCapture = vmCapture
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
@@ -241,7 +359,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.NewAggregate(err, destroyFn(c.Context()))
 	}
 
 	c.Logger().Debug("ensuring disk speed is adequate across nodes")
@@ -251,10 +369,8 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 	if err != nil {
 		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
 		c.Logger().WithError(err).Error(err.Error())
-		return nil, nil, err
+		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
 	}
-
-	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
 }
@@ -274,10 +390,18 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	for _, node := range gravityNodes {
 		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
 	}
-	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
-		return trace.Wrap(err)
+
+	retry := wait.Retryer{
+		Delay:       defaults.RetryDelay,
+		Attempts:    defaults.RetryAttempts,
+		FieldLogger: c.Logger(),
 	}
-	return nil
+
+	err := retry.Do(ctx, func() error {
+		return trace.Wrap(sshutil.WaitTimeSync(ctx, timeNodes))
+	})
+
+	return trace.Wrap(err)
 }
 
 // sort Interface implementation
@@ -370,9 +494,9 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	g.ssh = client
 
 	switch param.CloudProvider {
-	case "aws":
+	case constants.AWS:
 		err = bootstrapAWS(ctx, g, param)
-	case "azure":
+	case constants.Azure:
 		err = bootstrapAzure(ctx, g, param)
 	case "ops":
 		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin

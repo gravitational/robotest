@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/trace"
 
@@ -26,17 +27,24 @@ type OpTimeouts struct {
 
 // TestContext aggregates common parameters for better test suite readability
 type TestContext struct {
-	err            error
-	timestamp      time.Time
-	name           string
-	parent         context.Context
-	timeouts       OpTimeouts
-	log            logrus.FieldLogger
-	uid            string
-	suite          *testSuite
-	param          interface{}
-	logLink        string
-	status         string
+	err       error
+	timestamp time.Time
+	name      string
+	parent    context.Context
+	timeouts  OpTimeouts
+	log       logrus.FieldLogger
+	uid       string
+	suite     *testSuite
+	param     interface{}
+	logLink   string
+	status    string
+	// resourceDestroyFuncs are functions to be called after test has concluded in order to destroy allocated resources
+	resourceDestroyFuncs []DestroyFn
+	noCleanup            bool
+
+	vmCapture       infra.VmCapture
+	checkpointSaved bool
+
 	provisionerCfg ProvisionerConfig
 }
 
@@ -72,7 +80,7 @@ func (c *TestContext) Error() error {
 	return c.err
 }
 
-// Checkpoint marks milestone within a test
+// OK verifies that specific phase completed without error
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()
 	elapsed := now.Sub(c.timestamp)

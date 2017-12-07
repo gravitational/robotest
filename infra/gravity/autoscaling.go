@@ -49,8 +49,9 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	// so we need to repeat our API requests until we get the expected nodes
 	nodes := []Gravity{}
 	retryer := wait.Retryer{
-		Delay:    autoscaleWait,
-		Attempts: autoscaleRetries,
+		Delay:       autoscaleWait,
+		Attempts:    autoscaleRetries,
+		FieldLogger: c.Logger(),
 	}
 
 	var result *autoscaling.DescribeAutoScalingGroupsOutput

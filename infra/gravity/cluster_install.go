@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
@@ -203,6 +204,21 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 
 	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
+}
+
+// Deprovision will prepare VMs to be generalized before capturing image
+func (c *TestContext) deprovision(nodes []Gravity) error {
+	errs := make(chan error, len(nodes))
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	defer cancel()
+
+	for _, node := range nodes {
+		go func(n Gravity) {
+			errs <- sshutils.Run(ctx, n.Client(), n.Logger(),
+				"sudo waagent -deprovision -force", nil)
+		}(node)
+	}
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // ExecScript will run and execute a script on all nodes

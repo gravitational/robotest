@@ -44,6 +44,8 @@ func (c Config) SSHConfig() (user, keypath string) {
 type Config struct {
 	infra.Config
 
+	// FromImage defines which VM images to use to restore target environment from
+	FromImage *infra.VmImage
 	// DeployTo defines cloud to deploy to
 	CloudProvider string `validate:"required,eq=aws|eq=azure"`
 	// AWS defines AWS connection parameters
@@ -52,7 +54,6 @@ type Config struct {
 	Azure *infra.AzureConfig
 	// OS defines OS flavor, ubuntu | redhat | centos | debian
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
-
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `json:"script_path" validate:"required"`
 	// NumNodes defines the capacity of the cluster to provision

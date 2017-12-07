@@ -39,7 +39,7 @@ variable "os_sku" {
         "centos:7.2" = "7.2"
         "centos:7.3" = "7.3"
         "debian"     = "8"
-        "suse"       = "12-SP3"
+        "suse:12sp3" = "12-SP3"
     }
 }
 
@@ -56,6 +56,6 @@ variable "os_version" {
         "centos:7.3" = "7.3.20170925"
         "centos:7.2" = "7.2.20170517"
         "debian"     = "latest"
-        "suse"       = "2017.09.07"
+        "suse:12sp3" = "2017.09.07"
     }
 }

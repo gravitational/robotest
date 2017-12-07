@@ -41,7 +41,7 @@ const (
 	TerraformRetryDelay = 5 * time.Minute
 
 	// TerraformRetries
-	TerraformRetries = 2
+	TerraformRetries = 1
 
 	// BQDataset is bigquery dataset where run data is stored
 	BQDataset = "robotest"
@@ -50,7 +50,7 @@ const (
 	BQTable = "progress"
 
 	// MaxRetriesPerTest
-	MaxRetriesPerTest = 3
+	MaxRetriesPerTest = 1
 
 	// TmpDir is temporary file folder
 	TmpDir = "/tmp"

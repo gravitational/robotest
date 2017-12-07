@@ -81,6 +81,13 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 		return nil, trace.Errorf("No Terraform configs at %s", r.ScriptPath)
 	}
 
+	if r.Config.CloudProvider == constants.Azure {
+		err = r.azurePrepare(ctx)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+	}
+
 	// sometimes terraform cannot receive all required params
 	// most often public IPs take time to allocate (on Azure)
 	for {
@@ -115,6 +122,7 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 func (r *terraform) terraform(ctx context.Context) (err error) {
 	output, err := r.boot(ctx)
 	if err != nil {
+		log.Error(output)
 		return trace.Wrap(err)
 	}
 
@@ -282,7 +290,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		fmt.Sprintf("-var-file=%s", varsPath),
 	})
 	if err != nil {
-		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
+		return "", trace.Retry(err, "failed to boot terraform cluster: %s", out)
 	}
 
 	return string(out), nil

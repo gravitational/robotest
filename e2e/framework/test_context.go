@@ -408,7 +408,7 @@ func initLogger(debug bool) {
 		level = log.DebugLevel
 	}
 	log.StandardLogger().Hooks = make(log.LevelHooks)
-	log.SetFormatter(&trace.TextFormatter{TextFormatter: log.TextFormatter{FullTimestamp: true}})
+	log.SetFormatter(&trace.TextFormatter{DisableTimestamp: false})
 	log.SetOutput(os.Stderr)
 	log.SetLevel(level)
 }

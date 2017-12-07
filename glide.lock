@@ -1,12 +1,13 @@
-hash: 3d1f13cf27a878747eaaa5cc6534a41cc48707fb8dfb14012f82aa657b27e7da
-updated: 2017-11-24T11:40:56.595976513-05:00
+hash: fc8b006fb24f0a1dccc21693caba3d3b0e621fb54255f729be43e209fcf1409e
+updated: 2017-12-04T16:57:58.627688241Z
 imports:
 - name: cloud.google.com/go
-  version: 3e1507a0d90d17e4fdd8ef75e8f037ebecc854ba
+  version: 442eb1fa2d4349a51f117d9dc016894499650f6d
   subpackages:
   - bigquery
   - civil
   - compute/metadata
+  - datastore
   - iam
   - internal
   - internal/atomiccache
@@ -50,26 +51,43 @@ imports:
   - private/protocol/query/queryutil
   - private/protocol/rest
   - private/protocol/xml/xmlutil
+  - service/autoscaling
   - service/ec2
   - service/sts
+- name: github.com/Azure/azure-sdk-for-go
+  version: 7692b0cef22674113fcf71cc17ac3ccc1a7fef48
+  subpackages:
+  - arm
+  - arm/compute
+- name: github.com/Azure/go-autorest
+  version: c67b24a8e30d876542a85022ebbdecf0e5a935e8
+  subpackages:
+  - autorest
+  - autorest/adal
+  - autorest/azure
+  - autorest/date
+  - autorest/to
+  - autorest/validation
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
+- name: github.com/dgrijalva/jwt-go
+  version: dbeaa9332f19a944acb5736b4456cfcc02140e29
 - name: github.com/dustin/go-humanize
-  version: 259d2a102b871d17f30e3cd9881a642961a1e486
+  version: bb3d318650d48840a39aa21a027c6630e198e626
 - name: github.com/go-ini/ini
   version: 32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a
 - name: github.com/go-playground/locales
-  version: 1e5f1161c6416a5ff48840eb8724a394e48cc534
+  version: e4cbcb5d0652150d40ad0646651076b6bd2be4f6
   subpackages:
   - currency
 - name: github.com/go-playground/universal-translator
   version: 71201497bace774495daed26a3874fd339e0b538
 - name: github.com/go-yaml/yaml
-  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
+  version: 287cf08546ab5e7e37d55a84f7ed3fd1db036de5
 - name: github.com/golang/protobuf
-  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
+  version: 1e59b77b52bf8e4b449a57e6f79f21226d571845
   subpackages:
   - proto
   - protoc-gen-go/descriptor
@@ -79,8 +97,9 @@ imports:
   - ptypes/empty
   - ptypes/struct
   - ptypes/timestamp
+  - ptypes/wrappers
 - name: github.com/googleapis/gax-go
-  version: 84ed26760e7f6f80887a2fbfb50db3cc415d2cea
+  version: 317e0006254c44a0ac427cc52a0e083ff0b9622f
 - name: github.com/gravitational/configure
   version: 4e0f2df8846ee9557b5c88307a769ff2f85e89cd
   subpackages:
@@ -88,9 +107,9 @@ imports:
 - name: github.com/gravitational/log
   version: 8e1bbf1bba0515719dbb17adf1da20b5390ac8da
 - name: github.com/gravitational/trace
-  version: 640274f75816ce3975e730e844290c14936f6288
+  version: 0bd13642feb8f57acc0d8e3a568edc34e05a74b9
 - name: github.com/hashicorp/go-version
-  version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
+  version: 4fe82ae3040f80a03d04d2cccb5606a626b8e1ee
 - name: github.com/jmespath/go-jmespath
   version: dd801d4f4ce7ac746e7e7b4489d2fa600b3b096b
 - name: github.com/jonboulle/clockwork
@@ -100,7 +119,7 @@ imports:
 - name: github.com/kr/text
   version: 7cafcd837844e784b526369c9bce262804aebc60
 - name: github.com/onsi/ginkgo
-  version: 1e72798a2620664d2ab32ffd4473c102fcd4894d
+  version: 7a241e9c6c7fb89adf3965bd763b7369b88a51eb
   subpackages:
   - config
   - internal/codelocation
@@ -120,7 +139,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: c990b8b3a34c8814a6657daebe8e19ff4d9647a1
+  version: 9aef6c6952f2e285f6fef1caaf7638ef51c81e6e
   subpackages:
   - format
   - internal/assertion
@@ -140,7 +159,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 5bf94b69c6b68ee1b541973bb8e1144db23a194b
 - name: github.com/sclevine/agouti
-  version: dfc6680bb9fcb3f3d3b6f506a1d1e77fbc9c9613
+  version: 8cf0313221cb2c26a4059f8e273c0856b4cb091d
   subpackages:
   - api
   - api/internal/bus
@@ -153,21 +172,21 @@ imports:
 - name: github.com/sirupsen/logrus
   version: 202f25545ea4cf9b191ff7f846df5d87c9382c2b
 - name: github.com/stretchr/testify
-  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
+  version: 2aa2c176b9dab406a6970f6a55f513e8a8c8b18f
   subpackages:
   - assert
   - require
 - name: github.com/tebeka/selenium
-  version: 92ef4ae9dbd7b5028bbcff66c923414755c8abb6
+  version: f5eb1c2e783ecdec3611e4ba176c2e360992c342
 - name: golang.org/x/crypto
-  version: dd85ac7e6a88fc6ca420478e934de5f1a42dd3c6
+  version: 94eea52f7b742c7cbe0b03b22f0c4c8631ece122
   subpackages:
   - curve25519
   - ed25519
   - ed25519/internal/edwards25519
   - ssh
 - name: golang.org/x/net
-  version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
+  version: a8b9294777976932365dabb6640cf1468d95c70f
   subpackages:
   - context
   - context/ctxhttp
@@ -181,24 +200,27 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: cce311a261e6fcf29de72ca96827bdb0b7d9c9e6
+  version: f95fa95eaa936d9d87489b15d1d18b97c1ba9c28
   subpackages:
   - google
   - internal
   - jws
   - jwt
 - name: golang.org/x/sync
-  version: f52d1811a62927559de87708c8913c1650ce4f26
+  version: fd80eb99c8f653c847d294a001bdf2a3a6f768f5
   subpackages:
   - errgroup
   - semaphore
 - name: golang.org/x/sys
-  version: abf9c25f54453410d0c6668e519582a9e1115027
+  version: 8b4580aae2a0dd0c231a45d3ccb8434ff533b840
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
+  version: 57961680700a5336d15015c8c50686ca5ba362a4
+  repo: https://github.com/golang/text.git
+  vcs: git
   subpackages:
+  - .
   - encoding
   - encoding/charmap
   - encoding/htmlindex
@@ -218,7 +240,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: e665075b5ff79143ba49c58fab02df9dc122afd5
+  version: 8cfdc57a0663729cc2811afefb5b7cd3d901e97c
   subpackages:
   - bigquery/v2
   - gensupport
@@ -230,8 +252,10 @@ imports:
   - option
   - support/bundler
   - transport
+  - transport/grpc
+  - transport/http
 - name: google.golang.org/appengine
-  version: ad2570cd3913654e00c5f0183b39d2f998e54046
+  version: 9d8544a6b2c7df9cff240fcf92d7b2f59bc13416
   subpackages:
   - internal
   - internal/app_identity
@@ -245,40 +269,50 @@ imports:
   - socket
   - urlfetch
 - name: google.golang.org/genproto
-  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
+  version: 7f0da29060c682909f650ad8ed4e515bd74fa12a
   subpackages:
   - googleapis/api/annotations
   - googleapis/api/distribution
   - googleapis/api/label
   - googleapis/api/metric
   - googleapis/api/monitoredres
+  - googleapis/datastore/v1
   - googleapis/iam/v1
   - googleapis/logging/type
   - googleapis/logging/v2
   - googleapis/pubsub/v1
   - googleapis/rpc/status
+  - googleapis/type/latlng
   - protobuf/field_mask
 - name: google.golang.org/grpc
-  version: d6723916d2e73e8824d22a1ba5c52f8e6255e6f8
+  version: cd563b81ec334abe62cda34a33b8640ea67ef5ba
   subpackages:
+  - balancer
+  - balancer/roundrobin
   - codes
+  - connectivity
   - credentials
   - credentials/oauth
-  - grpclb/grpc_lb_v1
+  - encoding
+  - grpclb/grpc_lb_v1/messages
   - grpclog
   - internal
   - keepalive
   - metadata
   - naming
   - peer
+  - resolver
+  - resolver/dns
+  - resolver/manual
+  - resolver/passthrough
   - stats
   - status
   - tap
   - transport
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: 7f0871f2e17818990e4eed73f9b5c2f429501228
+  version: 1087e65c9441605df944fb12c33f0fe7072d18ca
 - name: gopkg.in/go-playground/validator.v9
-  version: fb68f39656d7ebf8aa339ad4917aa0c260ecc237
+  version: 61caf9d3038e1af346dbf5c2e16f6678e1548364
 - name: gopkg.in/yaml.v2
-  version: 3b4ad1db5b2a649883ff3782f5f9f6fb52be71af
+  version: 287cf08546ab5e7e37d55a84f7ed3fd1db036de5
 testImports: []

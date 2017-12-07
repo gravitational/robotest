@@ -17,8 +17,9 @@ func (c *TestContext) Status(nodes []Gravity) error {
 	defer cancel()
 
 	retry := wait.Retryer{
-		Attempts: 1000,
-		Delay:    time.Second * 20,
+		Attempts:    1000,
+		Delay:       time.Second * 20,
+		FieldLogger: c.Logger(),
 	}
 
 	err := retry.Do(ctx, func() error {

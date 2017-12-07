@@ -2,11 +2,14 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
+	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/bigquery"
+
+	log "github.com/sirupsen/logrus"
 )
 
-type installParam struct {
+type provisionParam struct {
 	gravity.InstallParam
 	// NodeCount is how many nodes
 	NodeCount uint `json:"nodes" validate:"gte=1"`
@@ -19,6 +22,12 @@ type scriptParam struct {
 	Args []string `json:"args"`
 }
 
+type installParam struct {
+	provisionParam
+	// Version is required when taking snapshots
+	Version string `json:"version"`
+}
+
 func (p installParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
 	row = make(map[string]bigquery.Value)
 	row["os"] = p.InstallParam.OSFlavor.Vendor
@@ -29,19 +38,37 @@ func (p installParam) Save() (row map[string]bigquery.Value, insertID string, er
 	return row, "", nil
 }
 
-func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {
-	return g.Provision(cfg.WithOS(param.OSFlavor).
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param provisionParam) (nodes []gravity.Gravity, err error) {
+	cfg = cfg.WithOS(param.OSFlavor).
 		WithStorageDriver(param.DockerStorageDriver).
-		WithNodes(param.NodeCount))
+		WithNodes(param.NodeCount)
+	nodes, err = g.RestoreCheckpoint(cfg, checkpointProvision, param)
+
+	if err == nil {
+		return nodes, err
+	}
+
+	if trace.IsNotFound(err) {
+		g.Logger().Warnf("no VM snapshot found for %+v", param)
+	} else {
+		g.Logger().WithFields(log.Fields{
+			"err":   err,
+			"param": param,
+		}).Error("failed to provision VM from snapshot - proceeding with creating from scratch")
+	}
+
+	nodes, err = g.Provision(cfg)
+	return nodes, trace.Wrap(err)
 }
 
 func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		g.AssertNoSuchCheckpoint(cfg.CloudProvider, checkpointInstall, param)
+
+		nodes, err := provisionNodes(g, cfg, param.provisionParam)
 		g.OK("VMs ready", err)
-		defer destroyFn()
 
 		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 		if param.Script != nil {
@@ -50,18 +77,21 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		}
 
 		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
-
+		g.Checkpoint(checkpointInstall, nodes)
 		g.OK("status", g.Status(nodes))
+
 	}, nil
 }
 
 func provision(p interface{}) (gravity.TestFunc, error) {
-	param := p.(installParam)
+	param := p.(provisionParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		g.AssertNoSuchCheckpoint(cfg.CloudProvider, checkpointProvision, param)
+
+		nodes, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
-		defer destroyFn()
+		g.Checkpoint(checkpointProvision, nodes)
 
 		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
 	}, nil

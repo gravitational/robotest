@@ -75,9 +75,10 @@ type ProvisionerConfig struct {
 	AWS *infra.AWSConfig `yaml:"aws"`
 	// Azure defines Azure connection parameters
 	Azure *infra.AzureConfig `yaml:"azure"`
+	// FromImage is whether to provision this environment from VM image
+	FromImage *infra.VmImage
 	// Ops defines Ops Center connection parameters
 	Ops *infra.OpsConfig `yaml:"ops"`
-
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL is AWS S3 URL with the installer
@@ -87,7 +88,7 @@ type ProvisionerConfig struct {
 
 	// Tag will group provisioned resources under for easy removal afterwards
 	tag string `validate:"required"`
-	// NodeCount defines amount of nodes to be provisioned
+	// nodeCount defines amount of nodes to be provisioned
 	NodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
 	os OS `validate:"required"`
@@ -95,6 +96,8 @@ type ProvisionerConfig struct {
 	storageDriver StorageDriver
 	// dockerDevice is a physical volume where docker data would be stored
 	dockerDevice string `validate:"required"`
+	// waitDisks is whether to wait for disks to "spin up"
+	waitDisks bool
 	// clusterName is the name of the cluster / auto-scaling group / etc
 	clusterName string
 }

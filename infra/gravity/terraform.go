@@ -57,6 +57,11 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			"provisioner_policy": policy,
 			"test_status":        testStatus[c.Failed()]})
 
+		if c.checkpointSaved {
+			log.Debug("not destroying resource group with VM images")
+			return nil
+		}
+
 		skipLogCollection := false
 		ctx := c.Context()
 
@@ -81,7 +86,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			}
 		}
 
-		if (policy.DestroyOnSuccess == false) ||
+		if (!c.Failed() && policy.DestroyOnSuccess == false) ||
 			(c.Failed() && policy.DestroyOnFailure == false) {
 			log.Info("not destroying VMs per policy")
 			return nil
@@ -186,6 +191,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.NodeCount),
 		OS:            baseConfig.os.String(),
+		FromImage:     baseConfig.FromImage,
 	}
 
 	if baseConfig.AWS != nil {
@@ -203,16 +209,20 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	if baseConfig.Azure != nil {
 		azure := *baseConfig.Azure
+		azure.ResourceGroup = baseConfig.tag
+		azure.SSHUser = param.user
+		if baseConfig.FromImage != nil {
+			azure.Location = baseConfig.FromImage.Region
+		} else {
+			azure.Location = azureRegions.Next()
+		}
 		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.tag
-		param.tf.Azure.SSHUser = param.user
-		param.tf.Azure.Location = azureRegions.Next()
 	}
 
 	return &param, nil
 }
 
-func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, params *cloudDynamicParams, err error) {
+func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, vmCapture infra.VmCapture, params *cloudDynamicParams, err error) {
 	retr := wait.Retryer{
 		Delay:       defaults.TerraformRetryDelay,
 		Attempts:    defaults.TerraformRetries,
@@ -235,18 +245,23 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		}
 		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, *params)
 
-		if err == nil {
+		if err != nil {
+			logger.WithError(err).Warn("terraform provisioning error")
+			return wait.Continue(err.Error())
+		}
+
+		if params.CloudProvider != constants.Azure {
 			return nil
 		}
 
-		logger.WithError(err).Warn("terraform provisioning failed")
-		return wait.Continue(err.Error())
+		vmCapture, err = terraform.NewAzureVmCapture(*params.tf.Azure, cfg.NodeCount, logger)
+		if err != nil {
+			return wait.Abort(trace.Wrap(err))
+		}
+		return nil
 	})
 
-	if err == nil {
-		return nodes, destroyFn, params, nil
-	}
-	return nil, nil, nil, trace.Wrap(err)
+	return nodes, destroyFn, vmCapture, params, trace.Wrap(err)
 }
 
 // terraform deals with underlying terraform provisioner

@@ -21,6 +21,10 @@ import:
   subpackages:
   - assert
   - require
+- package: github.com/Azure/azure-sdk-for-go
+  subpackages:
+  - arm
+- package: github.com/Azure/go-autorest
 - package: github.com/aws/aws-sdk-go
   version: v1.12.33
   subpackages:
