@@ -225,7 +225,7 @@ var installCmdTemplate = template.Must(
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity status --system-log-file=./telekube-system.log", g.installDir)
+	cmd := "sudo gravity status --system-log-file=./telekube-system.log"
 	status := GravityStatus{}
 	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 
