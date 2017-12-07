@@ -1,9 +1,11 @@
 package terraform
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"strings"
+	"text/template"
 
 	"github.com/gravitational/trace"
 )
@@ -50,18 +52,43 @@ func (t *terraform) makeRemoteCommand(fileUrl, command string) (string, error) {
 		return "", fmt.Errorf("unsupported URL schema %s", fileUrl)
 	}
 
-	// FIXME: migrate to ssh sequential command execution interface
-	cmd := fmt.Sprintf(`echo Testing if bootstrap completed && \
-		for i in {1..100} ; \
+	var buf bytes.Buffer
+	err = remoteCommandTemplate.Execute(&buf, remoteCmd{
+		HomeDir:             homeDir,
+		FetchCommand:        fetchCmd,
+		OutputFile:          outFile,
+		Command:             command,
+		FileURL:             fileUrl,
+		PostInstallerScript: t.Config.PostInstallerScript,
+	})
+
+	if err != nil {
+		return "", trace.Wrap(err, buf.String())
+	}
+	return buf.String(), nil
+}
+
+var remoteCommandTemplate = template.Must(
+	template.New("remote_command").Parse(`echo Testing if bootstrap completed && \
+		for i in {{"{"}}1..100{{"}"}} ; \
 			do test -f /var/lib/bootstrap_complete && break || \
 			echo Waiting for bootstrap to complete && sleep 15 ; \
 		done &&  \
-		echo Cleaning up && rm -rf %[1]s/installer/* && \
-		echo Downloading installer %[5]s to %[3]s ... && %[2]s && \
-		echo Creating installer dir && mkdir -p %[1]s/installer && \
-		echo Unpacking installer && tar -xvf %[3]s -C %[1]s/installer && \
-		echo Launching command %[4]s && cd %[1]s/installer && %[4]s`,
-		homeDir, fetchCmd, outFile, command, fileUrl)
+		echo Cleaning up && rm -rf {{.HomeDir}}/installer/* && \
+		echo Downloading installer {{.FileURL}} to {{.OutputFile}} ... && {{.FetchCommand}} && \
+		echo Creating installer dir && mkdir -p {{.HomeDir}}/installer && \
+		echo Unpacking installer && tar -xvf {{.OutputFile}} -C {{.HomeDir}}/installer && \
+		echo Checking existence of post-downloading installer script and executing it && \
+		if [[ -f {{.PostInstallerScript}} ]]; then sudo bash -x {{.PostInstallerScript}}; fi && \
+		echo Launching command {{.Command}} && cd {{.HomeDir}}/installer && {{.Command}}`))
 
-	return cmd, nil
+// remoteCmd specifies configuration for the command that is executed
+// on the installer node
+type remoteCmd struct {
+	HomeDir             string
+	FetchCommand        string
+	OutputFile          string
+	Command             string
+	FileURL             string
+	PostInstallerScript string
 }

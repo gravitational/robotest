@@ -61,4 +61,7 @@ type Config struct {
 	InstallerURL string `json:"installer_url" validate:"required,url"`
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
+	// PostInstallerScript defines a path to the script on a remote node
+	// that is executed after the installer has been downloaded
+	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
 }
