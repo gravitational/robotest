@@ -31,6 +31,8 @@ WORKDIR /robotest
 COPY entrypoint.sh /entrypoint.sh
 COPY build/robotest-e2e /usr/bin/robotest-e2e
 
-RUN chmod +x /usr/bin/robotest-e2e
+RUN chmod +x /usr/bin/robotest-e2e && \
+    chmod +x /entrypoint.sh
+
 
 ENTRYPOINT ["/entrypoint.sh"]
