@@ -268,6 +268,10 @@ type OnpremConfig struct {
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
+	// UsePublicAddress controls usage of public IP addresses for gravity site
+	// entry with terraform provider. In several situations(configured firewall) robotest
+	// can't connect to site via public address.
+	UsePublicAddress bool `json:"use_public_address" yaml:"use_public_address"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
