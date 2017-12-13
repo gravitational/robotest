@@ -4,5 +4,5 @@ set -e
 export DISPLAY=:10
 Xvfb ${DISPLAY} -screen 0 1366x768x24 +extension RANDR -ac &
 service dbus restart
-chromedriver  --whitelisted-ips="" &
+chromedriver  --whitelisted-ips="" --log-path=/tmp/chromedriver.log &
 exec robotest-e2e "$@"
