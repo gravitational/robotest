@@ -525,6 +525,7 @@ func outputSensitiveConfig(testConfig TestContextType) {
 	testConfig.Azure = nil
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
+	testConfig.License = mask
 	var buf bytes.Buffer
 	pretty.Fprintf(&buf, "[CONFIG] %# v", testConfig)
 	log.Debug(buf.String())
