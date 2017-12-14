@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
 )
 
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
@@ -65,10 +66,12 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		siteEntryURL := endpoints[0]
 		// For terraform, use public install node address
 		// terraform nodes are provisioned only with a single private network interface
-		if ctx.Provisioner == "terraform" {
+		if ctx.Provisioner == "terraform" && ctx.Onprem.UsePublicAddress {
 			installNode := allocatedNodes[0]
 			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
 		}
+		log.Infof("connecting to site url: %v", siteEntryURL)
+
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
 			Password: framework.TestContext.Bandwagon.Password,

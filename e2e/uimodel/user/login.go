@@ -3,7 +3,6 @@ package user
 import (
 	"time"
 
-	"github.com/gravitational/log"
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
@@ -12,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -101,7 +101,7 @@ func EnsureUserAt(page *web.Page, URL string) {
 			trace.BadParameter("unknown auth type %s", login.AuthProvider)
 		}
 
-		utils.PauseForComponentJs()
+		utils.PauseForPageJs()
 		Expect(page.Navigate(URL)).To(Succeed())
 	}
 }
