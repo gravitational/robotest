@@ -95,7 +95,7 @@ func (s *Site) GetEndpoints() (endpoints []string) {
 		for( var i = 0; i < endpoints.length; i ++){
 			var addressess = endpoints[i].addresses || []
 			addressess.forEach( a => urls.push(a))
-		}            
+		}
 		return urls; `
 
 	Expect(s.page.RunScript(scriptTemplate, nil, &endpoints)).To(Succeed())
@@ -138,6 +138,8 @@ func (s *Site) IsBusy() bool {
 
 // VerifySiteNavigation navigates to given URL and ensures it is a cluster page
 func VerifySiteNavigation(page *web.Page, URL string) {
+	log.Info("checking site page")
+	log.Info(page.HTML())
 	Expect(page.Navigate(URL)).To(Succeed())
 	Eventually(page.FindByClass("grv-site"), defaults.AppLoadTimeout).
 		Should(BeFound(), "waiting for site to be ready")
