@@ -199,14 +199,12 @@ func (i *Installer) IsWarningVisible() bool {
 
 // IsInstallCompleted checks if install operation has been completed
 func (i *Installer) IsInstallCompleted() bool {
-	log.Infof("checking if installation is completed")
 	count, _ := i.page.Find(".grv-installer-progress-result .fa-check").Count()
 	return count != 0
 }
 
 // IsInstallFailed checks if install operation failed
 func (i *Installer) IsInstallFailed() bool {
-	log.Infof("checking if installation is failed")
 	count, _ := i.page.Find(".grv-installer-progress-result .fa-exclamation-triangle").Count()
 	return count != 0
 }
@@ -264,6 +262,7 @@ func (i *Installer) WaitForCompletion() {
 	if framework.TestContext.Extensions.InstallTimeout != 0 {
 		installTimeout = framework.TestContext.Extensions.InstallTimeout.Duration()
 	}
+	log.Info("checking if installation is completed or failed")
 	Eventually(func() bool {
 		return i.IsInstallCompleted() || i.IsInstallFailed()
 	}, installTimeout, defaults.InstallCompletionPollInterval).Should(BeTrue(), "wait until timeout or install success/fail message")
@@ -273,7 +272,7 @@ func (i *Installer) WaitForCompletion() {
 }
 
 func (i *Installer) proceedToReqs() {
-	log.Infof("trying to init install operation")
+	log.Info("trying to init install operation")
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(func() bool {
 		return i.hasIssues() || i.IsRequirementsReviewStep()
