@@ -91,7 +91,9 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 				if len(nodes) == 0 { // should not happen, and doesn't make sense to retry
 					return nil, trace.Errorf("Zero nodes were allocated")
 				}
-				r.installerIP = nodes[0].Addr()
+				if r.installerIP == "" {
+					r.installerIP = nodes[0].Addr()
+				}
 				return nodes[0], nil
 			}
 			return nil, nil
@@ -118,8 +120,23 @@ func (r *terraform) terraform(ctx context.Context) (err error) {
 		return trace.Wrap(err)
 	}
 
+	// parse loadbalancer dns name
+	if r.ParseLoadBalancer {
+		match := reLoadBalancer.FindStringSubmatch(output)
+		if len(match) != 2 {
+			return trace.NotFound("failed to extract loadbalancer IP from terraform output: %v", match)
+		}
+		r.loadbalancerIP = match[1]
+	}
+
+	// find installer IP
+	match := reInstallerIP.FindStringSubmatch(output)
+	if len(match) == 2 {
+		r.installerIP = match[1]
+	}
+
 	// find all nodes' private IPs
-	match := rePrivateIPs.FindStringSubmatch(output)
+	match = rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return trace.NotFound(
 			"failed to extract private IPs from terraform output: %v", match)
@@ -251,10 +268,11 @@ func (r *terraform) State() infra.ProvisionerState {
 		allocated = append(allocated, node.Addr())
 	}
 	return infra.ProvisionerState{
-		Dir:           r.stateDir,
-		InstallerAddr: r.installerIP,
-		Nodes:         nodes,
-		Allocated:     allocated,
+		Dir:              r.stateDir,
+		InstallerAddr:    r.installerIP,
+		Nodes:            nodes,
+		Allocated:        allocated,
+		LoadBalancerAddr: r.loadbalancerIP,
 	}
 }
 
@@ -330,12 +348,15 @@ type terraform struct {
 	sshUser, sshKeyPath string
 	sshClient           *ssh.Client
 
-	pool        infra.NodePool
-	stateDir    string
-	installerIP string
+	pool           infra.NodePool
+	stateDir       string
+	installerIP    string
+	loadbalancerIP string
 }
 
 var (
-	rePrivateIPs = regexp.MustCompile("(?m:^ *private_ips *= *([0-9\\. ]+))")
-	rePublicIPs  = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
+	rePrivateIPs   = regexp.MustCompile("(?m:^ *private_ips *= *([0-9\\. ]+))")
+	rePublicIPs    = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
+	reLoadBalancer = regexp.MustCompile("(?m:^ *load_balancer *= *([a-zA-Z0-9][a-zA-Z0-9\\-\\.].*))")
+	reInstallerIP  = regexp.MustCompile("(?m:^ *installer_ip *= *([0-9\\. ]+))")
 )

@@ -60,15 +60,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 
 		By("using local application endpoint")
-		// Use the first allocated node to access the local site
-		allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
-		siteEntryURL := endpoints[0]
-		// For terraform, use public install node address
-		// terraform nodes are provisioned only with a single private network interface
-		if ctx.Provisioner == "terraform" {
-			installNode := allocatedNodes[0]
-			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
-		}
+		siteEntryURL := makeSiteEntryURL(ctx, endpoints)
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
 			Password: framework.TestContext.Bandwagon.Password,
@@ -118,4 +110,28 @@ func filterGravityEndpoints(endpoints []string) []string {
 	}
 
 	return siteEndpoints
+}
+
+func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string {
+	// Use the first allocated node to access the local site
+	allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
+	siteEntryURL := endpoints[0]
+
+	if ctx.Provisioner == "terraform" && ctx.Onprem.SiteAddress != nil {
+		switch addrType := ctx.Onprem.SiteAddress.Type; addrType {
+		case "public":
+			// use public IP address for terraform provisioned nodes
+			installNode := allocatedNodes[0]
+			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
+		case "loadbalancer":
+			// use loadbalancer address and port defined in config or default gravity port instead
+			port := defaults.GravityHTTPPort
+			if ctx.Onprem.SiteAddress.Port != 0 {
+				port = ctx.Onprem.SiteAddress.Port
+			}
+			siteEntryURL = fmt.Sprintf("https://%v:%v", framework.Cluster.Provisioner().State().LoadBalancerAddr, port)
+		}
+	}
+
+	return siteEntryURL
 }

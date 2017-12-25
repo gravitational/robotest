@@ -116,7 +116,7 @@ func (r *TestContextType) Validate() error {
 	if mode == wizardMode && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
-	var command bool = teardownFlag || dumpFlag || mode == wizardMode
+	var command = teardownFlag || dumpFlag || mode == wizardMode
 	if !command && TestContext.Login.IsEmpty() {
 		log.Warningf("Ops Center login not configured - Ops Center access will likely not be available")
 	}
@@ -246,6 +246,12 @@ func (r ServiceLogin) IsEmpty() bool {
 	return r.Username == "" && r.Password == ""
 }
 
+// SiteAddress
+type SiteAddress struct {
+	Type string `json:"type" yaml:"type" validate:"eq=direct|eq=loadbalancer|eq=public"`
+	Port int    `json:"port,omitempty" yaml:"port,omitempty"`
+}
+
 // OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
 	// Onprem
@@ -268,6 +274,8 @@ type OnpremConfig struct {
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
+	// SiteAddress
+	SiteAddress *SiteAddress `json:"site_address" yaml:"site_address"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
@@ -418,6 +426,11 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		return nil, trace.Errorf("cloud_provider parameter is required for Terraform")
 	}
 
+	var parseLoadBalancer bool
+	if TestContext.Onprem.SiteAddress != nil && TestContext.Onprem.SiteAddress.Type == "loadbalancer" {
+		parseLoadBalancer = true
+	}
+
 	config = &terraform.Config{
 		Config:              infraConfig,
 		ScriptPath:          TestContext.Onprem.ScriptPath,
@@ -429,6 +442,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		Azure:               TestContext.Azure,
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
+		ParseLoadBalancer:   parseLoadBalancer,
 	}
 
 	err = config.Validate()
@@ -601,3 +615,6 @@ var dumpFlag bool
 
 // stateDir defines a user specified directory to store state in
 var stateDir string
+
+// parseLoadbalancer
+var parseLoadBalancer bool
