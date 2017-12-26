@@ -88,6 +88,7 @@ func (u *User) Signout() {
 func EnsureUserAt(page *web.Page, URL string) {
 	log.Infof("ensuring a logged in user at %s", URL)
 	Expect(page.Navigate(URL)).To(Succeed())
+	Eventually(page.FindByClass("grv"), defaults.AppLoadTimeout).Should(BeFound())
 	if utils.IsFound(page, ".grv-user-login") {
 		log.Infof("handling login")
 		login := framework.TestContext.Login

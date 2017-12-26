@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
 )
 
 var _ = framework.RoboDescribe("Onprem Integration Test", func() {
@@ -61,6 +62,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 
 		By("using local application endpoint")
 		siteEntryURL := makeSiteEntryURL(ctx, endpoints)
+    
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
 			Password: framework.TestContext.Bandwagon.Password,
@@ -72,6 +74,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		By("login in with bandwagon user credentials")
 		framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		// login using local cluster endpoint
+    log.Infof("connecting to cluster url: %v", siteEntryURL)
 		ui = uimodel.InitWithUser(f.Page, framework.SiteURL())
 		ui.GoToSite(domainName)
 	})
