@@ -70,7 +70,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 			installNode := allocatedNodes[0]
 			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
 		}
-		log.Infof("connecting to site url: %v", siteEntryURL)
+		log.Infof("connecting to cluster url: %v", siteEntryURL)
 
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
