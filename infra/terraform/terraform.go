@@ -121,16 +121,13 @@ func (r *terraform) terraform(ctx context.Context) (err error) {
 	}
 
 	// parse loadbalancer dns name
-	if r.ParseLoadBalancer {
-		match := reLoadBalancer.FindStringSubmatch(output)
-		if len(match) != 2 {
-			return trace.NotFound("failed to extract loadbalancer IP from terraform output: %v", match)
-		}
+	match := reLoadBalancer.FindStringSubmatch(output)
+	if len(match) == 2 {
 		r.loadbalancerIP = match[1]
 	}
 
 	// find installer IP
-	match := reInstallerIP.FindStringSubmatch(output)
+	match = reInstallerIP.FindStringSubmatch(output)
 	if len(match) == 2 {
 		r.installerIP = match[1]
 	}

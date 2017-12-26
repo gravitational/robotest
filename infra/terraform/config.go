@@ -64,6 +64,4 @@ type Config struct {
 	// PostInstallerScript defines a path to the script on a remote node
 	// that is executed after the installer has been downloaded
 	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
-	// ParseLoadBalancer
-	ParseLoadBalancer bool `json:"loadbalancer" yaml:"loadbalancer"`
 }

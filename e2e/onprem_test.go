@@ -117,17 +117,17 @@ func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string
 	allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
 	siteEntryURL := endpoints[0]
 
-	if ctx.Provisioner == "terraform" && ctx.Onprem.SiteAddress != nil {
-		switch addrType := ctx.Onprem.SiteAddress.Type; addrType {
-		case "public":
+	if ctx.Provisioner == "terraform" && ctx.Onprem.ClusterAddress != nil {
+		switch addrType := ctx.Onprem.ClusterAddress.Type; addrType {
+		case defaults.PublicType:
 			// use public IP address for terraform provisioned nodes
 			installNode := allocatedNodes[0]
 			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
-		case "loadbalancer":
+		case defaults.LoadBalancerType:
 			// use loadbalancer address and port defined in config or default gravity port instead
 			port := defaults.GravityHTTPPort
-			if ctx.Onprem.SiteAddress.Port != 0 {
-				port = ctx.Onprem.SiteAddress.Port
+			if ctx.Onprem.ClusterAddress.Port != 0 {
+				port = ctx.Onprem.ClusterAddress.Port
 			}
 			siteEntryURL = fmt.Sprintf("https://%v:%v", framework.Cluster.Provisioner().State().LoadBalancerAddr, port)
 		}

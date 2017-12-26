@@ -246,10 +246,16 @@ func (r ServiceLogin) IsEmpty() bool {
 	return r.Username == "" && r.Password == ""
 }
 
-// SiteAddress
-type SiteAddress struct {
-	Type string `json:"type" yaml:"type" validate:"eq=direct|eq=loadbalancer|eq=public"`
-	Port int    `json:"port,omitempty" yaml:"port,omitempty"`
+// ClusterAddress defines configuration for accessing installed cluster web page
+type ClusterAddress struct {
+	// Type defines access type to the web page for installed cluster
+	// direct - use cluster endpoints from OpsCenter cluster page
+	// public - use public IP addresses, works only with terraform provider
+	// loadbalancer - use loadbalancer address, works only with with terraform provider
+	Type defaults.ClusterAddressType `json:"type" yaml:"type" validate:"eq=direct|eq=loadbalancer|eq=public"`
+	// Port defines the port used to access installed cluster web page
+	// if omitted - default cluster port(32009) will be used
+	Port int `json:"port,omitempty" yaml:"port,omitempty"`
 }
 
 // OnpremConfig defines the test configuration for bare metal tests
@@ -274,8 +280,8 @@ type OnpremConfig struct {
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
-	// SiteAddress
-	SiteAddress *SiteAddress `json:"site_address" yaml:"site_address"`
+	// ClusterAddress defines configuration for accessing installed cluster web page
+	ClusterAddress *ClusterAddress `json:"site_address" yaml:"site_address"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
@@ -426,11 +432,6 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		return nil, trace.Errorf("cloud_provider parameter is required for Terraform")
 	}
 
-	var parseLoadBalancer bool
-	if TestContext.Onprem.SiteAddress != nil && TestContext.Onprem.SiteAddress.Type == "loadbalancer" {
-		parseLoadBalancer = true
-	}
-
 	config = &terraform.Config{
 		Config:              infraConfig,
 		ScriptPath:          TestContext.Onprem.ScriptPath,
@@ -442,7 +443,6 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		Azure:               TestContext.Azure,
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
-		ParseLoadBalancer:   parseLoadBalancer,
 	}
 
 	err = config.Validate()
@@ -615,6 +615,3 @@ var dumpFlag bool
 
 // stateDir defines a user specified directory to store state in
 var stateDir string
-
-// parseLoadbalancer
-var parseLoadBalancer bool
