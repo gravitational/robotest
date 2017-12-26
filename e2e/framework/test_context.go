@@ -251,7 +251,7 @@ type ClusterAddress struct {
 	// Type defines access type to the web page for installed cluster
 	// direct - use cluster endpoints from OpsCenter cluster page
 	// public - use public IP addresses, works only with terraform provider
-	// loadbalancer - use loadbalancer address, works only with with terraform provider
+	// loadbalancer - use loadbalancer address, works only with terraform provider
 	Type defaults.ClusterAddressType `json:"type" yaml:"type" validate:"eq=direct|eq=loadbalancer|eq=public"`
 	// Port defines the port used to access installed cluster web page
 	// if omitted - default cluster port(32009) will be used
@@ -281,7 +281,7 @@ type OnpremConfig struct {
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 	// ClusterAddress defines configuration for accessing installed cluster web page
-	ClusterAddress *ClusterAddress `json:"site_address" yaml:"site_address"`
+	ClusterAddress *ClusterAddress `json:"cluster_address" yaml:"cluster_address"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {

@@ -62,7 +62,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 
 		By("using local application endpoint")
 		siteEntryURL := makeSiteEntryURL(ctx, endpoints)
-    
+
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
 			Password: framework.TestContext.Bandwagon.Password,
@@ -74,7 +74,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		By("login in with bandwagon user credentials")
 		framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		// login using local cluster endpoint
-    log.Infof("connecting to cluster url: %v", siteEntryURL)
+		log.Infof("connecting to cluster url: %v", siteEntryURL)
 		ui = uimodel.InitWithUser(f.Page, framework.SiteURL())
 		ui.GoToSite(domainName)
 	})
@@ -122,11 +122,11 @@ func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string
 
 	if ctx.Provisioner == "terraform" && ctx.Onprem.ClusterAddress != nil {
 		switch addrType := ctx.Onprem.ClusterAddress.Type; addrType {
-		case defaults.PublicType:
+		case defaults.Public:
 			// use public IP address for terraform provisioned nodes
 			installNode := allocatedNodes[0]
 			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
-		case defaults.LoadBalancerType:
+		case defaults.LoadBalancer:
 			// use loadbalancer address and port defined in config or default gravity port instead
 			port := defaults.GravityHTTPPort
 			if ctx.Onprem.ClusterAddress.Port != 0 {

@@ -19,10 +19,10 @@ const (
 type ClusterAddressType string
 
 const (
-	// LoadBalancerType - use loadbalancer address, works only with with terraform provider
-	LoadBalancerType ClusterAddressType = "loadbalancer"
-	// DirectType - use cluster endpoints from OpsCenter cluster page
-	DirectType ClusterAddressType = "direct"
-	// PublicType - use public IP addresses, works only with terraform provider
-	PublicType ClusterAddressType = "public"
+	// LoadBalancer - use loadbalancer address, works only with terraform provider
+	LoadBalancer ClusterAddressType = "loadbalancer"
+	// Direct - use cluster endpoints from OpsCenter cluster page
+	Direct ClusterAddressType = "direct"
+	// Public - use public IP addresses, works only with terraform provider
+	Public ClusterAddressType = "public"
 )
