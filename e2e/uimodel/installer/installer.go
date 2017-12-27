@@ -163,6 +163,7 @@ func (i *Installer) StartInstallation() {
 	button := i.page.Find(".grv-installer-footer .btn-primary")
 	Expect(button).To(BeFound())
 	Expect(button.Click()).To(Succeed())
+	log.Info("checking if installation has started")
 	Eventually(func() bool {
 		return i.IsInProgressStep() || i.IsWarningVisible()
 	}, defaults.InstallStartTimeout).Should(BeTrue())
@@ -179,7 +180,6 @@ func (i *Installer) IsCreateSiteStep() bool {
 
 // IsInProgressStep checks if installer is in progress
 func (i *Installer) IsInProgressStep() bool {
-	log.Infof("checking if installation is in progress")
 	count, _ := i.page.FindByClass("grv-installer-progres-indicator").Count()
 	return count != 0
 }
@@ -192,21 +192,18 @@ func (i *Installer) IsRequirementsReviewStep() bool {
 
 // IsWarningVisible checks if installer has any warnings visible
 func (i *Installer) IsWarningVisible() bool {
-	log.Infof("checking if warning icon is present")
 	count, _ := i.page.Find(".grv-installer-attemp-message .--warning").Count()
 	return count != 0
 }
 
 // IsInstallCompleted checks if install operation has been completed
 func (i *Installer) IsInstallCompleted() bool {
-	log.Infof("checking if installation is completed")
 	count, _ := i.page.Find(".grv-installer-progress-result .fa-check").Count()
 	return count != 0
 }
 
 // IsInstallFailed checks if install operation failed
 func (i *Installer) IsInstallFailed() bool {
-	log.Infof("checking if installation is failed")
 	count, _ := i.page.Find(".grv-installer-progress-result .fa-exclamation-triangle").Count()
 	return count != 0
 }
@@ -264,6 +261,7 @@ func (i *Installer) WaitForCompletion() {
 	if framework.TestContext.Extensions.InstallTimeout != 0 {
 		installTimeout = framework.TestContext.Extensions.InstallTimeout.Duration()
 	}
+	log.Info("checking if installation has failed")
 	Eventually(func() bool {
 		return i.IsInstallCompleted() || i.IsInstallFailed()
 	}, installTimeout, defaults.InstallCompletionPollInterval).Should(BeTrue(), "wait until timeout or install success/fail message")
@@ -273,7 +271,7 @@ func (i *Installer) WaitForCompletion() {
 }
 
 func (i *Installer) proceedToReqs() {
-	log.Infof("trying to init install operation")
+	log.Info("trying to init install operation")
 	Expect(i.page.FindByClass("grv-installer-btn-new-site").Click()).To(Succeed())
 	Eventually(func() bool {
 		return i.hasIssues() || i.IsRequirementsReviewStep()

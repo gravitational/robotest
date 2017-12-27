@@ -116,7 +116,7 @@ func (r *TestContextType) Validate() error {
 	if mode == wizardMode && TestContext.Onprem.InstallerURL == "" {
 		errors = append(errors, trace.BadParameter("installer URL is required in wizard mode"))
 	}
-	var command bool = teardownFlag || dumpFlag || mode == wizardMode
+	var command = teardownFlag || dumpFlag || mode == wizardMode
 	if !command && TestContext.Login.IsEmpty() {
 		log.Warningf("Ops Center login not configured - Ops Center access will likely not be available")
 	}
@@ -246,6 +246,18 @@ func (r ServiceLogin) IsEmpty() bool {
 	return r.Username == "" && r.Password == ""
 }
 
+// ClusterAddress defines configuration for accessing installed cluster web page
+type ClusterAddress struct {
+	// Type defines access type to the web page for installed cluster
+	// direct - use cluster endpoints from OpsCenter cluster page
+	// public - use public IP addresses, works only with terraform provider
+	// loadbalancer - use loadbalancer address, works only with terraform provider
+	Type defaults.ClusterAddressType `json:"type" yaml:"type" validate:"eq=direct|eq=loadbalancer|eq=public"`
+	// Port defines the port used to access installed cluster web page
+	// if omitted - default cluster port(32009) will be used
+	Port int `json:"port,omitempty" yaml:"port,omitempty"`
+}
+
 // OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
 	// Onprem
@@ -268,6 +280,8 @@ type OnpremConfig struct {
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 	// DockerDevice block device for docker data - set to /dev/xvdb
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
+	// ClusterAddress defines configuration for accessing installed cluster web page
+	ClusterAddress *ClusterAddress `json:"cluster_address" yaml:"cluster_address"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {

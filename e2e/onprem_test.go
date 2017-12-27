@@ -61,16 +61,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		Expect(len(endpoints)).To(BeNumerically(">", 0), "expected at least one application endpoint")
 
 		By("using local application endpoint")
-		// Use the first allocated node to access the local site
-		allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
-		siteEntryURL := endpoints[0]
-		// For terraform, use public install node address
-		// terraform nodes are provisioned only with a single private network interface
-		if ctx.Provisioner == "terraform" {
-			installNode := allocatedNodes[0]
-			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
-		}
-		log.Infof("connecting to cluster url: %v", siteEntryURL)
+		siteEntryURL := makeSiteEntryURL(ctx, endpoints)
 
 		login := framework.Login{
 			Username: framework.TestContext.Bandwagon.Email,
@@ -83,6 +74,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		By("login in with bandwagon user credentials")
 		framework.UpdateSiteEntry(siteEntryURL, login, serviceLogin)
 		// login using local cluster endpoint
+		log.Infof("connecting to cluster url: %v", siteEntryURL)
 		ui = uimodel.InitWithUser(f.Page, framework.SiteURL())
 		ui.GoToSite(domainName)
 	})
@@ -121,4 +113,28 @@ func filterGravityEndpoints(endpoints []string) []string {
 	}
 
 	return siteEndpoints
+}
+
+func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string {
+	// Use the first allocated node to access the local site
+	allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
+	siteEntryURL := endpoints[0]
+
+	if ctx.Provisioner == "terraform" && ctx.Onprem.ClusterAddress != nil {
+		switch addrType := ctx.Onprem.ClusterAddress.Type; addrType {
+		case defaults.Public:
+			// use public IP address for terraform provisioned nodes
+			installNode := allocatedNodes[0]
+			siteEntryURL = fmt.Sprintf("https://%v:%v", installNode.Addr(), defaults.GravityHTTPPort)
+		case defaults.LoadBalancer:
+			// use loadbalancer address and port defined in config or default gravity port instead
+			port := defaults.GravityHTTPPort
+			if ctx.Onprem.ClusterAddress.Port != 0 {
+				port = ctx.Onprem.ClusterAddress.Port
+			}
+			siteEntryURL = fmt.Sprintf("https://%v:%v", framework.Cluster.Provisioner().State().LoadBalancerAddr, port)
+		}
+	}
+
+	return siteEntryURL
 }

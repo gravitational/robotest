@@ -25,6 +25,8 @@ type ProvisionerState struct {
 	Nodes []StateNode `json:"nodes"`
 	// Allocated defines the allocated subset
 	Allocated []string `json:"allocated_nodes"`
+	// LoadBalancerAddr defines the dns name of the loadbalancer
+	LoadBalancerAddr string `json:"loadbalancer"`
 }
 
 // StateNode describes a single cluster node
