@@ -38,6 +38,7 @@ variable "os_sku" {
         "redhat:7.4" = "7-RAW"
         "centos:7.2" = "7.2"
         "centos:7.3" = "7.3"
+        "centos:7.4" = "7.4"
         "debian"     = "8"
         "suse"       = "12-SP3"
     }
@@ -52,7 +53,7 @@ variable "os_version" {
         "redhat:7.2" = "latest"
         "redhat:7.4" = "7.4.2017080923"
         "centos"     = "latest"
-        "centos:7.4" = "7.4.20170919"
+        "centos:7.4" = "7.4.20180104"
         "centos:7.3" = "7.3.20170925"
         "centos:7.2" = "7.2.20170517"
         "debian"     = "latest"
