@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// CopyFile transfers local file to remote host directory
+// PutFile transfers local file to remote host directory
 func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, srcPath, dstDir string) (remotePath string, err error) {
 	mkdirCmd := fmt.Sprintf("mkdir -p %s", dstDir)
 	err = Run(ctx, client, log, mkdirCmd, nil)
@@ -43,8 +43,14 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	}
 
 	errCh := make(chan error, 2)
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	defer stdin.Close()
 	go func() {
-		err := scpSendFile(session, f, fi)
+		err := scpSendFile(session, stdin, f, fi)
 		errCh <- trace.Wrap(err)
 	}()
 
@@ -66,16 +72,10 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	return remotePath, nil
 }
 
-func scpSendFile(session *ssh.Session, file *os.File, fi os.FileInfo) error {
+func scpSendFile(session *ssh.Session, out io.WriteCloser, file *os.File, fi os.FileInfo) error {
 	cmd := fmt.Sprintf("C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
 
-	out, err := session.StdinPipe()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer out.Close()
-
-	_, err = io.WriteString(out, cmd)
+	_, err := io.WriteString(out, cmd)
 	if err != nil {
 		return trace.Wrap(err)
 	}
