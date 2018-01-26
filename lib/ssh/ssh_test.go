@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/trace"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +63,8 @@ func TestSshUtils(t *testing.T) {
 }
 
 func testPutFile(t *testing.T, client *ssh.Client) {
-	p, err := PutFile(context.Background(), t.Logf, client,
+	l := logrus.New()
+	p, err := PutFile(context.Background(), client, l,
 		"/bin/echo", "/tmp")
 	assert.NoError(t, err)
 	assert.EqualValues(t, "/tmp/echo", p, "path")
@@ -71,8 +73,8 @@ func testPutFile(t *testing.T, client *ssh.Client) {
 func testEnv(t *testing.T, client *ssh.Client) {
 	var out string
 	exit, err := RunAndParse(context.Background(),
-		t.Logf,
 		client,
+		logrus.New(),
 		"echo $AWS_SECURE_KEY",
 		// NOTE: add `AcceptEnv AWS_*` to /etc/ssh/sshd.conf
 		map[string]string{"AWS_SECURE_KEY": "SECUREKEY"},
@@ -89,9 +91,9 @@ func testTimeout(t *testing.T, client *ssh.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	_, exit, err := RunAndParse(ctx,
-		t.Logf,
+	exit, err := RunAndParse(ctx,
 		client,
+		logrus.New(),
 		"sleep 100",
 		nil,
 		ParseDiscard)
@@ -100,7 +102,7 @@ func testTimeout(t *testing.T, client *ssh.Client) {
 }
 
 func testExitErr(t *testing.T, client *ssh.Client) {
-	_, exit, err := RunAndParse(context.Background(), t.Logf, client, "false", nil, ParseDiscard)
+	exit, err := RunAndParse(context.Background(), client, logrus.New(), "false", nil, ParseDiscard)
 	assert.NoError(t, err)
 	assert.NotZero(t, exit)
 }
@@ -108,12 +110,12 @@ func testExitErr(t *testing.T, client *ssh.Client) {
 func testFile(t *testing.T, client *ssh.Client) {
 	ctx := context.Background()
 
-	err := TestFile(ctx, t.Logf, client, "/", TestDir)
+	err := TestFile(ctx, client, logrus.New(), "/", TestDir)
 	assert.NoError(t, err, TestDir)
 
-	err = TestFile(ctx, t.Logf, client, "/nosuchfile", TestRegularFile)
+	err = TestFile(ctx, client, logrus.New(), "/nosuchfile", TestRegularFile)
 	assert.True(t, trace.IsNotFound(err))
 
-	err = TestFile(ctx, t.Logf, client, "/", "-nosuchflag")
+	err = TestFile(ctx, client, logrus.New(), "/", "-nosuchflag")
 	assert.True(t, err != nil && !trace.IsNotFound(err), "invalid flag")
 }
