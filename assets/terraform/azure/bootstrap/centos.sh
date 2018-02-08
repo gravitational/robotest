@@ -53,8 +53,6 @@ if [ $dnsrunning -eq 0 ] ; then
   systemctl disable dnsmasq 
 fi
 
-modprobe overlay
-
 mount
 
 if [[ $(source /etc/os-release ; echo $VERSION_ID ) == "7.2" ]] ; then
@@ -99,13 +97,17 @@ iptables --table filter --flush
 iptables --table nat --delete-chain
 iptables --table filter --delete-chain
 
+# Preflight tests expectations
 modprobe br_netfilter || true
 modprobe overlay || true
 modprobe ebtables || true
+sysctl -w net.ipv4.ip_forward=1
 sysctl -w net.bridge.bridge-nf-call-iptables=1
+sysctl -w fs.may_detach_mounts=1 || true
 
-# make the changes permanent
-cat > /usr/lib/sysctl.d/50-telekube.conf <<EOF
+# make changes permanent
+cat > /etc/sysctl.d/50-telekube.conf <<EOF
+net.ipv4.ip_forward=1
 net.bridge.bridge-nf-call-iptables=1
 EOF
 cat > /etc/modules-load.d/telekube.conf <<EOF

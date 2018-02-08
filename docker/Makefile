@@ -4,8 +4,8 @@ VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 
 TAG ?= latest
 PULL ?= --pull
 
-TERRAFORM_VERSION := 0.11.1
-TERRAFORM_AZURERM_VERSION := 0.3.3
+TERRAFORM_VERSION := 0.11.3
+TERRAFORM_AZURERM_VERSION := 1.1.1
 TERRAFORM_AWS_VERSION := 1.3.1
 CHROMEDRIVER_VERSION := 2.33
 

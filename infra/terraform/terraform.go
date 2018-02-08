@@ -306,7 +306,12 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 func (r *terraform) command(ctx context.Context, args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "terraform", args...)
 	var out bytes.Buffer
-	opts = append(opts, system.Dir(r.stateDir))
+	opts = append(opts,
+		system.Dir(r.stateDir),
+		system.SetEnv(
+			"TF_LOG=DEBUG",
+			fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")),
+		))
 	err := system.ExecL(cmd, &out, r.Entry, opts...)
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
