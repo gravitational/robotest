@@ -54,6 +54,7 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   os_profile {
+    custom_data    = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
     computer_name  = "node-${count.index}"
     # REQUIRED ...
     admin_username = "${var.ssh_user}"
@@ -61,7 +62,7 @@ resource "azurerm_virtual_machine" "node" {
   }
 
   os_profile_linux_config {
-    disable_password_authentication = true    
+    disable_password_authentication = true
     ssh_keys = {
         path = "/home/${var.ssh_user}/.ssh/authorized_keys"
         key_data = "${file("${var.ssh_authorized_keys_path}")}"
@@ -83,5 +84,11 @@ resource "azurerm_virtual_machine" "node" {
     lun               = 1
     disk_size_gb      = "64"
   }
+}
 
+# See https://www.terraform.io/docs/providers/azurerm/d/public_ip.html#example-usage-retrieve-the-dynamic-public-ip-of-a-new-vm-
+data "azurerm_public_ip" "node" {
+  name                = "${azurerm_public_ip.node.*.name[count.index]}"
+  resource_group_name = "${azurerm_resource_group.robotest.name}"
+  depends_on          = ["azurerm_virtual_machine.node"]
 }

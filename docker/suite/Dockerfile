@@ -6,9 +6,7 @@ ARG TERRAFORM_AWS_VERSION
 
 ENV TF_TARBALL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 ENV TF_AWS_TARBALL https://releases.hashicorp.com/terraform-provider-aws/${TERRAFORM_AWS_VERSION}/terraform-provider-aws_${TERRAFORM_AWS_VERSION}_linux_amd64.zip
-# ENV TF_AZURERM_TARBALL https://releases.hashicorp.com/terraform-provider-azurerm/${TERRAFORM_AZURERM_VERSION}/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip
-# Use a local build until v0.3.4 has been released:
-ENV TF_AZURERM_TARBALL https://s3-us-west-2.amazonaws.com/s3.gravitational.io/robotest/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip
+ENV TF_AZURERM_TARBALL https://releases.hashicorp.com/terraform-provider-azurerm/${TERRAFORM_AZURERM_VERSION}/terraform-provider-azurerm_${TERRAFORM_AZURERM_VERSION}_linux_amd64.zip
 
 RUN apt-get update && \
     apt-get install -y curl unzip

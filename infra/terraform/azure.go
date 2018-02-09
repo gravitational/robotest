@@ -25,7 +25,7 @@ const (
 	azureManagementUrl = "https://management.azure.com/subscriptions/%s/resourcegroups/%s?api-version=2016-09-01"
 )
 
-// GetAuthToken retrieves OAuth token for an application
+// AzureGetAuthToken retrieves OAuth token for an application
 func AzureGetAuthToken(ctx context.Context, param AzureAuthParam) (*AzureToken, error) {
 	reqUrl := fmt.Sprintf(azureTokenUrl, param.TenantId)
 	resp, err := http.PostForm(reqUrl,
@@ -73,7 +73,7 @@ func AzureRemoveResourceGroup(ctx context.Context, token *AzureToken, subscripti
 		return trace.Wrap(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNotFound {
 		return trace.Errorf("%v/%s [DELETE %s]", resp.StatusCode, resp.Status, reqUrl)
 	}
 	return nil
