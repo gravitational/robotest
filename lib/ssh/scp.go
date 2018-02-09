@@ -25,6 +25,7 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	if err != nil {
 		return "", trace.Wrap(err, mkdirCmd)
 	}
+
 	session, err := client.NewSession()
 	if err != nil {
 		return "", trace.Wrap(err)
@@ -42,28 +43,28 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 		return "", trace.Wrap(err)
 	}
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
-	defer stdin.Close()
+
 	go func() {
-		err := scpSendFile(session, stdin, f, fi)
+		err := scpSendFile(stdin, f, fi)
+		stdin.Close()
 		errCh <- trace.Wrap(err)
 	}()
 
-	go func() {
-		err := session.Run(fmt.Sprintf("/usr/bin/scp -tr %s", dstDir))
-		errCh <- trace.Wrap(err)
-	}()
+	errReceive := session.Run(fmt.Sprintf("/usr/bin/scp -tr %s", dstDir))
+	errSend := utils.CollectErrors(ctx, errCh)
+	err = trace.NewAggregate(errReceive, errSend)
 
-	err = utils.CollectErrors(ctx, errCh)
 	if ctx.Err() != nil {
 		session.Signal(ssh.SIGTERM)
 		return "", trace.Errorf("scp timed out")
 	}
+
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -72,24 +73,22 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	return remotePath, nil
 }
 
-func scpSendFile(session *ssh.Session, out io.WriteCloser, file *os.File, fi os.FileInfo) error {
-	cmd := fmt.Sprintf("C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
-
-	_, err := io.WriteString(out, cmd)
+func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo) error {
+	_, err := fmt.Fprintf(out, "C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.ConvertSystemError(err)
 	}
 
 	n, err := io.Copy(out, file)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.ConvertSystemError(err)
 	}
 	if n != fi.Size() {
 		return trace.Errorf("short write: %v %v", n, fi.Size())
 	}
 
 	if _, err := out.Write([]byte{0x0}); err != nil {
-		return trace.Wrap(err)
+		return trace.ConvertSystemError(err)
 	}
 
 	return nil
