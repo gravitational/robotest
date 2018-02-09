@@ -359,13 +359,13 @@ func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error
 }
 
 // SetInstaller overrides default installer into
-func (g *gravity) SetInstaller(ctx context.Context, installerUrl string, subdir string) error {
+func (g *gravity) SetInstaller(ctx context.Context, installerURL string, subdir string) error {
 	installDir := filepath.Join(g.param.homeDir, subdir)
-	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerUrl, "install_dir": installDir})
+	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerURL, "install_dir": installDir})
 
-	log.Debug("set installer")
+	log.Debugf("Set installer %v -> %v", installerURL, installDir)
 
-	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerUrl, installDir, g.param.env)
+	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerURL, installDir, g.param.env)
 	if err != nil {
 		log.WithError(err).Error("Failed to transfer installer")
 		return trace.Wrap(err)
