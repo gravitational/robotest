@@ -199,12 +199,16 @@ func (r *terraform) Destroy(ctx context.Context) error {
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
-	_, err := r.command(ctx, []string{
+	destroyCommand := []string{
 		"destroy", "-force",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),
-	})
+	}
+	if r.CustomVarsFile != "" {
+		destroyCommand = append(destroyCommand, fmt.Sprintf("-var-file=%s", r.CustomVarsFile))
+	}
+	_, err := r.command(ctx, destroyCommand)
 	return trace.Wrap(err)
 }
 
@@ -289,7 +293,7 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		return "", trace.Wrap(err, "failed to store terraform vars")
 	}
 
-	var applyCommand = []string{
+	applyCommand := []string{
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
@@ -319,7 +323,7 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 		))
 	err := system.ExecL(cmd, &out, r.Entry, opts...)
 	if err != nil {
-		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q)", cmd.Path, cmd.Args, cmd.Dir)
+		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q), stdin/stdout: %v", cmd.Path, cmd.Args, cmd.Dir, out.String())
 	}
 	return out.Bytes(), nil
 }
