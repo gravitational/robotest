@@ -289,13 +289,18 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		return "", trace.Wrap(err, "failed to store terraform vars")
 	}
 
-	out, err = r.command(ctx, []string{
+	var applyCommand = []string{
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
-	})
+	}
+	if r.CustomVarsFile != "" {
+		applyCommand = append(applyCommand, fmt.Sprintf("-var-file=%s", r.CustomVarsFile))
+	}
+
+	out, err = r.command(ctx, applyCommand)
 	if err != nil {
 		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
