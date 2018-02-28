@@ -64,6 +64,6 @@ type Config struct {
 	// PostInstallerScript defines a path to the script on a remote node
 	// that is executed after the installer has been downloaded
 	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
-	// CustomVarsFile is the file with custom terraform variables
-	CustomVarsFile string `json:"custom_vars_file" yaml:"custom_vars_file"`
+	// VariablesFile is the file with custom terraform variables
+	VariablesFile string `json:"custom_vars_file" yaml:"variables_file"`
 }
