@@ -26,7 +26,7 @@ buildbox:
 
 .PHONY: containers
 containers:
-	$(MAKE) -C docker -j containers PULL=$(PULL)
+	$(MAKE) -C docker containers PULL=$(PULL)
 .PHONY: publish
 publish:
 	$(MAKE) -C docker -j publish TAG=$(TAG)
@@ -41,7 +41,7 @@ $(TARGETS): vendor
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
-vendor: glide.yaml 
+vendor: glide.yaml
 	rm -rf ./.glide ./vendor
 	cd $(SRCDIR) && glide install
 
