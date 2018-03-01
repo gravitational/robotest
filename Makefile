@@ -42,7 +42,6 @@ $(TARGETS): vendor
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
 vendor: glide.yaml
-	rm -rf ./.glide ./vendor
 	cd $(SRCDIR) && glide install
 
 .PHONY: clean

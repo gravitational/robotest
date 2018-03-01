@@ -236,7 +236,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 	gravityNodes, err := configureVMs(ctx, c.Logger(), *params, nodes)
 	if err != nil {
 		c.Logger().WithError(err).Error("some nodes initialization failed, teardown this setup as non-usable")
-		return nil, nil, trace.NewAggregate(err, destroyFn(ctx))
+		return nil, nil, trace.NewAggregate(err, destroyResource(destroyFn))
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
@@ -427,4 +427,12 @@ func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64
 		return nil
 	})
 	return trace.Wrap(err)
+}
+
+// destroyResource executes the specified destroy handler using
+// default context
+func destroyResource(handler func(context.Context) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), finalTeardownTimeout)
+	defer cancel()
+	return trace.Wrap(handler(ctx))
 }
