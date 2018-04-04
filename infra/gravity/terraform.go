@@ -89,7 +89,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 
 		log.Info("destroying VMs")
 
-		err := destroy(ctx)
+		err := destroyResource(destroy)
 		if err != nil {
 			log.WithError(err).Error("destroying VM resources")
 		} else {
