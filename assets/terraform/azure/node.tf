@@ -88,7 +88,8 @@ resource "azurerm_virtual_machine" "node" {
 
 # See https://www.terraform.io/docs/providers/azurerm/d/public_ip.html#example-usage-retrieve-the-dynamic-public-ip-of-a-new-vm-
 data "azurerm_public_ip" "node" {
-  name                = "${azurerm_public_ip.node.*.name[count.index]}"
+  count               = "${var.nodes}"
+  name                = "${element(azurerm_public_ip.node.*.name,count.index)}"
   resource_group_name = "${azurerm_resource_group.robotest.name}"
   depends_on          = ["azurerm_virtual_machine.node"]
 }
