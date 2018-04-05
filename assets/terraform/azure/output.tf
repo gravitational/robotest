@@ -8,5 +8,5 @@ output "private_ips" {
 }
 
 output "public_ips" {
-  value = "${join(" ", data.azurerm_public_ip.node.*.ip_address)}"
+  value = "${join(" ", data.azurerm_public_ips.node.public_ips)}"
 }
