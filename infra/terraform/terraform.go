@@ -116,6 +116,7 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 
 func (r *terraform) terraform(ctx context.Context) (err error) {
 	output, err := r.boot(ctx)
+	log.Infof("Terraform boot output: %s\n(err=%v).", output, err)
 	if err != nil {
 		return trace.Wrap(err)
 	}
