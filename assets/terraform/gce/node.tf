@@ -3,12 +3,15 @@
 #
 
 resource "google_compute_instance_group" "robotest" {
-  name    = "${var.cluster_name}-grp"
-  zone    = "${var.zone}"
-  network = "${google_compute_network.robotest.self_link}"
+  description = "Instance group controlling instances of a single robotest cluster"
+  name        = "${var.cluster_name}-grp"
+  zone        = "${var.zone}"
+  network     = "${google_compute_network.robotest.self_link}"
+  instances   = ["${google_compute_instance.node.*.self_link}"]
 }
 
-resource "google_compute_instance_template" "node" {
+resource "google_compute_instance" "node" {
+  description  = "Instance is a single robotest cluster node"
   count        = "${var.nodes}"
   name         = "${var.cluster_name}-node-${count.index}"
   machine_type = "${var.vm_type}"
@@ -32,43 +35,44 @@ resource "google_compute_instance_template" "node" {
   }
 
   metadata {
-    sshKeys = "${var.ssh_user}:${file("${var.ssh_key_data}")}"
+    # Enable OS login using IAM roles
+    enable_oslogin = "true"
+
+    # sshKeys controls access to an instance using a custom SSH key
+    sshKeys = "${var.ssh_user}:${file("${var.ssh_key}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
 
-  disk {
-    disk_name    = "${var.cluster_name}-os-${count.index}"
-    source_image = "${element(var.oss, var.os)}"
-    disk_type    = "${var.disk_type}"
-    disk_size_gb = "64"
-    mode         = "READ_WRITE"
-    auto_delete  = "true"
-    boot         = "true"
-  }
+  boot_disk {
+    initialize_params {
+      image = "${element(var.oss, var.os)}"
+      size  = "64"
+      type  = "${var.disk_type}"
+    }
 
-  disk {
-    source      = "${google_compute_disk.etcd.self_link}"
-    disk_name   = "${var.cluster_name}-node-etcd-${count.index}"
-    mode        = "READ_WRITE"
     auto_delete = "true"
   }
 
-  disk {
-    source      = "${google_compute_disk.docker.self_link}"
-    disk_name   = "node-docker-${count.index}"
-    mode        = "READ_WRITE"
-    auto_delete = "true"
+  attach_disk {
+    source = "${google_compute_disk.etcd.*.self_link[count.index]}"
+    mode   = "READ_WRITE"
+  }
+
+  attach_disk {
+    source = "${google_compute_disk.docker.*.self_link[count.index]}"
+    mode   = "READ_WRITE"
   }
 
   can_ip_forward = true
 }
 
 resource "google_compute_disk" "etcd" {
-  name = "${var.cluster_name}-disk-etcd"
-  type = "pd-ssd"
-  zone = "${var.zone}"
-  size = "64"
+  count = "${var.nodes}"
+  name  = "${var.cluster_name}-disk-etcd-${count.index}"
+  type  = "pd-ssd"
+  zone  = "${var.zone}"
+  size  = "64"
 
   labels {
     cluster = "${var.cluster_name}"
@@ -76,10 +80,11 @@ resource "google_compute_disk" "etcd" {
 }
 
 resource "google_compute_disk" "docker" {
-  name = "${var.cluster_name}-disk-docker"
-  type = "pd-ssd"
-  zone = "${var.zone}"
-  size = "64"
+  count = "${var.nodes}"
+  name  = "${var.cluster_name}-disk-docker-${count.index}"
+  type  = "pd-ssd"
+  zone  = "${var.zone}"
+  size  = "64"
 
   labels {
     cluster = "${var.cluster_name}"

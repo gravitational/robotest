@@ -12,10 +12,10 @@ variable "project" {
   default     = "kubeadm"
 }
 
-variable "region" {
-  description = "Cloud region"
-  default     = "us-central1"
-}
+# variable "region" {
+#   description = "Cloud region"
+#   default     = "us-central1"
+# }
 
 variable "zone" {
   description = "Cloud zone"
@@ -73,8 +73,7 @@ variable random_password {}
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"
-  region      = "${var.region}"
-  #zone        = "${var.zone}"
+  zone        = "${var.zone}"
 }
 
 # List zones available in this region

@@ -82,6 +82,16 @@ AZURE_CONFIG="azure:
   docker_device: /dev/sdd"
 fi
 
+if [ $DEPLOY_TO == "gce" ] ; then
+check_files ${SSH_KEY} ${SSH_PUB}
+GCE_CONFIG="gce:
+  credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
+  vm_type: ${GCE_VM_TYPE}
+  zone: ${GCE_ZONE}
+  ssh_user: robotest
+  key_path: /robotest/config/ops.pem"
+fi
+
 if [ $DEPLOY_TO == "ops" ] ; then
 OPS_CONFIG="ops:
   url: ${OPS_URL}
@@ -105,6 +115,7 @@ state_dir: /robotest/state
 cloud: ${DEPLOY_TO}
 ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
+${GCE_CONFIG:-}
 ${OPS_CONFIG:-}
 "
 

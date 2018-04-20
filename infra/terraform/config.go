@@ -2,8 +2,11 @@ package terraform
 
 import (
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/trace"
+	"github.com/gravitational/robotest/providers/aws"
+	"github.com/gravitational/robotest/providers/azure"
+	"github.com/gravitational/robotest/providers/gce"
 
+	"github.com/gravitational/trace"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -47,10 +50,12 @@ type Config struct {
 	// DeployTo defines cloud to deploy to
 	CloudProvider string `validate:"required,eq=aws|eq=azure"`
 	// AWS defines AWS connection parameters
-	AWS *infra.AWSConfig
+	AWS *aws.Config
 	// Azure defines Azure connection parameters
-	Azure *infra.AzureConfig
-	// OS defines OS flavor, ubuntu | redhat | centos | debian
+	Azure *azure.Config
+	// GCE defines Google Compute Engine connection parameters
+	GCE *gce.Config
+	// OS specified the OS distribution
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
