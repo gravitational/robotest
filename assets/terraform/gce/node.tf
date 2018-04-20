@@ -2,122 +2,104 @@
 # Virtual Machine node
 #
 
-resource "azurerm_public_ip" "node" {
-  count                        = "${var.nodes}"
-  name                         = "node-${count.index}"
-  location                     = "${var.location}"
-  resource_group_name          = "${azurerm_resource_group.robotest.name}"
-  public_ip_address_allocation = "dynamic"
+resource "google_compute_instance_group" "robotest" {
+  name    = "${var.cluster_name}-grp"
+  zone    = "${var.zone}"
+  network = "${google_compute_network.robotest.self_link}"
 }
 
-resource "azurerm_network_interface" "node" {
-  count                = "${var.nodes}"
-  name                 = "node-${count.index}"
-  location             = "${var.location}"
-  resource_group_name  = "${azurerm_resource_group.robotest.name}"
-  enable_ip_forwarding = "true"
-  network_security_group_id = "${azurerm_network_security_group.robotest.id}"
+resource "google_compute_instance_template" "node" {
+  count        = "${var.nodes}"
+  name         = "${var.cluster_name}-node-${count.index}"
+  machine_type = "${var.vm_type}"
+  zone         = "${var.zone}"
 
-  ip_configuration {
-    name                          = "ipconfig-${count.index}"
-    subnet_id                     = "${azurerm_subnet.robotest_a.id}"
-    private_ip_address            = "10.40.2.${count.index+4}"
-    private_ip_address_allocation = "static"
-    public_ip_address_id          = "${azurerm_public_ip.node.*.id[count.index]}"
-  }
-}
+  tags = [
+    "robotest",
+    "${var.cluster_name}-node-${count.index}",
+  ]
 
-resource "google_compute_instance" "node" {
-  count           = "${var.nodes}"
-  name            = "node-${count.index}"
-  machine_type    = "${var.vm_type}"
-  zone            = "${var.zone}"
-  # Should use labels/metadata (use a map variable?)
-  #tags            = "${var.tags}"
-
-  metadata_startup_script = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
-
-  boot_disk {
-    # FIXME
-    initialize_params {
-      image = "debian-cloud/debian-8"
-    }
-    # or
-    source {}
+  labels {
+    cluster = "${var.cluster_name}"
   }
 
   network_interface {
-    # FIXME
-    network = "default"
-  } 
+    network = "${data.google_compute_subnetwork.robotest.self_link}"
 
-  attached_disk {
-    # FIXME: list of attacjed SSDs
-  }
-
-  service_account {
-  }
-
-  # FIXME: left-overs from Azure
-  location              = "${var.location}"
-  resource_group_name   = "${azurerm_resource_group.robotest.name}"
-  network_interface_ids = ["${azurerm_network_interface.node.*.id[count.index]}"]
-  vm_size               = "${var.vm_type}"
-
-  delete_os_disk_on_termination    = "true"
-  delete_data_disks_on_termination = "true"
-
-  storage_image_reference {
-    publisher = "${lookup(var.os_publisher, element(split(":",var.os),0))}"
-    offer     = "${lookup(var.os_offer,     element(split(":",var.os),0))}"
-    sku       = "${lookup(var.os_sku,       var.os)}"
-    version   = "${lookup(var.os_version,   var.os)}"
-  }
-
-  storage_os_disk {
-    name                = "node-os-${count.index}"
-    caching             = "ReadWrite"
-    create_option       = "FromImage"
-    managed_disk_type   = "Premium_LRS"
-    disk_size_gb        = "64"
-  }
-
-  os_profile {
-    computer_name  = "node-${count.index}"
-    # REQUIRED ...
-    admin_username = "${var.ssh_user}"
-    admin_password = "${var.random_password}"
-  }
-
-  os_profile_linux_config {
-    disable_password_authentication = true
-    ssh_keys = {
-        path = "/home/${var.ssh_user}/.ssh/authorized_keys"
-        key_data = "${file("${var.ssh_authorized_keys_path}")}"
+    access_config {
+      # Ephemeral IP
     }
   }
 
-  storage_data_disk {
-    name              = "node-etcd-${count.index}"
-    managed_disk_type = "Premium_LRS"
-    create_option     = "Empty"
-    lun               = 0
-    disk_size_gb      = "64"
+  metadata {
+    sshKeys = "${var.ssh_user}:${file("${var.ssh_key_data}")}"
   }
 
-  storage_data_disk {
-    name              = "node-docker-${count.index}"
-    managed_disk_type = "Premium_LRS"
-    create_option     = "Empty"
-    lun               = 1
-    disk_size_gb      = "64"
+  metadata_startup_script = "${data.template_file.bootstrap.rendered}"
+
+  disk {
+    disk_name    = "${var.cluster_name}-os-${count.index}"
+    source_image = "${element(var.oss, var.os)}"
+    disk_type    = "${var.disk_type}"
+    disk_size_gb = "64"
+    mode         = "READ_WRITE"
+    auto_delete  = "true"
+    boot         = "true"
+  }
+
+  disk {
+    source      = "${google_compute_disk.etcd.self_link}"
+    disk_name   = "${var.cluster_name}-node-etcd-${count.index}"
+    mode        = "READ_WRITE"
+    auto_delete = "true"
+  }
+
+  disk {
+    source      = "${google_compute_disk.docker.self_link}"
+    disk_name   = "node-docker-${count.index}"
+    mode        = "READ_WRITE"
+    auto_delete = "true"
+  }
+
+  can_ip_forward = true
+}
+
+resource "google_compute_disk" "etcd" {
+  name = "${var.cluster_name}-disk-etcd"
+  type = "pd-ssd"
+  zone = "${var.zone}"
+  size = "64"
+
+  labels {
+    cluster = "${var.cluster_name}"
   }
 }
 
-# See https://www.terraform.io/docs/providers/azurerm/d/public_ip.html#example-usage-retrieve-the-dynamic-public-ip-of-a-new-vm-
-data "azurerm_public_ip" "node" {
-  count               = "${var.nodes}"
-  name                = "${element(azurerm_public_ip.node.*.name,count.index)}"
-  resource_group_name = "${azurerm_resource_group.robotest.name}"
-  depends_on          = ["azurerm_virtual_machine.node"]
+resource "google_compute_disk" "docker" {
+  name = "${var.cluster_name}-disk-docker"
+  type = "pd-ssd"
+  zone = "${var.zone}"
+  size = "64"
+
+  labels {
+    cluster = "${var.cluster_name}"
+  }
 }
+
+data "template_file" "bootstrap" {
+  template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
+
+  vars {
+    service_uid = "${vars.service_uid}"
+    service_gid = "${vars.service_gid}"
+  }
+}
+
+# # FIXME: is this the way to properly read the address attribute
+# # of a compute instance?
+# data "google_compute_address" "node" {
+#   name = "node"
+# 
+#   # count = "${var.nodes}"
+# }
+

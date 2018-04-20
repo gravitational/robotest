@@ -1,66 +1,81 @@
-# 
+#
 # Google provider
 #   https://www.terraform.io/docs/providers/google/index.html
-# 
+#
 
 variable "credentials" {
   description = "JSON-encoded access credentials"
 }
+
 variable "project" {
   description = "Project name"
-  default = "kubeadm"
+  default     = "kubeadm"
 }
+
 variable "region" {
   description = "Cloud region"
-  default = "us-central1"
+  default     = "us-central1"
 }
+
 variable "zone" {
   description = "Cloud zone"
-  default = "us-central1-a"
+  default     = "us-central1-a"
 }
 
-variable "resource_group" {
-  description = "Name of the instance group"
+variable "cluster_name" {
+  description = "Name of the robotest cluster"
 }
+
 variable "vm_type" {
-  description = "Type of VM to provision"
-  default = "f1-micro"
+  description = "Type of VM to provision. See https://cloud.google.com/compute/docs/machine-types"
+  default     = "n1-standard-1"
 }
-variable "location" { }
+
 variable "tags" {
   description = "List of tags to assign to an instance"
-  type = "map"
+  type        = "map"
 }
 
-variable "ssh_authorized_keys_path"  { }
-variable "ssh_user"				{ default = "robotest" }
-
-# Number of nodes to provision
-variable "nodes" { }
-
-variable "os" { 
-	# description = "ubuntu | redhat | centos | debian | sles"
-	description = "ubuntu | redhat | centos | debian"
+variable "ssh_key_path" {
+  description = "Path to the SSH key"
 }
 
-variable random_password { }
+variable "ssh_user" {
+  description = "SSH user to login onto nodes"
+  default     = "robotest"
+}
 
-# 
-# Access credentials:
-#   https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal
-# 
+variable "nodes" {
+  description = "Number of nodes to provision"
+}
+
+variable "os" {
+  description = "Linux distribution as name:version, i.e. debian:9"
+}
+
+variable "disk_type" {
+  description = "Disk type for VM. See https://cloud.google.com/compute/docs/disks"
+  default     = "pd-ssd"
+}
+
+variable "service_uid" {
+  description = "Service user ID to own state directory/file permissions"
+  default     = "1000"
+}
+
+variable "service_gid" {
+  description = "Service group ID to own state directory/file permissions"
+  default     = "1000"
+}
+
+variable random_password {}
+
 provider "google" {
   credentials = "${file("${var.credentials}")}"
-  project = "${var.project}"
-  region = "${var.region}"
-  zone = "${var.zone}"
+  project     = "${var.project}"
+  region      = "${var.region}"
+  #zone        = "${var.zone}"
 }
 
-#
-# everything is grouped under an instance group.
-# deleting the group results in all resources being deleted.
-# 
-resource "google_compute_instance_group" "robotest" {
-  name     = "${var.resource_group}"
-  location = "${var.location}"
-}
+# List zones available in this region
+data "google_compute_zones" "available" {}

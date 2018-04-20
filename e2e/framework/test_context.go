@@ -205,10 +205,12 @@ type TestContextType struct {
 	// AWS defines the AWS-specific test configuration
 	AWS *infra.AWSConfig `json:"aws" yaml:"aws"`
 	// Azure defines Azure cloud specific parameters
-	Azure *infra.AzureConfig `yaml:"azure"`
-
+	Azure *infra.AzureConfig `json:"azure" yaml:"azure"`
+	// GCE defines Google Compute Engine specific parameters
+	GCE *infra.GoogleConfig `json:"gce" yaml:"gce"`
 	// Onprem defines the test configuration for bare metal tests
-	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
+	Onprem *OnpremConfig `json:"onprem" yaml:"onprem"`
+
 	// Bandwagon defines the test configuration for post-install setup in bandwagon
 	Bandwagon BandwagonConfig `json:"bandwagon" yaml:"bandwagon"`
 	// WebDriverURL specifies optional WebDriver URL to use
@@ -286,9 +288,7 @@ type ClusterAddress struct {
 
 // OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
-	// Onprem
 	// NumNodes defines the total cluster capacity.
-	// This is a total number of nodes to provision
 	NumNodes int `json:"nodes" yaml:"nodes"`
 	// InstallerURL defines the location of the installer tarball.
 	// Depending on the provisioner - this can be either a URL or local path
@@ -458,7 +458,7 @@ func initLogger(debug bool) {
 
 func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, err error) {
 	if TestContext.CloudProvider == "" {
-		return nil, trace.Errorf("cloud_provider parameter is required for Terraform")
+		return nil, trace.Errorf("cloud provider parameter is required for Terraform provisioner")
 	}
 
 	config = &terraform.Config{
@@ -470,6 +470,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		CloudProvider:       TestContext.CloudProvider,
 		AWS:                 TestContext.AWS,
 		Azure:               TestContext.Azure,
+		GCE:                 TestContext.GCE,
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
 		VariablesFile:       TestContext.Onprem.VariablesFile,
@@ -491,8 +492,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-
-		infraProvisioner, err = terraform.New(stateDir, *config)
+		provisioner, err = terraform.New(stateDir, *config)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -505,7 +505,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		infraProvisioner, err = vagrant.New(stateDir, config)
+		provisioner, err = vagrant.New(stateDir, config)
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
@@ -516,7 +516,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return infraProvisioner, nil
+	return provisioner, nil
 }
 
 func provisionerFromState(infraConfig infra.Config, testState TestState) (provisioner infra.Provisioner, err error) {
@@ -564,11 +564,12 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 func outputSensitiveConfig(testConfig TestContextType) {
 	testConfig.AWS = nil
 	testConfig.Azure = nil
+	testConfig.GCE = nil
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
 	testConfig.License = mask
 	var buf bytes.Buffer
-	pretty.Fprintf(&buf, "[CONFIG] %# v", testConfig)
+	pretty.Fprintf(&buf, "[CONFIG] %#v", testConfig)
 	log.Debug(buf.String())
 }
 

@@ -1,61 +1,21 @@
 #
 # OS configuration
 #
-# https://docs.microsoft.com/en-us/azure/virtual-machines/linux/cli-ps-findimage
+# https://cloud.google.com/compute/docs/images
 #
 
-variable "os_publisher" {
-    type = "map"
+variable "oss" {
+  description = "Map of supported Linux distributions"
+  type        = "map"
 
-    default = {
-        "ubuntu" = "Canonical"
-        "redhat" = "RedHat"
-        "centos" = "OpenLogic"
-        "debian" = "credativ"
-        "suse"   = "SUSE"
-    }
-}
-
-variable "os_offer" {
-    type = "map"
-
-    default = {
-        "ubuntu" = "UbuntuServer"
-        "redhat" = "RHEL"
-        "centos" = "CentOS"
-        "debian" = "Debian"
-        "suse"   = "SLES"
-    }
-}
-
-variable "os_sku" {
-    type = "map"
-
-    default = {
-        "ubuntu:latest" = "16.04-LTS"
-        "redhat:7.2" = "7.2"
-        "redhat:7.3" = "7.3"
-        "redhat:7.4" = "7-RAW-CI"
-        "centos:7.2" = "7.2"
-        "centos:7.3" = "7.3"
-        "centos:7.4" = "7-CI"
-        "debian"     = "8"
-        "suse"       = "12-SP3"
-    }
-}
-
-variable "os_version" {
-    type = "map"
-
-    default = {
-        "ubuntu:latest"     = "16.04.201708151"
-        "redhat:7.3" = "latest"
-        "redhat:7.2" = "latest"
-        "redhat:7.4" = "latest"
-        "centos:7.4" = "latest"
-        "centos:7.3" = "7.3.20170925"
-        "centos:7.2" = "7.2.20170517"
-        "debian"     = "latest"
-        "suse"       = "2017.09.07"
-    }
+  default = {
+     # os -> {project}/{image}
+    "ubuntu:16" = "ubuntu-os-cloud/ubuntu-1604-xenial-v20180405"
+    "ubuntu:17" = "ubuntu-os-cloud/ubuntu-1710-artful-v20180405"
+    "redhat:7"  = "rhel-cloud/rhel-7-v20180401"
+    "centos:7"  = "centos-cloud/centos-7-v20180401"
+    "debian:8"  = "debian-cloud/debian-8-jessie-v20180401"
+    "debian:9"  = "debian-cloud/debian-9-stretch-v20180401"
+    "suse:12"   = "suse-cloud/sles-12-sp3-v20180214"
+  }
 }

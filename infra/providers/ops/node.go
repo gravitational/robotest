@@ -6,6 +6,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
+
 	"github.com/gravitational/trace"
 	"golang.org/x/crypto/ssh"
 )

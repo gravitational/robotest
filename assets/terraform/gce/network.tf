@@ -1,218 +1,171 @@
-# 
-# NETWORK
-# 
-
-resource "google_compute_firewall" "virtual_network" {
-    name = "allow_virtual_network"
-    network = "${google_compute_network.default.name}"
-    priority = 200
-    allow {
-        protocol = "tcp"
-    }
-
-    source_ranges = ["0.0.0.0/0"]
-}
+#
+# Network
+#
 
 resource "google_compute_firewall" "ssh" {
-    name = "ssh"
-    network = "${google_compute_network.default.name}"
-    priority = 1010
-    allow {
-        protocol = "tcp"
-        ports = ["22"]
-    }
+  name     = "${var.cluster_name}-allow_ssh"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "icmp"
+  }
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
 }
 
 resource "google_compute_firewall" "web" {
-    name = "web_admin"
-    network = "${google_compute_network.default.name}"
-    priority = 1011
-    allow {
-        protocol = "tcp"
-        ports = ["32009"]
-    }
+  name     = "${var.cluster_name}-web_admin"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["32009"]
+  }
 }
 
 resource "google_compute_firewall" "telekube_installer" {
-    name = "installer"
-    network = "${google_compute_network.default.name}"
-    priority = 1020
-    allow {
-        protocol = "tcp"
-        ports = ["61008-61010", "61022-61024", "3008-3010", "6060"]
-    }
+  name     = "${var.cluster_name}-installer"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["61008-61010", "61022-61024", "3008-3010", "6060"]
+  }
 }
 
 resource "google_compute_firewall" "bandwidth" {
-    name = "installer"
-    network = "${google_compute_network.default.name}"
-    priority = 1025
-    allow {
-        protocol = "tcp"
-        ports = ["4242"]
-    }
+  name     = "${var.cluster_name}-bandwidth_test"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["4242"]
+  }
 }
 
 resource "google_compute_firewall" "kubelet" {
-    name = "installer"
-    network = "${google_compute_network.default.name}"
-    priority = 1020
-    allow {
-        protocol = "tcp"
-        ports = ["10249", "10250", "10255"]
-    }
+  name     = "${var.cluster_name}-kubelet"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["10249", "10250", "10255"]
+  }
 }
 
 resource "google_compute_firewall" "serf" {
-    name = "serf_peer_network"
-    network = "${google_compute_network.default.name}"
-    priority = 1030
-    allow {
-        protocol = "tcp"
-        ports = ["7496", "7373"]
-    }
+  name     = "${var.cluster_name}-serf_peer_network"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["7496", "7373"]
+  }
 }
 
 resource "google_compute_firewall" "k8s_api" {
-    name = "kubernetes_api_server"
-    network = "${google_compute_network.default.name}"
-    priority = 1040
-    allow {
-        protocol = "tcp"
-        ports = ["8080", "6443"]
-    }
+  name     = "${var.cluster_name}-kubernetes_api_server"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["8080", "6443"]
+  }
 }
 
 resource "google_compute_firewall" "k8s" {
-    name = "kubernetes_internal_services"
-    network = "${google_compute_network.default.name}"
-    priority = 1045
-    allow {
-        protocol = "tcp"
-        ports = ["30000-32767"]
-    }
+  name     = "${var.cluster_name}-kubernetes_internal_services"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["30000-32767"]
+  }
 }
 
 resource "google_compute_firewall" "etcd" {
-    name = "etcd"
-    network = "${google_compute_network.default.name}"
-    priority = 1050
-    allow {
-        protocol = "tcp"
-        ports = ["2379", "2380", "4001", "7001"]
-    }
+  name     = "${var.cluster_name}-etcd"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["2379", "2380", "4001", "7001"]
+  }
 }
 
 resource "google_compute_firewall" "registry" {
-    name = "docker_registry"
-    network = "${google_compute_network.default.name}"
-    priority = 1060
-    allow {
-        protocol = "tcp"
-        ports = ["5000", "2380", "4001", "7001"]
-    }
+  name     = "${var.cluster_name}-docker_registry"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
-}
-
-resource "google_compute_firewall" "docker_registry" {
-    name = "serf_peer_network"
-    network = "${google_compute_network.default.name}"
-    priority = 1070
-    allow {
-        protocol = "tcp"
-        ports = ["5000"]
-    }
-
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["5000"]
+  }
 }
 
 resource "google_compute_firewall" "overlay_network" {
-    name = "overlay_network"
-    network = "${google_compute_network.default.name}"
-    priority = 1080
-    allow {
-        protocol = "tcp"
-        ports = ["8472"]
-    }
+  name     = "${var.cluster_name}-overlay_network"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["8472"]
+  }
 }
 
 resource "google_compute_firewall" "teleport" {
-    name = "teleport_services"
-    network = "${google_compute_network.default.name}"
-    priority = 1090
-    allow {
-        protocol = "tcp"
-        ports = ["3022-3025"]
-    }
+  name     = "${var.cluster_name}-teleport_services"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["3022-3025"]
+  }
 }
 
 resource "google_compute_firewall" "planet" {
-    name = "planet_rpc"
-    network = "${google_compute_network.default.name}"
-    priority = 1100
-    allow {
-        protocol = "tcp"
-        ports = ["7575"]
-    }
+  name     = "${var.cluster_name}-planet_rpc"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["7575"]
+  }
 }
 
 resource "google_compute_firewall" "ntp" {
-    name = "planet_rpc"
-    network = "${google_compute_network.default.name}"
-    priority = 1120
-    allow {
-        protocol = "udp"
-        ports = ["123"]
-    }
+  name     = "${var.cluster_name}-ntp"
+  network  = "${data.google_compute_network.robotest.self_link}"
 
-    source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "udp"
+    ports    = ["123"]
+  }
 }
 
-# FIXME: left-overs Azure network configuration
-
-resource "azurerm_network_security_group" "robotest" {
-  name                = "robotest"
-  location            = "${var.location}"
-  resource_group_name = "${azurerm_resource_group.robotest.name}"
+data "google_compute_network" "robotest" {
+  name = "default"
 }
 
-resource "azurerm_virtual_network" "robotest" {
-  name                = "robotest"
-  address_space       = ["10.40.0.0/16"]
-  location            = "${var.location}"
-  resource_group_name = "${azurerm_resource_group.robotest.name}"
-}
+# resource "google_compute_network" "robotest" {
+#   name = "default"
+# 
+#   # Each region gets a new subnet automatically
+#   # If using this, the subnetwork resource is probably unnecessary
+#   auto_create_subnetworks = "true"
+# 
+#   # TODO: or have a single robotest subnetwork (10.40.2.0/24)
+#   # for all robotest clusters (either in a run or across multiple runs)
+#   # auto_create_subnetworks = "false"
+# }
 
-resource "azurerm_subnet" "robotest_a" {
-  name                      = "robotest_10_40_2_0"
-  resource_group_name       = "${azurerm_resource_group.robotest.name}"
-  virtual_network_name      = "${azurerm_virtual_network.robotest.name}"
-  address_prefix            = "10.40.2.0/24"
-  network_security_group_id = "${azurerm_network_security_group.robotest.id}"
-}
-
+# # FIXME: no way to make virtual private networks with the same address
+# # range per group
+# resource "google_compute_subnetwork" "robotest" {
+#   name          = "robotest_10_40_2_0"
+#   ip_cidr_range = "10.40.2.0/24"
+#   network       = "${google_compute_network.robotest.self_link}"
+# }

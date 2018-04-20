@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/gravitational/robotest/lib/wait"
-	"github.com/gravitational/trace"
-	"golang.org/x/crypto/ssh"
 
+	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 // UploadUpdate uploads a new application version to the installer node
-func UploadUpdate(provisioner Provisioner, installer Node) (err error) {
+func UploadUpdate(ctx context.Context, provisioner Provisioner, installer Node) (err error) {
 	var session *ssh.Session
-	err = wait.Retry(context.TODO(), func() error {
+	err = wait.Retry(ctx, func() error {
 		session, err = installer.Connect()
 		if err != nil {
 			log.Debug(trace.DebugReport(err))
@@ -23,15 +23,14 @@ func UploadUpdate(provisioner Provisioner, installer Node) (err error) {
 	if err != nil {
 		errClose := session.Close()
 		if errClose != nil {
-			log.Errorf("failed to close upload update SSH session: %v", errClose)
+			log.Errorf("Failed to close upload update SSH session: %v.", errClose)
 		}
 		return trace.Wrap(err)
 	}
 	defer session.Close()
 
-	// launch the upload update script
-	log.Debugf("starting uploading update process...")
-	err = provisioner.UploadUpdate(session)
+	log.Debug("Start upload.")
+	err = provisioner.UploadUpdate(ctx, session)
 	if err != nil {
 		return trace.Wrap(err)
 	}

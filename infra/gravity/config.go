@@ -11,11 +11,14 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/aws"
+	"github.com/gravitational/robotest/infra/providers/azure"
+	"github.com/gravitational/robotest/infra/providers/gce"
+	"github.com/gravitational/robotest/infra/providers/ops"
 	"github.com/gravitational/robotest/lib/constants"
 
-	"github.com/gravitational/trace"
-
 	"github.com/go-yaml/yaml"
+	"github.com/gravitational/trace"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -25,8 +28,8 @@ type OS struct {
 	Vendor, Version string
 }
 
-// Split returns os vendor and version
-func (os *OS) UnmarshalJSON(b []byte) error {
+// UnmarshalText interprets OS from a textual representation
+func (os *OS) UnmarshalText(b []byte) error {
 	str, err := strconv.Unquote(string(b))
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -40,14 +43,14 @@ func (os *OS) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Key returns back to serialized form
-func (os *OS) String() string {
+// Strings returns a textual representation of this OS object
+func (os OS) String() string {
 	return fmt.Sprintf("%s:%s", os.Vendor, os.Version)
 }
 
 type StorageDriver string
 
-func (drv *StorageDriver) UnmarshalJSON(b []byte) error {
+func (drv *StorageDriver) UnmarshalText(b []byte) error {
 	name, err := strconv.Unquote(string(b))
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -72,11 +75,13 @@ type ProvisionerConfig struct {
 	// DeployTo defines cloud to deploy to
 	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure|eq=ops"`
 	// AWS defines AWS connection parameters
-	AWS *infra.AWSConfig `yaml:"aws"`
+	AWS *aws.Config `yaml:"aws"`
 	// Azure defines Azure connection parameters
-	Azure *infra.AzureConfig `yaml:"azure"`
+	Azure *azure.Config `yaml:"azure"`
+	// GCE defines Google Compute Engine connection parameters
+	GCE *gce.Config `yaml:"azure"`
 	// Ops defines Ops Center connection parameters
-	Ops *infra.OpsConfig `yaml:"ops"`
+	Ops *ops.Config `yaml:"ops"`
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
@@ -91,11 +96,11 @@ type ProvisionerConfig struct {
 	NodeCount uint `validate:"gte=1"`
 	// OS defines one of supported operating systems
 	os OS `validate:"required"`
-	// dockerStorageDriver defines Docker storage driver
+	// storageDriver specifies the storage driver for Docker
 	storageDriver StorageDriver
-	// dockerDevice is a physical volume where docker data would be stored
+	// dockerDevice is a physical volume where Docker data would be stored
 	dockerDevice string `validate:"required"`
-	// clusterName is the name of the cluster / auto-scaling group / etc
+	// clusterName is the name of the resulting robotest cluster
 	clusterName string
 }
 
@@ -127,7 +132,8 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	}
 }
 
-// Tag returns current tag of a config
+// Tag returns the configured tag.
+// Tag is a unique robotest cluster identifier
 func (config ProvisionerConfig) Tag() string {
 	return config.tag
 }
@@ -199,7 +205,8 @@ func validateConfig(config ProvisionerConfig) error {
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		for _, fieldError := range validationErrors {
 			errs = append(errs,
-				trace.BadParameter(" * %s=\"%v\" fails \"%s\"", fieldError.Field(), fieldError.Value(), fieldError.Tag()))
+				trace.BadParameter(` * %s="%v" fails "%s"`,
+					fieldError.Field(), fieldError.Value(), fieldError.Tag()))
 		}
 	}
 	return trace.NewAggregate(errs...)
@@ -230,4 +237,4 @@ func (r *CloudRegions) Next() (region string) {
 	return r.regions[r.idx]
 }
 
-var azureRegions *CloudRegions
+var cloudRegions *CloudRegions

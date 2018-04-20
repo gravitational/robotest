@@ -11,11 +11,10 @@ if [ -d $(dirname ${INSTALLER_URL}) ]; then
 	EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
 fi
 
-# OS could be ubuntu,centos,redhat
-# storage driver: could be devicemapper,loopback,overlay,overlay2
-#  separate multiple values by comma for OS and storage driver
+# TEST_OS could be "ubuntu,centos,redhat"
+# STORAGE_DRIVER could be "devicemapper,loopback,overlay,overlay2"
 TEST_OS=${TEST_OS:-ubuntu}
-STORAGE_DRIVER=${STORAGE_DRIVER:-devicemapper}
+STORAGE_DRIVER=${STORAGE_DRIVER:-overlay}
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
@@ -47,7 +46,10 @@ check_files () {
 	fi
 }
 
-if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] && [ $DEPLOY_TO != "ops" ] ; then
+if [ $DEPLOY_TO != "azure" ] && \
+    [ $DEPLOY_TO != "aws" ] && \
+    [ $DEPLOY_TO != "gce" ] && \
+    [ $DEPLOY_TO != "ops" ] ; then
 	echo "Unsupported deployment cloud ${DEPLOY_TO}"
 	exit 1
 fi

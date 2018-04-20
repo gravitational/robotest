@@ -332,6 +332,8 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
+		// random_password for the admin account for SSH access on Azure
+		// FIXME: figure out if this is required/necessary on Google
 		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
