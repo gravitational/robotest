@@ -1,4 +1,4 @@
-package terraform
+package azure
 
 import (
 	"context"

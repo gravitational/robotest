@@ -76,5 +76,7 @@ provider "google" {
   zone        = "${var.zone}"
 }
 
-# List zones available in this region
-data "google_compute_zones" "available" {}
+# List zones available in a region
+data "google_compute_zones" "available" {
+  region = "${var.region}"
+}

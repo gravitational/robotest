@@ -8,7 +8,8 @@ type Config struct {
 	// Credentials names the service account file
 	// https://cloud.google.com/compute/docs/api/how-tos/authorization
 	Credentials string `json:"credentials" yaml:"credentials" validate:"required"`
-	// Region specifies the datacenter region to install into
+	// Region specifies the datacenter region to install into.
+	// Can be a comma-separated list of regions.
 	// https://cloud.google.com/compute/docs/regions-zones/
 	Region string `json:"region" yaml:"region"`
 	// Zone specifies the datacenter zone to install into.

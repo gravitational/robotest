@@ -28,7 +28,7 @@ const (
 // GetAuthToken retrieves OAuth token for an application
 func GetAuthToken(ctx context.Context, param AuthParam) (*Token, error) {
 	reqURL := fmt.Sprintf(tokenURL, param.TenantId)
-	resp, err := http.PostForm(reqUrl,
+	resp, err := http.PostForm(reqURL,
 		url.Values{
 			"grant_type":    {"client_credentials"},
 			"resource":      {"https://management.azure.com/"},
@@ -73,7 +73,7 @@ func RemoveResourceGroup(ctx context.Context, token Token, subscription, group s
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNotFound {
-		return trace.Errorf("%v/%s [DELETE %s]", resp.StatusCode, resp.Status, reqUrl)
+		return trace.Errorf("%v/%s [DELETE %s]", resp.StatusCode, resp.Status, reqURL)
 	}
 	return nil
 }

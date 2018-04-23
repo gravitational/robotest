@@ -28,10 +28,6 @@ import (
 const (
 	tfVarsFile           = "robotest.tfvars.json"
 	terraformRepeatAfter = time.Second * 5
-
-	azureCloud = "azure"
-	awsCloud   = "aws"
-	gceCloud   = "gce"
 )
 
 func New(stateDir string, config Config) (*terraform, error) {
@@ -206,7 +202,7 @@ func (r *terraform) destroyAzure(ctx context.Context) error {
 		return trace.BadParameter("azure config is nil")
 	}
 
-	token, err := azure.GetAuthToken(ctx, AzureAuthParam{
+	token, err := azure.GetAuthToken(ctx, azure.AuthParam{
 		ClientId:     cfg.ClientId,
 		ClientSecret: cfg.ClientSecret,
 		TenantId:     cfg.TenantId})
@@ -214,14 +210,14 @@ func (r *terraform) destroyAzure(ctx context.Context) error {
 		return trace.Wrap(err)
 	}
 
-	err = azure.RemoveResourceGroup(ctx, token, cfg.SubscriptionId, cfg.ResourceGroup)
+	err = azure.RemoveResourceGroup(ctx, *token, cfg.SubscriptionId, cfg.ResourceGroup)
 	return trace.Wrap(err)
 }
 
 func (r *terraform) Destroy(ctx context.Context) error {
-	r.Debugf("destroying terraform cluster: %v", r.stateDir)
+	r.Debugf("Destroying terraform cluster: %v.", r.stateDir)
 
-	if r.Config.CloudProvider == azureCloud {
+	if r.Config.CloudProvider == constants.Azure {
 		err := r.destroyAzure(ctx)
 		if err != nil {
 			return trace.Wrap(err, "azureDestroy %v", err)
@@ -370,11 +366,11 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 func (r *terraform) saveVarsJSON(varFile string) error {
 	var config interface{}
 	switch r.Config.CloudProvider {
-	case awsCloud:
+	case constants.AWS:
 		config = r.Config.AWS
-	case azureCloud:
+	case constants.Azure:
 		config = r.Config.Azure
-	case gceCloud:
+	case constants.GCE:
 		config = r.Config.GCE
 	default:
 		return trace.BadParameter("invalid cloud provider: %v", r.Config.CloudProvider)

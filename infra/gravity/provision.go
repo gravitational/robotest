@@ -13,10 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
@@ -24,9 +20,12 @@ import (
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
-	"github.com/gravitational/trace"
-
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
+	"github.com/gravitational/trace"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -77,12 +76,12 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	var destroy DestroyFn
 	var err error
 	switch cfg.CloudProvider {
-	case "azure", "aws":
+	case constants.Azure, constants.AWS, constants.GCE:
 		nodes, destroy, err = c.provisionCloud(cfg)
 	case "ops":
 		nodes, destroy, err = c.provisionOps(cfg)
 	default:
-		err = trace.BadParameter("unkown cloud provider: %v", cfg.CloudProvider)
+		err = trace.BadParameter("unkown cloud provider: %q", cfg.CloudProvider)
 	}
 
 	// call `destroyFn` if provided to destroy infrastructure
@@ -224,7 +223,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 		return nil, nil, trace.Wrap(err)
 	}
 
-	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
+	resp, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
@@ -232,7 +231,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 		if err == nil {
 			return
 		}
-		if errDestroy := destroyResource(destroyFn); errDestroy != nil {
+		if errDestroy := destroyResource(resp.destroyFn); errDestroy != nil {
 			c.Logger().WithError(errDestroy).Error("Failed to destroy resources.")
 		}
 	}()
@@ -241,10 +240,10 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 	defer cancel()
 
 	c.Logger().Debug("Configuring VMs")
-	gravityNodes, err = configureVMs(ctx, c.Logger(), *params, nodes)
+	gravityNodes, err := configureVMs(ctx, c.Logger(), resp.params, resp.nodes)
 	if err != nil {
 		c.Logger().WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
-		return nil, nil, trace.Wrap(err)
+		return nil, nil, trace.NewAggregate(err, destroyResource(resp.destroyFn))
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
@@ -265,7 +264,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 
 	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
-	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, resp.destroyFn), nil
 }
 
 // postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
@@ -346,8 +345,8 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 	return trace.Wrap(err)
 }
 
-// bootstrapAWS is a simple workflow to wait for cloud-init to complete
-func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+// bootstrapCloud is a simple workflow to wait for cloud-init to complete
+func bootstrapCloud(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	if err != nil {
 		return trace.Wrap(err)
@@ -379,10 +378,12 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	g.ssh = client
 
 	switch param.CloudProvider {
-	case "aws":
-		err = bootstrapAWS(ctx, g, param)
-	case "azure":
+	case constants.AWS:
+		err = bootstrapCloud(ctx, g, param)
+	case constants.Azure:
 		err = bootstrapAzure(ctx, g, param)
+	case constants.GCE:
+		err = bootstrapCloud(ctx, g, param)
 	case "ops":
 		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
 		g.installDir = "/bin"

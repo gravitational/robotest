@@ -30,7 +30,7 @@ func UploadUpdate(ctx context.Context, provisioner Provisioner, installer Node) 
 	defer session.Close()
 
 	log.Debug("Start upload.")
-	err = provisioner.UploadUpdate(ctx, session)
+	err = provisioner.UploadUpdate(session)
 	if err != nil {
 		return trace.Wrap(err)
 	}

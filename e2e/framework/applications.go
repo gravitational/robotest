@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,9 +16,9 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/system"
-	"github.com/gravitational/trace"
 
 	"github.com/go-yaml/yaml"
+	"github.com/gravitational/trace"
 	semver "github.com/hashicorp/go-version"
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,7 +73,7 @@ func UpdateApplicationWithInstaller() {
 	installerNode, err := provisioner.NodePool().Node(testState.ProvisionerState.InstallerAddr)
 	Expect(err).NotTo(HaveOccurred(), "expected to get installer node from previous provisioner state")
 
-	err = infra.UploadUpdate(provisioner, installerNode)
+	err = infra.UploadUpdate(context.TODO(), provisioner, installerNode)
 	Expect(err).NotTo(HaveOccurred(), "expected upload update operation to be completed")
 }
 

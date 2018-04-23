@@ -2,9 +2,10 @@ package terraform
 
 import (
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/providers/aws"
-	"github.com/gravitational/robotest/providers/azure"
-	"github.com/gravitational/robotest/providers/gce"
+	"github.com/gravitational/robotest/infra/providers/aws"
+	"github.com/gravitational/robotest/infra/providers/azure"
+	"github.com/gravitational/robotest/infra/providers/gce"
+	"github.com/gravitational/robotest/lib/constants"
 
 	"github.com/gravitational/trace"
 	"gopkg.in/go-playground/validator.v9"
@@ -22,23 +23,45 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	hasValidAWSSSH := c.CloudProvider == "aws" && c.AWS != nil && c.AWS.SSHUser != "" && c.AWS.SSHKeyPath != ""
-	hasValidAzureSSH := c.CloudProvider == "azure" && c.Azure != nil && c.Azure.SSHUser != "" && c.Azure.SSHKeyPath != ""
-
-	if (hasValidAWSSSH || hasValidAzureSSH) == false {
-		errors = append(errors,
-			trace.Errorf("SSH configuration missing for %s", c.CloudProvider))
+	if len(errors) != 0 {
+		return trace.NewAggregate(errors...)
 	}
 
-	return trace.NewAggregate(errors...)
+	switch c.CloudProvider {
+	case constants.AWS:
+		if c.AWS == nil {
+			return trace.BadParameter("AWS configuration is required")
+		}
+		if c.AWS.SSHUser == "" || c.AWS.SSHKeyPath == "" {
+			return trace.BadParameter("AWS SSH access configuration is required")
+		}
+	case constants.Azure:
+		if c.Azure == nil {
+			return trace.BadParameter("Azure configuration is required")
+		}
+		if c.Azure.SSHUser == "" || c.Azure.SSHKeyPath == "" {
+			return trace.BadParameter("Azure SSH access configuration is required")
+		}
+	case constants.GCE:
+		if c.GCE == nil {
+			return trace.BadParameter("GCE configuration is required")
+		}
+		if c.GCE.SSHUser == "" || c.GCE.SSHKeyPath == "" {
+			return trace.BadParameter("GCE SSH access configuration is required")
+		}
+	}
+
+	return nil
 }
 
 func (c Config) SSHConfig() (user, keypath string) {
 	switch c.CloudProvider {
-	case "aws":
+	case constants.AWS:
 		return c.AWS.SSHUser, c.AWS.SSHKeyPath
-	case "azure":
+	case constants.Azure:
 		return c.Azure.SSHUser, c.Azure.SSHKeyPath
+	case constants.GCE:
+		return c.GCE.SSHUser, c.GCE.SSHKeyPath
 	default:
 		return "", ""
 	}
@@ -46,9 +69,8 @@ func (c Config) SSHConfig() (user, keypath string) {
 
 type Config struct {
 	infra.Config
-
-	// DeployTo defines cloud to deploy to
-	CloudProvider string `validate:"required,eq=aws|eq=azure"`
+	// CloudProvider defines cloud to deploy to
+	CloudProvider string `validate:"required,eq=aws|eq=azure|eq=gce"`
 	// AWS defines AWS connection parameters
 	AWS *aws.Config
 	// Azure defines Azure connection parameters
@@ -56,8 +78,7 @@ type Config struct {
 	// GCE defines Google Compute Engine connection parameters
 	GCE *gce.Config
 	// OS specified the OS distribution
-	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian"`
-
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian|eq=suse"`
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `json:"script_path" validate:"required"`
 	// NumNodes defines the capacity of the cluster to provision

@@ -87,7 +87,7 @@ check_files ${SSH_KEY} ${SSH_PUB}
 GCE_CONFIG="gce:
   credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
   vm_type: ${GCE_VM_TYPE}
-  zone: ${GCE_ZONE}
+  region: ${GCE_REGION}
   ssh_user: robotest
   key_path: /robotest/config/ops.pem"
 fi

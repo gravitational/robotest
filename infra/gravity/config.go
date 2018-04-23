@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/providers/aws"
 	"github.com/gravitational/robotest/infra/providers/azure"
 	"github.com/gravitational/robotest/infra/providers/gce"
@@ -110,13 +109,17 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	require.NoError(t, err, string(configBytes))
 
 	switch cfg.CloudProvider {
-	case "azure":
+	case constants.Azure:
 		require.NotNil(t, cfg.Azure)
 		cfg.dockerDevice = cfg.Azure.DockerDevice
-		azureRegions = NewCloudRegions(strings.Split(cfg.Azure.Location, ","))
-	case "aws":
+		cloudRegions = NewCloudRegions(strings.Split(cfg.Azure.Location, ","))
+	case constants.AWS:
 		require.NotNil(t, cfg.AWS)
 		cfg.dockerDevice = cfg.AWS.DockerDevice
+	case constants.GCE:
+		require.NotNil(t, cfg.GCE)
+		cfg.dockerDevice = cfg.GCE.DockerDevice
+		cloudRegions = NewCloudRegions(strings.Split(cfg.GCE.Region, ","))
 	case "ops":
 		require.NotNil(t, cfg.Ops)
 		// set AWS environment variables to be used by subsequent commands
@@ -219,6 +222,8 @@ type CloudRegions struct {
 	regions []string
 }
 
+// NewCloudRegions returns a new list of cloud regions in
+// random order
 func NewCloudRegions(regions []string) *CloudRegions {
 	out := make([]string, len(regions))
 	perm := rand.Perm(len(regions))

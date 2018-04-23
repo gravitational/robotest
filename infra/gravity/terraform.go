@@ -43,7 +43,8 @@ var testStatus = map[bool]string{true: "failed", false: "ok"}
 
 const finalTeardownTimeout = time.Minute * 5
 
-// wrapDestroyFn implements a global conditional logic
+// wrapDestroyFn returns a function that wraps the specified set of nodes and the given clean up function
+// that implements report collection and resource clean up.
 func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func() error {
 		defer func() {
@@ -157,7 +158,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	// enforce compatible values
 	var ok bool
 	usernames := map[string]map[string]string{
-		"azure": map[string]string{
+		constants.Azure: map[string]string{
 			"ubuntu": "robotest",
 			"debian": "admin",
 			"redhat": "redhat",
@@ -165,14 +166,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"suse":   "robotest",
 		},
 		// TODO: verify this (copy of azure)
-		"gce": map[string]string{
+		constants.GCE: map[string]string{
 			"ubuntu": "robotest",
 			"debian": "admin",
 			"redhat": "redhat",
 			"centos": "centos",
 			"suse":   "robotest",
 		},
-		"aws": map[string]string{
+		constants.AWS: map[string]string{
 			"ubuntu": "ubuntu",
 			"debian": "admin",
 			"redhat": "redhat",
@@ -221,9 +222,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	if baseConfig.GCE != nil {
 		config := *baseConfig.GCE
 		param.tf.GCE = &config
-		param.tf.GCE.ClusterName = fmt.Sprintf("robotest-%v", baseConfig.tag)
 		param.tf.GCE.SSHUser = param.user
-		// FIXME: rotate regions?
 		param.tf.GCE.Region = cloudRegions.Next()
 	}
 
@@ -248,10 +247,11 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		}
 		retry++
 
-		resp.params, err = makeDynamicParams(cfg)
+		params, err := makeDynamicParams(cfg)
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}
+		resp.params = *params
 		resp.nodes, resp.destroyFn, err = runTerraformOnce(ctx, cfg, *params)
 
 		if err == nil {
@@ -269,7 +269,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, DestroyFn, error) {
+func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
@@ -307,6 +307,6 @@ func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig,
 
 type terraformResp struct {
 	nodes     []infra.Node
-	destroyFn DestroyFn
-	params    *cloudDynamicParams
+	destroyFn func(context.Context) error
+	params    cloudDynamicParams
 }

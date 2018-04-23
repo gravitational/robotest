@@ -35,6 +35,6 @@ type Config struct {
 }
 
 // FIXME: replace with embedded validation rules
-func (r AWSConfig) IsEmpty() bool {
+func (r Config) IsEmpty() bool {
 	return r.AccessKey == "" && r.SecretKey == ""
 }

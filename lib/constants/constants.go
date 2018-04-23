@@ -43,17 +43,18 @@ const (
 	// ManifestStorageDriver is empty string identifying that install should use driver defined by the manifest
 	ManifestStorageDriver = ""
 
-	// AWS is amazon cloud
-	AWS = "aws"
-
-	// Azure is microsoft azure cloud
-	Azure = "azure"
-
-
 	// Ops specifies a special cloud provider - a telekube Ops Center
 	Ops = "ops"
 
 	// TerraformPluginDir specifies the location of terraform plugins
 	TerraformPluginDir = "/etc/terraform/plugins"
+)
 
+const (
+	// AWS is the Amazon cloud
+	AWS = "aws"
+	// Azure is Microsoft Zzure cloud
+	Azure = "azure"
+	// GCE is Google Compute Engine cloud
+	GCE = "gce"
 )
