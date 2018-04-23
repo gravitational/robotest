@@ -20,7 +20,7 @@ type Config struct {
 	// https://cloud.google.com/compute/docs/machine-types
 	VMType string `json:"vm_type" yaml:"vm_type" validate:"required"`
 	// SSHKeyPath specifies the location of the SSH private key for remote access
-	SSHKeyPath string `json:"-" yaml:"key_path" validate:"required"`
+	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// SSHUser defines SSH user to connect to the provisioned machines
 	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
 	// DockerDevice specifies the block device for Docker

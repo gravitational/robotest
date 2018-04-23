@@ -77,7 +77,7 @@ AZURE_CONFIG="azure:
   vm_type: ${AZURE_VM}
   location: ${AZURE_REGION}
   ssh_user: robotest
-  key_path: /robotest/config/ops.pem
+  ssh_key_path: /robotest/config/ops.pem
   authorized_keys_path: /robotest/config/ops_rsa.pub
   docker_device: /dev/sdd"
 fi

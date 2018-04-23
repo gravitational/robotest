@@ -5,8 +5,8 @@
 resource "google_compute_instance_group" "robotest" {
   description = "Instance group controlling instances of a single robotest cluster"
   name        = "${var.cluster_name}-grp"
-  zone        = "${locals.zone}"
-  network     = "${google_compute_network.robotest.self_link}"
+  zone        = "${local.zone}"
+  network     = "${data.google_compute_network.robotest.self_link}"
   instances   = ["${google_compute_instance.node.*.self_link}"]
 }
 
@@ -15,7 +15,7 @@ resource "google_compute_instance" "node" {
   count        = "${var.nodes}"
   name         = "${var.cluster_name}-node-${count.index}"
   machine_type = "${var.vm_type}"
-  zone         = "${locals.zone}"
+  zone         = "${local.zone}"
 
   tags = [
     "robotest",
@@ -27,7 +27,7 @@ resource "google_compute_instance" "node" {
   }
 
   network_interface {
-    network = "${data.google_compute_subnetwork.robotest.self_link}"
+    network = "${data.google_compute_network.robotest.self_link}"
 
     access_config {
       # Ephemeral IP
@@ -39,14 +39,14 @@ resource "google_compute_instance" "node" {
     enable_oslogin = "true"
 
     # sshKeys controls access to an instance using a custom SSH key
-    sshKeys = "${var.ssh_user}:${file("${var.ssh_key}")}"
+    sshKeys = "${var.ssh_user}:${file("${var.ssh_key_path}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
 
   boot_disk {
     initialize_params {
-      image = "${element(var.oss, var.os)}"
+      image = "${lookup(var.oss, var.os)}"
       size  = "64"
       type  = "${var.disk_type}"
     }
@@ -54,12 +54,12 @@ resource "google_compute_instance" "node" {
     auto_delete = "true"
   }
 
-  attach_disk {
+  attached_disk {
     source = "${google_compute_disk.etcd.*.self_link[count.index]}"
     mode   = "READ_WRITE"
   }
 
-  attach_disk {
+  attached_disk {
     source = "${google_compute_disk.docker.*.self_link[count.index]}"
     mode   = "READ_WRITE"
   }
@@ -71,7 +71,7 @@ resource "google_compute_disk" "etcd" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-etcd-${count.index}"
   type  = "pd-ssd"
-  zone  = "${locals.zone}"
+  zone  = "${local.zone}"
   size  = "64"
 
   labels {
@@ -83,7 +83,7 @@ resource "google_compute_disk" "docker" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-docker-${count.index}"
   type  = "pd-ssd"
-  zone  = "${locals.zone}"
+  zone  = "${local.zone}"
   size  = "64"
 
   labels {
@@ -95,8 +95,8 @@ data "template_file" "bootstrap" {
   template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
 
   vars {
-    service_uid = "${vars.service_uid}"
-    service_gid = "${vars.service_gid}"
+    service_uid = "${var.service_uid}"
+    service_gid = "${var.service_gid}"
   }
 }
 

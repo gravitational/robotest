@@ -2,7 +2,7 @@
 #
 # VM bootstrap script for CentOS/RHEL
 #
-set -euo pipefail
+set -exuo pipefail
 
 function devices {
     lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
@@ -55,12 +55,15 @@ etcd_device=$(get_empty_device)
 [ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
 
 mkfs.ext4 -F /dev/$etcd_device
-echo -e "/dev/${etcd_device}\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2" >> /etc/fstab
+echo -e "/dev/$etcd_device\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2" >> /etc/fstab
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
 mount /var/lib/gravity/planet/etcd
 
-chown -R $${service_uid}:$${service_gid} /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
+service_uid=$(id -u)
+service_gid=$(id -g)
+
+chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 docker_device=$(get_empty_device)
@@ -87,6 +90,9 @@ cat > /etc/sysctl.d/50-telekube.conf <<EOF
 net.ipv4.ip_forward=1
 net.bridge.bridge-nf-call-iptables=1
 EOF
+if sysctl -q fs.may_detach_mounts >/dev/null 2>&1; then
+  echo "fs.may_detach_mounts=1" >> /etc/sysctl.d/50-telekube.conf
+fi
 cat > /etc/modules-load.d/telekube.conf <<EOF
 br_netfilter
 overlay

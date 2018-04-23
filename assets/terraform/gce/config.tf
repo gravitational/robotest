@@ -9,7 +9,7 @@ variable "credentials" {
 
 variable "project" {
   description = "Project name"
-  default     = "kubeadm"
+  default     = "kubeadm-167321"
 }
 
 variable "region" {
@@ -29,11 +29,6 @@ variable "cluster_name" {
 variable "vm_type" {
   description = "Type of VM to provision. See https://cloud.google.com/compute/docs/machine-types"
   default     = "n1-standard-1"
-}
-
-variable "tags" {
-  description = "List of tags to assign to an instance"
-  type        = "map"
 }
 
 variable "ssh_key_path" {
@@ -68,8 +63,6 @@ variable "service_gid" {
   default     = "1000"
 }
 
-variable random_password {}
-
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"
@@ -82,7 +75,7 @@ data "google_compute_zones" "available" {
 }
 
 resource "random_shuffle" "zones" {
-  input        = ["${data.google_compute_zones.available}"]
+  input        = ["${data.google_compute_zones.available.names}"]
   result_count = 1
 }
 

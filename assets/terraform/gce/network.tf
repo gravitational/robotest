@@ -3,7 +3,7 @@
 #
 
 resource "google_compute_firewall" "ssh" {
-  name    = "${var.cluster_name}-allow_ssh"
+  name    = "${var.cluster_name}-allow-ssh"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -17,7 +17,7 @@ resource "google_compute_firewall" "ssh" {
 }
 
 resource "google_compute_firewall" "web" {
-  name    = "${var.cluster_name}-web_admin"
+  name    = "${var.cluster_name}-web-admin"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -37,7 +37,7 @@ resource "google_compute_firewall" "telekube_installer" {
 }
 
 resource "google_compute_firewall" "bandwidth" {
-  name    = "${var.cluster_name}-bandwidth_test"
+  name    = "${var.cluster_name}-bandwidth-test"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -57,7 +57,7 @@ resource "google_compute_firewall" "kubelet" {
 }
 
 resource "google_compute_firewall" "serf" {
-  name    = "${var.cluster_name}-serf_peer_network"
+  name    = "${var.cluster_name}-serf-peer-network"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -67,7 +67,7 @@ resource "google_compute_firewall" "serf" {
 }
 
 resource "google_compute_firewall" "k8s_api" {
-  name    = "${var.cluster_name}-kubernetes_api_server"
+  name    = "${var.cluster_name}-kubernetes-api-server"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -77,7 +77,7 @@ resource "google_compute_firewall" "k8s_api" {
 }
 
 resource "google_compute_firewall" "k8s" {
-  name    = "${var.cluster_name}-kubernetes_internal_services"
+  name    = "${var.cluster_name}-kubernetes-internal-services"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -97,7 +97,7 @@ resource "google_compute_firewall" "etcd" {
 }
 
 resource "google_compute_firewall" "registry" {
-  name    = "${var.cluster_name}-docker_registry"
+  name    = "${var.cluster_name}-docker-registry"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -107,7 +107,7 @@ resource "google_compute_firewall" "registry" {
 }
 
 resource "google_compute_firewall" "overlay_network" {
-  name    = "${var.cluster_name}-overlay_network"
+  name    = "${var.cluster_name}-overlay-network"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -117,7 +117,7 @@ resource "google_compute_firewall" "overlay_network" {
 }
 
 resource "google_compute_firewall" "teleport" {
-  name    = "${var.cluster_name}-teleport_services"
+  name    = "${var.cluster_name}-teleport-services"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -127,7 +127,7 @@ resource "google_compute_firewall" "teleport" {
 }
 
 resource "google_compute_firewall" "planet" {
-  name    = "${var.cluster_name}-planet_rpc"
+  name    = "${var.cluster_name}-planet-rpc"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
