@@ -160,7 +160,7 @@ func (r *terraform) loadFromState(output string) error {
 		r.installerIP = match[1]
 	}
 
-	// find all nodes' private IPs
+	// Extract private IPs for all nodes
 	match = rePrivateIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		return trace.NotFound(
@@ -168,22 +168,25 @@ func (r *terraform) loadFromState(output string) error {
 	}
 	privateIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
-	// find all nodes' public IPs
+	// Extract public IPs for all nodes
 	match = rePublicIPs.FindStringSubmatch(output)
 	if len(match) != 2 {
 		// one of the reasons is that public IP allocation is incomplete yet
 		// which happens for Azure; we will just repeat boot process once again
-		return trace.Retry(
-			trace.NotFound("failed to extract public IPs from terraform output: %v", match),
-			"terraform may not be able to acquire values of every parameter on create")
+		return trace.NotFound("failed to extract public IPs from terraform output: %v", match)
+		// return trace.Retry(
+		// 	trace.NotFound("failed to extract public IPs from terraform output: %v", match),
+		// 	"terraform may not be able to acquire values of every parameter on create")
 	}
 	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
 
 	if len(privateIPs) != len(publicIPs) {
-		return trace.Retry(
-			trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
-				len(privateIPs), len(publicIPs)),
-			"still allocating public IP addresses")
+		return trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
+			len(privateIPs), len(publicIPs))
+		// return trace.Retry(
+		// 	trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
+		// 		len(privateIPs), len(publicIPs)),
+		// 	"still allocating public IP addresses")
 	}
 
 	nodes := make([]infra.Node, 0, len(publicIPs))
