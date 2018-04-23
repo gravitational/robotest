@@ -12,15 +12,15 @@ variable "project" {
   default     = "kubeadm"
 }
 
-# variable "region" {
-#   description = "Cloud region"
-#   default     = "us-central1"
-# }
-
-variable "zone" {
-  description = "Cloud zone"
-  default     = "us-central1-a"
+variable "region" {
+  description = "Cloud region"
+  default     = "us-central1"
 }
+
+# variable "zone" {
+#   description = "Cloud zone"
+#   default     = "us-central1-a"
+# }
 
 variable "cluster_name" {
   description = "Name of the robotest cluster"
@@ -73,10 +73,19 @@ variable random_password {}
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"
-  zone        = "${var.zone}"
+  region      = "${var.region}"
 }
 
 # List zones available in a region
 data "google_compute_zones" "available" {
   region = "${var.region}"
+}
+
+resource "random_shuffle" "zones" {
+  input        = ["${data.google_compute_zones.available}"]
+  result_count = 1
+}
+
+locals {
+  zone = "${random_shuffle.zones.result[0]}"
 }

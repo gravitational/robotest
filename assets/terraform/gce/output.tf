@@ -1,4 +1,3 @@
-
 #
 # Output Variables
 #

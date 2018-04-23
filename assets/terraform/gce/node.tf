@@ -5,7 +5,7 @@
 resource "google_compute_instance_group" "robotest" {
   description = "Instance group controlling instances of a single robotest cluster"
   name        = "${var.cluster_name}-grp"
-  zone        = "${var.zone}"
+  zone        = "${locals.zone}"
   network     = "${google_compute_network.robotest.self_link}"
   instances   = ["${google_compute_instance.node.*.self_link}"]
 }
@@ -15,7 +15,7 @@ resource "google_compute_instance" "node" {
   count        = "${var.nodes}"
   name         = "${var.cluster_name}-node-${count.index}"
   machine_type = "${var.vm_type}"
-  zone         = "${var.zone}"
+  zone         = "${locals.zone}"
 
   tags = [
     "robotest",
@@ -71,7 +71,7 @@ resource "google_compute_disk" "etcd" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-etcd-${count.index}"
   type  = "pd-ssd"
-  zone  = "${var.zone}"
+  zone  = "${locals.zone}"
   size  = "64"
 
   labels {
@@ -83,7 +83,7 @@ resource "google_compute_disk" "docker" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-docker-${count.index}"
   type  = "pd-ssd"
-  zone  = "${var.zone}"
+  zone  = "${locals.zone}"
   size  = "64"
 
   labels {

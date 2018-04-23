@@ -20,18 +20,18 @@ RUN apt-get update && \
     apt-get install -y curl unzip
 
 RUN \
-    curl $TF_TARBALL -o terraform.zip && \
+    curl ${TF_TARBALL} -o terraform.zip && \
     unzip terraform.zip -d /usr/bin && \
-    rm -f terraform.zip \
+    rm -f terraform.zip && \
     mkdir -p /etc/terraform/plugins && \
 
     for plugin in $TF_PLUGINS; do \
-        curl $plugin -o plugin.zip && \
+        curl ${plugin} -o plugin.zip && \
         unzip plugin.zip -d /etc/terraform/plugins && \
-        rm -f plugin.zip \
+        rm -f plugin.zip; \
     done && \
-
     apt-get clean && \
+    rm -rf \
         /var/lib/apt/lists/* \
         /usr/share/{doc,doc-base,man}/ \
         /tmp/*

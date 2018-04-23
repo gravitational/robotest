@@ -9,7 +9,7 @@ variable "oss" {
   type        = "map"
 
   default = {
-     # os -> {project}/{image}
+    # os -> {project}/{image}
     "ubuntu:16" = "ubuntu-os-cloud/ubuntu-1604-xenial-v20180405"
     "ubuntu:17" = "ubuntu-os-cloud/ubuntu-1710-artful-v20180405"
     "redhat:7"  = "rhel-cloud/rhel-7-v20180401"
