@@ -64,6 +64,16 @@ resource "google_compute_instance" "node" {
     mode   = "READ_WRITE"
   }
 
+  service_account {
+    # TODO: consider using robotest-specific service account instead of
+    # the default service account
+    scopes = [
+      "compute-rw",
+      "services-control",
+      "storage-ro",
+    ]
+  }
+
   can_ip_forward = true
 }
 
@@ -95,16 +105,6 @@ data "template_file" "bootstrap" {
   template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
 
   vars {
-    service_uid = "${var.service_uid}"
-    service_gid = "${var.service_gid}"
+    ssh_user = "${var.ssh_user}"
   }
 }
-
-# # FIXME: is this the way to properly read the address attribute
-# # of a compute instance?
-# data "google_compute_address" "node" {
-#   name = "node"
-# 
-#   # count = "${var.nodes}"
-# }
-

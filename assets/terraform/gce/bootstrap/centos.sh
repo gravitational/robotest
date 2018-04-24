@@ -18,13 +18,6 @@ function get_empty_device {
     done
 }
 
-function get_vmbus_attr {
-  local dev_path=$1
-  local attr=$2
-
-  cat $dev_path/$attr | head -n1
-}
-
 touch /var/lib/bootstrap_started
 
 dns_running=0
@@ -47,40 +40,36 @@ fi
 
 yum install -y chrony python unzip lvm2 device-mapper-persistent-data
 
-curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-unzip awscli-bundle.zip
-./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
+if ! aws --version; then
+  curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+  unzip awscli-bundle.zip
+  ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
+fi
 
-etcd_device=$(get_empty_device)
-[ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
+etcd_dir=/var/lib/gravity/planet/etcd
+if ! grep -qs "$etcd_dir" /proc/mounts; then
+  etcd_device=$(get_empty_device)
+  [ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
 
-mkfs.ext4 -F /dev/$etcd_device
-echo -e "/dev/$etcd_device\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2" >> /etc/fstab
+  mkfs.ext4 -F /dev/$etcd_device
+  sed -i.bak "/$etcd_device/d" /etc/fstab
+  echo -e "/dev/$etcd_device\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
 
-mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
-mount /var/lib/gravity/planet/etcd
+  mkdir -p $etcd_dir /var/lib/data
+  mount $etcd_dir
+fi
 
-service_uid=$(id -u)
-service_gid=$(id -g)
+service_uid=$(id ${ssh_user} -u)
+service_gid=$(id ${ssh_user} -g)
 
-chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
+chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-# # FIXME: figure out if these are necessary
-# systemctl disable firewalld || true
-# systemctl stop firewalld || true
-# iptables --flush --wait
-# iptables --delete-chain
-# iptables --table nat --flush
-# iptables --table filter --flush
-# iptables --table nat --delete-chain
-# iptables --table filter --delete-chain
-
-# Required kernel modules
+# Load required kernel modules
 modprobe br_netfilter || true
 modprobe overlay || true
 modprobe ebtable_filter || true

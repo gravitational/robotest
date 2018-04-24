@@ -2,7 +2,7 @@
 #
 # VM bootstrap script for Debian/Ubuntu
 #
-set -euo pipefail
+set -exuo pipefail
 
 touch /var/lib/bootstrap_started
 
@@ -11,16 +11,24 @@ apt install -y chrony lvm2 curl wget thin-provisioning-tools
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
-mkfs.ext4 -F /dev/sdc
-echo -e '/dev/sdc\t/var/lib/gravity/planet/etcd\text4\tdefaults\t0\t2' >> /etc/fstab
-
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
-mount /var/lib/gravity/planet/etcd
 
-chown -R $${service_uid}:$${service_gid} /var/lib/gravity /var/lib/data /var/lib/gravity/planet/etcd
+etcd_device=sdc
+etcd_dir=/var/lib/gravity/planet/etcd
+if ! grep -qs "$etcd_dir" /proc/mounts; then
+  mkfs.ext4 -F /dev/sdc
+  sed -i.bak "/$etcd_device/d" /etc/fstab
+  echo -e "/dev/$etcd_device\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
+  mount $etcd_dir
+fi
+
+service_uid=$(id ${ssh_user} -u)
+service_gid=$(id ${ssh_user} -g)
+
+chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
-# Required kernel modules
+# Load required kernel modules
 modprobe br_netfilter || true
 modprobe overlay || true
 modprobe ebtable_filter || true
@@ -37,5 +45,5 @@ ebtables
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
 
-# This marks the bootstrap step as complete for robotest
+# Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete
