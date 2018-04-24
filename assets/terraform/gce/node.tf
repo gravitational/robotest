@@ -36,10 +36,10 @@ resource "google_compute_instance" "node" {
 
   metadata {
     # Enable OS login using IAM roles
-    enable_oslogin = "true"
+    enable-oslogin = "true"
 
-    # sshKeys controls access to an instance using a custom SSH key
-    sshKeys = "${var.ssh_user}:${file("${var.ssh_key_path}")}"
+    # ssh-keys controls access to an instance using a custom SSH key
+    ssh-keys = "${var.ssh_user}:${file("${var.ssh_key_path}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"

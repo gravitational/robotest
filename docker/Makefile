@@ -17,12 +17,12 @@ export
 providers := AZURERM AWS GOOGLE RANDOM TEMPLATE
 provider_args := $(foreach provider,$(providers),--build-arg TERRAFORM_PROVIDER_$(provider)_VERSION=$$TERRAFORM_PROVIDER_$(provider)_VERSION)
 
-E2E_BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
-	$(provider_args)
-
-SUITE_BUILD_ARGS := \
+BUILD_ARGS := \
 	--build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
 	$(provider_args)
+
+E2E_BUILD_ARGS := $(BUILD_ARGS)
+SUITE_BUILD_ARGS := $(BUILD_ARGS)
 
 .PHONY: containers
 containers: $(TARGETS)
