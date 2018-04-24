@@ -59,8 +59,9 @@ if ! grep -qs "$etcd_dir" /proc/mounts; then
   mount $etcd_dir
 fi
 
-service_uid=$(id ${ssh_user} -u)
-service_gid=$(id ${ssh_user} -g)
+real_user=$(logname)
+service_uid=$(id $real_user -u)
+service_gid=$(id $real_user -g)
 
 chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers

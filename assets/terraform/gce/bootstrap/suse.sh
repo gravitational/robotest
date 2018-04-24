@@ -1,13 +1,11 @@
 #!/bin/bash
 #
-# VM bootstrap script for Debian/Ubuntu
+# VM bootstrap script for SuSE
 #
 set -exuo pipefail
 
 touch /var/lib/bootstrap_started
 
-apt update
-apt install -y chrony lvm2 curl wget thin-provisioning-tools
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 

@@ -69,7 +69,7 @@ resource "google_compute_instance" "node" {
     # the default service account
     scopes = [
       "compute-rw",
-      "services-control",
+      "service-control",
       "storage-ro",
     ]
   }
