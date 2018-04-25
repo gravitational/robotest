@@ -404,13 +404,13 @@ func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
 // waitDisk will wait specific disk performance to report OK
 func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64) error {
 	err := wait.Retry(ctx, func() error {
-		for _, p := range paths {
-			if !strings.HasPrefix(p, "/dev") {
-				defer sshutil.Run(ctx, node.Client(), node.Logger(), fmt.Sprintf("sudo /bin/rm -f %s", p), nil)
+		for _, path := range paths {
+			if !strings.HasPrefix(path, "/dev") {
+				defer sshutil.Run(ctx, node.Client(), node.Logger(), fmt.Sprintf("sudo /bin/rm -f %s", path), nil)
 			}
 			var out string
 			_, err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
-				fmt.Sprintf("sudo dd if=/dev/zero of=%s bs=100K count=1024 conv=fdatasync 2>&1", p),
+				fmt.Sprintf("sudo dd if=/dev/zero of=%s bs=100K count=1024 conv=fdatasync 2>&1", path),
 				nil, sshutil.ParseAsString(&out))
 			if err != nil {
 				return wait.Abort(trace.Wrap(err))
@@ -421,7 +421,7 @@ func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64
 			}
 			if speed < minSpeed {
 				return wait.Continue(fmt.Sprintf("%s has %v/s < minimum of %v/s",
-					p, humanize.Bytes(speed), humanize.Bytes(minSpeed)))
+					path, humanize.Bytes(speed), humanize.Bytes(minSpeed)))
 			}
 		}
 		return nil

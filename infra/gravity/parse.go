@@ -62,18 +62,13 @@ func populateStatus(key, value string, status *GravityStatus) error {
 // 1+0 records in
 // 1+0 records out
 // 1073741824 bytes (1.1 GB) copied, 4.52455 s, 237 MB/s
-func ParseDDOutput(output string) (uint64, error) {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) != 3 {
-		return 0, trace.BadParameter("expected 3 lines but got %v:\n%v", len(lines), output)
-	}
-
+func ParseDDOutput(output string) (speedBytesPerSec uint64, err error) {
 	// 1073741824 bytes (1.1 GB) copied, 4.52455 s, 237 MB/s
 	// 1073741824 bytes (1,1 GB, 1,0 GiB) copied, 4,53701 s, 237 MB/s
-	testResults := lines[2]
-	match := speedRe.FindStringSubmatch(testResults)
+	output = strings.TrimSpace(output)
+	match := speedRe.FindStringSubmatch(output)
 	if len(match) != 2 {
-		return 0, trace.BadParameter("failed to match speed value (e.g. 237 MB/s) in %q", testResults)
+		return 0, trace.BadParameter("failed to match speed value (e.g. 237 MB/s) in %q", output)
 	}
 
 	// Support comma-formatted floats - depending on selected locale
