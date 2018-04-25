@@ -16,7 +16,7 @@ ENV TF_PLUGINS \
     https://releases.hashicorp.com/terraform-provider-azurerm/${TERRAFORM_PROVIDER_AZURERM_VERSION}/terraform-provider-azurerm_${TERRAFORM_PROVIDER_AZURERM_VERSION}_linux_amd64.zip \
     # Google Compute Engine
     https://releases.hashicorp.com/terraform-provider-google/${TERRAFORM_PROVIDER_GOOGLE_VERSION}/terraform-provider-google_${TERRAFORM_PROVIDER_GOOGLE_VERSION}_linux_amd64.zip \
-    https://releases.hashicorp.com/terraform-provider-template/${TERRAFORM_PROVIDER_TEMPLATE_VERSION}/terraform-provider-google_${TERRAFORM_PROVIDER_TEMPLATE_VERSION}_linux_amd64.zip \
+    https://releases.hashicorp.com/terraform-provider-template/${TERRAFORM_PROVIDER_TEMPLATE_VERSION}/terraform-provider-template_${TERRAFORM_PROVIDER_TEMPLATE_VERSION}_linux_amd64.zip \
     https://releases.hashicorp.com/terraform-provider-random/${TERRAFORM_PROVIDER_RANDOM_VERSION}/terraform-provider-random_${TERRAFORM_PROVIDER_RANDOM_VERSION}_linux_amd64.zip
 
 RUN apt-get update && \

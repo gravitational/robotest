@@ -488,8 +488,8 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 	return config, nil
 }
 
-func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisioner Provisioner) (infraProvisioner infra.Provisioner, err error) {
-	switch provisioner.Type {
+func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisionerConfig Provisioner) (provisioner infra.Provisioner, err error) {
+	switch provisionerConfig.Type {
 	case provisionerTerraform:
 		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
@@ -512,8 +512,8 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
-		if provisionerName != "" {
-			return nil, trace.BadParameter("unknown provisioner %q", provisionerName)
+		if provisionerConfig.Type != "" {
+			return nil, trace.BadParameter("unknown provisioner %q", provisionerConfig.Type)
 		}
 	}
 	if err != nil {

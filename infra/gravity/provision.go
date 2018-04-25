@@ -228,7 +228,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 		return nil, nil, trace.Wrap(err)
 	}
 	defer func() {
-		if err == nil {
+		if err == nil || resp.destroyFn == nil {
 			return
 		}
 		if errDestroy := destroyResource(resp.destroyFn); errDestroy != nil {
@@ -239,8 +239,8 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	c.Logger().Debug("Configuring VMs")
-	gravityNodes, err := configureVMs(ctx, c.Logger(), resp.params, resp.nodes)
+	c.Logger().Debug("configuring VMs")
+	gravityNodes, err = configureVMs(ctx, c.Logger(), resp.params, resp.nodes)
 	if err != nil {
 		c.Logger().WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
 		return nil, nil, trace.NewAggregate(err, destroyResource(resp.destroyFn))

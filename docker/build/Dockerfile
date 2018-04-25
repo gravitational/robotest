@@ -1,4 +1,4 @@
-FROM golang:1.9
+FROM quay.io/gravitational/debian-venti:go1.10.3-stretch
 
 ARG UID
 ARG GID
@@ -14,11 +14,11 @@ ENV LANGUAGE="en_US.UTF-8" \
     LANG="en_US.UTF-8" \
     LC_ALL="en_US.UTF-8" \
     LC_CTYPE="en_US.UTF-8" \
-    GOPATH="/go" \
+    GOPATH="/gopath" \
     PATH="$PATH:/opt/go/bin:/go/bin"
 
 RUN (wget https://github.com/Masterminds/glide/releases/download/$GLIDE_VER/glide-$GLIDE_VER-linux-amd64.tar.gz && \
 	tar -xvf glide-$GLIDE_VER-linux-amd64.tar.gz -C /go/bin linux-amd64/glide --strip-components=1 && \
 	rm glide-$GLIDE_VER-linux-amd64.tar.gz)
 
-VOLUME ["/go/src/github.com/gravitational/robotest"]
+VOLUME ["/gopath/src/github.com/gravitational/robotest"]

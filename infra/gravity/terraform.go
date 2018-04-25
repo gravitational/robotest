@@ -261,11 +261,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		logger.WithError(err).Warn("terraform provisioning failed")
 		return wait.Continue(err.Error())
 	})
-
-	if err == nil {
-		return resp, nil
-	}
-	return nil, trace.Wrap(err)
+	return resp, trace.Wrap(err)
 }
 
 // terraform deals with underlying terraform provisioner

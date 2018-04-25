@@ -47,11 +47,11 @@ resource "google_compute_instance" "node" {
   boot_disk {
     initialize_params {
       image = "${lookup(var.oss, var.os)}"
-      size  = "64"
+      size  = 64
       type  = "${var.disk_type}"
     }
 
-    auto_delete = "true"
+    auto_delete = true
   }
 
   attached_disk {
@@ -80,9 +80,9 @@ resource "google_compute_instance" "node" {
 resource "google_compute_disk" "etcd" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-etcd-${count.index}"
-  type  = "pd-ssd"
+  type  = "${var.disk_type}"
   zone  = "${local.zone}"
-  size  = "64"
+  size  = 64
 
   labels {
     cluster = "${var.cluster_name}"
@@ -92,9 +92,9 @@ resource "google_compute_disk" "etcd" {
 resource "google_compute_disk" "docker" {
   count = "${var.nodes}"
   name  = "${var.cluster_name}-disk-docker-${count.index}"
-  type  = "pd-ssd"
+  type  = "${var.disk_type}"
   zone  = "${local.zone}"
-  size  = "64"
+  size  = 64
 
   labels {
     cluster = "${var.cluster_name}"

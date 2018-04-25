@@ -14,7 +14,7 @@ fi
 # TEST_OS could be "ubuntu,centos,redhat"
 # STORAGE_DRIVER could be "devicemapper,loopback,overlay,overlay2"
 TEST_OS=${TEST_OS:-ubuntu}
-STORAGE_DRIVER=${STORAGE_DRIVER:-overlay}
+STORAGE_DRIVER=${STORAGE_DRIVER:-overlay2}
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
