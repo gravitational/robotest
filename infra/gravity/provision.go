@@ -216,10 +216,10 @@ Loop:
 }
 
 // provisionCloud gets VMs up, running and ready to use
-func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Gravity, destroyResources DestroyFn, err error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
 
-	err := validateConfig(cfg)
+	err = validateConfig(cfg)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
@@ -228,19 +228,28 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		if errDestroy := destroyResource(destroyFn); errDestroy != nil {
+			c.Logger().WithError(errDestroy).Error("Failed to destroy resources.")
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
 	c.Logger().Debug("Configuring VMs")
-	gravityNodes, err := configureVMs(ctx, c.Logger(), *params, nodes)
+	gravityNodes, err = configureVMs(ctx, c.Logger(), *params, nodes)
 	if err != nil {
-		c.Logger().WithError(err).Error("some nodes initialization failed, teardown this setup as non-usable")
-		return nil, nil, trace.NewAggregate(err, destroyResource(destroyFn))
+		c.Logger().WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
+		return nil, nil, trace.Wrap(err)
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
+		c.Logger().WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
 		return nil, nil, trace.Wrap(err)
 	}
 
@@ -249,9 +258,9 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) ([]Gravity, DestroyF
 	defer cancel()
 	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
 	if err != nil {
-		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
-		c.Logger().WithError(err).Error(err.Error())
-		return nil, nil, err
+		err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
+		c.Logger().WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
+		return nil, nil, trace.Wrap(err)
 	}
 
 	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
