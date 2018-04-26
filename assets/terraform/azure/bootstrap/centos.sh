@@ -42,15 +42,15 @@ touch /var/lib/bootstrap_started
 
 timesync_bus_name=$(get_timesync_bus_name)
 if [ ! -z "$timesync_bus_name" ]; then
-  # disable Hyper-V host time sync 
+  # disable Hyper-V host time sync
   echo $timesync_bus_name > /sys/bus/vmbus/drivers/hv_util/unbind
 fi
 
 dnsrunning=0
 systemctl is-active --quiet dnsmasq || dnsrunning=$?
-if [ $dnsrunning -eq 0 ] ; then 
+if [ $dnsrunning -eq 0 ] ; then
   systemctl stop dnsmasq || true
-  systemctl disable dnsmasq 
+  systemctl disable dnsmasq
 fi
 
 mount
@@ -101,6 +101,9 @@ iptables --table filter --delete-chain
 modprobe br_netfilter || true
 modprobe overlay || true
 modprobe ebtables || true
+modprobe ip_tables || true
+modprobe iptable_filter || true
+modprobe iptable_nat || true
 sysctl -w net.ipv4.ip_forward=1
 sysctl -w net.bridge.bridge-nf-call-iptables=1
 sysctl -w fs.may_detach_mounts=1 || true
@@ -114,6 +117,9 @@ cat > /etc/modules-load.d/telekube.conf <<EOF
 br_netfilter
 overlay
 ebtables
+ip_tables
+iptable_filter
+iptable_nat
 EOF
 
 # robotest might SSH before bootstrap script is complete (and will fail)
