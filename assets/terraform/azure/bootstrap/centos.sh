@@ -38,6 +38,13 @@ function get_timesync_bus_name {
   done
 }
 
+function add_host {
+  local hostname=$(hostname)
+  if ! grep -q "$hostname" /etc/hosts; then
+    echo -e "127.0.0.1\t$hostname" >> /etc/hosts
+  fi
+}
+
 touch /var/lib/bootstrap_started
 
 timesync_bus_name=$(get_timesync_bus_name)
@@ -121,6 +128,8 @@ ip_tables
 iptable_filter
 iptable_nat
 EOF
+
+add_host
 
 # robotest might SSH before bootstrap script is complete (and will fail)
 touch /var/lib/bootstrap_complete
