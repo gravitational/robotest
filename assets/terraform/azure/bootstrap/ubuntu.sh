@@ -9,7 +9,7 @@ touch /var/lib/bootstrap_started
 # disable Hyper-V time sync
 echo 2dd1ce17-079e-403c-b352-a1921ee207ee > /sys/bus/vmbus/drivers/hv_util/unbind
 
-apt update 
+apt update
 apt install -y chrony lvm2 curl wget thin-provisioning-tools
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
@@ -27,6 +27,9 @@ sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 modprobe br_netfilter || true
 modprobe overlay || true
 modprobe ebtables || true
+modprobe ip_tables || true
+modprobe iptable_filter || true
+modprobe iptable_nat || true
 sysctl -w net.ipv4.ip_forward=1
 sysctl -w net.bridge.bridge-nf-call-iptables=1
 
@@ -39,6 +42,9 @@ cat > /etc/modules-load.d/telekube.conf <<EOF
 br_netfilter
 overlay
 ebtables
+ip_tables
+iptable_filter
+iptable_nat
 EOF
 
 # robotest might SSH before bootstrap script is complete (and will fail)
