@@ -10,7 +10,7 @@ func TestParseClusterStatus(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		txt := `cluster kevin-ci.22.7 not found`
 
-		status, err := parseClusterStatus("kevin-ci.22.7", []byte(txt))
+		status, err := parseClusterStatus([]byte(txt))
 		if !trace.IsNotFound(err) {
 			t.Error("expected not found error:", err)
 		}
@@ -35,7 +35,7 @@ spec:
   status: failed
 version: v2`
 
-		status, err := parseClusterStatus("kevin-ci.22.2", []byte(txt))
+		status, err := parseClusterStatus([]byte(txt))
 		if err != nil {
 			t.Error("unexpected error: ", err)
 		}

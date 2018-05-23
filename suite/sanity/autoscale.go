@@ -10,8 +10,9 @@ func autoscale(p interface{}) (gravity.TestFunc, error) {
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		masters, destroyFn, err := provisionNodes(g, cfg, param)
-		g.OK("VMs ready", err)
 		defer destroyFn()
+
+		g.OK("VMs ready", err)
 
 		g.OK("status", g.Status(masters))
 		g.OK("time sync", g.CheckTimeSync(masters))

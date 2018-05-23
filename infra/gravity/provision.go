@@ -2,9 +2,9 @@ package gravity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -27,7 +27,6 @@ import (
 	"github.com/gravitational/trace"
 
 	"github.com/dustin/go-humanize"
-	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -119,7 +118,7 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	}
 
 	// generate a random cluster name
-	clusterName := fmt.Sprint(c.name, "-", uuid.NewV4().String())
+	clusterName := fmt.Sprint(c.name, "-", fmt.Sprintf("%x", rand.Uint64()))
 	c.provisionerCfg.clusterName = clusterName
 	c.Logger().Debug("Generated cluster name: ", clusterName)
 
@@ -155,45 +154,45 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	destroyFn := cfg.DestroyOpsFn(c, clusterName)
 
 	// monitor the cluster until it's created or times out
-	timeout := time.After(cloudInitTimeout)
-	tick := time.Tick(15 * time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
+	defer cancel()
 
 	c.Logger().Debug("waiting for ops center provisioning to complete")
-Loop:
-	for {
-		select {
-		case <-timeout:
-			return nil, destroyFn, errors.New("clusterInitTimeout exceeded")
-		case <-tick:
-			// check provisioning status
-			status, err := getTeleClusterStatus(clusterName)
-			c.Logger().WithField("status", status).Debug("provisioning status")
-			if err != nil {
-				return nil, destroyFn, trace.Wrap(err)
-			}
+	retryer := wait.Retryer{
+		Delay:    15 * time.Second,
+		Attempts: 1000,
+	}
 
-			switch status {
-			case "installing":
-				// we're still installing, just continue the loop
-			case "active":
-				// the cluster install completed, we can continue the install process
-				break Loop
-			default:
-				return nil, destroyFn, trace.BadParameter("unexpected cluster status: %v", status)
-			}
+	err = retryer.Do(ctx, func() (err error) {
+		// check provisioning status
+		status, err := getTeleClusterStatus(ctx, clusterName)
+		if err != nil {
+			return trace.Wrap(err)
 		}
+		c.Logger().WithField("status", status).Debug("provisioning status")
+
+		switch status {
+		case "installing":
+			return trace.Retry(trace.BadParameter("installation not complete"), "installation not complete")
+		case "active":
+			// the cluster install completed, we can continue the install process
+			return nil
+		default:
+			// we got back a status that we're not setup to handle
+			return wait.Abort(trace.BadParameter("unexpected cluster status: %v", status))
+		}
+	})
+	if err != nil {
+		return nil, destroyFn, err
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
 	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
 	ec2svc := ec2.New(sess)
-	gravityNodes, err := c.getAWSNodes(ec2svc, "tag:KubernetesCluster", clusterName)
+	gravityNodes, err := c.getAWSNodes(ctx, ec2svc, "tag:KubernetesCluster", clusterName)
 	if err != nil {
 		return nil, destroyFn, trace.Wrap(err)
 	}
-
-	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
-	defer cancel()
 
 	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)

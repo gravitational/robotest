@@ -1,7 +1,10 @@
 package gravity
 
 import (
+	"context"
+
 	"github.com/gravitational/robotest/infra/ops"
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
@@ -15,6 +18,9 @@ import (
 // AutoScale will update the autoscaling group to the target number of nodes,
 // and return a new list of nodes to be used for testing
 func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
+	ctx, cancel := context.WithTimeout(c.Context(), defaults.AutoScaleTimeout)
+	defer cancel()
+
 	c.Logger().Debug("attempting to connect to AWS api")
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String(c.provisionerCfg.Ops.EC2Region),
@@ -54,7 +60,7 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	}
 
 	var result *autoscaling.DescribeAutoScalingGroupsOutput
-	err = retryer.Do(c.Context(), func() (err error) {
+	err = retryer.Do(ctx, func() (err error) {
 		result, err = checkForNodeAssignment(svc, describeASG, target)
 		return trace.Wrap(err)
 	})
@@ -65,7 +71,7 @@ func (c *TestContext) AutoScale(target int) ([]Gravity, error) {
 	ec2svc := ec2.New(sess)
 	for _, instance := range result.AutoScalingGroups[0].Instances {
 		// attempt to get the actual instance for each instance-id in the cluster
-		node, err := c.getAWSNodes(ec2svc, "instance-id", *instance.InstanceId)
+		node, err := c.getAWSNodes(ctx, ec2svc, "instance-id", *instance.InstanceId)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -97,7 +103,7 @@ func checkForNodeAssignment(svc *autoscaling.AutoScaling, describeASG *autoscali
 }
 
 // getAWSNodes will connect to the AWS API, and get a listing of nodes matching the specified filter.
-func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValue string) ([]Gravity, error) {
+func (c *TestContext) getAWSNodes(ctx context.Context, ec2svc *ec2.EC2, filterName string, filterValue string) ([]Gravity, error) {
 	cloudParams, err := makeDynamicParams(c.provisionerCfg)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -122,7 +128,7 @@ func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValu
 		for _, inst := range reservation.Instances {
 			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, c.provisionerCfg.Ops.SSHUser, c.provisionerCfg.Ops.SSHKeyPath)
 
-			gravityNode, err := configureVM(c.Context(), c.Logger(), node, *cloudParams)
+			gravityNode, err := configureVM(ctx, c.Logger(), node, *cloudParams)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}

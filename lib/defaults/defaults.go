@@ -54,4 +54,10 @@ const (
 
 	// TmpDir is temporary file folder
 	TmpDir = "/tmp"
+
+	// AutoScaleTimeout is the amount of time to wait for an autoscale operation to complete
+	AutoScaleTimeout = 5 * time.Minute
+
+	// DestroyOpsTimeout is the amount of time to wait for the ops center to destroy the cluster
+	DestroyOpsTimeout = 10 * time.Minute
 )
