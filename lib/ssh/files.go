@@ -91,7 +91,7 @@ func WaitForFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 		}
 
 		if trace.IsNotFound(err) {
-			return wait.Continue(fmt.Sprintf("test %s %s false", path, test))
+			return wait.Continue("test %s %s false", path, test)
 		}
 
 		return wait.Abort(trace.Wrap(err, "waiting for %s", path))

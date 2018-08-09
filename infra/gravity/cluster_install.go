@@ -140,7 +140,7 @@ func waitFileInstaller(ctx context.Context, file string, logger log.FieldLogger)
 			return nil
 		}
 		if os.IsNotExist(err) {
-			return wait.Continue(fmt.Sprintf("waiting for installer file %s", file))
+			return wait.Continue("waiting for installer file %s", file)
 			logger.Warn("waiting for installer file to become available")
 		}
 		return wait.Abort(trace.ConvertSystemError(err))
