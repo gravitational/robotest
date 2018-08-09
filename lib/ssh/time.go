@@ -3,7 +3,6 @@ package sshutils
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -69,7 +68,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 			return nil
 		}
 
-		return wait.ContinueRetry{fmt.Sprintf("not all system clocks updated with NTP: %v", values)}
+		return wait.Continue("not all system clocks updated with NTP: %v", values)
 	}
 }
 

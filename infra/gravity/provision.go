@@ -429,8 +429,8 @@ func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64
 				return wait.Abort(trace.Wrap(err))
 			}
 			if speed < minSpeed {
-				return wait.Continue(fmt.Sprintf("%s has %v/s < minimum of %v/s",
-					path, humanize.Bytes(speed), humanize.Bytes(minSpeed)))
+				return wait.Continue("%s has %v/s < minimum of %v/s",
+					path, humanize.Bytes(speed), humanize.Bytes(minSpeed))
 			}
 		}
 		return nil

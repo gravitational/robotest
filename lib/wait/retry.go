@@ -13,12 +13,13 @@ import (
 
 // Abort causes Retry function to stop with error
 func Abort(err error) AbortRetry {
-	return AbortRetry{err}
+	return AbortRetry{Err: err}
 }
 
 // Continue causes Retry function to continue trying and logging message
-func Continue(message string) ContinueRetry {
-	return ContinueRetry{message}
+func Continue(format string, args ...interface{}) ContinueRetry {
+	message := fmt.Sprintf(format, args...)
+	return ContinueRetry{Message: message}
 }
 
 // AbortRetry if returned from Retry, will lead to retries to be stopped,

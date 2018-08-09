@@ -56,9 +56,9 @@ func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
 		}
 
 		if exitCode > 0 {
-			return wait.ContinueRetry{err.Error()}
+			return wait.Continue(err.Error())
 		} else {
-			return wait.AbortRetry{err}
+			return wait.Abort(err)
 		}
 	}
 }

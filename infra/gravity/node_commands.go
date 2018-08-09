@@ -454,7 +454,7 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 		case opStatusFailed:
 			return wait.Abort(trace.Errorf("%s: response=%s, err=%v", cmd, response, err))
 		default:
-			return trace.BadParameter("non-final / unknown op status: %q", response)
+			return wait.Continue("non-final / unknown op status: %q", response)
 		}
 	})
 	return trace.Wrap(err)
