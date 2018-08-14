@@ -93,6 +93,10 @@ func (r *vagrant) Create(ctx context.Context, withInstaller bool) (installer inf
 	return node, trace.Wrap(err)
 }
 
+func (r *vagrant) ParseOutput(outputFile string, withInstaller bool) (infra.Node, error) {
+	return nil, nil
+}
+
 func (r *vagrant) Destroy(ctx context.Context) error {
 	r.Debugf("destroying vagrant cluster: %v", r.stateDir)
 	out, err := r.command(args("destroy", "-f"))

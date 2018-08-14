@@ -68,18 +68,26 @@ func (a *AgentServer) GetIPs() []string {
 
 func (a *AgentServer) SetIPByInfra(provisioner infra.Provisioner) {
 	ips := a.GetIPs()
-	if len(ips) < 2 {
+	if len(ips) < 1 {
 		return
 	}
+	var interfaceIP string
 	var node infra.Node
 	for _, ip := range ips {
 		node, _ = provisioner.NodePool().Node(ip)
 		if node != nil {
+			interfaceIP = ip
 			break
+		}
+		for _, node := range provisioner.NodePool().Nodes() {
+			if node.PrivateAddr() == ip {
+				interfaceIP = ip
+				break
+			}
 		}
 	}
 
 	descriptionText := fmt.Sprintf("cannot find node matching any of %v IPs", a.Hostname)
-	Expect(node).NotTo(BeNil(), descriptionText)
-	a.SetIP(node.Addr())
+	Expect(interfaceIP).NotTo(BeEmpty(), descriptionText)
+	a.SetIP(interfaceIP)
 }

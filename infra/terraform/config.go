@@ -66,4 +66,6 @@ type Config struct {
 	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
 	// VariablesFile is the file with custom terraform variables
 	VariablesFile string `json:"custom_vars_file" yaml:"variables_file"`
+	// OnpremProvider specifies usage of onprem provider for installation
+	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
 }
