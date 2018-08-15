@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
 	"github.com/gravitational/robotest/lib/wait"
@@ -81,8 +80,8 @@ func doRelocate(ctx context.Context, g Gravity) error {
 	}
 
 	if newMaster.NodeIP == master.NodeIP {
-		return wait.Continue(fmt.Sprintf(
-			"new master %+v was elected on same node as old %+v", newMaster, master))
+		return wait.Continue(
+			"new master %+v was elected on same node as old %+v", newMaster, master)
 	}
 
 	return nil
