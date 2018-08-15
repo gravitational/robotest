@@ -75,7 +75,7 @@ var remoteCommandTemplate = template.Must(
 			echo Waiting for bootstrap to complete && sleep 15 ; \
 		done &&  \
 		echo Cleaning up && sudo rm -rf {{.HomeDir}}/installer/* && \
-        if [ ! -f {{.OutputFile}} ]; then echo Downloading installer {{.FileURL}} to {{.OutputFile}} ... && {{.FetchCommand}}; fi && \
+		if [ ! -f {{.OutputFile}} ]; then echo Downloading installer {{.FileURL}} to {{.OutputFile}} ... && {{.FetchCommand}}; fi && \
 		echo Creating installer dir && mkdir -p {{.HomeDir}}/installer && \
 		echo Unpacking installer && tar -xvf {{.OutputFile}} -C {{.HomeDir}}/installer && \
 		echo Checking existence of post-downloading installer script and executing it && \
