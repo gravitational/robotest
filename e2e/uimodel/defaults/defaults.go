@@ -48,5 +48,5 @@ const (
 	OpsCenterDeleteSitePollInterval = 3 * time.Second
 
 	// BandwagonSubmitFormTimeout defines timeout for submit form request
-	BandwagonSubmitFormTimeout = 20 * time.Second
+	BandwagonSubmitFormTimeout = 120 * time.Second
 )
