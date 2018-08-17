@@ -35,7 +35,7 @@ func CreateUser(page *web.Page, email string, password string) User {
 
 // LoginWithEmail logs in a user with email and password
 func (u *User) LoginWithEmail() {
-	Expect(u.page.FindByName("email").Fill(u.email)).To(Succeed())
+	Expect(u.page.FindByName("userId").Fill(u.email)).To(Succeed())
 	Expect(u.page.FindByName("password").Fill(u.password)).To(Succeed())
 	Expect(u.page.FindByClass("btn-primary").Click()).To(Succeed())
 	Eventually(u.page.URL, defaults.FindTimeout).ShouldNot(HaveSuffix("/login"))
