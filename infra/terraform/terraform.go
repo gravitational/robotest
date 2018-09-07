@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,13 +115,42 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 
 }
 
+// LoadFromState parses terraform output from terraform state file
+func (r *terraform) LoadFromState(filePath string, withInstaller bool) (infra.Node, error) {
+	output, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, trace.ConvertSystemError(err)
+	}
+	err = r.loadFromState(string(output))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if withInstaller {
+		nodes := r.pool.Nodes()
+		if len(nodes) == 0 { // should not happen, and doesn't make sense to retry
+			return nil, trace.Errorf("Zero nodes were allocated")
+		}
+		if r.installerIP == "" {
+			r.installerIP = nodes[0].Addr()
+		}
+		return nodes[0], nil
+	}
+	return nil, nil
+}
+
 func (r *terraform) terraform(ctx context.Context) (err error) {
 	output, err := r.boot(ctx)
 	log.Debugf("Terraform boot output: %s\n(err=%v).", output, err)
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	if err := r.loadFromState(output); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
 
+func (r *terraform) loadFromState(output string) error {
 	// parse loadbalancer dns name
 	match := reLoadBalancer.FindStringSubmatch(output)
 	if len(match) == 2 {
@@ -239,7 +269,11 @@ func (r *terraform) Client(addrIP string) (*ssh.Client, error) {
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {
-	cmd, err := r.makeRemoteCommand(r.Config.InstallerURL, "./install")
+	command := fmt.Sprintf("./gravity install --mode=interactive --log-file=%s", r.InstallerLogPath())
+	if r.Config.OnpremProvider {
+		command = fmt.Sprintf("%s %s", command, "--cloud-provider=onprem")
+	}
+	cmd, err := r.makeRemoteCommand(r.Config.InstallerURL, command)
 	if err != nil {
 		return trace.Wrap(err, "Installer")
 	}

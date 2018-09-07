@@ -82,7 +82,9 @@ func ConfigureFlags() {
 	}
 
 	if provisionerName != "" {
-		TestContext.Provisioner = provisionerType(provisionerName)
+		TestContext.Provisioner = &Provisioner{
+			Type: provisionerType(provisionerName),
+		}
 	}
 
 	if teardownFlag {
@@ -123,7 +125,7 @@ func (r *TestContextType) Validate() error {
 	if TestContext.ServiceLogin.IsEmpty() {
 		log.Warningf("service login not configured - reports will likely not be collected")
 	}
-	if TestContext.Provisioner != "" && TestContext.Onprem.IsEmpty() {
+	if TestContext.Provisioner != nil && TestContext.Onprem.IsEmpty() {
 		errors = append(errors, trace.BadParameter("Onprem configuration is required for provisioner %q",
 			TestContext.Provisioner))
 	}
@@ -156,8 +158,8 @@ var testState *TestState
 type TestContextType struct {
 	// Wizard specifies whether wizard was used to bootstrap cluster
 	Wizard bool `json:"-" yaml:"-"`
-	// Provisioner defines the type of provisioner to use
-	Provisioner provisionerType `json:"provisioner" yaml:"provisioner" `
+	// Provisioner defines configuration for provisioner
+	Provisioner *Provisioner `json:"provisioner" yaml:"provisioner"`
 	// CloudProvider defines cloud to deploy
 	CloudProvider string `json:"cloud_provider" yaml:"cloud_provider" validate:"omitempty,eq=aws|eq=azure"`
 	// DumpCore specifies a command to collect all installation/operation logs
@@ -215,12 +217,36 @@ type TestContextType struct {
 	Extensions Extensions `json:"extensions,omitempty" yaml:"extensions,omitempty"`
 }
 
+// Provisioner defines configuration for provisioner
+type Provisioner struct {
+	// Type defines the type of provisioner to use
+	Type provisionerType `json:"type" yaml:"type" `
+	// LoadFromState used to control provisioning process. If set to true, then
+	// robotest will parse output from external provisioner. If set to false robotest
+	// will provision cluster by itself.
+	LoadFromState bool `json:"load_from_state" yaml:"load_from_state"`
+	// StateFile defines path to file with provisioner output data
+	StateFile string `json:"state_file" yaml:"state_file"`
+}
+
 type BandwagonConfig struct {
 	Organization string `json:"organization" yaml:"organization" `
 	Username     string `json:"username" yaml:"username" `
 	Password     string `json:"password" yaml:"password" `
 	Email        string `json:"email" yaml:"email" `
+	// Extra defines extended configuration for bandwagon
+	Extra        *BandwagonExtraConfig `json:"extra" yaml:"extra"`
 	RemoteAccess bool
+}
+
+// BandwagonExtraConfig defines configuration for extended bandwagon fields
+type BandwagonExtraConfig struct {
+	// PlatformDNS defines address of DNS server for accessing the platform
+	PlatformDNS string `json:"platform_dns" yaml:"platform_dns"`
+	// NFSServer defines address of NFS server used by platform
+	NFSServer string `json:"nfs_server" yaml:"nfs_server"`
+	// NFSPath identifies a file system exported by a remote NFS server
+	NFSPath string `json:"nfs_path" yaml:"nfs_path"`
 }
 
 // Login defines Ops Center authentication parameters
@@ -284,6 +310,8 @@ type OnpremConfig struct {
 	ClusterAddress *ClusterAddress `json:"cluster_address" yaml:"cluster_address"`
 	// VariablesFile defines the path to file with custom terraform variables
 	VariablesFile string `json:"variables_file" yaml:"variables_file"`
+	// OnpremProvider specifies if the installation is on-premise
+	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
 }
 
 func (r OnpremConfig) IsEmpty() bool {
@@ -424,7 +452,6 @@ func initLogger(debug bool) {
 		level = log.DebugLevel
 	}
 	log.StandardLogger().Hooks = make(log.LevelHooks)
-	log.SetFormatter(&trace.TextFormatter{TextFormatter: log.TextFormatter{FullTimestamp: true}})
 	log.SetOutput(os.Stderr)
 	log.SetLevel(level)
 }
@@ -446,6 +473,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
 		VariablesFile:       TestContext.Onprem.VariablesFile,
+		OnpremProvider:      TestContext.Onprem.OnpremProvider,
 	}
 
 	err = config.Validate()
@@ -456,15 +484,15 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 	return config, nil
 }
 
-func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisionerName provisionerType) (provisioner infra.Provisioner, err error) {
-	switch provisionerName {
+func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisioner Provisioner) (infraProvisioner infra.Provisioner, err error) {
+	switch provisioner.Type {
 	case provisionerTerraform:
 		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 
-		provisioner, err = terraform.New(stateDir, *config)
+		infraProvisioner, err = terraform.New(stateDir, *config)
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -477,7 +505,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		provisioner, err = vagrant.New(stateDir, config)
+		infraProvisioner, err = vagrant.New(stateDir, config)
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
@@ -488,7 +516,7 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return provisioner, nil
+	return infraProvisioner, nil
 }
 
 func provisionerFromState(infraConfig infra.Config, testState TestState) (provisioner infra.Provisioner, err error) {
@@ -501,7 +529,7 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 		// Always override from configuration if available
 		numNodes = TestContext.Onprem.NumNodes
 	}
-	switch testState.Provisioner {
+	switch testState.Provisioner.Type {
 	case provisionerTerraform:
 		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
@@ -523,8 +551,8 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
-		if testState.Provisioner != "" {
-			return nil, trace.BadParameter("unknown provisioner %q", testState.Provisioner)
+		if testState.Provisioner != nil && testState.Provisioner.Type != "" {
+			return nil, trace.BadParameter("unknown provisioner %q", testState.Provisioner.Type)
 		}
 	}
 	if err != nil {

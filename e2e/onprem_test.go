@@ -120,8 +120,8 @@ func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string
 	allocatedNodes := framework.Cluster.Provisioner().NodePool().AllocatedNodes()
 	siteEntryURL := endpoints[0]
 
-	if ctx.Provisioner == "terraform" && ctx.Onprem.ClusterAddress != nil {
-		switch addrType := ctx.Onprem.ClusterAddress.Type; addrType {
+	if ctx.Provisioner.Type == "terraform" && ctx.Onprem.ClusterAddress != nil {
+		switch ctx.Onprem.ClusterAddress.Type {
 		case defaults.Public:
 			// use public IP address for terraform provisioned nodes
 			installNode := allocatedNodes[0]

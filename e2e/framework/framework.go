@@ -105,7 +105,7 @@ func InitializeCluster() {
 	var provisioner infra.Provisioner
 	switch {
 	case testState != nil:
-		if testState.Provisioner != "" {
+		if testState.Provisioner != nil {
 			provisioner, err = provisionerFromState(config, *testState)
 			Expect(err).NotTo(HaveOccurred())
 		}
@@ -135,12 +135,16 @@ func InitializeCluster() {
 			testState.Application = TestContext.Application.Locator
 		}
 
-		if TestContext.Provisioner != "" {
-			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, TestContext.Provisioner)
+		if TestContext.Provisioner != nil && TestContext.Provisioner.Type != "" {
+			provisioner, err = provisionerFromConfig(config, TestContext.StateDir, *TestContext.Provisioner)
 			Expect(err).NotTo(HaveOccurred())
 
 			withInstaller := TestContext.Onprem.InstallerURL != "" && TestContext.Wizard
-			installerNode, err = provisioner.Create(context.TODO(), withInstaller)
+			if TestContext.Provisioner.LoadFromState {
+				installerNode, err = provisioner.LoadFromState(TestContext.Provisioner.StateFile, withInstaller)
+			} else {
+				installerNode, err = provisioner.Create(context.TODO(), withInstaller)
+			}
 		}
 		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner

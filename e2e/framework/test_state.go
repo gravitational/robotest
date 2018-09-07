@@ -24,7 +24,7 @@ type TestState struct {
 	Bandwagon *BandwagonConfig `json:"bandwagon,omitempty"`
 	// Provisioner defines the provisioner used to create the infrastructure.
 	// This can be empty for the automatic provisioner
-	Provisioner provisionerType `json:"provisioner,omitempty"`
+	Provisioner *Provisioner `json:"provisioner,omitempty"`
 	// Onprem defines the provisioner state.
 	// The provisioner used is specified by Provisioner.
 	// With automatic provisioner, no provisioner state is stored
@@ -47,10 +47,10 @@ type BackupState struct {
 
 func (r TestState) Validate() error {
 	var errors []error
-	if r.Provisioner != "" && r.ProvisionerState == nil {
+	if r.Provisioner != nil && r.ProvisionerState == nil {
 		errors = append(errors, trace.BadParameter("ProvisionerState is required"))
 	}
-	if r.Provisioner == "" && r.ProvisionerState != nil {
+	if r.Provisioner == nil && r.ProvisionerState != nil {
 		errors = append(errors, trace.BadParameter("Provisioner is required"))
 	}
 	if r.StateDir == "" {
