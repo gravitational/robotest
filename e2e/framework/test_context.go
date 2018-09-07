@@ -310,7 +310,7 @@ type OnpremConfig struct {
 	ClusterAddress *ClusterAddress `json:"cluster_address" yaml:"cluster_address"`
 	// VariablesFile defines the path to file with custom terraform variables
 	VariablesFile string `json:"variables_file" yaml:"variables_file"`
-	// OnpremProvider specifies usage of onprem provider for installation
+	// OnpremProvider specifies if the installation is on-premise
 	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
 }
 
