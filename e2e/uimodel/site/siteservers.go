@@ -33,9 +33,9 @@ type SiteServer struct {
 func (p *ServerPage) GetSiteServers() []SiteServer {
 	const script = `
             var getter = [ ["site_servers"], serverList => {
-                return serverList.map(srvMap => {                
+                return serverList.map(srvMap => {
                     return {
-                        PublicIP: srvMap.get("public_ipv4"), 
+                        PublicIP: srvMap.get("public_ipv4"),
                         AdvertiseIP: srvMap.get("advertise_ip"),
                         Hostname: srvMap.get("hostname"),
                         Profile: srvMap.get("role")
@@ -100,7 +100,7 @@ func (p *ServerPage) AddOnPremServer() SiteServer {
 	provisioner := framework.Cluster.Provisioner()
 	ctx := framework.TestContext
 	// TODO: store private IPs for terraform in state to avoid this check
-	if ctx.Provisioner != "terraform" {
+	if ctx.Provisioner.Type != "terraform" {
 		agentServers := p.GetAgentServers()
 		for _, s := range agentServers {
 			s.SetIPByInfra(provisioner)
@@ -214,9 +214,9 @@ func (p *ServerPage) clickDeleteServer(serverId string) {
             var targetIndex = -1;
             var rows = document.querySelectorAll(".grv-site-servers .grv-table .dropdown-toggle");
             rows.forEach( (z, index) => {
-                if( z.innerText.indexOf("%v") !== -1) targetIndex = index; 
+                if( z.innerText.indexOf("%v") !== -1) targetIndex = index;
             })
-            
+
             return targetIndex;
         `
 	var result int
@@ -240,9 +240,9 @@ func (p *ServerPage) clickDeleteServer(serverId string) {
 func (p *ServerPage) getFirstAvailableAWSInstanceType() string {
 	var instanceType string
 	const js = `
-		var cssSelector = ".grv-site-servers-provisioner-new-instance-type li a"; 
-		var items = document.querySelectorAll(cssSelector)			
-		return items.length > 0 ? items[0].text : "";  			
+		var cssSelector = ".grv-site-servers-provisioner-new-instance-type li a";
+		var items = document.querySelectorAll(cssSelector)
+		return items.length > 0 ? items[0].text : "";
 	`
 
 	Expect(p.site.page.RunScript(js, nil, &instanceType)).To(
@@ -274,13 +274,13 @@ func (p *ServerPage) getProfileLabel(profileName string) string {
 	siteName := p.site.domainName
 	const jsTemplate = `
 		var profileName = "%v";
-		var server = null;		
+		var server = null;
 		var nodeProfiles = reactor.evaluate(["sites", "%v", "app", "manifest", "nodeProfiles"])
 			.toJS()
 			.reduce( (r, item) => { r[item.name] = item; return r;}, {});
-			
+
 		if(profileName !== ""){
-			server = nodeProfiles[profileName];								
+			server = nodeProfiles[profileName];
 		}else{
 			server = nodeProfiles[0];
 		}

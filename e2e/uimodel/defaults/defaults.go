@@ -6,7 +6,7 @@ const (
 	// AjaxCallTimeout specifies the amount of time needed to complete AJAX request
 	AjaxCallTimeout = 20 * time.Second
 	// AppLoadTimeout specifies the amount of time needed for web app to load
-	AppLoadTimeout = 20 * time.Second
+	AppLoadTimeout = 40 * time.Second
 	// FindTimeout defines the timeout to use for lookup operations
 	FindTimeout = 1 * time.Minute
 	// EventuallyPollInterval defines the frequency of Eventually polling attempts
@@ -48,5 +48,5 @@ const (
 	OpsCenterDeleteSitePollInterval = 3 * time.Second
 
 	// BandwagonSubmitFormTimeout defines timeout for submit form request
-	BandwagonSubmitFormTimeout = 20 * time.Second
+	BandwagonSubmitFormTimeout = 300 * time.Second
 )

@@ -3,6 +3,7 @@ FROM quay.io/gravitational/debian-grande:0.0.1
 ARG TERRAFORM_VERSION
 ARG TERRAFORM_AZURERM_VERSION
 ARG TERRAFORM_AWS_VERSION
+ARG GRAVITY_VERSION
 
 ENV TF_TARBALL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 ENV TF_AWS_TARBALL https://releases.hashicorp.com/terraform-provider-aws/${TERRAFORM_AWS_VERSION}/terraform-provider-aws_${TERRAFORM_AWS_VERSION}_linux_amd64.zip
@@ -29,7 +30,7 @@ RUN \
         /terraform_azurerm.zip
 
 
-RUN (curl https://get.gravitational.io/telekube/install | bash)
+RUN (curl https://get.gravitational.io/telekube/install/5.0.23 | bash)
 
 RUN mkdir /robotest
 WORKDIR /robotest

@@ -49,7 +49,12 @@ func (b *Bandwagon) SubmitForm(config framework.BandwagonConfig) {
 	Expect(b.page.FindByName("passwordConfirmed").Fill(config.Password)).
 		To(Succeed(), "should re-enter password")
 
-	log.Infof("specifying remote access")
+	log.Info("entering extra fields")
+	b.FillExtraFields(config.Extra.PlatformDNS, "platformDns")
+	b.FillExtraFields(config.Extra.NFSServer, "nfsServer")
+	b.FillExtraFields(config.Extra.NFSPath, "nfsPath")
+
+	log.Info("specifying remote access")
 	utils.SelectRadio(b.page, ".my-page-section .grv-control-radio", func(value string) bool {
 		prefix := "Disable remote"
 		if config.RemoteAccess {
@@ -58,11 +63,20 @@ func (b *Bandwagon) SubmitForm(config framework.BandwagonConfig) {
 		return strings.HasPrefix(value, prefix)
 	})
 
-	log.Infof("submitting the form")
+	log.Info("submitting the form")
 	Expect(b.page.FindByClass("my-page-btn-submit").Click()).To(Succeed(), "should click submit button")
 
 	utils.PauseForPageJs()
 	Eventually(func() bool {
 		return utils.IsFound(b.page, ".my-page-btn-submit .fa-spin")
 	}, defaults.BandwagonSubmitFormTimeout).Should(BeFalse(), "wait for progress indicator to disappear")
+}
+
+// FillExtraFields fills extra bandwagon fields
+func (b *Bandwagon) FillExtraFields(fieldValue, cssSelector string) {
+	count, _ := b.page.FindByName(cssSelector).Count()
+	if count > 0 {
+		log.Infof("entering %s: %s", cssSelector, fieldValue)
+		Expect(b.page.FindByName(cssSelector).Fill(fieldValue)).To(Succeed(), "should enter %s field value", cssSelector)
+	}
 }
