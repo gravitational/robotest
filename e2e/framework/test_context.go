@@ -241,11 +241,11 @@ type BandwagonConfig struct {
 
 // BandwagonExtraConfig defines configuration for extended bandwagon fields
 type BandwagonExtraConfig struct {
-	// PlatformDNS defines DNS address for accessing to platform
+	// PlatformDNS defines address of DNS server for accessing the platform
 	PlatformDNS string `json:"platform_dns" yaml:"platform_dns"`
 	// NFSServer defines address of NFS server used by platform
 	NFSServer string `json:"nfs_server" yaml:"nfs_server"`
-	// NFSPath identifies a file system exported by a remote NFS serve
+	// NFSPath identifies a file system exported by a remote NFS server
 	NFSPath string `json:"nfs_path" yaml:"nfs_path"`
 }
 
