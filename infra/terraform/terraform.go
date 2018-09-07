@@ -115,12 +115,13 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 
 }
 
-func (r *terraform) ParseOutput(filePath string, withInstaller bool) (infra.Node, error) {
+// LoadFromState parses terraform output from terraform state file
+func (r *terraform) LoadFromState(filePath string, withInstaller bool) (infra.Node, error) {
 	output, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, trace.ConvertSystemError(err)
 	}
-	err = r.parseOutput(string(output))
+	err = r.loadFromState(string(output))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -143,13 +144,13 @@ func (r *terraform) terraform(ctx context.Context) (err error) {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	if err := r.parseOutput(output); err != nil {
+	if err := r.loadFromState(output); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
 }
 
-func (r *terraform) parseOutput(output string) error {
+func (r *terraform) loadFromState(output string) error {
 	// parse loadbalancer dns name
 	match := reLoadBalancer.FindStringSubmatch(output)
 	if len(match) == 2 {

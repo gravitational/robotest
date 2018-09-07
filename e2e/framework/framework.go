@@ -140,8 +140,8 @@ func InitializeCluster() {
 			Expect(err).NotTo(HaveOccurred())
 
 			withInstaller := TestContext.Onprem.InstallerURL != "" && TestContext.Wizard
-			if TestContext.Provisioner.OnlyParseOutput {
-				installerNode, err = provisioner.ParseOutput(TestContext.Provisioner.OutputFile, withInstaller)
+			if TestContext.Provisioner.LoadFromState {
+				installerNode, err = provisioner.LoadFromState(TestContext.Provisioner.StateFile, withInstaller)
 			} else {
 				installerNode, err = provisioner.Create(context.TODO(), withInstaller)
 			}

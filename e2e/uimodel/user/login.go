@@ -3,7 +3,6 @@ package user
 import (
 	"time"
 
-	"github.com/gravitational/log"
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
@@ -12,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
 	. "github.com/sclevine/agouti/matchers"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -35,7 +35,14 @@ func CreateUser(page *web.Page, email string, password string) User {
 
 // LoginWithEmail logs in a user with email and password
 func (u *User) LoginWithEmail() {
-	Expect(u.page.FindByName("userId").Fill(u.email)).To(Succeed())
+	count, _ := u.page.FindByName("email").Count()
+	if count > 0 {
+		Expect(u.page.FindByName("email").Fill(u.email)).To(Succeed())
+	}
+	count, _ = u.page.FindByName("userId").Count()
+	if count > 0 {
+		Expect(u.page.FindByName("userId").Fill(u.email)).To(Succeed())
+	}
 	Expect(u.page.FindByName("password").Fill(u.password)).To(Succeed())
 	Expect(u.page.FindByClass("btn-primary").Click()).To(Succeed())
 	Eventually(u.page.URL, defaults.FindTimeout).ShouldNot(HaveSuffix("/login"))

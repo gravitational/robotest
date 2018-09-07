@@ -9,8 +9,10 @@ import:
   subpackages:
   - cstrings
 - package: github.com/gravitational/trace
+  version: 1.1.5
 - package: github.com/tebeka/selenium
 - package: github.com/satori/go.uuid
+  version: "bba152f"
 - package: golang.org/x/crypto
   subpackages:
   - ssh

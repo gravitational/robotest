@@ -221,28 +221,32 @@ type TestContextType struct {
 type Provisioner struct {
 	// Type defines the type of provisioner to use
 	Type provisionerType `json:"type" yaml:"type" `
-	// OnlyParseOutput used to control provisioning process. If set to true, then
+	// LoadFromState used to control provisioning process. If set to true, then
 	// robotest will parse output from external provisioner. If set to false robotest
-	// will provisioner cluster by itself.
-	OnlyParseOutput bool `json:"only_parse_output" yaml:"only_parse_output"`
-	// OutputFile defines path to file with provisioner output data
-	OutputFile string `json:"output_file" yaml:"output_file"`
+	// will provision cluster by itself.
+	LoadFromState bool `json:"load_from_state" yaml:"load_from_state"`
+	// StateFile defines path to file with provisioner output data
+	StateFile string `json:"state_file" yaml:"state_file"`
 }
 
 type BandwagonConfig struct {
-	Organization string                `json:"organization" yaml:"organization" `
-	Username     string                `json:"username" yaml:"username" `
-	Password     string                `json:"password" yaml:"password" `
-	Email        string                `json:"email" yaml:"email" `
+	Organization string `json:"organization" yaml:"organization" `
+	Username     string `json:"username" yaml:"username" `
+	Password     string `json:"password" yaml:"password" `
+	Email        string `json:"email" yaml:"email" `
+	// Extra defines extended configuration for bandwagon
 	Extra        *BandwagonExtraConfig `json:"extra" yaml:"extra"`
 	RemoteAccess bool
 }
 
-// BandwagonExtraConfig defines configuration for extra bandwagon fields
+// BandwagonExtraConfig defines configuration for extended bandwagon fields
 type BandwagonExtraConfig struct {
+	// PlatformDNS defines DNS address for accessing to platform
 	PlatformDNS string `json:"platform_dns" yaml:"platform_dns"`
-	NFSServer   string `json:"nfs_server" yaml:"nfs_server"`
-	NFSPath     string `json:"nfs_path" yaml:"nfs_path"`
+	// NFSServer defines address of NFS server used by platform
+	NFSServer string `json:"nfs_server" yaml:"nfs_server"`
+	// NFSPath identifies a file system exported by a remote NFS serve
+	NFSPath string `json:"nfs_path" yaml:"nfs_path"`
 }
 
 // Login defines Ops Center authentication parameters
@@ -448,7 +452,6 @@ func initLogger(debug bool) {
 		level = log.DebugLevel
 	}
 	log.StandardLogger().Hooks = make(log.LevelHooks)
-	log.SetFormatter(&trace.TextFormatter{TextFormatter: log.TextFormatter{FullTimestamp: true}})
 	log.SetOutput(os.Stderr)
 	log.SetLevel(level)
 }

@@ -172,7 +172,7 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 
 			switch status {
 			case "uninstalling":
-				return trace.Retry(trace.BadParameter("uninstall not complete"), "uninstall not complete")
+				return trace.Retry(nil, "uninstall not complete")
 			default:
 				return wait.Abort(trace.BadParameter("unexpected cluster status: %v", status))
 			}

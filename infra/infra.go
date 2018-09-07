@@ -78,10 +78,10 @@ type Provisioner interface {
 	// withInstaller specifies if the provisioner should select an installer node.
 	// Installer node selection is provisioner-specific
 	Create(ctx context.Context, withInstaller bool) (installer Node, err error)
-	// ParseOutput parses output from external proviosioner
+	// LoadFromState parses output from external proviosioner
 	// withInstaller specifies if the provisioner should select an installer node.
 	// Installer node selection is provisioner-specific
-	ParseOutput(fileName string, withInstaller bool) (installer Node, err error)
+	LoadFromState(fileName string, withInstaller bool) (installer Node, err error)
 	// Destroy the infrastructures created by Create.
 	// After the call to Destroy the provisioner is invalid and no
 	// other methods can be used
