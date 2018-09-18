@@ -43,7 +43,12 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		g.OK("VMs ready", err)
 		defer destroyFn()
 
-		g.OK("installer downloaded", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		installerURL := cfg.InstallerURL
+		if param.InstallerURL != "" {
+			installerURL = param.InstallerURL
+		}
+
+		g.OK("installer downloaded", g.SetInstaller(nodes, installerURL, "install"))
 		if param.Script != nil {
 			g.OK("post bootstrap script",
 				g.ExecScript(nodes, param.Script.Url, param.Script.Args))
@@ -63,6 +68,11 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 		g.OK("provision nodes", err)
 		defer destroyFn()
 
-		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		installerURL := cfg.InstallerURL
+		if param.InstallerURL != "" {
+			installerURL = param.InstallerURL
+		}
+
+		g.OK("download installer", g.SetInstaller(nodes, installerURL, "install"))
 	}, nil
 }
