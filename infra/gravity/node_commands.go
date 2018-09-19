@@ -97,6 +97,10 @@ type InstallParam struct {
 	OSFlavor OS `json:"os" validate:"required"`
 	// DockerStorageDriver is one of supported storage drivers
 	DockerStorageDriver StorageDriver `json:"storage_driver"`
+	// InstallerURL overrides installer URL from the global config
+	InstallerURL string `json:"installer_url,omitempty"`
+	// OpsAdvertiseAddr is optional Ops Center advertise address to pass to the install command
+	OpsAdvertiseAddr string `json:"ops_advertise_addr,omitempty"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -220,7 +224,8 @@ var installCmdTemplate = template.Must(
 		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
 		--system-log-file=./telekube-system.log \
 		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
-		{{if .Cluster}}--cluster={{.Cluster}}{{end}}
+		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
+		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}
 `))
 
 // Status queries cluster status
