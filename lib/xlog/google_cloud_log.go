@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"runtime"
 
@@ -118,8 +119,9 @@ func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 	}
 
 	return &GCLHook{
-		c.gclClient.Logger(name, cl.CommonLabels(labels)),
-		fields}
+		log:          c.gclClient.Logger(name, cl.CommonLabels(labels)),
+		commonFields: fields,
+	}
 }
 
 func ToJSON(obj interface{}) string {
@@ -142,19 +144,20 @@ func (hook *GCLHook) Fire(e *logrus.Entry) error {
 		severity = cl.Default
 	}
 
-	p := e.WithFields(logrus.Fields{"stack": where(maxStack), "message": e.Message}).Data
+	payload := e.WithFields(logrus.Fields{"stack": where(maxStack), "message": e.Message}).Data
 	for key, _ := range hook.commonFields {
-		delete(p, key)
+		delete(payload, key)
 	}
 
-	switch err := p["error"].(type) {
+	switch err := payload["error"].(type) {
 	case trace.Error:
-		p["error"] = trace.DebugReport(err)
+		payload["error"] = trace.DebugReport(err)
 	}
 
 	hook.log.Log(cl.Entry{
-		Payload:  p,
-		Severity: severity})
+		Payload:  payload,
+		Severity: severity,
+	})
 
 	return nil
 }

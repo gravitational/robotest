@@ -97,10 +97,19 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	}
 	ctx, cancelFn := context.WithCancel(ctx)
 
-	return &testSuite{sync.RWMutex{}, googleProjectID,
-		client, progress, uid,
-		[]*TestContext{}, scheduled, t,
-		failFast, false, ctx, cancelFn, logger}
+	return &testSuite{
+		RWMutex:         sync.RWMutex{},
+		googleProjectID: googleProjectID,
+		client:          client,
+		progress:        progress,
+		uid:             uid,
+		scheduled:       scheduled,
+		t:               t,
+		failFast:        failFast,
+		ctx:             ctx,
+		cancelFn:        cancelFn,
+		logger:          logger,
+	}
 }
 
 func (s *testSuite) Logger() logrus.FieldLogger {
@@ -146,10 +155,9 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 		RawQuery: url.Values{
 			"project":   []string{s.googleProjectID},
 			"expandAll": []string{"false"},
-			"resource":  []string{"global"},
 			"authuser":  []string{"1"},
 			"advancedFilter": []string{
-				fmt.Sprintf(`resource.type="global"
+				fmt.Sprintf(`resource.type="project"
 labels.__uuid__="%s"
 labels.__suite__="%s"
 severity>=INFO`, testUID, s.uid)},
