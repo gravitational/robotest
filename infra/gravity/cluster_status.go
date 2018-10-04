@@ -95,6 +95,7 @@ type ClusterNodesByRole struct {
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
 func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
+	const apiserver = "leader.telekube.local"
 	if len(nodes) < 1 {
 		return nil, trace.BadParameter("at least one node required")
 	}
@@ -104,12 +105,25 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
-	apiMaster, err := ResolveInPlanet(ctx, nodes[0], "apiserver")
+	apiMaster, err := ResolveInPlanet(ctx, nodes[0], apiserver)
 	if err != nil {
-		return nil, trace.Wrap(err, "resolving apiserver: %v", err)
+		return nil, trace.Wrap(err, "resolving %v: %v", apiserver, err)
 	}
 
-	pods, err := KubectlGetPods(ctx, nodes[0], kubeSystemNS, appGravityLabel)
+	// Run query on the apiserver
+	var queryNode Gravity
+	for _, node := range nodes {
+		if node.Node().PrivateAddr() == apiMaster {
+			queryNode = node
+			break
+		}
+	}
+
+	if queryNode == nil {
+		return nil, trace.NotFound("failed to find a master node")
+	}
+
+	pods, err := KubectlGetPods(ctx, queryNode, kubeSystemNS, appGravityLabel)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
