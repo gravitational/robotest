@@ -4,6 +4,8 @@
 #
 set -exuo pipefail
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
 touch /var/lib/bootstrap_started
 
 curl https://bootstrap.pypa.io/get-pip.py | python -
@@ -27,22 +29,7 @@ service_gid=$(id $real_user -g)
 chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
-# Load required kernel modules
-modprobe br_netfilter || true
-modprobe overlay || true
-modprobe ebtable_filter || true
-
-# Make changes permanent
-cat > /etc/sysctl.d/50-telekube.conf <<EOF
-net.ipv4.ip_forward=1
-net.bridge.bridge-nf-call-iptables=1
-EOF
-cat > /etc/modules-load.d/telekube.conf <<EOF
-br_netfilter
-overlay
-ebtables
-EOF
-sysctl -p /etc/sysctl.d/50-telekube.conf
+source $(DIR)/modules.sh
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete

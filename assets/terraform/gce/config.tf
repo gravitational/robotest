@@ -8,36 +8,40 @@ variable "credentials" {
 }
 
 variable "project" {
-  description = "Project name"
+  description = "Project to deploy to, if not set the default provider project is used."
   default     = "kubeadm-167321"
 }
 
 variable "region" {
-  description = "Cloud region"
+  description = "Region for cluster resources"
   default     = "us-central1"
 }
 
-# variable "zone" {
-#   description = "Cloud zone"
-#   default     = "us-central1-a"
-# }
+variable "zone" {
+  description = "Zone for cluster resources."
+  default     = "us-central1-a"
+}
 
 variable "cluster_name" {
   description = "Name of the robotest cluster"
 }
 
-variable "vm_type" {
+variable "node_tag" {
+  description = "GCE-friendly cluster name to use as a prefix for resources."
+}
+
+variable "instance_type" {
   description = "Type of VM to provision. See https://cloud.google.com/compute/docs/machine-types"
   default     = "n1-standard-1"
 }
 
-variable "ssh_key_path" {
-  description = "Path to the SSH key"
-}
-
-variable "ssh_user" {
+variable "os_user" {
   description = "SSH user to login onto nodes"
   default     = "robotest"
+}
+
+variable "ssh_key_path" {
+  description = "Path to the public SSH key."
 }
 
 variable "nodes" {
@@ -51,16 +55,6 @@ variable "os" {
 variable "disk_type" {
   description = "Disk type for VM. See https://cloud.google.com/compute/docs/disks"
   default     = "pd-ssd"
-}
-
-variable "service_uid" {
-  description = "Service user ID to own state directory/file permissions"
-  default     = "1000"
-}
-
-variable "service_gid" {
-  description = "Service group ID to own state directory/file permissions"
-  default     = "1000"
 }
 
 provider "google" {

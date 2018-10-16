@@ -4,7 +4,7 @@
 
 resource "google_compute_instance_group" "robotest" {
   description = "Instance group controlling instances of a single robotest cluster"
-  name        = "${var.cluster_name}-grp"
+  name        = "${var.node_tag}-node-group"
   zone        = "${local.zone}"
   network     = "${data.google_compute_network.robotest.self_link}"
   instances   = ["${google_compute_instance.node.*.self_link}"]
@@ -13,17 +13,17 @@ resource "google_compute_instance_group" "robotest" {
 resource "google_compute_instance" "node" {
   description  = "Instance is a single robotest cluster node"
   count        = "${var.nodes}"
-  name         = "${var.cluster_name}-node-${count.index}"
-  machine_type = "${var.vm_type}"
+  name         = "${var.node_tag}-node-${count.index}"
+  machine_type = "${var.instance_type}"
   zone         = "${local.zone}"
 
   tags = [
     "robotest",
-    "${var.cluster_name}-node-${count.index}",
+    "${var.node_tag}-node-${count.index}",
   ]
 
   labels {
-    cluster = "${var.cluster_name}"
+    cluster = "${var.node_tag}"
   }
 
   network_interface {
@@ -32,6 +32,10 @@ resource "google_compute_instance" "node" {
     access_config {
       # Ephemeral IP
     }
+
+    # FIXME: look into alias_ip_range (requires an explicit network/subnetwork)
+    # for allocating IPs for Pods/Services
+    # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
   }
 
   metadata {
@@ -39,7 +43,7 @@ resource "google_compute_instance" "node" {
     enable-oslogin = "true"
 
     # ssh-keys controls access to an instance using a custom SSH key
-    ssh-keys = "${var.ssh_user}:${file("${var.ssh_key_path}")}"
+    ssh-keys = "${var.os_user}:${file("${var.ssh_key_path}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
@@ -79,25 +83,25 @@ resource "google_compute_instance" "node" {
 
 resource "google_compute_disk" "etcd" {
   count = "${var.nodes}"
-  name  = "${var.cluster_name}-disk-etcd-${count.index}"
+  name  = "${var.node_tag}-disk-etcd-${count.index}"
   type  = "${var.disk_type}"
   zone  = "${local.zone}"
   size  = 64
 
   labels {
-    cluster = "${var.cluster_name}"
+    cluster = "${var.node_tag}"
   }
 }
 
 resource "google_compute_disk" "docker" {
   count = "${var.nodes}"
-  name  = "${var.cluster_name}-disk-docker-${count.index}"
+  name  = "${var.node_tag}-disk-docker-${count.index}"
   type  = "${var.disk_type}"
   zone  = "${local.zone}"
   size  = 64
 
   labels {
-    cluster = "${var.cluster_name}"
+    cluster = "${var.node_tag}"
   }
 }
 
@@ -105,6 +109,6 @@ data "template_file" "bootstrap" {
   template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
 
   vars {
-    ssh_user = "${var.ssh_user}"
+    os_user = "${var.os_user}"
   }
 }

@@ -4,6 +4,8 @@
 #
 set -exuo pipefail
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
 function devices {
     lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
 }
@@ -70,25 +72,7 @@ docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
-# Load required kernel modules
-modprobe br_netfilter || true
-modprobe overlay || true
-modprobe ebtable_filter || true
-
-# Make changes permanent
-cat > /etc/sysctl.d/50-telekube.conf <<EOF
-net.ipv4.ip_forward=1
-net.bridge.bridge-nf-call-iptables=1
-EOF
-if sysctl -q fs.may_detach_mounts >/dev/null 2>&1; then
-  echo "fs.may_detach_mounts=1" >> /etc/sysctl.d/50-telekube.conf
-fi
-cat > /etc/modules-load.d/telekube.conf <<EOF
-br_netfilter
-overlay
-ebtables
-EOF
-sysctl -p /etc/sysctl.d/50-telekube.conf
+source $(DIR)/modules.sh
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete
