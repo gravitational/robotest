@@ -12,7 +12,7 @@ resource "google_compute_firewall" "ssh" {
 
   allow {
     protocol = "tcp"
-    ports    = ["22"]
+    ports    = ["22", "61822"]
   }
 }
 
@@ -150,24 +150,21 @@ data "google_compute_network" "robotest" {
   name = "default"
 }
 
-# resource "google_compute_network" "robotest" {
-#   name = "default"
-# 
-#   # Each region gets a new subnet automatically
-#   # If using this, the subnetwork resource is probably unnecessary
-#   auto_create_subnetworks = "true"
-# 
-#   # TODO: or have a single robotest subnetwork (10.40.2.0/24)
-#   # for all robotest clusters (either in a run or across multiple runs)
-#   # auto_create_subnetworks = "false"
-# }
+# FIXME: propagate to gravity as `--pod-cidr` and `--service-cidr`
+resource "google_compute_subnetwork" "pods" {
+  network = "${google_compute_network.robotest.self_link}"
 
+  secondary_ip_range {
+    range_name    = "${var.node_tag}-pod-cidr"
+    ip_cidr_range = "/26"                      # enough for 64 Pods
+  }
+}
 
-# # FIXME: no way to make virtual private networks with the same address
-# # range per group
-# resource "google_compute_subnetwork" "robotest" {
-#   name          = "robotest_10_40_2_0"
-#   ip_cidr_range = "10.40.2.0/24"
-#   network       = "${google_compute_network.robotest.self_link}"
-# }
+resource "google_compute_subnetwork" "services" {
+  network = "${google_compute_network.robotest.self_link}"
 
+  secondary_ip_range {
+    range_name    = "${var.node_tag}-service-cidr"
+    ip_cidr_range = "/16"
+  }
+}
