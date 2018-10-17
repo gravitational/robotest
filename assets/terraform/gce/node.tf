@@ -27,15 +27,20 @@ resource "google_compute_instance" "node" {
   }
 
   network_interface {
-    network = "${data.google_compute_network.robotest.self_link}"
+    subnetwork = "${data.google_compute_subnetwork.robotest.self_link}"
 
     access_config {
       # Ephemeral IP
     }
 
-    # FIXME: look into alias_ip_range (requires an explicit network/subnetwork)
-    # for allocating IPs for Pods/Services
     # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
+    alias_ip_range {
+      ip_cidr_range = "/26"
+    }
+
+    alias_ip_range {
+      ip_cidr_range = "/24"
+    }
   }
 
   metadata {

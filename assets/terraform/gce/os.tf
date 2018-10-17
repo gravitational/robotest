@@ -1,7 +1,7 @@
 #
 # OS configuration
 #
-# https://cloud.google.com/compute/docs/images
+# https://cloud.google.com/compute/docs/images#os-compute-support
 #
 
 variable "oss" {
@@ -10,12 +10,16 @@ variable "oss" {
 
   default = {
     # os -> {project}/{image}
-    "ubuntu:16" = "ubuntu-os-cloud/ubuntu-1604-xenial-v20180405"
-    "ubuntu:17" = "ubuntu-os-cloud/ubuntu-1710-artful-v20180405"
-    "redhat:7"  = "rhel-cloud/rhel-7-v20180401"
-    "centos:7"  = "centos-cloud/centos-7-v20180401"
-    "debian:8"  = "debian-cloud/debian-8-jessie-v20180401"
-    "debian:9"  = "debian-cloud/debian-9-stretch-v20180401"
-    "suse:12"   = "suse-cloud/sles-12-sp3-v20180214"
+    "ubuntu:16"     = "ubuntu-os-cloud/ubuntu-1604-xenial-v20181004"
+    "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20181003"
+    "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-1804-bionic-v20181003"
+    "redhat:7"      = "rhel-cloud/rhel-7-v20181011"
+    "centos:7"      = "centos-cloud/centos-7-v20181011"
+    "debian:8"      = "debian-cloud/debian-8-jessie-v20180401"
+    "debian:9"      = "debian-cloud/debian-9-stretch-v20181011"
+    "debian:latest" = "debian-cloud/debian-9-stretch-v20181011"
+    "suse:12"       = "suse-cloud/sles-12-sp3-v20180814"
+    "suse:15"       = "suse-cloud/sles-15-v20180816"
+    "suse:latest"   = "suse-cloud/sles-15-v20180816"
   }
 }

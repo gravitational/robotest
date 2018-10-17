@@ -46,6 +46,7 @@ variable "ssh_key_path" {
 
 variable "nodes" {
   description = "Number of nodes to provision"
+  default = 1
 }
 
 variable "os" {

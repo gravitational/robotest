@@ -4,7 +4,7 @@
 #
 set -exuo pipefail
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 function devices {
     lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
@@ -61,18 +61,12 @@ if ! grep -qs "$etcd_dir" /proc/mounts; then
   mount $etcd_dir
 fi
 
-real_user=$(logname)
-service_uid=$(id $real_user -u)
-service_gid=$(id $real_user -g)
-
-chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
-sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
-
 docker_device=$(get_empty_device)
 [ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
 echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
 source $(DIR)/modules.sh
+source $(DIR)/user.sh ${os_user}
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete

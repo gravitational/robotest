@@ -4,12 +4,13 @@
 #
 set -exuo pipefail
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 touch /var/lib/bootstrap_started
 
 apt update
-apt install -y chrony lvm2 curl wget thin-provisioning-tools
+apt install -y chrony lvm2 curl wget thin-provisioning-tools python
+
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
@@ -24,14 +25,8 @@ if ! grep -qs "$etcd_dir" /proc/mounts; then
   mount $etcd_dir
 fi
 
-real_user=$(logname)
-service_uid=$(id $real_user -u)
-service_gid=$(id $real_user -g)
-
-chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/data $etcd_dir
-sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
-
 source $(DIR)/modules.sh
+source $(DIR)/user.sh ${os_user}
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete

@@ -150,21 +150,23 @@ data "google_compute_network" "robotest" {
   name = "default"
 }
 
-# FIXME: propagate to gravity as `--pod-cidr` and `--service-cidr`
-resource "google_compute_subnetwork" "pods" {
-  network = "${google_compute_network.robotest.self_link}"
-
-  secondary_ip_range {
-    range_name    = "${var.node_tag}-pod-cidr"
-    ip_cidr_range = "/26"                      # enough for 64 Pods
-  }
+data "google_compute_subnetwork" "robotest" {
+  name = "default"
 }
 
-resource "google_compute_subnetwork" "services" {
-  network = "${google_compute_network.robotest.self_link}"
-
-  secondary_ip_range {
-    range_name    = "${var.node_tag}-service-cidr"
-    ip_cidr_range = "/16"
-  }
-}
+# # FIXME: propagate to gravity as `--pod-cidr` and `--service-cidr`
+# resource "google_compute_subnetwork" "robotest" {
+#   network = "${data.google_compute_network.robotest.self_link}"
+#   ip_cidr_range = "/24" # Ugh, must be a valid CIDR, how does container API work? Enumerate to pick an unoccupied block?
+#   name = "${var.node_tag}-subnet"
+# 
+#   secondary_ip_range {
+#     range_name    = "${var.node_tag}-pod-cidr"
+#     ip_cidr_range = "/26"                      # enough for 64 Pods
+#   }
+# 
+#   secondary_ip_range {
+#     range_name    = "${var.node_tag}-service-cidr"
+#     ip_cidr_range = "/24"
+#   }
+# }

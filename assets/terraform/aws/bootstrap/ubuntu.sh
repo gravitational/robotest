@@ -4,7 +4,7 @@
 #
 set -euo pipefail
 
-apt update 
+apt update
 apt install -y python-pip lvm2 curl wget
 pip install --upgrade awscli
 
