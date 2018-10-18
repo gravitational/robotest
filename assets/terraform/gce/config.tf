@@ -37,7 +37,14 @@ variable "instance_type" {
 
 variable "os_user" {
   description = "SSH user to login onto nodes"
-  default     = "robotest"
+
+  default = {
+    ubuntu = "ubuntu"
+    redhat = "redhat"
+    centos = "centos"
+    debian = "robotest"
+    suse   = "robotest"
+  }
 }
 
 variable "ssh_key_path" {
@@ -46,7 +53,7 @@ variable "ssh_key_path" {
 
 variable "nodes" {
   description = "Number of nodes to provision"
-  default = 1
+  default     = 1
 }
 
 variable "os" {

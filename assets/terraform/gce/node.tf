@@ -34,10 +34,17 @@ resource "google_compute_instance" "node" {
     }
 
     # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
+    # https://cloud.google.com/vpc/docs/alias-ip#key_benefits_of_alias_ip_ranges
+    #
+    # The main benefit of alias IP ranges is that routes are installed transparently and
+    # route quotas need not be taken into account.
+    # The only issue is marrying that to flannel (or doing away w/ it on GCE)
+    # --pod-network-cidr=
     alias_ip_range {
       ip_cidr_range = "/26"
     }
 
+    # --service-cidr=
     alias_ip_range {
       ip_cidr_range = "/24"
     }
@@ -48,7 +55,8 @@ resource "google_compute_instance" "node" {
     enable-oslogin = "true"
 
     # ssh-keys controls access to an instance using a custom SSH key
-    ssh-keys = "${var.os_user}:${file("${var.ssh_key_path}")}"
+    # See: https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#instance-only
+    ssh-keys = "${lookup(var.os_user, element(split(":",var.os),0))}:${file("${var.ssh_key_path}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
@@ -114,6 +122,6 @@ data "template_file" "bootstrap" {
   template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
 
   vars {
-    os_user = "${var.os_user}"
+    os_user = "${lookup(var.os_user, element(split(":",var.os),0))}"
   }
 }
