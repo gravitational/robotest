@@ -5,12 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
@@ -57,6 +56,10 @@ func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform
 		Config:      config,
 		stateDir:    stateConfig.Dir,
 		installerIP: stateConfig.InstallerAddr,
+	}
+	switch specific := stateConfig.Specific.(type) {
+	case *State:
+		t.loadbalancerIP = specific.LoadBalancerAddr
 	}
 
 	t.sshUser, t.sshKeyPath = config.SSHConfig()
@@ -112,16 +115,13 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 
 }
 
-// LoadFromState parses terraform output from terraform state file
-func (r *terraform) LoadFromState(filePath string, withInstaller bool) (infra.Node, error) {
-	output, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, trace.ConvertSystemError(err)
-	}
-	err = r.loadFromState(string(output))
+// LoadFromExternalState parses terraform output from terraform state file
+func (r *terraform) LoadFromExternalState(rdr io.Reader, withInstaller bool) (infra.Node, error) {
+	err := r.loadFromState(rdr)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
 	if withInstaller {
 		nodes := r.pool.Nodes()
 		if len(nodes) == 0 { // should not happen, and doesn't make sense to retry
@@ -136,62 +136,37 @@ func (r *terraform) LoadFromState(filePath string, withInstaller bool) (infra.No
 }
 
 func (r *terraform) terraform(ctx context.Context) (err error) {
-	output, err := r.boot(ctx)
-	log.Debugf("Terraform boot output: %s\n(err=%v).", output, err)
+	f, err := r.boot(ctx)
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	if err := r.loadFromState(output); err != nil {
-		return trace.Wrap(err)
-	}
-	return nil
+	defer f.Close()
+
+	err = r.loadFromState(f)
+	return trace.Wrap(err)
 }
 
-func (r *terraform) loadFromState(output string) error {
-	// parse loadbalancer dns name
-	match := reLoadBalancer.FindStringSubmatch(output)
-	if len(match) == 2 {
-		r.loadbalancerIP = match[1]
+func (r *terraform) loadFromState(rdr io.Reader) error {
+	var outputs outputs
+
+	d := json.NewDecoder(rdr)
+	if err := d.Decode(&outputs); err != nil {
+		return trace.Wrap(err)
 	}
 
-	// find installer IP
-	match = reInstallerIP.FindStringSubmatch(output)
-	if len(match) == 2 {
-		r.installerIP = match[1]
-	}
-
-	// Extract private IPs for all nodes
-	match = rePrivateIPs.FindStringSubmatch(output)
-	if len(match) != 2 {
-		return trace.NotFound(
-			"failed to extract private IPs from terraform output: %v", match)
-	}
-	privateIPs := strings.Split(strings.TrimSpace(match[1]), " ")
-
-	// Extract public IPs for all nodes
-	match = rePublicIPs.FindStringSubmatch(output)
-	if len(match) != 2 {
+	if len(outputs.PublicAddrs.Addrs) == 0 {
 		// one of the reasons is that public IP allocation is incomplete yet
 		// which happens for Azure; we will just repeat boot process once again
-		return trace.NotFound("failed to extract public IPs from terraform output: %v", match)
-		// return trace.Retry(
-		// 	trace.NotFound("failed to extract public IPs from terraform output: %v", match),
-		// 	"terraform may not be able to acquire values of every parameter on create")
-	}
-	publicIPs := strings.Split(strings.TrimSpace(match[1]), " ")
-
-	if len(privateIPs) != len(publicIPs) {
-		return trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
-			len(privateIPs), len(publicIPs))
-		// return trace.Retry(
-		// 	trace.BadParameter("number of private IPs is different than public IPs: %v != %v",
-		// 		len(privateIPs), len(publicIPs)),
-		// 	"still allocating public IP addresses")
+		return trace.NotFound("terraform output contains no public node IPs")
 	}
 
-	nodes := make([]infra.Node, 0, len(publicIPs))
-	for i, addr := range publicIPs {
-		nodes = append(nodes, &node{privateIP: privateIPs[i], publicIP: addr, owner: r})
+	nodes := make([]infra.Node, 0, len(outputs.PublicAddrs.Addrs))
+	for i, addr := range outputs.PublicAddrs.Addrs {
+		nodes = append(nodes, &node{
+			privateIP: outputs.PrivateAddrs.Addrs[i],
+			publicIP:  addr,
+			owner:     r,
+		})
 	}
 	r.pool = infra.NewNodePool(nodes, nil)
 
@@ -304,28 +279,30 @@ func (r *terraform) State() infra.ProvisionerState {
 		allocated = append(allocated, node.Addr())
 	}
 	return infra.ProvisionerState{
-		Dir:              r.stateDir,
-		InstallerAddr:    r.installerIP,
-		Nodes:            nodes,
-		Allocated:        allocated,
-		LoadBalancerAddr: r.loadbalancerIP,
+		Dir:           r.stateDir,
+		InstallerAddr: r.installerIP,
+		Nodes:         nodes,
+		Allocated:     allocated,
+		Specific: &State{
+			LoadBalancerAddr: r.loadbalancerIP,
+		},
 	}
 }
 
-func (r *terraform) boot(ctx context.Context) (output string, err error) {
+func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 	out, err := r.command(ctx, []string{
 		"init", "-input=false", "-get-plugins=false",
 		fmt.Sprintf("-plugin-dir=%v", constants.TerraformPluginDir),
 		r.stateDir},
 	)
 	if err != nil {
-		return "", trace.Wrap(err, "failed to init terraform: %s", out)
+		return nil, trace.Wrap(err, "failed to init terraform: %s", out)
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	err = r.saveVarsJSON(varsPath)
 	if err != nil {
-		return "", trace.Wrap(err, "failed to store terraform vars")
+		return nil, trace.Wrap(err, "failed to store terraform vars")
 	}
 
 	applyCommand := []string{
@@ -343,10 +320,15 @@ func (r *terraform) boot(ctx context.Context) (output string, err error) {
 
 	out, err = r.command(ctx, applyCommand)
 	if err != nil {
-		return "", trace.Wrap(err, "failed to boot terraform cluster: %s", out)
+		return nil, trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
 
-	return string(out), nil
+	out, err = r.command(ctx, []string{"output", "-json"})
+	if err != nil {
+		return nil, trace.Wrap(err, "failed to boot terraform cluster: %s", out)
+	}
+
+	return ioutil.NopCloser(bytes.NewReader(out)), nil
 }
 
 func (r *terraform) command(ctx context.Context, args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
@@ -391,6 +373,23 @@ func (r *terraform) saveVarsJSON(varFile string) error {
 	return trace.Wrap(enc.Encode(config))
 }
 
+// MarshalJSON serializes this state object as JSON
+func (r *State) MarshalJSON() ([]byte, error) {
+	type state State
+	bytes, err := json.Marshal((state)(*r))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return bytes, nil
+}
+
+// State defines terraform-specific state
+type State struct {
+	// LoadBalancerAddr defines the DNS name of the load balancer
+	LoadBalancerAddr string `json:"loadbalancer"`
+}
+
+// terraform is the terraform-based infrastructure provider
 type terraform struct {
 	*log.Entry
 	Config
@@ -404,9 +403,31 @@ type terraform struct {
 	loadbalancerIP string
 }
 
-var (
-	rePrivateIPs   = regexp.MustCompile("(?m:^ *private_ips *= *([0-9\\. ]+))")
-	rePublicIPs    = regexp.MustCompile("(?m:^ *public_ips *= *([0-9\\. ]+))")
-	reLoadBalancer = regexp.MustCompile("(?m:^ *load_balancer *= *([a-zA-Z0-9][a-zA-Z0-9\\-\\.].*))")
-	reInstallerIP  = regexp.MustCompile("(?m:^ *installer_ip *= *([0-9\\. ]+))")
-)
+type outputs struct {
+	// PodCIDRBlocks specifies the list of CIDR blocks
+	// (block per node) dedicated to Pods
+	PodCIDRBlocks struct {
+		Blocks []string `json:"value"`
+	} `json:"pod_cidr_blocks"`
+	// ServiceCIDRBlocks specifies the list of CIDR blocks
+	// (block per node) dedicated to Services
+	ServiceCIDRBlocks struct {
+		Blocks []string `json:"value"`
+	} `json:"service_cidr_blocks"`
+	// PublicAddrs lists public IPs of infrastructure nodes
+	PublicAddrs struct {
+		Addrs []string `json:"value"`
+	} `json:"public_ips"`
+	// PrivateAddrs lists private IPs of infrastructure nodes
+	PrivateAddrs struct {
+		Addrs []string `json:"value"`
+	} `json:"private_ips"`
+	// LoadBalancerAddr specifies the IP address of the cloud Load Balancer
+	LoadBalancerAddr struct {
+		Addr string `json:"value"`
+	} `json:"load_balancer"`
+	// InstallerAddr specifies the IP address of the node selected as installer
+	InstallerAddr struct {
+		Addr string `json:"value"`
+	} `json:"installer_ip"`
+}

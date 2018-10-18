@@ -8,6 +8,7 @@ import (
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/framework/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel"
+	"github.com/gravitational/robotest/infra/terraform"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -132,7 +133,13 @@ func makeSiteEntryURL(ctx *framework.TestContextType, endpoints []string) string
 			if ctx.Onprem.ClusterAddress.Port != 0 {
 				port = ctx.Onprem.ClusterAddress.Port
 			}
-			siteEntryURL = fmt.Sprintf("https://%v:%v", framework.Cluster.Provisioner().State().LoadBalancerAddr, port)
+			state := framework.Cluster.Provisioner().State()
+			switch specific := state.Specific.(type) {
+			case *terraform.State:
+				siteEntryURL = fmt.Sprintf("https://%v:%v", specific.LoadBalancerAddr, port)
+			default:
+				Fail("unreachable")
+			}
 		}
 	}
 

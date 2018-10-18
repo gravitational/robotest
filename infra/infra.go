@@ -78,10 +78,6 @@ type Provisioner interface {
 	// withInstaller specifies if the provisioner should select an installer node.
 	// Installer node selection is provisioner-specific
 	Create(ctx context.Context, withInstaller bool) (installer Node, err error)
-	// LoadFromState parses output from external proviosioner
-	// withInstaller specifies if the provisioner should select an installer node.
-	// Installer node selection is provisioner-specific
-	LoadFromState(fileName string, withInstaller bool) (installer Node, err error)
 	// Destroy the infrastructures created by Create.
 	// After the call to Destroy the provisioner is invalid and no
 	// other methods can be used
@@ -106,7 +102,6 @@ type Provisioner interface {
 	NodePool() NodePool
 	// InstallerLogPath returns remote path to the installer log file
 	InstallerLogPath() string
-	// StateDir returns the state directory this provisioner is using
 	// State returns the state of this provisioner
 	State() ProvisionerState
 }
@@ -143,6 +138,15 @@ type Node interface {
 	// Client connects to this node and returns a new SSH Client object
 	// that can be used to execute remote commands
 	Client() (*ssh.Client, error)
+}
+
+// ExternalStateLoader loads provisioner state from external source
+type ExternalStateLoader interface {
+	// LoadFromExternalState loads the state from the specified reader r.
+	// withInstaller controls whether the installer address information
+	// is also retrieved.
+	// Returns the installer node if requested.
+	LoadFromExternalState(r io.Reader, withInstaller bool) (installer Node, err error)
 }
 
 var defaultLogger = log.New()

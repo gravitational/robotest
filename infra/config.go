@@ -1,6 +1,10 @@
 package infra
 
-import "github.com/gravitational/trace"
+import (
+	"encoding/json"
+
+	"github.com/gravitational/trace"
+)
 
 func (r *Config) Validate() error {
 	if r.ClusterName == "" {
@@ -18,15 +22,15 @@ type Config struct {
 // provisioned with a specific provisioner
 type ProvisionerState struct {
 	// Dir defines the location where provisioner stores state
-	Dir string `json:"state_dir"`
+	Dir string `json:"state_dir,omitempty"`
 	// InstallerAddr is the address of the installer node
 	InstallerAddr string `json:"installer_addr,omitempty"`
 	// Nodes is a list of all nodes in the cluster
 	Nodes []StateNode `json:"nodes"`
 	// Allocated defines the allocated subset
 	Allocated []string `json:"allocated_nodes"`
-	// LoadBalancerAddr defines the DNS name of the load balancer
-	LoadBalancerAddr string `json:"loadbalancer"`
+	// Specific defines provisioner-specific state
+	Specific json.Marshaler
 }
 
 // StateNode describes a single cluster node
@@ -34,5 +38,5 @@ type StateNode struct {
 	// Addr is the address of this node
 	Addr string `json:"addr"`
 	// KeyPath defines the location of the SSH key
-	KeyPath string `json:"key_path"`
+	KeyPath string `json:"key_path,omitempty"`
 }
