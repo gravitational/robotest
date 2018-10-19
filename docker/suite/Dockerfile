@@ -6,7 +6,6 @@ ARG TERRAFORM_PROVIDER_AWS_VERSION
 ARG TERRAFORM_PROVIDER_GOOGLE_VERSION
 ARG TERRAFORM_PROVIDER_TEMPLATE_VERSION
 ARG TERRAFORM_PROVIDER_RANDOM_VERSION
-ARG GRAVITY_VERSION
 ENV TF_TARBALL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 
 ENV TF_PLUGINS \
@@ -38,7 +37,7 @@ RUN apt-get update && \
         /usr/share/{doc,doc-base,man}/ \
         /tmp/*
 
-RUN (curl https://get.gravitational.io/telekube/install/${GRAVITY_VERSION} | bash)
+RUN (curl https://get.gravitational.io/telekube/install | bash)
 
 RUN mkdir /robotest
 WORKDIR /robotest
