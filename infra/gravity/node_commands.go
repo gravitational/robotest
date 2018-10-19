@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -91,6 +92,9 @@ type InstallParam struct {
 	LicenseURL string `json:"license,omitempty"`
 	// CloudProvider defines tighter integration with cloud vendor, i.e. use AWS networking on Amazon
 	CloudProvider string `json:"cloud_provider,omitempty"`
+	// GCENodeTag specifies the optional node tag on GCE.
+	// Node tag replaces the cluster name if the cluster name does not comply with the GCE naming convention
+	GCENodeTag string `json:"gce_node_tag"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
 	// OSFlavor is operating system and optional version separated by ':'
@@ -197,14 +201,19 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallParam
 	}
 
-	var buf bytes.Buffer
-	err := installCmdTemplate.Execute(&buf, cmd{
+	config := cmd{
 		InstallDir:      g.installDir,
 		PrivateAddr:     g.Node().PrivateAddr(),
 		EnvDockerDevice: constants.EnvDockerDevice,
 		StorageDriver:   g.param.storageDriver.Driver(),
 		InstallParam:    param,
-	})
+	}
+	if param.CloudProvider == constants.GCE {
+		config.InstallParam.GCENodeTag = gce.TranslateClusterName(param.Cluster)
+	}
+
+	var buf bytes.Buffer
+	err := installCmdTemplate.Execute(&buf, config)
 	if err != nil {
 		return trace.Wrap(err, buf.String())
 	}
@@ -225,6 +234,7 @@ var installCmdTemplate = template.Must(
 		--system-log-file=./telekube-system.log \
 		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
+		{{if .GCENodeTag}}--gce-node-tag={{.GCENodeTag}}{{end}} \
 		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}
 `))
 

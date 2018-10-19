@@ -45,11 +45,28 @@ net.bridge.bridge-nf-call-iptables=1
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
 
-real_user=${os_user}
-service_uid=$(id $real_user -u)
-service_gid=$(id $real_user -g)
-chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/gravity/planet/etcd
+service_uid=$(id ${os_user} -u 2>/dev/null || true)
+service_gid=$(id ${os_user} -g 2>/dev/null || true)
 
+if [ -z "$service_gid" ]; then
+  service_gid=1000
+  (groupadd --system --non-unique --gid $service_gid ${os_user} 2>/dev/null; err=$?; if (( $err != 9 )); then exit $err; fi) || true
+fi
+
+if [ -z "$service_uid" ]; then
+  service_uid=1000
+  useradd --system --non-unique -g $service_gid -u $service_uid ${os_user}
+fi
+
+if [ ! -d "/home/${os_user}/.ssh" ]; then
+  mkdir -p /home/${os_user}/.ssh
+  echo "${ssh_pub_key}" | tee /home/${os_user}/.ssh/authorized_keys
+  chmod 0700 /home/${os_user}/.ssh
+  chmod 0600 /home/${os_user}/.ssh/authorized_keys
+  chsh -s /bin/bash ${os_user}
+fi
+
+chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/gravity/planet/etcd /home/${os_user}
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 # Mark bootstrap step complete for robotest

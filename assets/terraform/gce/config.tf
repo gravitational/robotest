@@ -5,38 +5,46 @@
 
 variable "credentials" {
   description = "JSON-encoded access credentials"
+  type        = "string"
 }
 
 variable "project" {
   description = "Project to deploy to, if not set the default provider project is used."
+  type        = "string"
   default     = "kubeadm-167321"
 }
 
 variable "region" {
   description = "Region for cluster resources"
+  type        = "string"
   default     = "us-central1"
 }
 
 variable "zone" {
   description = "Zone for cluster resources."
+  type        = "string"
   default     = "us-central1-a"
 }
 
 variable "cluster_name" {
   description = "Name of the robotest cluster"
+  type        = "string"
 }
 
 variable "node_tag" {
   description = "GCE-friendly cluster name to use as a prefix for resources."
+  type        = "string"
 }
 
 variable "instance_type" {
   description = "Type of VM to provision. See https://cloud.google.com/compute/docs/machine-types"
+  type        = "string"
   default     = "n1-standard-1"
 }
 
 variable "os_user" {
   description = "SSH user to login onto nodes"
+  type        = "map"
 
   default = {
     ubuntu = "ubuntu"
@@ -47,21 +55,25 @@ variable "os_user" {
   }
 }
 
-variable "ssh_key_path" {
+variable "ssh_pub_key_path" {
   description = "Path to the public SSH key."
+  type        = "string"
 }
 
 variable "nodes" {
   description = "Number of nodes to provision"
+  type        = "string"
   default     = 1
 }
 
 variable "os" {
   description = "Linux distribution as name:version, i.e. debian:9"
+  type        = "string"
 }
 
 variable "disk_type" {
   description = "Disk type for VM. See https://cloud.google.com/compute/docs/disks"
+  type        = "string"
   default     = "pd-ssd"
 }
 
