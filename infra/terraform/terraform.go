@@ -342,7 +342,9 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 		))
 	err := system.ExecL(cmd, &out, r.Entry, opts...)
 	if err != nil {
-		return out.Bytes(), trace.Wrap(err, "command %q failed (args %q, wd %q): %v", cmd.Path, cmd.Args, cmd.Dir, out.String())
+		return out.Bytes(), trace.Wrap(err,
+			"command %q failed (args %q, working directory %q): %v",
+			cmd.Path, cmd.Args, cmd.Dir, out.String())
 	}
 	return out.Bytes(), nil
 }

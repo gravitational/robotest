@@ -105,8 +105,7 @@ func TestMain(t *testing.T) {
 		t.Fatal("options required")
 	}
 
-	config := gravity.ProvisionerConfig{}
-	gravity.LoadConfig(t, []byte(*provision), &config)
+	config := gravity.LoadConfig(t, []byte(*provision))
 	config = config.WithTag(*tag)
 
 	suiteCfg, there := suites[*testSuite]
@@ -161,5 +160,4 @@ func TestMain(t *testing.T) {
 	for _, res := range result {
 		fmt.Printf("%s %s %s %s\n", res.Status, res.Name, xlog.ToJSON(res.Param), res.LogUrl)
 	}
-
 }

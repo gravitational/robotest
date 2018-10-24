@@ -88,8 +88,7 @@ GCE_CONFIG="gce:
   credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
   vm_type: ${GCE_VM_TYPE}
   region: ${GCE_REGION}
-  ssh_user: robotest
-  key_path: /robotest/config/ops.pem"
+  ssh_pub_key_path: /robotest/config/ops_rsa.pub"
 fi
 
 if [ $DEPLOY_TO == "ops" ] ; then

@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/gravitational/robotest/infra/gravity"
-
-	"github.com/stretchr/testify/require"
 )
 
 func multiResize(t *testing.T, ctx context.Context, baseConfig *gravity.ProvisionerConfig) {

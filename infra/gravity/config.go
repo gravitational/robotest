@@ -100,26 +100,27 @@ type ProvisionerConfig struct {
 	// dockerDevice is a physical volume where Docker data would be stored
 	dockerDevice string `validate:"required"`
 	// clusterName is the name of the resulting robotest cluster
-	clusterName string
+	clusterName  string
+	cloudRegions *cloudRegions
 }
 
 // LoadConfig loads essential parameters from YAML
-func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
-	err := yaml.Unmarshal(configBytes, cfg)
+func LoadConfig(t *testing.T, configBytes []byte) (cfg ProvisionerConfig) {
+	err := yaml.Unmarshal(configBytes, &cfg)
 	require.NoError(t, err, string(configBytes))
 
 	switch cfg.CloudProvider {
 	case constants.Azure:
 		require.NotNil(t, cfg.Azure)
 		cfg.dockerDevice = cfg.Azure.DockerDevice
-		cloudRegions = NewCloudRegions(strings.Split(cfg.Azure.Location, ","))
+		cfg.cloudRegions = newCloudRegions(strings.Split(cfg.Azure.Location, ","))
 	case constants.AWS:
 		require.NotNil(t, cfg.AWS)
 		cfg.dockerDevice = cfg.AWS.DockerDevice
 	case constants.GCE:
 		require.NotNil(t, cfg.GCE)
 		cfg.dockerDevice = cfg.GCE.DockerDevice
-		cloudRegions = NewCloudRegions(strings.Split(cfg.GCE.Region, ","))
+		cfg.cloudRegions = newCloudRegions(strings.Split(cfg.GCE.Region, ","))
 	case "ops":
 		require.NotNil(t, cfg.Ops)
 		// set AWS environment variables to be used by subsequent commands
@@ -133,6 +134,7 @@ func LoadConfig(t *testing.T, configBytes []byte, cfg *ProvisionerConfig) {
 	default:
 		t.Fatalf("unknown cloud provider %s", cfg.CloudProvider)
 	}
+	return cfg
 }
 
 // Tag returns the configured tag.
@@ -215,26 +217,21 @@ func validateConfig(config ProvisionerConfig) error {
 	return trace.NewAggregate(errs...)
 }
 
-// CloudRegions is used for round-robin distribution of workload across regions
-type CloudRegions struct {
-	sync.Mutex
-	idx     int
-	regions []string
-}
-
-// NewCloudRegions returns a new list of cloud regions in
+// newCloudRegions returns a new list of cloud regions in
 // random order
-func NewCloudRegions(regions []string) *CloudRegions {
+func newCloudRegions(regions []string) *cloudRegions {
 	out := make([]string, len(regions))
 	perm := rand.Perm(len(regions))
 	for i, v := range perm {
 		out[v] = regions[i]
 	}
 
-	return &CloudRegions{idx: 0, regions: regions}
+	return &cloudRegions{idx: 0, regions: regions}
 }
 
-func (r *CloudRegions) Next() (region string) {
+// Next returns the next region.
+// It wraps around once it has reached the end of the list
+func (r *cloudRegions) Next() (region string) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -242,4 +239,9 @@ func (r *CloudRegions) Next() (region string) {
 	return r.regions[r.idx]
 }
 
-var cloudRegions *CloudRegions
+// cloudRegions is used for round-robin distribution of workload across regions
+type cloudRegions struct {
+	sync.Mutex
+	idx     int
+	regions []string
+}

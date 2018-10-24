@@ -165,10 +165,9 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"centos": "centos",
 			"suse":   "robotest",
 		},
-		// TODO: verify this (copy of azure)
 		constants.GCE: map[string]string{
-			"ubuntu": "robotest",
-			"debian": "admin",
+			"ubuntu": "ubuntu",
+			"debian": "robotest",
 			"redhat": "redhat",
 			"centos": "centos",
 			"suse":   "robotest",
@@ -216,14 +215,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.tf.Azure = &azure
 		param.tf.Azure.ResourceGroup = baseConfig.tag
 		param.tf.Azure.SSHUser = param.user
-		param.tf.Azure.Location = cloudRegions.Next()
+		param.tf.Azure.Location = baseConfig.cloudRegions.Next()
 	}
 
 	if baseConfig.GCE != nil {
 		config := *baseConfig.GCE
 		param.tf.GCE = &config
 		param.tf.GCE.SSHUser = param.user
-		param.tf.GCE.Region = cloudRegions.Next()
+		param.tf.GCE.Region = baseConfig.cloudRegions.Next()
 	}
 
 	return &param, nil
