@@ -2,7 +2,7 @@ TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 TAG ?= latest
-PULL ?= --pull
+DOCKER_ARGS ?= --pull
 
 TERRAFORM_VERSION := 0.11.9
 CHROMEDRIVER_VERSION := 2.39
@@ -44,9 +44,9 @@ $(TARGETS): $(BINARIES)
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	if [ "$@" = "e2e" ]; then \
-	  cd $(TEMPDIR) && docker build $(E2E_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	  cd $(TEMPDIR) && docker build $(E2E_BUILD_ARGS) --rm=true $(DOCKER_ARGS) -t $(IMAGE) . ; \
 	else \
-	  cd $(TEMPDIR) && docker build $(SUITE_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	  cd $(TEMPDIR) && docker build $(SUITE_BUILD_ARGS) --rm=true $(DOCKER_ARGS) -t $(IMAGE) . ; \
 	fi
 	rm -rf $(TEMPDIR)
 	@echo Built $(IMAGE)

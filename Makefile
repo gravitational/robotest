@@ -5,7 +5,7 @@ BUILDDIR ?= $(abspath build)
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
 TAG ?= latest
-PULL ?= --pull
+DOCKER_ARGS ?= --pull
 GLIDE_VER := v0.12.3
 
 # Rules below run on host
@@ -20,13 +20,13 @@ all: clean build
 
 .PHONY: buildbox
 buildbox:
-	docker build $(PULL) --tag $(BUILDBOX) \
+	docker build $(DOCKER_ARGS) --tag $(BUILDBOX) \
 		--build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --build-arg GLIDE_VER=$(GLIDE_VER) \
 		docker/build
 
 .PHONY: containers
 containers:
-	$(MAKE) -C docker containers PULL=$(PULL)
+	$(MAKE) -C docker containers DOCKER_ARGS=$(DOCKER_ARGS)
 
 .PHONY: publish
 publish:

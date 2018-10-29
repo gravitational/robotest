@@ -78,7 +78,7 @@ type ProvisionerConfig struct {
 	// Azure defines Azure connection parameters
 	Azure *azure.Config `yaml:"azure"`
 	// GCE defines Google Compute Engine connection parameters
-	GCE *gce.Config `yaml:"azure"`
+	GCE *gce.Config `yaml:"gce"`
 	// Ops defines Ops Center connection parameters
 	Ops *ops.Config `yaml:"ops"`
 

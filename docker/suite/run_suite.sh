@@ -1,27 +1,5 @@
 #!/bin/bash
-set -e -o pipefail
-
-free_args=("")
-envars=()
-# Accept additional environment for Docker below
-for arg in "$@"; do
-  case $arg in
-    -e=*|--env=*)
-      envars+=("${arg#*=}")
-      ;;
-    *)
-      free_args+=("$arg")
-      ;;
-  esac
-  shift
-done
-
-docker_args=("")
-for i in "${envars[@]}"; do
-  docker_args+=("--env ${i}")
-done
-
-set -u
+set -eu -o pipefail
 
 #
 # installer could be local .tar installer or s3:// or http(s) URL
@@ -163,6 +141,6 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
-	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
-	-tag=${TAG} -suite=sanity -debug "${docker_args[@]}" \
-	"${free_args[@]}"
+	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE} \
+	-tag=${TAG} -suite=sanity -debug \
+	$@
