@@ -14,10 +14,11 @@ import (
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/debug"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type valueList []string
@@ -47,6 +48,9 @@ var resourceListFile = flag.String("resourcegroup-file", "", "file with list of 
 var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from nodes once tests are finished. otherwise they will only be pulled for failed tests")
 
 var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
+
+var debugFlag = flag.Bool("debug", false, "Verbose mode")
+var debugPort = flag.Int("debug-port", 6060, "Profiling port")
 
 var testSets valueList
 
@@ -105,6 +109,11 @@ func TestMain(t *testing.T) {
 		t.Fatal("options required")
 	}
 
+	initLogger(*debugFlag)
+	if *debugFlag {
+		debug.StartProfiling(fmt.Sprintf("localhost:%v", *debugPort))
+	}
+
 	config := gravity.LoadConfig(t, []byte(*provision))
 	config = config.WithTag(*tag)
 
@@ -131,7 +140,7 @@ func TestMain(t *testing.T) {
 	}
 	gravity.SetProvisionerPolicy(policy)
 
-	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, logrus.Fields{
+	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, log.Fields{
 		"test_suite":         *testSuite,
 		"test_set":           testSet,
 		"provisioner_policy": policy,
@@ -151,13 +160,23 @@ func TestMain(t *testing.T) {
 	}
 
 	result := suite.Run()
-	log := suite.Logger()
+	logger := suite.Logger()
 	for _, res := range result {
-		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
+		logger.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
 	}
 
 	fmt.Println("\n******** TEST SUITE COMPLETED **********")
 	for _, res := range result {
 		fmt.Printf("%s %s %s %s\n", res.Status, res.Name, xlog.ToJSON(res.Param), res.LogUrl)
 	}
+}
+
+func initLogger(debug bool) {
+	level := log.InfoLevel
+	if debug {
+		level = log.DebugLevel
+	}
+	log.StandardLogger().Hooks = make(log.LevelHooks)
+	log.SetOutput(os.Stderr)
+	log.SetLevel(level)
 }

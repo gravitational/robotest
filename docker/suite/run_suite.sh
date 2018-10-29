@@ -86,7 +86,7 @@ if [ $DEPLOY_TO == "gce" ] ; then
 check_files ${SSH_KEY} ${SSH_PUB}
 GCE_CONFIG="gce:
   credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
-  vm_type: ${GCE_VM_TYPE}
+  vm_type: ${GCE_VM}
   region: ${GCE_REGION}
   ssh_pub_key_path: /robotest/config/ops_rsa.pub"
 fi
@@ -143,5 +143,5 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
-	-tag=${TAG} -suite=sanity \
+	-tag=${TAG} -suite=sanity -debug \
 	$@

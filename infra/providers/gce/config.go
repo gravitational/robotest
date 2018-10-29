@@ -16,7 +16,7 @@ type Config struct {
 	// It is the required parameter as it defines the region as well.
 	// https://cloud.google.com/compute/docs/regions-zones/
 	Zone string `json:"zone" yaml:"zone" validate:"required"`
-	// VMType specifies the type of VP to provision
+	// VMType specifies the type of machine to provision
 	// https://cloud.google.com/compute/docs/machine-types
 	VMType string `json:"vm_type" yaml:"vm_type" validate:"required"`
 	// SSHKeyPath specifies the location of the SSH private key for remote access
