@@ -193,7 +193,7 @@ func (config ProvisionerConfig) WithStorageDriver(storageDriver StorageDriver) P
 // validateConfig checks that key parameters are present
 func validateConfig(config ProvisionerConfig) error {
 	switch config.CloudProvider {
-	case constants.AWS, constants.Azure, constants.Ops:
+	case constants.AWS, constants.Azure, constants.GCE, constants.Ops:
 	default:
 		return trace.BadParameter("unknown cloud provider %s", config.CloudProvider)
 	}
