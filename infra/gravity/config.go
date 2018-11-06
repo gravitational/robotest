@@ -1,11 +1,11 @@
 package gravity
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -27,21 +27,17 @@ type OS struct {
 	Vendor, Version string
 }
 
-// UnmarshalJSON interprets b as an OS vendor with a version.
+// UnmarshalText interprets b as an OS vendor with a version.
 // I.e. given:
 //
 //   "vendor:version", it returns the correspoding OS instance
-func (os *OS) UnmarshalJSON(b []byte) error {
-	str, err := strconv.Unquote(string(b))
-	if err != nil {
-		return trace.ConvertSystemError(err)
-	}
-	split := strings.Split(str, ":")
+func (os *OS) UnmarshalText(b []byte) error {
+	split := bytes.Split(b, []byte(":"))
 	if len(split) != 2 {
 		return trace.BadParameter("OS should be in format vendor:version, got %q", b)
 	}
-	os.Vendor = split[0]
-	os.Version = split[1]
+	os.Vendor = string(split[0])
+	os.Version = string(split[1])
 	return nil
 }
 
@@ -53,13 +49,9 @@ func (os OS) String() string {
 // StorageDriver defines the Docker storage driver name
 type StorageDriver string
 
-// UnmarshalJSON interprets b as a Docker storage driver name
-func (drv *StorageDriver) UnmarshalJSON(b []byte) error {
-	name, err := strconv.Unquote(string(b))
-	if err != nil {
-		return trace.ConvertSystemError(err)
-	}
-	switch name {
+// UnmarshalText interprets b as a Docker storage driver name
+func (drv *StorageDriver) UnmarshalText(name []byte) error {
+	switch string(name) {
 	case constants.DeviceMapper, constants.Overlay, constants.Overlay2, constants.Loopback, constants.ManifestStorageDriver:
 		*drv = StorageDriver(name)
 		return nil
