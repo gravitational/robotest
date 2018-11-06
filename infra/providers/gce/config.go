@@ -23,6 +23,11 @@ type Config struct {
 	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// SSHUser defines SSH user to connect to the provisioned machines
 	SSHUser string `json:"ssh_user" yaml:"ssh_user"`
+	// SSHPublicKeyPath specifies the location of the public SSH key
+	SSHPublicKeyPath string `json:"ssh_pub_key_path" yaml:"ssh_pub_key_path"`
 	// DockerDevice specifies the block device for Docker
 	DockerDevice string `json:"docker_device" yaml:"docker_device"`
+	// NodeTag specifies the node tag to use on GCE.
+	// Will be computed based on the cluster name during provisioning
+	NodeTag string `json:"node_tag" yaml:"node_tag"`
 }

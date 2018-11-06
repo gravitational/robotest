@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -92,7 +91,7 @@ type InstallParam struct {
 	LicenseURL string `json:"license,omitempty"`
 	// CloudProvider defines tighter integration with cloud vendor, i.e. use AWS networking on Amazon
 	CloudProvider string `json:"cloud_provider,omitempty"`
-	// GCENodeTag specifies the optional node tag on GCE.
+	// GCENodeTag specifies the node tag on GCE.
 	// Node tag replaces the cluster name if the cluster name does not comply with the GCE naming convention
 	GCENodeTag string `json:"gce_node_tag"`
 	// StateDir is the directory where all gravity data will be stored on the node
@@ -209,7 +208,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallParam:    param,
 	}
 	if param.CloudProvider == constants.GCE {
-		config.InstallParam.GCENodeTag = gce.TranslateClusterName(param.Cluster)
+		config.InstallParam.GCENodeTag = g.param.GCE.NodeTag
 	}
 
 	var buf bytes.Buffer

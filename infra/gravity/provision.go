@@ -33,10 +33,10 @@ import (
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
 	ProvisionerConfig
-	user    string
-	homeDir string
-	tf      terraform.Config
-	env     map[string]string
+	user      string
+	homeDir   string
+	terraform terraform.Config
+	env       map[string]string
 }
 
 func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
@@ -78,7 +78,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, er
 	switch cfg.CloudProvider {
 	case constants.Azure, constants.AWS, constants.GCE:
 		nodes, destroy, err = c.provisionCloud(cfg)
-	case "ops":
+	case constants.Ops:
 		nodes, destroy, err = c.provisionOps(cfg)
 	default:
 		err = trace.BadParameter("unkown cloud provider: %q", cfg.CloudProvider)
@@ -216,7 +216,8 @@ Loop:
 
 // provisionCloud gets VMs up, running and ready to use
 func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Gravity, destroyResources DestroyFn, err error) {
-	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
+	log := c.Logger().WithField("config", cfg)
+	log.Debug("Provisioning VMs")
 
 	err = validateConfig(cfg)
 	if err != nil {
@@ -232,37 +233,37 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 			return
 		}
 		if errDestroy := destroyResource(resp.destroyFn); errDestroy != nil {
-			c.Logger().WithError(errDestroy).Error("Failed to destroy resources.")
+			log.WithError(errDestroy).Error("Failed to destroy resources.")
 		}
 	}()
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	c.Logger().Debug("configuring VMs")
+	log.Debug("configuring VMs")
 	gravityNodes, err = configureVMs(ctx, c.Logger(), resp.params, resp.nodes)
 	if err != nil {
-		c.Logger().WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
+		log.WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
 		return nil, nil, trace.NewAggregate(err, destroyResource(resp.destroyFn))
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		c.Logger().WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
+		log.WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
 		return nil, nil, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
-	if err != nil {
-		err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
-		c.Logger().WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
-		return nil, nil, trace.Wrap(err)
-	}
+	// c.Logger().Debug("ensuring disk speed is adequate across nodes")
+	// ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	// defer cancel()
+	// err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
+	// if err != nil {
+	// 	err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
+	// 	c.Logger().WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
+	// 	return nil, nil, trace.Wrap(err)
+	// }
 
-	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
+	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, resp.destroyFn), nil
 }
@@ -384,7 +385,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 		err = bootstrapAzure(ctx, g, param)
 	case constants.GCE:
 		err = bootstrapCloud(ctx, g, param)
-	case "ops":
+	case constants.Ops:
 		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
 		g.installDir = "/bin"
 	default:

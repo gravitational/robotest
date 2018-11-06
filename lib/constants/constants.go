@@ -43,9 +43,6 @@ const (
 	// ManifestStorageDriver is empty string identifying that install should use driver defined by the manifest
 	ManifestStorageDriver = ""
 
-	// Ops specifies a special cloud provider - a telekube Ops Center
-	Ops = "ops"
-
 	// TerraformPluginDir specifies the location of terraform plugins
 	TerraformPluginDir = "/etc/terraform/plugins"
 )
@@ -57,4 +54,6 @@ const (
 	Azure = "azure"
 	// GCE is Google Compute Engine cloud
 	GCE = "gce"
+	// Ops specifies a special cloud provider - a telekube Ops Center
+	Ops = "ops"
 )

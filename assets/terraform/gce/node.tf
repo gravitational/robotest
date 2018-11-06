@@ -14,7 +14,7 @@ resource "google_compute_instance" "node" {
   description  = "Instance is a single robotest cluster node"
   count        = "${var.nodes}"
   name         = "${var.node_tag}-node-${count.index}"
-  machine_type = "${var.instance_type}"
+  machine_type = "${var.vm_type}"
   zone         = "${local.zone}"
 
   tags = [

@@ -26,24 +26,19 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-variable "cluster_name" {
-  description = "Name of the robotest cluster"
-  type        = "string"
-}
-
 variable "node_tag" {
   description = "GCE-friendly cluster name to use as a prefix for resources."
   type        = "string"
 }
 
-variable "instance_type" {
+variable "vm_type" {
   description = "Type of VM to provision. See https://cloud.google.com/compute/docs/machine-types"
   type        = "string"
   default     = "n1-standard-1"
 }
 
 variable "os_user" {
-  description = "SSH user to login onto nodes"
+  description = "SSH users to login onto nodes. User depends on a distribution"
   type        = "map"
 
   default = {

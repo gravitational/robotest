@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -190,7 +190,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	param.homeDir = filepath.Join("/home", param.user)
 
-	param.tf = terraform.Config{
+	param.terraform = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.NodeCount),
@@ -199,30 +199,32 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	if baseConfig.AWS != nil {
 		aws := *baseConfig.AWS
-		param.tf.AWS = &aws
-		param.tf.AWS.ClusterName = baseConfig.tag
-		param.tf.AWS.SSHUser = param.user
+		param.terraform.AWS = &aws
+		param.terraform.AWS.ClusterName = baseConfig.tag
+		param.terraform.AWS.SSHUser = param.user
 
 		param.env = map[string]string{
-			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
-			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
-			"AWS_DEFAULT_REGION":    param.tf.AWS.Region,
+			"AWS_ACCESS_KEY_ID":     param.terraform.AWS.AccessKey,
+			"AWS_SECRET_ACCESS_KEY": param.terraform.AWS.SecretKey,
+			"AWS_DEFAULT_REGION":    param.terraform.AWS.Region,
 		}
 	}
 
 	if baseConfig.Azure != nil {
 		azure := *baseConfig.Azure
-		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.tag
-		param.tf.Azure.SSHUser = param.user
-		param.tf.Azure.Location = baseConfig.cloudRegions.Next()
+		param.terraform.Azure = &azure
+		param.terraform.Azure.ResourceGroup = baseConfig.tag
+		param.terraform.Azure.SSHUser = param.user
+		param.terraform.Azure.Location = baseConfig.cloudRegions.Next()
 	}
 
 	if baseConfig.GCE != nil {
 		config := *baseConfig.GCE
-		param.tf.GCE = &config
-		param.tf.GCE.SSHUser = param.user
-		param.tf.GCE.Region = baseConfig.cloudRegions.Next()
+		param.terraform.GCE = &config
+		// Terraform script selects the user for a distribution
+		// param.terraform.GCE.SSHUser = param.user
+		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
+		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
 	}
 
 	return &param, nil
@@ -271,7 +273,7 @@ func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig,
 	// only second chance is provided
 	//
 	// TODO: this seems to require more thorough testing, and same approach applied to Destory
-	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.tf)
+	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.terraform)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}

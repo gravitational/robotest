@@ -67,7 +67,9 @@ func (c Config) SSHConfig() (user, keypath string) {
 	}
 }
 
+// Config represents terraform provisioning configuration
 type Config struct {
+	// Config specifies common infrastructure configuration
 	infra.Config
 	// CloudProvider defines cloud to deploy to
 	CloudProvider string `validate:"required,eq=aws|eq=azure|eq=gce"`

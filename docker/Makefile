@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 
 TAG ?= latest
 DOCKER_ARGS ?= --pull
 
-TERRAFORM_VERSION := 0.11.9
+TERRAFORM_VERSION := 0.11.10
 CHROMEDRIVER_VERSION := 2.39
 TERRAFORM_PROVIDER_AWS_VERSION := 1.19.0
 TERRAFORM_PROVIDER_AZURERM_VERSION := 1.5.0
