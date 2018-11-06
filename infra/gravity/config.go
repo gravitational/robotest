@@ -69,7 +69,7 @@ func (drv StorageDriver) Driver() string {
 // CloudProvider, AWS, Azure, ScriptPath and InstallerURL
 type ProvisionerConfig struct {
 	// DeployTo defines cloud to deploy to
-	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure|eq=ops"`
+	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure|eq=gce|eq=ops"`
 	// AWS defines AWS connection parameters
 	AWS *aws.Config `yaml:"aws"`
 	// Azure defines Azure connection parameters
