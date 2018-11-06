@@ -82,9 +82,9 @@ AZURE_CONFIG="azure:
 fi
 
 if [ $DEPLOY_TO == "gce" ] ; then
-check_files ${SSH_KEY} ${SSH_PUB}
+check_files ${SSH_KEY} ${SSH_PUB} ${GOOGLE_APPLICATION_CREDENTIALS}
 GCE_CONFIG="gce:
-  credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
+  credentials: /robotest/config/creds.json
   vm_type: ${GCE_VM}
   region: ${GCE_REGION}
   ssh_key_path: /robotest/config/ops.pem
@@ -132,6 +132,8 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
+	${GCE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
+	${GCE_CONFIG:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/creds.json"} \
 	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/terraform"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
 	${EXTRA_VOLUME_MOUNTS:-} \
