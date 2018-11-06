@@ -15,14 +15,14 @@ type Config struct {
 	// Zone specifies the datacenter zone to install into.
 	// It is the required parameter as it defines the region as well.
 	// https://cloud.google.com/compute/docs/regions-zones/
-	Zone string `json:"zone" yaml:"zone" validate:"required"`
+	Zone string `json:"zone" yaml:"zone"`
 	// VMType specifies the type of machine to provision
 	// https://cloud.google.com/compute/docs/machine-types
 	VMType string `json:"vm_type" yaml:"vm_type" validate:"required"`
 	// SSHKeyPath specifies the location of the SSH private key for remote access
 	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// SSHUser defines SSH user to connect to the provisioned machines
-	SSHUser string `json:"ssh_user" yaml:"ssh_user" validate:"required"`
+	SSHUser string `json:"ssh_user" yaml:"ssh_user"`
 	// DockerDevice specifies the block device for Docker
 	DockerDevice string `json:"docker_device" yaml:"docker_device"`
 }

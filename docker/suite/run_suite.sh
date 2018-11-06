@@ -87,6 +87,7 @@ GCE_CONFIG="gce:
   credentials: ${GOOGLE_APPLICATION_CREDENTIALS}
   vm_type: ${GCE_VM}
   region: ${GCE_REGION}
+  ssh_key_path: /robotest/config/ops.pem
   ssh_pub_key_path: /robotest/config/ops_rsa.pub"
 fi
 
