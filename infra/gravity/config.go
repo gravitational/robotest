@@ -27,8 +27,11 @@ type OS struct {
 	Vendor, Version string
 }
 
-// UnmarshalText interprets OS from a textual representation
-func (os *OS) UnmarshalText(b []byte) error {
+// UnmarshalJSON interprets b as an OS vendor with a version.
+// I.e. given:
+//
+//   "vendor:version", it returns the correspoding OS instance
+func (os *OS) UnmarshalJSON(b []byte) error {
 	str, err := strconv.Unquote(string(b))
 	if err != nil {
 		return trace.ConvertSystemError(err)
@@ -47,9 +50,11 @@ func (os OS) String() string {
 	return fmt.Sprintf("%s:%s", os.Vendor, os.Version)
 }
 
+// StorageDriver defines the Docker storage driver name
 type StorageDriver string
 
-func (drv *StorageDriver) UnmarshalText(b []byte) error {
+// UnmarshalJSON interprets b as a Docker storage driver name
+func (drv *StorageDriver) UnmarshalJSON(b []byte) error {
 	name, err := strconv.Unquote(string(b))
 	if err != nil {
 		return trace.ConvertSystemError(err)
