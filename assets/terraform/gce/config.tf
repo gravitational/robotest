@@ -38,16 +38,8 @@ variable "vm_type" {
 }
 
 variable "os_user" {
-  description = "SSH users to login onto nodes. User depends on a distribution"
-  type        = "map"
-
-  default = {
-    ubuntu = "ubuntu"
-    redhat = "redhat"
-    centos = "centos"
-    debian = "robotest"
-    suse   = "robotest"
-  }
+  description = "SSH user to login onto nodes"
+  type        = "string"
 }
 
 variable "ssh_pub_key_path" {

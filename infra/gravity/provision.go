@@ -240,7 +240,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	log.Debug("configuring VMs")
+	log.Debug("Configuring VMs")
 	gravityNodes, err = configureVMs(ctx, c.Logger(), resp.params, resp.nodes)
 	if err != nil {
 		log.WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")

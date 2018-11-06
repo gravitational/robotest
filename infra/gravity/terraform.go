@@ -221,8 +221,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	if baseConfig.GCE != nil {
 		config := *baseConfig.GCE
 		param.terraform.GCE = &config
-		// Terraform script selects the user for a distribution
-		// param.terraform.GCE.SSHUser = param.user
+		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
 	}

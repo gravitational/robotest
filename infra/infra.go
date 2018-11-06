@@ -128,6 +128,7 @@ type NodePool interface {
 
 // Node defines an interface to a remote node
 type Node interface {
+	fmt.Stringer
 	// Addr returns public address of the node
 	Addr() string
 	// PrivateAddr returns the private address of the node

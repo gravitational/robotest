@@ -170,7 +170,7 @@ func (r *terraform) loadFromState(rdr io.Reader) error {
 	}
 	r.pool = infra.NewNodePool(nodes, nil)
 
-	r.Debugf("Cluster: %#v.", nodes)
+	r.Debugf("Cluster: %v.", infra.Nodes(nodes))
 	return nil
 }
 
@@ -327,6 +327,7 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
+	r.Debug("Cluster outputs:", string(out))
 
 	return ioutil.NopCloser(bytes.NewReader(out)), nil
 }
