@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -208,7 +209,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallParam:    param,
 	}
 	if param.CloudProvider == constants.GCE {
-		config.InstallParam.GCENodeTag = g.param.GCE.NodeTag
+		config.InstallParam.GCENodeTag = gce.TranslateClusterName(param.Cluster)
 	}
 
 	var buf bytes.Buffer

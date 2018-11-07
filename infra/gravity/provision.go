@@ -225,6 +225,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Grav
 	}
 
 	resp, err := runTerraform(c.Context(), cfg, c.Logger())
+	log.Debugf("Terraform response: %#v (%v).", resp, err)
 	if err != nil {
 		return nil, nil, trace.Wrap(err)
 	}

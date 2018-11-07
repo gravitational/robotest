@@ -178,7 +178,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"redhat": "redhat",
 			"centos": "centos",
 		},
-		"ops": map[string]string{
+		constants.Ops: map[string]string{
 			"centos": "centos",
 		},
 	}

@@ -3,8 +3,9 @@
 #
 
 resource "google_compute_firewall" "ssh" {
-  name    = "${var.node_tag}-allow-ssh"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-ssh"
+  description = "SSH access"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "icmp"
@@ -17,8 +18,9 @@ resource "google_compute_firewall" "ssh" {
 }
 
 resource "google_compute_firewall" "web" {
-  name    = "${var.node_tag}-web-admin"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-web"
+  description = "Web UI"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -26,9 +28,10 @@ resource "google_compute_firewall" "web" {
   }
 }
 
-resource "google_compute_firewall" "telekube_installer" {
-  name    = "${var.node_tag}-installer"
-  network = "${data.google_compute_network.robotest.self_link}"
+resource "google_compute_firewall" "installer" {
+  name        = "${var.node_tag}-installer"
+  description = "Internal installer ports"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -37,8 +40,9 @@ resource "google_compute_firewall" "telekube_installer" {
 }
 
 resource "google_compute_firewall" "bandwidth" {
-  name    = "${var.node_tag}-bandwidth-test"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-bandwidth"
+  description = "Internal network bandwidth preflight test port"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -52,13 +56,14 @@ resource "google_compute_firewall" "kubelet" {
 
   allow {
     protocol = "tcp"
-    ports    = ["10249", "10250", "10255"]
+    ports    = ["10248", "10250"]
   }
 }
 
 resource "google_compute_firewall" "serf" {
-  name    = "${var.node_tag}-serf-peer-network"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-serf"
+  description = "Internal serf gossip cluster"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -66,29 +71,21 @@ resource "google_compute_firewall" "serf" {
   }
 }
 
-resource "google_compute_firewall" "k8s_api" {
-  name    = "${var.node_tag}-kubernetes-api-server"
-  network = "${data.google_compute_network.robotest.self_link}"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8080", "6443"]
-  }
-}
-
 resource "google_compute_firewall" "k8s" {
-  name    = "${var.node_tag}-kubernetes-internal-services"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-k8s"
+  description = "Kubernetes API server and internal services"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
-    ports    = ["30000-32767"]
+    ports    = ["6443", "30000-32767"]
   }
 }
 
 resource "google_compute_firewall" "etcd" {
-  name    = "${var.node_tag}-etcd"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-etcd"
+  description = "Internal etcd cluster"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -97,8 +94,9 @@ resource "google_compute_firewall" "etcd" {
 }
 
 resource "google_compute_firewall" "registry" {
-  name    = "${var.node_tag}-docker-registry"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-registry"
+  description = "Internal docker registry"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -107,8 +105,9 @@ resource "google_compute_firewall" "registry" {
 }
 
 resource "google_compute_firewall" "overlay_network" {
-  name    = "${var.node_tag}-overlay-network"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-overlay"
+  description = "Flannel overlay network"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -117,7 +116,7 @@ resource "google_compute_firewall" "overlay_network" {
 }
 
 resource "google_compute_firewall" "teleport" {
-  name    = "${var.node_tag}-teleport-services"
+  name    = "${var.node_tag}-teleport"
   network = "${data.google_compute_network.robotest.self_link}"
 
   allow {
@@ -127,8 +126,9 @@ resource "google_compute_firewall" "teleport" {
 }
 
 resource "google_compute_firewall" "planet" {
-  name    = "${var.node_tag}-planet-rpc"
-  network = "${data.google_compute_network.robotest.self_link}"
+  name        = "${var.node_tag}-planet"
+  description = "Planet RPC service"
+  network     = "${data.google_compute_network.robotest.self_link}"
 
   allow {
     protocol = "tcp"
@@ -170,3 +170,4 @@ data "google_compute_subnetwork" "robotest" {
 #     ip_cidr_range = "/24"
 #   }
 # }
+

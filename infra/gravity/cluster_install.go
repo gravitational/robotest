@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
@@ -69,7 +70,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 // OfflineInstall sets up cluster using nodes provided
 func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 	// Cloud Provider ops will install telekube for us, so we can just exit early
-	if c.provisionerCfg.CloudProvider == "ops" {
+	if c.provisionerCfg.CloudProvider == constants.Ops {
 		return nil
 	}
 
