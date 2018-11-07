@@ -56,7 +56,7 @@ resource "google_compute_instance" "node" {
 
     # ssh-keys controls access to an instance using a custom SSH key
     # See: https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#instance-only
-    ssh-keys = "${lookup(var.os_user, element(split(":",var.os),0))}:${file("${var.ssh_pub_key_path}")}"
+    ssh-keys = "${var.os_user}:${file("${var.ssh_pub_key_path}")}"
   }
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
@@ -130,7 +130,7 @@ data "template_file" "bootstrap" {
   template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
 
   vars {
-    os_user     = "${lookup(var.os_user, element(split(":",var.os),0))}"
+    os_user     = "${var.os_user}"
     ssh_pub_key = "${file("${var.ssh_pub_key_path}")}"
   }
 }
