@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -207,9 +206,6 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		EnvDockerDevice: constants.EnvDockerDevice,
 		StorageDriver:   g.param.storageDriver.Driver(),
 		InstallParam:    param,
-	}
-	if param.CloudProvider == constants.GCE {
-		config.InstallParam.GCENodeTag = gce.TranslateClusterName(param.Cluster)
 	}
 
 	var buf bytes.Buffer

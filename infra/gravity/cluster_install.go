@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -81,12 +81,16 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 		return trace.NotFound("at least one node")
 	}
 
+	param.CloudProvider = c.provisionerCfg.CloudProvider
 	master := nodes[0].(*gravity)
 	if param.Token == "" {
 		param.Token = "ROBOTEST"
 	}
 	if param.Cluster == "" {
 		param.Cluster = master.param.Tag()
+	}
+	if param.CloudProvider == constants.GCE {
+		param.GCENodeTag = gce.TranslateClusterName(param.Cluster)
 	}
 
 	errs := make(chan error, len(nodes))

@@ -12,16 +12,16 @@ import (
 // See: https://cloud.google.com/compute/docs/labeling-resources
 func TranslateClusterName(cluster string) string {
 	// Use a hash to fit the resource name restriction on GCE subject to RFC1035
-	return fmt.Sprintf("robotest-%v", Hash(cluster))
+	return fmt.Sprintf("robotest-%x", Hash(cluster))
 }
 
 // Hash computes a hash from the given set of strings
-func Hash(strings ...string) string {
+func Hash(strings ...string) uint32 {
 	digester := fnv.New32()
 	for _, s := range strings {
 		io.WriteString(digester, s)
 	}
-	return string(digester.Sum(nil))
+	return digester.Sum32()
 }
 
 var replacer = strings.NewReplacer(".", "-")
