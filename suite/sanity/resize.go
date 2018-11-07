@@ -30,21 +30,21 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 	param := p.(resizeParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := g.Provision(cfg.WithOS(param.OSFlavor).
+		cluster, err := g.Provision(cfg.WithOS(param.OSFlavor).
 			WithStorageDriver(param.DockerStorageDriver).
 			WithNodes(param.ToNodes))
 		g.OK("provision nodes", err)
-		defer destroyFn()
+		defer cluster.Destroy()
 
-		g.OK("download installer", g.SetInstaller(nodes, cfg.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, cfg.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.NodeCount),
-			g.OfflineInstall(nodes[0:param.NodeCount], param.InstallParam))
-		g.OK("status", g.Status(nodes[0:param.NodeCount]))
-		g.OK("time sync", g.CheckTimeSync(nodes))
+			g.OfflineInstall(cluster.Nodes[0:param.NodeCount], param.InstallParam))
+		g.OK("status", g.Status(cluster.Nodes[0:param.NodeCount]))
+		g.OK("time sync", g.CheckTimeSync(cluster.Nodes))
 
 		g.OK(fmt.Sprintf("expand to %d nodes", param.ToNodes),
-			g.Expand(nodes[0:param.NodeCount], nodes[param.NodeCount:param.ToNodes],
+			g.Expand(cluster.Nodes[0:param.NodeCount], cluster.Nodes[param.NodeCount:param.ToNodes],
 				param.InstallParam))
-		g.OK("status", g.Status(nodes[0:param.ToNodes]))
+		g.OK("status", g.Status(cluster.Nodes[0:param.ToNodes]))
 	}, nil
 }

@@ -197,30 +197,23 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		OS:            baseConfig.os.String(),
 	}
 
-	if baseConfig.AWS != nil {
-		aws := *baseConfig.AWS
-		param.terraform.AWS = &aws
+	switch {
+	case baseConfig.AWS != nil:
+		param.terraform.AWS = baseConfig.AWS
 		param.terraform.AWS.ClusterName = baseConfig.tag
 		param.terraform.AWS.SSHUser = param.user
-
 		param.env = map[string]string{
 			"AWS_ACCESS_KEY_ID":     param.terraform.AWS.AccessKey,
 			"AWS_SECRET_ACCESS_KEY": param.terraform.AWS.SecretKey,
 			"AWS_DEFAULT_REGION":    param.terraform.AWS.Region,
 		}
-	}
-
-	if baseConfig.Azure != nil {
-		azure := *baseConfig.Azure
-		param.terraform.Azure = &azure
+	case baseConfig.Azure != nil:
+		param.terraform.Azure = baseConfig.Azure
 		param.terraform.Azure.ResourceGroup = baseConfig.tag
 		param.terraform.Azure.SSHUser = param.user
 		param.terraform.Azure.Location = baseConfig.cloudRegions.Next()
-	}
-
-	if baseConfig.GCE != nil {
-		config := *baseConfig.GCE
-		param.terraform.GCE = &config
+	case baseConfig.GCE != nil:
+		param.terraform.GCE = baseConfig.GCE
 		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
@@ -265,7 +258,11 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
+func runTerraformOnce(
+	baseContext context.Context,
+	baseConfig ProvisionerConfig,
+	params cloudDynamicParams,
+) ([]infra.Node, func(context.Context) error, error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
@@ -301,6 +298,7 @@ func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig,
 	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))
 }
 
+// terraformResp describes the result of provisioning infrastructure with terraform.
 type terraformResp struct {
 	nodes     []infra.Node
 	destroyFn func(context.Context) error

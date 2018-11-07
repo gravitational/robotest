@@ -93,7 +93,7 @@ type InstallParam struct {
 	CloudProvider string `json:"cloud_provider,omitempty"`
 	// GCENodeTag specifies the node tag on GCE.
 	// Node tag replaces the cluster name if the cluster name does not comply with the GCE naming convention
-	GCENodeTag string `json:"gce_node_tag"`
+	GCENodeTag string `json:"gce_node_tag,omitempty"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
 	// OSFlavor is operating system and optional version separated by ':'

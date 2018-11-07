@@ -27,14 +27,14 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 	param := p.(upgradeParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param.installParam)
+		cluster, err := provisionNodes(g, cfg, param.installParam)
 		g.OK("provision nodes", err)
-		defer destroyFn()
+		defer cluster.Destroy()
 
-		g.OK("base installer", g.SetInstaller(nodes, param.BaseInstallerURL, "base"))
-		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
-		g.OK("status", g.Status(nodes))
-		g.OK("upgrade", g.Upgrade(nodes, cfg.InstallerURL, "upgrade"))
-		g.OK("status", g.Status(nodes))
+		g.OK("base installer", g.SetInstaller(cluster.Nodes, param.BaseInstallerURL, "base"))
+		g.OK("install", g.OfflineInstall(cluster.Nodes, param.InstallParam))
+		g.OK("status", g.Status(cluster.Nodes))
+		g.OK("upgrade", g.Upgrade(cluster.Nodes, cfg.InstallerURL, "upgrade"))
+		g.OK("status", g.Status(cluster.Nodes))
 	}, nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"strings"
 )
 
 // TranslateClusterName translates the specified cluster name
@@ -23,5 +22,3 @@ func Hash(strings ...string) uint32 {
 	}
 	return digester.Sum32()
 }
-
-var replacer = strings.NewReplacer(".", "-")
