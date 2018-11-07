@@ -50,7 +50,9 @@ const (
 	BQTable = "progress"
 
 	// MaxRetriesPerTest
-	MaxRetriesPerTest = 3
+	// MaxRetriesPerTest = 3
+	// FIXME: disable retries for debugging
+	MaxRetriesPerTest = 1
 
 	// TmpDir is temporary file folder
 	TmpDir = "/tmp"
