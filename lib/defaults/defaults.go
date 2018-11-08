@@ -49,10 +49,9 @@ const (
 	// BQTable is bigquery table where run data is stored
 	BQTable = "progress"
 
-	// MaxRetriesPerTest
-	// MaxRetriesPerTest = 3
-	// FIXME: disable retries for debugging
-	MaxRetriesPerTest = 1
+	// MaxRetriesPerTest specifies the maximum number of attempts a failing
+	// test is retried (including the first failure)
+	MaxRetriesPerTest = 3
 
 	// TmpDir is temporary file folder
 	TmpDir = "/tmp"

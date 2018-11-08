@@ -74,7 +74,11 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) (cluster Cluster, err err
 
 	switch cfg.CloudProvider {
 	case constants.Azure, constants.AWS, constants.GCE:
-		cluster, err = c.provisionCloud(cfg)
+		var config *terraform.Config
+		cluster, config, err = c.provisionCloud(cfg)
+		if err == nil && cfg.CloudProvider == constants.GCE {
+			c.WithFields(logrus.Fields{"node_tag": config.GCE.NodeTag})
+		}
 	case constants.Ops:
 		cluster, err = c.provisionOps(cfg)
 	default:
@@ -213,18 +217,18 @@ Loop:
 }
 
 // provisionCloud gets VMs up, running and ready to use
-func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, err error) {
+func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, config *terraform.Config, err error) {
 	log := c.Logger().WithField("config", cfg)
 	log.Debug("Provisioning VMs")
 
 	err = validateConfig(cfg)
 	if err != nil {
-		return cluster, trace.Wrap(err)
+		return cluster, nil, trace.Wrap(err)
 	}
 
 	infra, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
-		return cluster, trace.Wrap(err)
+		return cluster, nil, trace.Wrap(err)
 	}
 	defer func() {
 		if err == nil || infra.destroyFn == nil {
@@ -242,13 +246,13 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, er
 	gravityNodes, err := configureVMs(ctx, c.Logger(), infra.params, infra.nodes)
 	if err != nil {
 		log.WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
-		return cluster, trace.NewAggregate(err, destroyResource(infra.destroyFn))
+		return cluster, nil, trace.NewAggregate(err, destroyResource(infra.destroyFn))
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
 		log.WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
-		return cluster, trace.Wrap(err)
+		return cluster, nil, trace.Wrap(err)
 	}
 
 	// c.Logger().Debug("ensuring disk speed is adequate across nodes")
@@ -265,9 +269,8 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, er
 
 	cluster.Nodes = gravityNodes
 	cluster.Destroy = wrapDestroyFn(c, cfg.Tag(), gravityNodes, infra.destroyFn)
-	cluster.Config = infra.params.ProvisionerConfig
 
-	return cluster, nil
+	return cluster, &infra.params.terraform, nil
 }
 
 // postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
@@ -451,13 +454,9 @@ func destroyResource(handler func(context.Context) error) error {
 }
 
 // Cluster describes the result of provisioning cluster infrastructure.
-// Includes updates to configuration where applicable
 type Cluster struct {
 	// Nodes is the list of gravity nodes in the cluster
 	Nodes []Gravity
 	// Destroy is the resource destruction handler
 	Destroy DestroyFn
-	// Config is the provisioner's configuration with changes reflected
-	// after provisioning
-	Config ProvisionerConfig
 }

@@ -38,6 +38,7 @@ type TestContext struct {
 	logLink        string
 	status         string
 	provisionerCfg ProvisionerConfig
+	fields         logrus.Fields
 }
 
 // Run allows a running test to spawn a subtest
@@ -72,6 +73,12 @@ func (c *TestContext) Error() error {
 	return c.err
 }
 
+// WithFields assigns additional logging fields to this context
+func (c *TestContext) WithFields(fields logrus.Fields) *TestContext {
+	c.fields = fields
+	return c
+}
+
 // Checkpoint marks milestone within a test
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()
@@ -81,6 +88,9 @@ func (c *TestContext) OK(msg string, err error) {
 	fields := logrus.Fields{
 		"name":    c.name,
 		"elapsed": elapsed.String(),
+	}
+	for name, value := range c.fields {
+		fields[name] = value
 	}
 	if err != nil {
 		fields["error"] = err

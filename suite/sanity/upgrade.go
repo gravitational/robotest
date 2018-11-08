@@ -2,9 +2,9 @@ package sanity
 
 import (
 	"github.com/gravitational/robotest/infra/gravity"
-	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/gravitational/trace"
 )
 
 type upgradeParam struct {

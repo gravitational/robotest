@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra/gravity"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
 

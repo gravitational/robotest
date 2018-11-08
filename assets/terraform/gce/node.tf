@@ -91,13 +91,15 @@ resource "google_compute_instance" "node" {
     ]
   }
 
-  # scheduling {
-  #   # https://cloud.google.com/compute/docs/instances/preemptible
-  #   # Make this an officially short-lived instance
-  #   # FIXME: need to test if this is viable for robotest
-  #   preemptible = true
-  #   automatic_restart = false
-  # }
+  scheduling {
+    # https://cloud.google.com/compute/docs/instances/preemptible
+    # Make this an officially short-lived instance
+    preemptible = true
+
+    # TODO: need to come up with a way to provide feedback to robotest
+    # if this happens, so the test could be retried
+    automatic_restart = false
+  }
 
   can_ip_forward = true
 }

@@ -199,7 +199,8 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	switch {
 	case baseConfig.AWS != nil:
-		param.terraform.AWS = baseConfig.AWS
+		config := *baseConfig.AWS
+		param.terraform.AWS = &config
 		param.terraform.AWS.ClusterName = baseConfig.tag
 		param.terraform.AWS.SSHUser = param.user
 		param.env = map[string]string{
@@ -208,12 +209,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"AWS_DEFAULT_REGION":    param.terraform.AWS.Region,
 		}
 	case baseConfig.Azure != nil:
-		param.terraform.Azure = baseConfig.Azure
+		config := *baseConfig.Azure
+		param.terraform.Azure = &config
 		param.terraform.Azure.ResourceGroup = baseConfig.tag
 		param.terraform.Azure.SSHUser = param.user
 		param.terraform.Azure.Location = baseConfig.cloudRegions.Next()
 	case baseConfig.GCE != nil:
-		param.terraform.GCE = baseConfig.GCE
+		config := *baseConfig.GCE
+		param.terraform.GCE = &config
 		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
