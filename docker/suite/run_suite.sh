@@ -19,6 +19,8 @@ REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
 FAIL_FAST=${FAIL_FAST:-false}
 ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
+GCE_VM=${GCE_VM:-'n1-standard-1'}
+GCE_REGION=${GCE_REGION:-'northamerica-northeast1,us-west1,us-west2,us-east1,us-east4,us-central1'}
 
 # choose something relatively unique to avoid intersection with other people runs
 # tag would prefix cloud resource groups for your test runs
