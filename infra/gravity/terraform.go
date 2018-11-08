@@ -244,6 +244,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		retry++
 
 		params, err := makeDynamicParams(cfg)
+		logger.Infof("Dynamic cloud params: %#v (%v).", params.terraform, err)
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}
