@@ -197,8 +197,9 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		OS:            baseConfig.os.String(),
 	}
 
-	switch {
-	case baseConfig.AWS != nil:
+	if baseConfig.AWS != nil {
+		// AWS configuration is also used to download from S3 (i.e. even with
+		// another cloud provider configured)
 		config := *baseConfig.AWS
 		param.terraform.AWS = &config
 		param.terraform.AWS.ClusterName = baseConfig.tag
@@ -208,6 +209,9 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"AWS_SECRET_ACCESS_KEY": param.terraform.AWS.SecretKey,
 			"AWS_DEFAULT_REGION":    param.terraform.AWS.Region,
 		}
+	}
+
+	switch {
 	case baseConfig.Azure != nil:
 		config := *baseConfig.Azure
 		param.terraform.Azure = &config
@@ -244,7 +248,6 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		retry++
 
 		params, err := makeDynamicParams(cfg)
-		logger.Infof("Dynamic cloud params: %#v (%v).", params.terraform, err)
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}
