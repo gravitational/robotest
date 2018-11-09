@@ -94,7 +94,7 @@ GCE_CONFIG="gce:
   region: ${GCE_REGION}
   ssh_key_path: /robotest/config/ops.pem
   ssh_pub_key_path: /robotest/config/ops_rsa.pub
-  docker_device: ${DOCKER_DEVICE:-''}"
+  docker_device: \"${DOCKER_DEVICE:-}\""
 fi
 
 if [ $DEPLOY_TO == "ops" ] ; then

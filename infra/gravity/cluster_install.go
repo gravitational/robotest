@@ -181,6 +181,24 @@ func (c *TestContext) Uninstall(nodes []Gravity) error {
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
+// UninstallApp uninstalls cluster application
+func (c *TestContext) UninstallApp(nodes []Gravity) error {
+	roles, err := c.NodesByRole(nodes)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.UninstallApp)
+	defer cancel()
+
+	master := roles.ApiMaster
+	err = master.UninstallApp(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
 // Upgrade tries to perform an upgrade procedure on all nodes
 func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
 	roles, err := c.NodesByRole(nodes)

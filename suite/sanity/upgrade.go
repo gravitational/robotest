@@ -29,7 +29,10 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		cluster, err := provisionNodes(g, cfg, param.installParam)
 		g.OK("provision nodes", err)
-		defer cluster.Destroy()
+		defer func() {
+			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
+			cluster.Destroy()
+		}()
 
 		g.OK("base installer", g.SetInstaller(cluster.Nodes, param.BaseInstallerURL, "base"))
 		g.OK("install", g.OfflineInstall(cluster.Nodes, param.InstallParam))

@@ -43,6 +43,8 @@ type Gravity interface {
 	Remove(ctx context.Context, node string, graceful Graceful) error
 	// Uninstall will wipe gravity installation from node
 	Uninstall(ctx context.Context) error
+	// UninstallApp uninstalls cluster application
+	UninstallApp(ctx context.Context) error
 	// PowerOff will power off the node
 	PowerOff(ctx context.Context, graceful Graceful) error
 	// Reboot will reboot this node and wait until it will become available again
@@ -314,7 +316,16 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm --system-log-file=./telekube-system.log`, g.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity leave --force --confirm --system-log-file=./telekube-system.log`, g.installDir)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
+	return trace.Wrap(err, cmd)
+}
+
+// UninstallApp uninstalls the cluster application.
+// This is usually required to properly clean up cloud resources
+// managed internally by kubernetes
+func (g *gravity) UninstallApp(ctx context.Context) error {
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity app uninstall $(./gravity app-package) --system-log-file=./telekube-system.log", g.installDir)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }

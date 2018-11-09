@@ -21,7 +21,15 @@ const (
 // whether test must be failed
 // provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
 type OpTimeouts struct {
-	Install, Upgrade, Status, Uninstall, Leave, CollectLogs, WaitForInstaller, AutoScaling time.Duration
+	Install          time.Duration
+	Upgrade          time.Duration
+	Status           time.Duration
+	Uninstall        time.Duration
+	UninstallApp     time.Duration
+	Leave            time.Duration
+	CollectLogs      time.Duration
+	WaitForInstaller time.Duration
+	AutoScaling      time.Duration
 }
 
 // TestContext aggregates common parameters for better test suite readability
@@ -79,26 +87,53 @@ func (c *TestContext) WithFields(fields logrus.Fields) *TestContext {
 	return c
 }
 
-// Checkpoint marks milestone within a test
+// OK logs the specified message and error.
+// If the error is non-nil, the test is marked failed and aborted
 func (c *TestContext) OK(msg string, err error) {
 	now := time.Now()
 	elapsed := now.Sub(c.timestamp)
 	c.timestamp = now
-
 	fields := logrus.Fields{
 		"name":    c.name,
 		"elapsed": elapsed.String(),
 	}
+
 	for name, value := range c.fields {
 		fields[name] = value
 	}
-	if err != nil {
-		fields["error"] = err
-		c.log.WithFields(fields).Error(msg)
-		c.err = trace.Wrap(err)
-		panic(msg)
+
+	if err == nil {
+		c.log.WithFields(fields).Info(msg)
+		return
 	}
-	c.log.WithFields(fields).Info(msg)
+
+	fields["error"] = err
+	c.log.WithFields(fields).Error(msg)
+	c.err = trace.Wrap(err)
+	panic(msg)
+}
+
+// Maybe logs the specified message and error if non-nil.
+// Does not fail the test
+func (c *TestContext) Maybe(msg string, err error) {
+	now := time.Now()
+	elapsed := now.Sub(c.timestamp)
+	c.timestamp = now
+	fields := logrus.Fields{
+		"name":    c.name,
+		"elapsed": elapsed.String(),
+	}
+
+	for name, value := range c.fields {
+		fields[name] = value
+	}
+
+	if err == nil {
+		c.log.WithFields(fields).Info(msg)
+		return
+	}
+	fields["error"] = err
+	c.log.WithFields(fields).Warn(msg)
 }
 
 // FailNow requests this test suite to abort

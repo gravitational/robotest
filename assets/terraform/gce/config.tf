@@ -66,8 +66,8 @@ variable "disk_type" {
 
 variable "devicemapper_used" {
   description = "Whether devicemapper storage driver is used in a test"
-  type        = "boolean"
-  default     = false
+  type        = "string"
+  default     = "false"
 }
 
 provider "google" {
