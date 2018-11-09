@@ -117,7 +117,9 @@ resource "google_compute_disk" "etcd" {
 }
 
 resource "google_compute_disk" "docker" {
-  count = "${var.devicemapper_used ? var.nodes : 0}"
+  # TODO: make docker disk optional
+  # count = "${var.devicemapper_used ? var.nodes : 0}"
+  count = "${var.nodes}"
   name  = "${var.node_tag}-disk-docker-${count.index}"
   type  = "${var.disk_type}"
   zone  = "${local.zone}"
