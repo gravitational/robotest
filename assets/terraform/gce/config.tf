@@ -64,6 +64,12 @@ variable "disk_type" {
   default     = "pd-ssd"
 }
 
+variable "devicemapper_used" {
+  description = "Whether devicemapper storage driver is used in a test"
+  type        = "boolean"
+  default     = false
+}
+
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"

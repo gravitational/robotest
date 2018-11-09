@@ -33,21 +33,21 @@ resource "google_compute_instance" "node" {
       # Ephemeral IP
     }
 
-    # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
-    # https://cloud.google.com/vpc/docs/alias-ip#key_benefits_of_alias_ip_ranges
-    #
-    # The main benefit of alias IP ranges is that routes are installed transparently and
-    # route quotas need not be taken into account.
-    # The only issue is marrying that to flannel (or doing away w/ it on GCE)
-    # --pod-network-cidr=
-    alias_ip_range {
-      ip_cidr_range = "/26"
-    }
+    # # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
+    # # https://cloud.google.com/vpc/docs/alias-ip#key_benefits_of_alias_ip_ranges
+    # #
+    # # The main benefit of alias IP ranges is that routes are installed transparently and
+    # # route quotas need not be taken into account.
+    # # The only issue is marrying that to flannel (or doing away w/ it on GCE)
+    # # --pod-network-cidr=
+    # alias_ip_range {
+    #   ip_cidr_range = "/26"
+    # }
 
-    # --service-cidr=
-    alias_ip_range {
-      ip_cidr_range = "/24"
-    }
+    # # --service-cidr=
+    # alias_ip_range {
+    #   ip_cidr_range = "/24"
+    # }
   }
 
   metadata {
@@ -109,7 +109,7 @@ resource "google_compute_disk" "etcd" {
   name  = "${var.node_tag}-disk-etcd-${count.index}"
   type  = "${var.disk_type}"
   zone  = "${local.zone}"
-  size  = 64
+  size  = 50
 
   labels {
     cluster = "${var.node_tag}"
@@ -117,11 +117,11 @@ resource "google_compute_disk" "etcd" {
 }
 
 resource "google_compute_disk" "docker" {
-  count = "${var.nodes}"
+  count = "${var.devicemapper_used ? var.nodes : 0}"
   name  = "${var.node_tag}-disk-docker-${count.index}"
   type  = "${var.disk_type}"
   zone  = "${local.zone}"
-  size  = 64
+  size  = 50
 
   labels {
     cluster = "${var.node_tag}"

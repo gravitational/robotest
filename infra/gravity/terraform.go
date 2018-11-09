@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -49,7 +50,12 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 	return func() error {
 		defer func() {
 			if r := recover(); r != nil {
-				c.Logger().WithField("panic", r).Error("panic in terraform destroy")
+				c.Logger().WithFields(
+					logrus.Fields{
+						"stack": string(debug.Stack()),
+						"where": r,
+					},
+				).Error("panic in terraform destroy")
 			}
 		}()
 
@@ -68,7 +74,7 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 		}
 
 		if ctx.Err() != nil {
-			log.WithError(ctx.Err()).Warn("extra cycles for teardown")
+			log.WithError(ctx.Err()).Warn("Adding extra time for teardown.")
 			skipLogCollection = true
 			var cancel func()
 			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
@@ -224,13 +230,14 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
+		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
 	}
 
 	return &param, nil
 }
 
 func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (resp *terraformResp, err error) {
-	retr := wait.Retryer{
+	retryer := wait.Retryer{
 		Delay:       defaults.TerraformRetryDelay,
 		Attempts:    defaults.TerraformRetries,
 		FieldLogger: logger,
@@ -238,12 +245,13 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 
 	retry := 0
 	cfg := baseConfig
-	resp = &terraformResp{}
-
-	err = retr.Do(ctx, func() error {
+	err = retryer.Do(ctx, func() error {
 		if retry != 0 {
 			cfg = baseConfig.WithTag(fmt.Sprintf("R%d", retry))
-			logger.Info("retrying terraform provisioning")
+			logger.WithFields(logrus.Fields{
+				"state-dir": cfg.StateDir,
+				"tag":       cfg.Tag(),
+			}).Info("Retrying terraform provisioning.")
 		}
 		retry++
 
@@ -251,9 +259,8 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}
-		resp.params = *params
-		resp.nodes, resp.destroyFn, err = runTerraformOnce(ctx, cfg, *params)
 
+		resp, err = runTerraformOnce(ctx, cfg, *params)
 		if err == nil {
 			return nil
 		}
@@ -269,16 +276,16 @@ func runTerraformOnce(
 	baseContext context.Context,
 	baseConfig ProvisionerConfig,
 	params cloudDynamicParams,
-) ([]infra.Node, func(context.Context) error, error) {
+) (resp *terraformResp, err error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
 	// only second chance is provided
 	//
-	// TODO: this seems to require more thorough testing, and same approach applied to Destory
+	// TODO: this seems to require more thorough testing, and same approach applied to Destroy
 	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.terraform)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
 	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 10} {
@@ -291,7 +298,7 @@ func runTerraformOnce(
 			defer cancel()
 			err1 := trace.Errorf("[terraform interrupted on apply due to upper context=%v, result=%v]", ctx.Err(), err)
 			err2 := trace.Wrap(p.Destroy(teardownCtx))
-			return nil, nil, trace.NewAggregate(err1, err2)
+			return nil, trace.NewAggregate(err1, err2)
 		}
 
 		if err != nil {
@@ -299,10 +306,14 @@ func runTerraformOnce(
 		}
 
 		resourceAllocated(baseConfig.Tag())
-		return p.NodePool().Nodes(), p.Destroy, nil
+		return &terraformResp{
+			nodes:     p.NodePool().Nodes(),
+			destroyFn: p.Destroy,
+			params:    params,
+		}, nil
 	}
 
-	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))
+	return nil, trace.NewAggregate(err, p.Destroy(baseContext))
 }
 
 // terraformResp describes the result of provisioning infrastructure with terraform.

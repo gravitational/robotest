@@ -118,7 +118,7 @@ func LoadConfig(t *testing.T, configBytes []byte) (cfg ProvisionerConfig) {
 		require.NotNil(t, cfg.GCE)
 		cfg.dockerDevice = cfg.GCE.DockerDevice
 		cfg.cloudRegions = newCloudRegions(strings.Split(cfg.GCE.Region, ","))
-	case "ops":
+	case constants.Ops:
 		require.NotNil(t, cfg.Ops)
 		// set AWS environment variables to be used by subsequent commands
 		os.Setenv("AWS_ACCESS_KEY_ID", cfg.Ops.EC2AccessKey)

@@ -21,6 +21,9 @@ FAIL_FAST=${FAIL_FAST:-false}
 ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
 GCE_VM=${GCE_VM:-'n1-standard-1'}
 GCE_REGION=${GCE_REGION:-'northamerica-northeast1,us-west1,us-west2,us-east1,us-east4,us-central1'}
+if [ ${STORAGE_DRIVER} = "devicemapper" ]; then 
+  DOCKER_DEVICE=/dev/sdd
+fi
 
 # choose something relatively unique to avoid intersection with other people runs
 # tag would prefix cloud resource groups for your test runs
@@ -90,7 +93,8 @@ GCE_CONFIG="gce:
   vm_type: ${GCE_VM}
   region: ${GCE_REGION}
   ssh_key_path: /robotest/config/ops.pem
-  ssh_pub_key_path: /robotest/config/ops_rsa.pub"
+  ssh_pub_key_path: /robotest/config/ops_rsa.pub
+  docker_device: ${DOCKER_DEVICE:-''}"
 fi
 
 if [ $DEPLOY_TO == "ops" ] ; then

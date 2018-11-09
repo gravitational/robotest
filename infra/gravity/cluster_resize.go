@@ -3,6 +3,7 @@ package gravity
 import (
 	"context"
 
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
@@ -14,7 +15,7 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	if len(current) == 0 || len(extra) == 0 {
 		return trace.Errorf("empty node list")
 	}
-	if c.provisionerCfg.CloudProvider == "ops" {
+	if c.provisionerCfg.CloudProvider == constants.Ops {
 		return trace.Errorf("not implemented")
 	}
 

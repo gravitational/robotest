@@ -33,7 +33,7 @@ func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 // ProvisionInstaller deploys a specific installer
 func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
 	// Cloud Provider ops will install telekube for us, so we can just exit early
-	if c.provisionerCfg.CloudProvider == "ops" {
+	if c.provisionerCfg.CloudProvider == constants.Ops {
 		return nil
 	}
 

@@ -283,7 +283,7 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 				"stack": string(debug.Stack()),
 				"where": r,
 			},
-		).Error("PANIC")
+		).Error("panic in test")
 		err = trace.BadParameter("panic inside test - aborted")
 	}()
 

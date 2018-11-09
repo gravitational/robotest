@@ -19,7 +19,6 @@ import (
 	"github.com/gravitational/robotest/lib/system"
 
 	"github.com/gravitational/trace"
-	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -33,9 +32,10 @@ func New(stateDir string, config Config) (*terraform, error) {
 	user, keypath := config.SSHConfig()
 
 	return &terraform{
-		Entry: log.WithFields(log.Fields{
+		FieldLogger: log.WithFields(log.Fields{
 			constants.FieldProvisioner: "terraform",
 			constants.FieldCluster:     config.ClusterName,
+			"state-dir":                stateDir,
 		}),
 		Config:   config,
 		stateDir: stateDir,
@@ -49,9 +49,10 @@ func New(stateDir string, config Config) (*terraform, error) {
 
 func NewFromState(config Config, stateConfig infra.ProvisionerState) (*terraform, error) {
 	t := &terraform{
-		Entry: log.WithFields(log.Fields{
+		FieldLogger: log.WithFields(log.Fields{
 			constants.FieldProvisioner: "terraform",
 			constants.FieldCluster:     config.ClusterName,
+			"state-dir":                stateConfig.Dir,
 		}),
 		Config:      config,
 		stateDir:    stateConfig.Dir,
@@ -112,7 +113,6 @@ func (r *terraform) Create(ctx context.Context, withInstaller bool) (installer i
 		case <-time.After(terraformRepeatAfter):
 		}
 	}
-
 }
 
 // LoadFromExternalState parses terraform output from terraform state file
@@ -201,14 +201,18 @@ func (r *terraform) Destroy(ctx context.Context) error {
 			return trace.Wrap(err, "azureDestroy %v", err)
 		}
 		err = os.RemoveAll(r.stateDir)
-		return trace.Wrap(err, "failed to clean up %v: %v", r.stateDir, err)
+		if err != nil {
+			r.Warnf("Failed to clean up: %v", err)
+		}
+		return nil
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	destroyCommand := []string{
-		"destroy", "-force",
+		"destroy", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
+		"-var", fmt.Sprintf("devicemapper_used=%v", r.DockerDevice != ""),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
 	if r.VariablesFile != "" {
@@ -309,9 +313,7 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
-		// random_password for the admin account for SSH access on Azure
-		// FIXME: figure out if this is required/necessary on Google
-		"-var", fmt.Sprintf("random_password=%s", uuid.NewV4().String()),
+		"-var", fmt.Sprintf("devicemapper_used=%v", r.DockerDevice != ""),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
 	if r.VariablesFile != "" {
@@ -341,11 +343,10 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 			"TF_LOG=DEBUG",
 			fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")),
 		))
-	err := system.ExecL(cmd, &out, r.Entry, opts...)
+	err := system.ExecL(cmd, &out, r.FieldLogger, opts...)
+	r.Infof("Command %#v: %s.", cmd, out.Bytes())
 	if err != nil {
-		return out.Bytes(), trace.Wrap(err,
-			"command %q failed (args %q, working directory %q): %v",
-			cmd.Path, cmd.Args, cmd.Dir, out.String())
+		return out.Bytes(), trace.Wrap(err, "command %#v failed: %s", cmd, out.Bytes())
 	}
 	return out.Bytes(), nil
 }
@@ -394,7 +395,7 @@ type State struct {
 
 // terraform is the terraform-based infrastructure provider
 type terraform struct {
-	*log.Entry
+	log.FieldLogger
 	Config
 
 	sshUser, sshKeyPath string
