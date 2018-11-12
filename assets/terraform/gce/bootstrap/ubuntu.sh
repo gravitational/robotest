@@ -14,14 +14,13 @@ apt install -y chrony lvm2 curl wget thin-provisioning-tools python
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
-mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
-
-etcd_device=sdc
+etcd_device_name=sdb
 etcd_dir=/var/lib/gravity/planet/etcd
+mkdir -p $etcd_dir /var/lib/data
 if ! grep -qs "$etcd_dir" /proc/mounts; then
-  mkfs.ext4 -F /dev/sdc
-  sed -i.bak "/$etcd_device/d" /etc/fstab
-  echo -e "/dev/$etcd_device\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
+  mkfs.ext4 -F /dev/$etcd_device_name
+  sed -i.bak "/$etcd_device_name/d" /etc/fstab
+  echo -e "/dev/$etcd_device_name\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
   mount $etcd_dir
 fi
 

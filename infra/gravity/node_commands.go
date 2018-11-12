@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
-	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
@@ -222,19 +221,19 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	// cmd specify additional configuration for the install command
 	// collected from defaults and/or computed values
 	type cmd struct {
-		InstallDir      string
-		PrivateAddr     string
-		EnvDockerDevice string
-		StorageDriver   string
+		InstallDir    string
+		PrivateAddr   string
+		DockerDevice  string
+		StorageDriver string
 		InstallParam
 	}
 
 	config := cmd{
-		InstallDir:      g.installDir,
-		PrivateAddr:     g.Node().PrivateAddr(),
-		EnvDockerDevice: constants.EnvDockerDevice,
-		StorageDriver:   g.param.storageDriver.Driver(),
-		InstallParam:    param,
+		InstallDir:    g.installDir,
+		PrivateAddr:   g.Node().PrivateAddr(),
+		DockerDevice:  g.param.dockerDevice,
+		StorageDriver: g.param.storageDriver.Driver(),
+		InstallParam:  param,
 	}
 
 	var buf bytes.Buffer
@@ -243,23 +242,20 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
-		constants.EnvDockerDevice: g.param.dockerDevice,
-	})
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
 	return trace.Wrap(err, param)
 }
 
 var installCmdTemplate = template.Must(
 	template.New("gravity_install").Parse(`
-		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
 		cd {{.InstallDir}} && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
-		--docker-device=${{.EnvDockerDevice}} \
+		--docker-device={{.DockerDevice}} \
 		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
 		--system-log-file=./telekube-system.log \
-		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
+		--cloud-provider=generic --state-dir={{.StateDir}} \
+		--httpprofile=localhost:6061 \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
-		{{if .GCENodeTag}}--gce-node-tag={{.GCENodeTag}}{{end}} \
 		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}
 `))
 
@@ -288,34 +284,34 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 	// cmd specify additional configuration for the join command
 	// collected from defaults and/or computed values
 	type cmd struct {
-		InstallDir, PrivateAddr, EnvDockerDevice string
+		InstallDir   string
+		PrivateAddr  string
+		DockerDevice string
 		JoinCmd
 	}
 
 	var buf bytes.Buffer
 	err := joinCmdTemplate.Execute(&buf, cmd{
-		InstallDir:      g.installDir,
-		PrivateAddr:     g.Node().PrivateAddr(),
-		EnvDockerDevice: constants.EnvDockerDevice,
-		JoinCmd:         param,
+		InstallDir:   g.installDir,
+		PrivateAddr:  g.Node().PrivateAddr(),
+		DockerDevice: g.param.dockerDevice,
+		JoinCmd:      param,
 	})
 	if err != nil {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
-		constants.EnvDockerDevice: g.param.dockerDevice,
-	})
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
 	return trace.Wrap(err, param)
 }
 
 var joinCmdTemplate = template.Must(
 	template.New("gravity_join").Parse(`
-		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
 		cd {{.InstallDir}} && sudo ./gravity join {{.PeerAddr}} \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --debug \
-		--role={{.Role}} --docker-device=${{.EnvDockerDevice}} \
-		--system-log-file=./telekube-system.log --state-dir={{.StateDir}}`))
+		--role={{.Role}} --docker-device={{.DockerDevice}} \
+		--system-log-file=./telekube-system.log --state-dir={{.StateDir}} \
+		--httpprofile=localhost:6061`))
 
 // Leave makes given node leave the cluster
 func (g *gravity) Leave(ctx context.Context, graceful Graceful) error {

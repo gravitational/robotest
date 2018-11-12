@@ -6,20 +6,6 @@ set -exuo pipefail
 
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
-function devices {
-    lsblk --raw --noheadings -I 8,9,202,252,253,259 $@
-}
-
-function get_empty_device {
-    for device in $(devices --output=NAME); do
-        local type=$(devices --output=TYPE /dev/$device)
-        if [ "$type" != "part" ] && [[ -z "$(devices --output=FSTYPE /dev/$device)" ]]; then
-            echo $device
-            exit 0
-        fi
-    done
-}
-
 touch /var/lib/bootstrap_started
 
 dns_running=0
@@ -48,22 +34,15 @@ if ! aws --version; then
   ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
 fi
 
+etcd_device_name=sdb
 etcd_dir=/var/lib/gravity/planet/etcd
+mkdir -p $etcd_dir /var/lib/data
 if ! grep -qs "$etcd_dir" /proc/mounts; then
-  etcd_device=$(get_empty_device)
-  [ ! -z "$etcd_device" ] || (>&2 echo no suitable device for etcd; exit 1)
-
-  mkfs.ext4 -F /dev/$etcd_device
-  sed -i.bak "/$etcd_device/d" /etc/fstab
-  echo -e "/dev/$etcd_device\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
-
-  mkdir -p $etcd_dir /var/lib/data
+  mkfs.ext4 -F /dev/$etcd_device_name
+  sed -i.bak "/$etcd_device_name/d" /etc/fstab
+  echo -e "/dev/$etcd_device_name\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
   mount $etcd_dir
 fi
-
-docker_device=$(get_empty_device)
-[ ! -z "$docker_device" ] || (>&2 echo no suitable device for docker; exit 1)
-echo "DOCKER_DEVICE=/dev/$docker_device" > /tmp/gravity_environment
 
 ## Setup modules / sysctls
 # Load required kernel modules
