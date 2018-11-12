@@ -33,7 +33,7 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	for _, node := range extra {
 		err = node.Join(ctx, JoinCmd{
 			PeerAddr: joinAddr,
-			Token:    status.Token,
+			Token:    status.Cluster.Token.Token,
 			Role:     p.Role,
 			StateDir: p.StateDir,
 		})

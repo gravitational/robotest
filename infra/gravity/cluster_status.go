@@ -17,7 +17,7 @@ func (c *TestContext) Status(nodes []Gravity) error {
 	defer cancel()
 
 	retry := wait.Retryer{
-		Attempts: 1000,
+		Attempts: 100,
 		Delay:    time.Second * 20,
 	}
 
@@ -35,7 +35,7 @@ func (c *TestContext) Status(nodes []Gravity) error {
 		if err == nil {
 			return nil
 		}
-		c.Logger().Warn("status not available on some nodes, will retry")
+		c.Logger().Warnf("Status not available on some nodes, will retry: %v.", err)
 		return wait.Continue("status not ready on some nodes")
 	})
 

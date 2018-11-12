@@ -122,15 +122,42 @@ type JoinCmd struct {
 	StateDir string
 }
 
-// GravityStatus is serialized form of `gravity status` CLI.
+// GravityStatus describes the status of the Gravity cluster
 type GravityStatus struct {
-	Application string
-	Cluster     string
-	Status      string
+	// Cluster describes the cluster status
+	Cluster ClusterStatus `json:"cluster"`
+}
+
+// ClusterStatus describes the status of a Gravity cluster
+type ClusterStatus struct {
+	// Application defines the cluster application
+	Application Application `json:"application"`
+	// Cluster is the name of the cluster
+	Cluster string `json:"domain"`
+	// Status is the cluster status
+	Status string `json:"state"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
-	Token string `validation:"required"`
-	// Nodes defines nodes the cluster observes
-	Nodes []string
+	Token Token `json:"token"`
+	// Nodes describes the nodes in the cluster
+	Nodes []NodeStatus `json:"nodes"`
+}
+
+// Application defines the cluster application
+type Application struct {
+	// Name is the name of the cluster application
+	Name string `json:"name"`
+}
+
+// NodeStatus describes the status of a cluster node
+type NodeStatus struct {
+	// Addr is the advertised address of this cluster node
+	Addr string `json:"advertise_ip"`
+}
+
+// Token describes the cluster join token
+type Token struct {
+	// Token is the join token value
+	Token string `json:"token"`
 }
 
 type gravity struct {
