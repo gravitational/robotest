@@ -68,17 +68,13 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 		skipLogCollection := false
 		ctx := c.Context()
 
-		if ctx.Err() != nil && policy.DestroyOnFailure == false {
+		if ctx.Err() != nil && !policy.DestroyOnFailure {
 			log.WithError(ctx.Err()).Info("skipped destroy")
 			return trace.Wrap(ctx.Err())
 		}
 
 		if ctx.Err() != nil {
-			log.WithError(ctx.Err()).Warn("Adding extra time for teardown.")
 			skipLogCollection = true
-			var cancel func()
-			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
-			defer cancel()
 		}
 
 		if !skipLogCollection && (c.Failed() || policy.AlwaysCollectLogs) {
@@ -89,8 +85,8 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			}
 		}
 
-		if (policy.DestroyOnSuccess == false) ||
-			(c.Failed() && policy.DestroyOnFailure == false) {
+		if !policy.DestroyOnSuccess ||
+			(c.Failed() && !policy.DestroyOnFailure) {
 			log.Info("not destroying VMs per policy")
 			return nil
 		}
@@ -99,9 +95,11 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 
 		err := destroyResource(destroy)
 		if err != nil {
-			log.WithError(err).Error("destroying VM resources")
+			log.WithError(err).Error("Failed to destroy VM resources.")
 		} else {
-			resourceDestroyed(tag)
+			if errDestroy := resourceDestroyed(tag); errDestroy != nil {
+				log.WithError(errDestroy).Warn("Failed to remove resource account.")
+			}
 		}
 
 		return trace.Wrap(err)
@@ -260,7 +258,7 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 			return wait.Abort(trace.Wrap(err))
 		}
 
-		resp, err = runTerraformOnce(ctx, cfg, *params)
+		resp, err = runTerraformOnce(ctx, cfg, *params, logger)
 		if err == nil {
 			return nil
 		}
@@ -276,6 +274,7 @@ func runTerraformOnce(
 	baseContext context.Context,
 	baseConfig ProvisionerConfig,
 	params cloudDynamicParams,
+	logger logrus.FieldLogger,
 ) (resp *terraformResp, err error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
@@ -305,7 +304,10 @@ func runTerraformOnce(
 			continue
 		}
 
-		resourceAllocated(baseConfig.Tag())
+		if errAlloc := resourceAllocated(baseConfig.Tag()); errAlloc != nil {
+			logger.Warnf("Failed to account for resource allocation: %v.", errAlloc)
+		}
+
 		return &terraformResp{
 			nodes:     p.NodePool().Nodes(),
 			destroyFn: p.Destroy,

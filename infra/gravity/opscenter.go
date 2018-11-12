@@ -135,13 +135,14 @@ func (c ProvisionerConfig) DestroyOpsFn(tc *TestContext, clusterName string) fun
 
 		// monitor the cluster until it's gone
 		timeout := time.After(DefaultTimeouts.Uninstall)
-		tick := time.Tick(5 * time.Second)
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
 
 		for {
 			select {
 			case <-timeout:
 				return trace.LimitExceeded("clusterDestroy timeout exceeded")
-			case <-tick:
+			case <-ticker.C:
 				// check provisioning status
 				status, err := getTeleClusterStatus(clusterName)
 				if err != nil && trace.IsNotFound(err) {

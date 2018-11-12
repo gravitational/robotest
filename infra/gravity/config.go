@@ -82,7 +82,7 @@ type ProvisionerConfig struct {
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL is AWS S3 URL with the installer
-	InstallerURL string `yaml:"installer_url" validate:"required,url`
+	InstallerURL string `yaml:"installer_url" validate:"required"`
 	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
 	StateDir string `yaml:"state_dir" validate:"required"`
 

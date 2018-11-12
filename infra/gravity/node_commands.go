@@ -238,10 +238,9 @@ var installCmdTemplate = template.Must(
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := "sudo gravity status --system-log-file=./telekube-system.log"
+	cmd := "sudo gravity status --output=json --system-log-file=./telekube-system.log"
 	status := GravityStatus{}
 	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
-
 	if err != nil {
 		return nil, trace.Wrap(err, cmd)
 	}
@@ -339,7 +338,10 @@ func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 		cmd = "sudo poweroff -f"
 	}
 
-	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	g.ssh = nil
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
@@ -357,9 +359,13 @@ func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 	} else {
 		cmd = "sudo reboot -f"
 	}
-	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
-	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 
+	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	client, err := sshClient(ctx, g.Node(), g.Logger())
 	if err != nil {
 		return trace.Wrap(err, "SSH reconnect")

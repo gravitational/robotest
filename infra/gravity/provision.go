@@ -156,7 +156,8 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) (cluster Cluster, err 
 
 	// monitor the cluster until it's created or times out
 	timeout := time.After(cloudInitTimeout)
-	tick := time.Tick(15 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
 
 	c.Logger().Debug("waiting for ops center provisioning to complete")
 Loop:
@@ -164,7 +165,7 @@ Loop:
 		select {
 		case <-timeout:
 			return cluster, errors.New("clusterInitTimeout exceeded")
-		case <-tick:
+		case <-ticker.C:
 			// check provisioning status
 			status, err := getTeleClusterStatus(clusterName)
 			c.Logger().WithField("status", status).Debug("provisioning status")
@@ -192,9 +193,6 @@ Loop:
 		return cluster, trace.Wrap(err)
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
-	defer cancel()
-
 	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
@@ -202,9 +200,10 @@ Loop:
 	}
 
 	c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
+	ctx, cancel := context.WithTimeout(c.Context(), diskWaitTimeout)
 	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")})
+
+	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")}, c.Logger())
 	if err != nil {
 		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
 		c.Logger().WithError(err).Error(err.Error())
@@ -277,16 +276,20 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
 	c.Logger().Debug("streaming logs")
 	for _, node := range gravityNodes {
-		go node.(*gravity).streamLogs(c.Context())
+		go func(node Gravity) {
+			if err := node.(*gravity).streamLogs(c.Context()); err != nil {
+				c.Logger().Warnf("Failed to stream logs: %v.", err)
+			}
+		}(node)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
 	c.Logger().Debug("synchronizing clocks")
-	timeNodes := []sshutil.SshNode{}
+	var timeNodes []sshutil.SshNode
 	for _, node := range gravityNodes {
-		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
+		timeNodes = append(timeNodes, sshutil.SshNode{Client: node.Client(), Log: node.Logger()})
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
 		return trace.Wrap(err)
@@ -315,8 +318,6 @@ const (
 	cloudInitSupportedFile = "/var/lib/bootstrap_started"
 	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
 )
-
-const cloudInitWait = time.Second * 10
 
 // bootstrapAzure workarounds some issues with Azure platform init
 func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
@@ -405,12 +406,12 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 
 // waitDisks is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
 // otherwise it'll fail telekube pre-install checks
-func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
+func waitDisks(ctx context.Context, nodes []Gravity, paths []string, logger logrus.FieldLogger) error {
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {
 		go func(node Gravity) {
-			errs <- waitDisk(ctx, node, paths, minDiskSpeed)
+			errs <- waitDisk(ctx, node, paths, minDiskSpeed, logger)
 		}(node)
 	}
 
@@ -418,11 +419,17 @@ func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
 }
 
 // waitDisk will wait specific disk performance to report OK
-func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64) error {
+func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64, logger logrus.FieldLogger) error {
 	err := wait.Retry(ctx, func() error {
 		for _, path := range paths {
 			if !strings.HasPrefix(path, "/dev") {
-				defer sshutil.Run(ctx, node.Client(), node.Logger(), fmt.Sprintf("sudo /bin/rm -f %s", path), nil)
+				defer func() {
+					errRemove := sshutil.Run(ctx, node.Client(), node.Logger(),
+						fmt.Sprintf("sudo /bin/rm -f %s", path), nil)
+					if errRemove != nil {
+						logger.Warnf("Failed to remove path: %v.", errRemove)
+					}
+				}()
 			}
 			var out string
 			_, err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),

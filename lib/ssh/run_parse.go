@@ -19,7 +19,6 @@ type OutputParseFn func(r *bufio.Reader) error
 
 const (
 	exitStatusUndefined = -1
-	exitCode            = "exit"
 )
 
 // Run is a simple method to run external program and don't care about its output or exit status
@@ -52,7 +51,14 @@ var (
 
 // RunAndParse runs remote SSH command with environment variables set by `env`
 // exitStatus is -1 if undefined
-func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
+func RunAndParse(
+	ctx context.Context,
+	client *ssh.Client,
+	log logrus.FieldLogger,
+	cmd string,
+	env map[string]string,
+	parse OutputParseFn,
+) (exitStatus int, err error) {
 	session, err := client.NewSession()
 	if err != nil {
 		return exitStatusUndefined, trace.Wrap(err)
@@ -65,10 +71,8 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 	}
 
 	envStrings := []string{}
-	if env != nil {
-		for k, v := range env {
-			envStrings = append(envStrings, fmt.Sprintf("%s=%s", k, v))
-		}
+	for k, v := range env {
+		envStrings = append(envStrings, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	session.Stdin = new(bytes.Buffer)
@@ -123,7 +127,7 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 	for i := 0; i < expectErrs; i++ {
 		select {
 		case <-ctx.Done():
-			session.Signal(ssh.SIGTERM)
+			_ = session.Signal(ssh.SIGTERM)
 			log.WithError(ctx.Err()).Debug("context terminated, sent SIGTERM")
 			return exitStatusUndefined, err
 		case err = <-errCh:
@@ -143,7 +147,7 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 }
 
 func ParseDiscard(r *bufio.Reader) error {
-	io.Copy(ioutil.Discard, r)
+	_, _ = io.Copy(ioutil.Discard, r)
 	return nil
 }
 

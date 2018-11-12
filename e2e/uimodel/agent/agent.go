@@ -62,7 +62,7 @@ func (a *AgentServer) GetIPs() []string {
 	var result []string
 
 	script := fmt.Sprintf(scriptTemplate, a.cssSelector)
-	a.page.RunScript(script, nil, &result)
+	Expect(a.page.RunScript(script, nil, &result)).To(Succeed())
 	return result
 }
 

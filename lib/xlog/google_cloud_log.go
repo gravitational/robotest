@@ -17,9 +17,8 @@ import (
 )
 
 const (
-	statusTopic  = "robotest"
-	logViewerUrl = "https://console.cloud.google.com/logs/viewer"
-	maxStack     = 10
+	statusTopic = "robotest"
+	maxStack    = 10
 )
 
 var levelMap map[logrus.Level]cl.Severity = map[logrus.Level]cl.Severity{

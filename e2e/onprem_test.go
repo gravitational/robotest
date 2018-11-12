@@ -42,7 +42,7 @@ var _ = framework.RoboDescribe("Onprem Integration Test", func() {
 		installer.WaitForCompletion()
 
 		By("checking for bandwagon step")
-		if installer.NeedsBandwagon(domainName) == false {
+		if !installer.NeedsBandwagon(domainName) {
 			ui.GoToSite(domainName)
 			return
 		}

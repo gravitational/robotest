@@ -18,7 +18,7 @@ func TranslateClusterName(cluster string) string {
 func Hash(strings ...string) uint32 {
 	digester := fnv.New32()
 	for _, s := range strings {
-		io.WriteString(digester, s)
+		_, _ = io.WriteString(digester, s)
 	}
 	return digester.Sum32()
 }

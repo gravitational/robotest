@@ -85,10 +85,10 @@ func SetDropdownValue(page *web.Page, classPath string, value string) {
 	}
 
 	var result []string
-	page.Find(classPath).Click()
+	Expect(page.Find(classPath).Click()).To(Succeed())
 	PauseForComponentJs()
 	script := fmt.Sprintf(scriptTemplate, classPath)
-	page.RunScript(script, nil, &result)
+	Expect(page.RunScript(script, nil, &result)).To(Succeed())
 	for i, optionValue := range result {
 		if optionValue == value {
 			optionClass := fmt.Sprintf("%v .Select-option:nth-child(%v)", classPath, i+1)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -142,13 +143,15 @@ func InitializeCluster() {
 			withInstaller := TestContext.Onprem.InstallerURL != "" && TestContext.Wizard
 			loader, ok := provisioner.(infra.ExternalStateLoader)
 			if TestContext.Provisioner.LoadFromState && ok {
-				f, err := os.Open(TestContext.Provisioner.StateFile)
+				var f io.ReadCloser
+				f, err = os.Open(TestContext.Provisioner.StateFile)
 				Expect(err).NotTo(HaveOccurred())
 				defer f.Close()
 				installerNode, err = loader.LoadFromExternalState(f, withInstaller)
 			} else {
 				installerNode, err = provisioner.Create(context.TODO(), withInstaller)
 			}
+			Expect(err).NotTo(HaveOccurred())
 		}
 		if provisioner != nil {
 			testState.Provisioner = TestContext.Provisioner

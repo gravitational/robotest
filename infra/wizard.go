@@ -111,7 +111,7 @@ func startWizard(provisioner Provisioner, installer Node) (cluster *wizardCluste
 
 	// Discard all stdout content after the necessary wizard details have been obtained
 	go func() {
-		io.Copy(ioutil.Discard, reader)
+		_, _ = io.Copy(ioutil.Discard, reader)
 	}()
 
 	// TODO: make sure that all io.Copy goroutines shutdown in Close

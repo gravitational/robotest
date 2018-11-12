@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/gravitational/robotest/infra/gravity"
 
@@ -148,15 +147,4 @@ func parseJSON(data string, defaults interface{}) (interface{}, error) {
 func Validate(param interface{}) error {
 	err := validator.New().Struct(param)
 	return trace.Wrap(err)
-
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		var errs []string
-		for _, fieldError := range validationErrors {
-			errs = append(errs,
-				fmt.Sprintf("%s=%v is tag=%s struct_field=%s str=%s", fieldError.Field(), fieldError.Value(), fieldError.Tag(), fieldError.StructField(), fieldError.Param(), fieldError))
-		}
-		return trace.Errorf(strings.Join(errs, ", "))
-	}
-	return trace.Wrap(err)
-
 }

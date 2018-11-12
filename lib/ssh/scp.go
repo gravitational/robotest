@@ -61,7 +61,7 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	err = trace.NewAggregate(errReceive, errSend)
 
 	if ctx.Err() != nil {
-		session.Signal(ssh.SIGTERM)
+		_ = session.Signal(ssh.SIGTERM)
 		return "", trace.Errorf("scp timed out")
 	}
 
@@ -138,17 +138,18 @@ func PipeCommand(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 		errCh <- trace.Wrap(err)
 	}()
 
-	go io.Copy(ioutil.Discard,
-		&readLogger{log.WithField("stream", "stderr"), stderr})
+	go func() {
+		_, _ = io.Copy(ioutil.Discard,
+			&readLogger{log.WithField("stream", "stderr"), stderr})
+	}()
 
 	err = utils.CollectErrors(ctx, errCh)
 	if ctx.Err() != nil {
-		session.Signal(ssh.SIGTERM)
-		trace.Errorf("%s -> %s killed due to context cancelled", cmd, dst)
+		_ = session.Signal(ssh.SIGTERM)
+		return trace.LimitExceeded("%s -> %s killed due to context cancelled", cmd, dst)
 	}
 	if err != nil {
-		trace.Wrap(err)
+		return trace.Wrap(err)
 	}
-
 	return nil
 }

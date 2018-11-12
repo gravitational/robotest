@@ -45,15 +45,17 @@ func (c *TestContext) Status(nodes []Gravity) error {
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits
 func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 	timeNodes := []sshutils.SshNode{}
-	for _, n := range timeNodes {
-		timeNodes = append(timeNodes, n)
+	for _, n := range nodes {
+		timeNodes = append(timeNodes, sshutils.SshNode{
+			Client: n.Client(),
+			Log:    c.Logger(),
+		})
 	}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
 	err := sshutils.CheckTimeSync(ctx, timeNodes)
-
 	return trace.Wrap(err)
 }
 

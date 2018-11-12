@@ -82,7 +82,7 @@ func ExecWithInput(cmd *exec.Cmd, input string, out io.Writer, setters ...Comman
 	}
 
 	if stdin != nil {
-		io.WriteString(stdin, input)
+		_, _ = io.WriteString(stdin, input)
 	}
 
 	if err := cmd.Wait(); err != nil {

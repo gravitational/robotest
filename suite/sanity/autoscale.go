@@ -11,7 +11,10 @@ func autoscale(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		cluster, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
-		defer cluster.Destroy()
+		defer func() {
+			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
+			g.Maybe("destroy", cluster.Destroy())
+		}()
 
 		g.OK("status", g.Status(cluster.Nodes))
 		g.OK("time sync", g.CheckTimeSync(cluster.Nodes))

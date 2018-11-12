@@ -496,6 +496,9 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = terraform.New(stateDir, *config)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -504,20 +507,20 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			NumNodes:     TestContext.Onprem.NumNodes,
 			DockerDevice: TestContext.Onprem.DockerDevice,
 		}
-		err := config.Validate()
+		err = config.Validate()
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = vagrant.New(stateDir, config)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
 		if provisionerConfig.Type != "" {
 			return nil, trace.BadParameter("unknown provisioner %q", provisionerConfig.Type)
 		}
-	}
-	if err != nil {
-		return nil, trace.Wrap(err)
 	}
 	return provisioner, nil
 }
@@ -539,6 +542,9 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = terraform.NewFromState(*config, *testState.ProvisionerState)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -551,15 +557,15 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = vagrant.NewFromState(config, *testState.ProvisionerState)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
 		if testState.Provisioner != nil && testState.Provisioner.Type != "" {
 			return nil, trace.BadParameter("unknown provisioner %q", testState.Provisioner.Type)
 		}
-	}
-	if err != nil {
-		return nil, trace.Wrap(err)
 	}
 	return provisioner, nil
 }

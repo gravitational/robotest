@@ -4,9 +4,7 @@ import (
 	"context"
 
 	"github.com/gravitational/robotest/lib/constants"
-	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
-	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
 )
@@ -45,23 +43,6 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	}
 
 	return nil
-}
-
-func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
-	return func() error {
-		exitCode, err := sshutils.RunAndParse(ctx, node.Client(), node.Logger(),
-			`sudo /usr/bin/gravity enter -- --notty /usr/bin/etcdctl -- cluster-health`,
-			nil, sshutils.ParseDiscard)
-		if err == nil {
-			return nil
-		}
-
-		if exitCode > 0 {
-			return wait.Continue(err.Error())
-		} else {
-			return wait.Abort(err)
-		}
-	}
 }
 
 // ShrinkLeave will gracefully leave cluster

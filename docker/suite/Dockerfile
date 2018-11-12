@@ -1,5 +1,8 @@
 FROM quay.io/gravitational/debian-grande:latest
 
+RUN apt-get update && \
+    apt-get install -y curl unzip
+
 ARG TERRAFORM_VERSION
 ARG TERRAFORM_PROVIDER_AZURERM_VERSION
 ARG TERRAFORM_PROVIDER_AWS_VERSION
@@ -18,9 +21,7 @@ ENV TF_PLUGINS \
     https://releases.hashicorp.com/terraform-provider-template/${TERRAFORM_PROVIDER_TEMPLATE_VERSION}/terraform-provider-template_${TERRAFORM_PROVIDER_TEMPLATE_VERSION}_linux_amd64.zip \
     https://releases.hashicorp.com/terraform-provider-random/${TERRAFORM_PROVIDER_RANDOM_VERSION}/terraform-provider-random_${TERRAFORM_PROVIDER_RANDOM_VERSION}_linux_amd64.zip
 
-RUN apt-get update && \
-    apt-get install -y curl unzip && \
-    curl ${TF_TARBALL} -o terraform.zip && \
+RUN curl ${TF_TARBALL} -o terraform.zip && \
     unzip terraform.zip -d /usr/bin && \
     rm -f terraform.zip && \
     mkdir -p /etc/terraform/plugins && \

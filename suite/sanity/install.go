@@ -43,7 +43,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		g.OK("VMs ready", err)
 		defer func() {
 			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
-			cluster.Destroy()
+			g.Maybe("destroy", cluster.Destroy())
 		}()
 
 		installerURL := cfg.InstallerURL
@@ -67,7 +67,9 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		cluster, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
-		defer cluster.Destroy()
+		defer func() {
+			g.Maybe("destroy", cluster.Destroy())
+		}()
 
 		installerURL := cfg.InstallerURL
 		if param.InstallerURL != "" {

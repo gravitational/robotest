@@ -365,9 +365,10 @@ func (r *terraform) saveVarsJSON(varFile string) error {
 		return trace.BadParameter("invalid cloud provider: %v", r.Config.CloudProvider)
 	}
 
-	f, err := os.OpenFile(varFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 440)
+	f, err := os.OpenFile(varFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.SharedReadWriteMask)
 	if err != nil {
-		return trace.Wrap(err, "Cannot save Terraform Vars file %s", varFile)
+		return trace.Wrap(trace.ConvertSystemError(err),
+			"failed to save terraform variables file %v", varFile)
 	}
 	defer f.Close()
 
@@ -399,7 +400,6 @@ type terraform struct {
 	Config
 
 	sshUser, sshKeyPath string
-	sshClient           *ssh.Client
 
 	pool           infra.NodePool
 	stateDir       string

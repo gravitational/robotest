@@ -293,20 +293,6 @@ func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
 	return "", trace.NotFound("failed to find IP address for node %q", nodename)
 }
 
-func (r *vagrant) getIPVirtualbox(nodename string) (string, error) {
-	out, err := r.command(args("ssh", nodename, "-c", "ip r|tail -n 1|cut -d' ' -f12", "--", "-q"))
-	if err != nil {
-		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out)
-	}
-
-	publicIP := strings.TrimSpace(string(out))
-	if publicIP == "" {
-		return "", trace.NotFound("failed to discover VM public IP")
-	}
-
-	return publicIP, nil
-}
-
 func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
 	cmd := exec.Command("vagrant", args...)
 	var out bytes.Buffer
@@ -396,9 +382,6 @@ type vagrant struct {
 	pool        infra.NodePool
 	stateDir    string
 	installerIP string
-	// nodes maps node address to a node.
-	// nodes represents the total cluster capacity as defined by the Vagrantfile
-	nodes map[string]node
 }
 
 type node struct {

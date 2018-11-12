@@ -35,6 +35,7 @@ func createAWSProfile(page *web.Page, index int) AWSProfile {
 	Expect(nodeCount).NotTo(BeEmpty())
 
 	cssSelector = fmt.Sprintf("%v .grv-installer-provision-node-desc h3", getProfileCSSSelector(index))
+	child = page.Find(cssSelector)
 	Expect(child).To(BeFound())
 	nodeLabel, _ := child.Text()
 

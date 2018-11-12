@@ -34,12 +34,11 @@ func CopyFileWithPerms(src, dst string, perm os.FileMode) error {
 		return trace.ConvertSystemError(err)
 	}
 
-	cleanup := func() error {
+	cleanup := func() {
 		err := os.Remove(tmp.Name())
 		if err != nil {
-			log.Errorf("failed to remove %q: %v", tmp.Name(), err)
+			log.Warnf("Failed to remove %v: %v.", tmp.Name(), err)
 		}
-		return trace.ConvertSystemError(err)
 	}
 
 	_, err = io.Copy(tmp, in)

@@ -3,11 +3,9 @@ package gravity
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/lib/constants"
@@ -145,23 +143,13 @@ func waitFileInstaller(ctx context.Context, file string, logger log.FieldLogger)
 			return nil
 		}
 		if os.IsNotExist(err) {
+			logger.Info("Waiting for installer file to become available.")
 			return wait.Continue("waiting for installer file %s", file)
-			logger.Warn("waiting for installer file to become available")
 		}
 		return wait.Abort(trace.ConvertSystemError(err))
 	})
 
 	return trace.Wrap(err)
-}
-
-func makePassword() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
-	result := make([]byte, 10)
-	for i := range result {
-		result[i] = chars[r.Intn(len(chars))]
-	}
-	return string(result)
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
