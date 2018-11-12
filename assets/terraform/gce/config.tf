@@ -74,6 +74,15 @@ provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"
   region      = "${var.region}"
+  version     = "~> 1.19"
+}
+
+provider "random" {
+  version = "~> 2.0"
+}
+
+provider "template" {
+  version = "~> 1.0"
 }
 
 # List zones available in a region
