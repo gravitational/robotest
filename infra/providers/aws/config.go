@@ -34,7 +34,7 @@ type Config struct {
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 }
 
-// FIXME: replace with embedded validation rules
+// IsEmpty determines whether this configuration is empty
 func (r Config) IsEmpty() bool {
 	return r.AccessKey == "" && r.SecretKey == ""
 }
