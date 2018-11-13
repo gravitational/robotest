@@ -29,7 +29,7 @@ func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd st
 	}
 
 	if exit != 0 {
-		return trace.Errorf("%s returned %d", cmd, exit)
+		return trace.BadParameter("%s returned %d", cmd, exit)
 	}
 
 	return nil
@@ -128,17 +128,22 @@ func RunAndParse(
 		select {
 		case <-ctx.Done():
 			_ = session.Signal(ssh.SIGTERM)
-			log.WithError(ctx.Err()).Debug("context terminated, sent SIGTERM")
+			log.WithError(ctx.Err()).Debug("Context terminated, sent SIGTERM.")
 			return exitStatusUndefined, err
 		case err = <-errCh:
-			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-				err = trace.Wrap(exitErr)
-				log.WithError(err).Debugf("%s : %s", cmd, exitErr.Error())
-				return exitErr.ExitStatus(), err
+			switch sshError := err.(type) {
+			case *ssh.ExitError:
+				err = trace.Wrap(sshError)
+				log.WithError(err).Debugf("Command %v failed: %v", cmd, sshError.Error())
+				return sshError.ExitStatus(), err
+			case *ssh.ExitMissingError:
+				err = trace.Wrap(sshError)
+				log.WithError(err).Debug("Session aborted unexpectedly (node destroyed?).")
+				return exitStatusUndefined, err
 			}
 			if err != nil {
 				err = trace.Wrap(err)
-				log.WithError(err).Debug("unexpected error")
+				log.WithError(err).Debug("Unexpected error.")
 				return exitStatusUndefined, err
 			}
 		}
@@ -160,6 +165,11 @@ func ParseAsString(out *string) OutputParseFn {
 		*out = strings.Replace(string(b), `\r`, ``, -1)
 		return nil
 	}
+}
+
+func IsExitMissingError(err error) bool {
+	_, ok := trace.Unwrap(err).(*ssh.ExitMissingError)
+	return ok
 }
 
 type readLogger struct {

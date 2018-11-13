@@ -278,7 +278,9 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	for _, node := range gravityNodes {
 		go func(node Gravity) {
 			if err := node.(*gravity).streamLogs(c.Context()); err != nil {
-				c.Logger().Warnf("Failed to stream logs: %v.", err)
+				if !sshutil.IsExitMissingError(err) {
+					c.Logger().Warnf("Failed to stream logs: %v.", err)
+				}
 			}
 		}(node)
 	}
