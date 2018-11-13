@@ -93,11 +93,10 @@ resource "google_compute_instance" "node" {
 
   scheduling {
     # https://cloud.google.com/compute/docs/instances/preemptible
-    # Make this an officially short-lived instance
+    # This is a spot instance
     preemptible = true
 
-    # TODO: need to come up with a way to provide feedback to robotest
-    # if this happens, so the test could be retried
+    # If preempted, the test will be retried with a new configuration
     automatic_restart = false
   }
 

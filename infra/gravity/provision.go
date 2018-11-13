@@ -254,16 +254,6 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 		return cluster, nil, trace.Wrap(err)
 	}
 
-	// c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	// ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	// defer cancel()
-	// err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
-	// if err != nil {
-	// 	err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
-	// 	c.Logger().WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
-	// 	return nil, nil, trace.Wrap(err)
-	// }
-
 	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	cluster.Nodes = gravityNodes

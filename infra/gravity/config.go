@@ -30,7 +30,7 @@ type OS struct {
 // UnmarshalText interprets b as an OS vendor with a version.
 // I.e. given:
 //
-//   "vendor:version", it returns the correspoding OS instance
+//   "vendor:version", it populates this OS instance accordingly
 func (os *OS) UnmarshalText(b []byte) error {
 	split := bytes.Split(b, []byte(":"))
 	if len(split) != 2 {
@@ -41,12 +41,12 @@ func (os *OS) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// Strings returns a textual representation of this OS object
+// String returns a textual representation of this OS instance
 func (os OS) String() string {
 	return fmt.Sprintf("%s:%s", os.Vendor, os.Version)
 }
 
-// StorageDriver defines the Docker storage driver name
+// StorageDriver specifies a Docker storage driver by name
 type StorageDriver string
 
 // UnmarshalText interprets b as a Docker storage driver name

@@ -176,7 +176,7 @@ func (c *TestContext) UninstallApp(nodes []Gravity) error {
 		return trace.Wrap(err)
 	}
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.UninstallApp)
+	ctx, cancel := context.WithTimeout(context.TODO(), c.timeouts.UninstallApp)
 	defer cancel()
 
 	master := roles.ApiMaster

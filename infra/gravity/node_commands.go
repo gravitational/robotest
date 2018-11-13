@@ -352,7 +352,7 @@ func (g *gravity) Uninstall(ctx context.Context) error {
 
 // UninstallApp uninstalls the cluster application.
 // This is usually required to properly clean up cloud resources
-// managed internally by kubernetes
+// internally managed by kubernetes in case of kubernetes cloud integration
 func (g *gravity) UninstallApp(ctx context.Context) error {
 	cmd := fmt.Sprintf("cd %s && sudo ./gravity app uninstall $(./gravity app-package) --system-log-file=./telekube-system.log", g.installDir)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
