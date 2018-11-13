@@ -77,7 +77,6 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 		cluster, err := g.Provision(config)
 		g.OK("provision nodes", err)
 		defer func() {
-			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 

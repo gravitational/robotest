@@ -42,7 +42,6 @@ func install(p interface{}) (gravity.TestFunc, error) {
 		cluster, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
 		defer func() {
-			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 

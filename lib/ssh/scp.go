@@ -51,7 +51,8 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	}
 
 	go func() {
-		err := scpSendFile(stdin, f, fi)
+		buf := make([]byte, 32<<20)
+		err := scpSendFile(stdin, f, fi, buf)
 		stdin.Close()
 		errCh <- trace.Wrap(err)
 	}()
@@ -73,13 +74,13 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	return remotePath, nil
 }
 
-func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo) error {
+func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo, buf []byte) error {
 	_, err := fmt.Fprintf(out, "C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
 
-	n, err := io.Copy(out, file)
+	n, err := io.CopyBuffer(out, file, buf)
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}

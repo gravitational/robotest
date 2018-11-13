@@ -35,7 +35,6 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 			WithNodes(param.ToNodes))
 		g.OK("provision nodes", err)
 		defer func() {
-			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 

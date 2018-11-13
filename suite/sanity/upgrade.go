@@ -30,7 +30,6 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 		cluster, err := provisionNodes(g, cfg, param.installParam)
 		g.OK("provision nodes", err)
 		defer func() {
-			g.Maybe("uninstall application", g.UninstallApp(cluster.Nodes))
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
