@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
@@ -228,10 +229,16 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		InstallParam
 	}
 
+	dockerDevice := g.param.dockerDevice
+	if g.param.storageDriver != constants.DeviceMapper {
+		// Docker device is not used with non-devicemapper storage drivers
+		dockerDevice = ""
+	}
+
 	config := cmd{
 		InstallDir:    g.installDir,
 		PrivateAddr:   g.Node().PrivateAddr(),
-		DockerDevice:  g.param.dockerDevice,
+		DockerDevice:  dockerDevice,
 		StorageDriver: g.param.storageDriver.Driver(),
 		InstallParam:  param,
 	}
