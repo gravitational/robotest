@@ -63,7 +63,10 @@ func (c *TestContext) Context() context.Context {
 
 // Logger returns preconfigured logger for this test
 func (c *TestContext) Logger() logrus.FieldLogger {
-	return c.log
+	if len(c.fields) == 0 {
+		return c.log
+	}
+	return c.log.WithFields(c.fields)
 }
 
 // WithTimeouts returns context

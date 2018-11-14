@@ -301,11 +301,17 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 		JoinCmd
 	}
 
+	dockerDevice := g.param.dockerDevice
+	if g.param.storageDriver != constants.DeviceMapper {
+		// Docker device is not used with non-devicemapper storage drivers
+		dockerDevice = ""
+	}
+
 	var buf bytes.Buffer
 	err := joinCmdTemplate.Execute(&buf, cmd{
 		InstallDir:   g.installDir,
 		PrivateAddr:  g.Node().PrivateAddr(),
-		DockerDevice: g.param.dockerDevice,
+		DockerDevice: dockerDevice,
 		JoinCmd:      param,
 	})
 	if err != nil {

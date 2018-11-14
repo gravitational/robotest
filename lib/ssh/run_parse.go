@@ -21,6 +21,7 @@ type OutputParseFn func(r *bufio.Reader) error
 func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
 	err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
 	if err != nil {
+		log.WithError(err).WithField("cmd", cmd).Warnf("Command failed.")
 		return trace.Wrap(err, cmd)
 	}
 
@@ -82,45 +83,51 @@ func RunAndParse(
 	log = log.WithField("cmd", cmd)
 
 	errCh := make(chan error, 2)
-	expectErrs := 1
+	expectErrors := 1
 	if parse != nil {
-		expectErrs++
+		expectErrors = 2
 		go func() {
 			err := parse(bufio.NewReader(
-				&readLogger{log.WithField("stream", "stdout"), stdout}))
-			errCh <- trace.Wrap(err)
+				&readLogger{
+					log: log.WithField("stream", "stdout"),
+					r:   stdout,
+				}))
+			err = trace.Wrap(err)
+			log.Debugf("Done streaming stdout (%v).", err)
+			errCh <- err
 		}()
 	}
 
 	go func() {
-		log.Debug(cmd)
-		errCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
+		r := bufio.NewReader(stderr)
+		stderrLog := log.WithField("stream", "stderr")
+		for {
+			line, err := r.ReadString('\n')
+			if line != "" {
+				stderrLog.Debug(line)
+			}
+			if err != nil {
+				return
+			}
+		}
 	}()
 
-	if parse != nil {
-		go func() {
-			r := bufio.NewReader(stderr)
-			stderrLog := log.WithField("stream", "stderr")
-			for {
-				line, err := r.ReadString('\n')
-				if err != nil {
-					return
-				}
-				if line != "" {
-					stderrLog.Debug(line)
-				}
-			}
-		}()
-	}
+	go func() {
+		sessionCommand := fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd)
+		log.Debugf("Running session command %v.", sessionCommand)
+		err := trace.Wrap(session.Run(sessionCommand))
+		log.Debugf("Done running session command %v (%v).", sessionCommand, err)
+		errCh <- err
+	}()
 
-	for i := 0; i < expectErrs; i++ {
+	for i := 0; i < expectErrors; i++ {
 		select {
 		case <-ctx.Done():
 			_ = session.Signal(ssh.SIGTERM)
 			log.WithError(ctx.Err()).Debug("Context terminated, sent SIGTERM.")
 			return trace.Wrap(ctx.Err())
 		case err = <-errCh:
-			switch sshError := err.(type) {
+			switch sshError := trace.Unwrap(err).(type) {
 			case *ssh.ExitError:
 				err = trace.Wrap(sshError)
 				log.WithError(err).Debugf("Command %v failed: %v", cmd, sshError.Error())
@@ -137,6 +144,8 @@ func RunAndParse(
 			}
 		}
 	}
+
+	log.Debug("Command finished.")
 	return nil
 }
 

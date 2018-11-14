@@ -236,9 +236,10 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 		labels["__uuid__"] = uid
 		labels["__suite__"] = s.uid
 		labels["__param__"] = param
+		labels["__name__"] = cfg.Tag()
 		logLink, err = s.getLogLink(uid)
 		if err != nil {
-			s.Logger().WithError(err).Error("Failed to create short log link")
+			s.Logger().WithError(err).Error("Failed to create short log link.")
 		}
 	}
 
@@ -253,7 +254,9 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 		suite:    s,
 		param:    param,
 		logLink:  logLink,
-		log:      xlog.NewLogger(s.client, t, labels),
+		log: xlog.NewLogger(s.client, t, labels).WithFields(logrus.Fields{
+			"name": cfg.Tag(),
+		}),
 	}
 
 	defer func() {

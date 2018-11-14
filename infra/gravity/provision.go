@@ -264,7 +264,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 
 // postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
 func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
-	c.Logger().Debug("streaming logs")
+	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
 		go func(node Gravity) {
 			if err := node.(*gravity).streamLogs(c.Context()); err != nil {
