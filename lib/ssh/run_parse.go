@@ -17,10 +17,6 @@ import (
 
 type OutputParseFn func(r *bufio.Reader) error
 
-const (
-	exitStatusUndefined = -1
-)
-
 // Run is a simple method to run external program and don't care about its output or exit status
 func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
 	err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
