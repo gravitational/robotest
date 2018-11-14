@@ -23,13 +23,9 @@ const (
 
 // Run is a simple method to run external program and don't care about its output or exit status
 func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
-	exit, err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
+	err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
 	if err != nil {
 		return trace.Wrap(err, cmd)
-	}
-
-	if exit != 0 {
-		return trace.BadParameter("%s returned %d", cmd, exit)
 	}
 
 	return nil
@@ -58,16 +54,16 @@ func RunAndParse(
 	cmd string,
 	env map[string]string,
 	parse OutputParseFn,
-) (exitStatus int, err error) {
+) (err error) {
 	session, err := client.NewSession()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 	defer session.Close()
 
 	err = session.RequestPty(term, termH, termW, termModes)
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
 	envStrings := []string{}
@@ -79,12 +75,12 @@ func RunAndParse(
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
 	log = log.WithField("cmd", cmd)
@@ -105,50 +101,47 @@ func RunAndParse(
 		errCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
 	}()
 
-	go func() {
-		r := bufio.NewReader(stderr)
-		stderrLog := log.WithField("stream", "stderr")
-		for {
-			line, err := r.ReadString('\n')
-			if line != "" {
-				stderrLog.Debug(line)
+	if parse != nil {
+		go func() {
+			r := bufio.NewReader(stderr)
+			stderrLog := log.WithField("stream", "stderr")
+			for {
+				line, err := r.ReadString('\n')
+				if err != nil {
+					return
+				}
+				if line != "" {
+					stderrLog.Debug(line)
+				}
 			}
-			if parse == nil {
-				session.Close()
-				errCh <- nil // FIXME : this is a hack; session closure does not unblock session.Run() wonder if there's a better way
-				return
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
+		}()
+	}
 
 	for i := 0; i < expectErrs; i++ {
 		select {
 		case <-ctx.Done():
 			_ = session.Signal(ssh.SIGTERM)
 			log.WithError(ctx.Err()).Debug("Context terminated, sent SIGTERM.")
-			return exitStatusUndefined, err
+			return trace.Wrap(ctx.Err())
 		case err = <-errCh:
 			switch sshError := err.(type) {
 			case *ssh.ExitError:
 				err = trace.Wrap(sshError)
 				log.WithError(err).Debugf("Command %v failed: %v", cmd, sshError.Error())
-				return sshError.ExitStatus(), err
+				return err
 			case *ssh.ExitMissingError:
 				err = trace.Wrap(sshError)
 				log.WithError(err).Debug("Session aborted unexpectedly (node destroyed?).")
-				return exitStatusUndefined, err
+				return err
 			}
 			if err != nil {
 				err = trace.Wrap(err)
 				log.WithError(err).Debug("Unexpected error.")
-				return exitStatusUndefined, err
+				return err
 			}
 		}
 	}
-	return 0, nil
+	return nil
 }
 
 func ParseDiscard(r *bufio.Reader) error {
@@ -170,6 +163,13 @@ func ParseAsString(out *string) OutputParseFn {
 func IsExitMissingError(err error) bool {
 	_, ok := trace.Unwrap(err).(*ssh.ExitMissingError)
 	return ok
+}
+
+// ExitStatusError describes the class of errors that
+// report exit status
+type ExitStatusError interface {
+	// ExitStatus reports the exist status of an operation
+	ExitStatus() int
 }
 
 type readLogger struct {

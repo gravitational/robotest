@@ -424,7 +424,7 @@ func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64
 				}()
 			}
 			var out string
-			_, err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
+			err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
 				fmt.Sprintf("sudo dd if=/dev/zero of=%s bs=100K count=1024 conv=fdatasync 2>&1", path),
 				nil, sshutil.ParseAsString(&out))
 			if err != nil {

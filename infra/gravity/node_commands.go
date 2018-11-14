@@ -270,14 +270,18 @@ var installCmdTemplate = template.Must(
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	cmd := "sudo gravity status --output=json --system-log-file=./telekube-system.log"
 	status := GravityStatus{}
-	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 	if err != nil {
+		if exitErr, ok := trace.Unwrap(err).(sshutils.ExitStatusError); ok {
+			g.Logger().WithFields(logrus.Fields{
+				"private_addr": g.Node().PrivateAddr(),
+				"addr":         g.Node().Addr(),
+				"command":      cmd,
+				"exit code":    exitErr.ExitStatus(),
+			}).Warn("Failed.")
+		}
 		return nil, trace.Wrap(err, cmd)
-	}
 
-	if exit != 0 {
-		return nil, trace.Errorf("[%s/%s] %s returned %d",
-			g.Node().PrivateAddr(), g.Node().Addr(), cmd, exit)
 	}
 
 	return &status, nil
@@ -368,7 +372,7 @@ func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 		cmd = "sudo poweroff -f"
 	}
 
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -390,7 +394,7 @@ func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 		cmd = "sudo reboot -f"
 	}
 
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -480,7 +484,7 @@ const (
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
 			g.installDir, command),
 		nil, sshutils.ParseAsString(&code))
@@ -500,7 +504,7 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 	err = retry.Do(ctx, func() error {
 		var response string
 		cmd := fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code)
-		_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
+		err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 			cmd, nil, sshutils.ParseAsString(&response))
 		if err != nil {
 			return wait.Continue(cmd)
@@ -524,7 +528,7 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 		g.installDir, cmd, strings.Join(args, " "))
 
 	var out string
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), c, nil, sshutils.ParseAsString(&out))
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), c, nil, sshutils.ParseAsString(&out))
 	if err != nil {
 		return "", trace.Wrap(err)
 	}

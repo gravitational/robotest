@@ -9,7 +9,6 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
-
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -63,19 +62,25 @@ const (
 // It returns trace.NotFound in case test fails, nil is test passes, and unspecified error otherwise
 func TestFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, path, test string) error {
 	cmd := fmt.Sprintf("sudo test %s %s", test, path)
-	exit, err := RunAndParse(ctx, client, log, cmd, nil, ParseDiscard)
-
-	/*
-	   The test utility exits with one of the following values:
-	   0       expression evaluated to true.
-	   1       expression evaluated to false or expression was missing.
-	   >1      An error occurred.
-	*/
-	switch exit {
-	case 0:
+	err := RunAndParse(ctx, client, log, cmd, nil, ParseDiscard)
+	if err == nil {
+		// Implies exit code == 0
 		return nil
-	case 1:
-		return trace.NotFound(path)
+	}
+
+	if exitError, ok := trace.Unwrap(err).(ExitStatusError); ok {
+		/*
+		   The test utility exits with one of the following values:
+		   0       expression evaluated to true.
+		   1       expression evaluated to false or expression was missing.
+		   >1      An error occurred.
+		*/
+		switch exitError.ExitStatus() {
+		case 0:
+			return nil
+		case 1:
+			return trace.NotFound(path)
+		}
 	}
 
 	return trace.Wrap(err, cmd)

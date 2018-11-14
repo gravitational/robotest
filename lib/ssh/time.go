@@ -53,7 +53,7 @@ func checkTimeInSync(ctx context.Context, nodes []SshNode) func() error {
 		for _, node := range nodes {
 			go func(node SshNode) {
 				var ts float64
-				_, err := RunAndParse(ctx, node.Client, node.Log, "date +%s%3N", nil, parseTime(&ts))
+				err := RunAndParse(ctx, node.Client, node.Log, "date +%s%3N", nil, parseTime(&ts))
 				errCh <- err
 				valueCh <- ts
 			}(node)

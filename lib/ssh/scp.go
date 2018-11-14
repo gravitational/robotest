@@ -63,7 +63,7 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 
 	if ctx.Err() != nil {
 		_ = session.Signal(ssh.SIGTERM)
-		return "", trace.Errorf("scp timed out")
+		return "", trace.LimitExceeded("scp timed out")
 	}
 
 	if err != nil {
@@ -85,7 +85,7 @@ func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo, buf []byte) 
 		return trace.ConvertSystemError(err)
 	}
 	if n != fi.Size() {
-		return trace.Errorf("short write: %v %v", n, fi.Size())
+		return trace.BadParameter("short write: %v %v", n, fi.Size())
 	}
 
 	if _, err := out.Write([]byte{0x0}); err != nil {
