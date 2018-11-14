@@ -42,8 +42,11 @@ var (
 	}
 )
 
-// RunAndParse runs remote SSH command with environment variables set by `env`
-// exitStatus is -1 if undefined
+// RunAndParse runs remote SSH command cmd with environment variables set with env.
+// parse if set, will be provided the reader that consumes stdout of the command.
+// Returns *ssh.ExitError if the command has completed with a non-0 exit code,
+// *ssh.ExitMissingError if the other side has terminated the session without providing
+// the exit code and nil for no errors
 func RunAndParse(
 	ctx context.Context,
 	client *ssh.Client,
@@ -93,7 +96,6 @@ func RunAndParse(
 					r:   stdout,
 				}))
 			err = trace.Wrap(err)
-			log.Debugf("Done streaming stdout (%v).", err)
 			errCh <- err
 		}()
 	}
@@ -114,9 +116,7 @@ func RunAndParse(
 
 	go func() {
 		sessionCommand := fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd)
-		log.Debugf("Running session command %v.", sessionCommand)
 		err := trace.Wrap(session.Run(sessionCommand))
-		log.Debugf("Done running session command %v (%v).", sessionCommand, err)
 		errCh <- err
 	}()
 
@@ -145,7 +145,6 @@ func RunAndParse(
 		}
 	}
 
-	log.Debug("Command finished.")
 	return nil
 }
 
