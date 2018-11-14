@@ -36,11 +36,12 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 	}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
+	defer cancel()
+
 	err := waitFileInstaller(ctx, installerUrl, c.Logger())
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	defer cancel()
 
 	ctx, cancel = context.WithTimeout(c.parent, c.timeouts.Install)
 	defer cancel()
@@ -57,11 +58,6 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		return trace.Wrap(err)
 	}
 
-	// only forward node logs to the cloud
-	if c.suite.client == nil {
-		return nil
-	}
-
 	return nil
 }
 
@@ -72,12 +68,10 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 		return nil
 	}
 
+	c.Logger().Info("Offline install.")
+
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
-
-	if len(nodes) == 0 {
-		return trace.NotFound("at least one node")
-	}
 
 	param.CloudProvider = c.provisionerCfg.CloudProvider
 	master := nodes[0].(*gravity)
@@ -93,11 +87,13 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 
 	errs := make(chan error, len(nodes))
 	go func() {
+		c.Logger().WithField("node", master).Info("Install on leader node.")
 		errs <- master.Install(ctx, param)
 	}()
 
 	for _, node := range nodes[1:] {
 		go func(n Gravity) {
+			c.Logger().WithField("node", n).Info("Join.")
 			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    param.Token,
@@ -105,7 +101,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 				StateDir: param.StateDir,
 			})
 			if err != nil {
-				n.Logger().WithError(err).Error("join failed")
+				n.Logger().WithError(err).Warn("Join failed.")
 			}
 			errs <- err
 		}(node)
@@ -113,7 +109,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
-		c.Logger().WithError(err).Error("install failed")
+		c.Logger().WithError(err).Warn("Install failed.")
 		return trace.Wrap(err)
 	}
 
@@ -195,6 +191,8 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	}
 
 	master := roles.ApiMaster
+	log := c.Logger().WithField("leader", master)
+	log.Info("Pull installer.")
 
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
@@ -204,6 +202,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 		return trace.Wrap(err)
 	}
 
+	log.Info("Upload upgrade.")
 	err = master.Upload(ctx)
 	if err != nil {
 		return trace.Wrap(err)
@@ -212,6 +211,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Upgrade, len(nodes)))
 	defer cancel()
 
+	log.Info("Upgrade.")
 	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
 }

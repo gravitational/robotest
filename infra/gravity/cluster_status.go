@@ -13,6 +13,7 @@ import (
 
 // Status walks around all nodes and checks whether they all feel OK
 func (c *TestContext) Status(nodes []Gravity) error {
+	c.Logger().WithField("nodes", Nodes(nodes)).Info("Check status on nodes.")
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 

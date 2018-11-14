@@ -25,6 +25,7 @@ import (
 // Gravity is interface to remote gravity CLI
 type Gravity interface {
 	json.Marshaler
+	fmt.Stringer
 	// SetInstaller transfers and prepares installer package
 	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
 	// ExecScript transfers and executes script with predefined parameters
@@ -63,8 +64,6 @@ type Gravity interface {
 	Offline() bool
 	// Client returns SSH client to VM instance
 	Client() *ssh.Client
-	// Text representation
-	String() string
 	// Will log using extended info such as current tag, node info, etc
 	Logger() logrus.FieldLogger
 }
@@ -205,7 +204,8 @@ func (g *gravity) Logger() logrus.FieldLogger {
 
 // String returns public and private addresses of the node
 func (g *gravity) String() string {
-	return fmt.Sprintf("%s/%s", g.node.PrivateAddr(), g.node.Addr())
+	return fmt.Sprintf("node(private_addr=%s, public_addr=%s)",
+		g.node.PrivateAddr(), g.node.Addr())
 }
 
 func (g *gravity) Node() infra.Node {
@@ -425,11 +425,11 @@ func (g *gravity) SetInstaller(ctx context.Context, installerURL string, subdir 
 	installDir := filepath.Join(g.param.homeDir, subdir)
 	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerURL, "install_dir": installDir})
 
-	log.Debugf("Set installer %v -> %v", installerURL, installDir)
+	log.Infof("Set installer %v -> %v.", installerURL, installDir)
 
 	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerURL, installDir, g.param.env)
 	if err != nil {
-		log.WithError(err).Error("Failed to transfer installer")
+		log.WithError(err).Warn("Failed to transfer installer.")
 		return trace.Wrap(err)
 	}
 
@@ -447,7 +447,7 @@ func (g *gravity) ExecScript(ctx context.Context, scriptUrl string, args []strin
 	log := g.Logger().WithFields(logrus.Fields{
 		"script": scriptUrl, "args": args})
 
-	log.Debug("execute")
+	log.Debug("Execute.")
 
 	spath, err := sshutils.TransferFile(ctx, g.Client(), log,
 		scriptUrl, defaults.TmpDir, g.param.env)
@@ -535,3 +535,15 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 
 	return out, nil
 }
+
+// String returns a textual representation of this list of nodes
+func (r Nodes) String() string {
+	nodes := make([]string, 0, len(r))
+	for _, node := range r {
+		nodes = append(nodes, node.String())
+	}
+	return strings.Join(nodes, ",")
+}
+
+// Nodes is a list of gravity nodes
+type Nodes []Gravity
