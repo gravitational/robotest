@@ -5,46 +5,27 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"sync"
-
-	"golang.org/x/crypto/ssh"
+	"time"
 
 	"github.com/gravitational/robotest/lib/defaults"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 // Client creates a new SSH client specified by
 // addr and user. keyInput defines the SSH key to use for authentication.
 // Returns a SSH client
-func Client(addr, user string, keyInput io.Reader) (*ssh.Client, error) {
-	keyBytes, err := ioutil.ReadAll(keyInput)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	key, err := ssh.ParsePrivateKey(keyBytes)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	conf := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(key),
-		},
-		Timeout: defaults.SSHConnectTimeout,
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-	}
-
-	return ssh.Dial("tcp", addr, conf)
+func Client(addr, user string, signer ssh.Signer) (*ssh.Client, error) {
+	return client(addr, user, signer, realTimeoutDialer)
 }
 
 // Connect connects to remote SSH server and returns new session
-func Connect(addr, user string, keyInput io.Reader) (*ssh.Session, error) {
-	client, err := Client(addr, user, keyInput)
+func Connect(addr, user string, signer ssh.Signer) (*ssh.Session, error) {
+	client, err := Client(addr, user, signer)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -131,6 +112,32 @@ func RunCommandWithOutput(session *ssh.Session, log logrus.FieldLogger, command 
 	return trace.Wrap(err)
 }
 
+// MakePrivateKeySignerFromFile creates a singer from the specified path
+func MakePrivateKeySignerFromFile(path string) (ssh.Signer, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	defer f.Close()
+
+	return MakePrivateKeySignerFromReader(f)
+}
+
+// MakePrivateKeySignerFromReader creates a singer from the specified reader
+func MakePrivateKeySignerFromReader(r io.Reader) (ssh.Signer, error) {
+	keyBytes, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	key, err := ssh.ParsePrivateKey(keyBytes)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return key, nil
+}
+
 func stream(r io.Reader, sink chan<- string) error {
 	s := bufio.NewScanner(r)
 	s.Split(bytesID)
@@ -152,4 +159,84 @@ func bytesID(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 	// Request more data
 	return len(data), data, nil
+}
+
+func client(addr, user string, signer ssh.Signer, dialer sshDialer) (*ssh.Client, error) {
+	conf := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		Timeout: defaults.SSHConnectTimeout,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	return dialer.Dial("tcp", addr, conf)
+}
+
+const (
+	defaultDialTimeout = 30 * time.Second
+	defaultKeepAlive   = 5 * time.Second
+)
+
+// Interface to allow mocking of ssh.Dial, for testing SSH
+type sshDialer interface {
+	Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error)
+}
+
+// Real implementation of sshDialer
+type realSSHDialer struct{}
+
+var _ sshDialer = &realSSHDialer{}
+
+func (r *realSSHDialer) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	d := &net.Dialer{
+		Timeout:   config.Timeout,
+		KeepAlive: defaultKeepAlive,
+	}
+	conn, err := d.Dial(network, addr)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	if err := conn.SetReadDeadline(time.Now().Add(defaultDialTimeout)); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"network": network,
+			"addr":    addr,
+		}).Warnf("Failed to set read deadline: %v.", err)
+	}
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	_ = conn.SetReadDeadline(time.Time{})
+	return ssh.NewClient(c, chans, reqs), nil
+}
+
+// timeoutDialer wraps an sshDialer with a timeout around Dial(). The golang
+// ssh library can hang indefinitely inside the Dial() call (see issue #23835).
+// Wrapping all Dial() calls with a conservative timeout provides safety against
+// getting stuck on that.
+type timeoutDialer struct {
+	dialer  sshDialer
+	timeout time.Duration
+}
+
+// 150 seconds is longer than the underlying default TCP backoff delay (127
+// seconds). This timeout is only intended to catch otherwise uncaught hangs.
+// See: https://github.com/kubernetes/kubernetes/issues/23835 for details.
+const sshDialTimeout = 150 * time.Second
+
+var realTimeoutDialer sshDialer = &timeoutDialer{&realSSHDialer{}, sshDialTimeout}
+
+func (r *timeoutDialer) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	config.Timeout = r.timeout
+	client, err := r.dialer.Dial(network, addr, config)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return client, nil
 }

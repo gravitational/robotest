@@ -204,7 +204,7 @@ imports:
   - trace/internal
   - trace/propagation
 - name: golang.org/x/crypto
-  version: 0709b304e793a5edb4a2c0145f281ecdc20838a4
+  version: 3d3f9f413869b949e48070b5bc593aa22cc2b8f2
   subpackages:
   - curve25519
   - ed25519

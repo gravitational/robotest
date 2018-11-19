@@ -182,7 +182,6 @@ func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLog
 
 	for {
 		client, err := node.Client()
-
 		if err == nil {
 			log.Debug("connected via SSH")
 			return client, nil

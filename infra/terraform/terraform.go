@@ -227,8 +227,8 @@ func (r *terraform) SelectInterface(installer infra.Node, addrs []string) (int, 
 }
 
 // Connect establishes an SSH connection to the specified address
-func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
-	client, err := r.Client(addrIP)
+func (r *terraform) Connect(addr string) (*ssh.Session, error) {
+	client, err := r.Client(addr)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -237,13 +237,13 @@ func (r *terraform) Connect(addrIP string) (*ssh.Session, error) {
 }
 
 // Client establishes an SSH connection to the specified address
-func (r *terraform) Client(addrIP string) (*ssh.Client, error) {
-	keyFile, err := os.Open(r.sshKeyPath)
+func (r *terraform) Client(addr string) (*ssh.Client, error) {
+	signer, err := sshutils.MakePrivateKeySignerFromFile(r.sshKeyPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return sshutils.Client(fmt.Sprintf("%v:22", addrIP), r.sshUser, keyFile)
+	return sshutils.Client(addr, r.sshUser, signer)
 }
 
 func (r *terraform) StartInstall(session *ssh.Session) error {

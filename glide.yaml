@@ -14,6 +14,7 @@ import:
 - package: github.com/satori/go.uuid
   version: "bba152f"
 - package: golang.org/x/crypto
+  version: master
   subpackages:
   - ssh
 - package: gopkg.in/alecthomas/kingpin.v2

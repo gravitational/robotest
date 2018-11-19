@@ -55,6 +55,8 @@ func RunAndParse(
 	env map[string]string,
 	parse OutputParseFn,
 ) (err error) {
+	log = log.WithField("cmd", cmd)
+
 	session, err := client.NewSession()
 	if err != nil {
 		return trace.Wrap(err)
@@ -73,9 +75,14 @@ func RunAndParse(
 
 	session.Stdin = new(bytes.Buffer)
 
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		return trace.Wrap(err)
+	var stdout io.Reader
+	if parse != nil {
+		// Only create a pipe to remote command's stdout if it's going to be
+		// processed, otherwise the remote command might block
+		stdout, err = session.StdoutPipe()
+		if err != nil {
+			return trace.Wrap(err)
+		}
 	}
 
 	stderr, err := session.StderrPipe()
@@ -83,7 +90,11 @@ func RunAndParse(
 		return trace.Wrap(err)
 	}
 
-	log = log.WithField("cmd", cmd)
+	sessionCommand := fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd)
+	err = session.Start(sessionCommand)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 
 	errCh := make(chan error, 2)
 	expectErrors := 1
@@ -115,8 +126,7 @@ func RunAndParse(
 	}()
 
 	go func() {
-		sessionCommand := fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd)
-		err := trace.Wrap(session.Run(sessionCommand))
+		err := trace.Wrap(session.Wait())
 		errCh <- err
 	}()
 

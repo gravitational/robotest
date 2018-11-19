@@ -40,6 +40,9 @@ done
 cat > /etc/sysctl.d/50-telekube.conf <<EOF
 net.ipv4.ip_forward=1
 net.bridge.bridge-nf-call-iptables=1
+net.ipv4.tcp_keepalive_time=60
+net.ipv4.tcp_keepalive_intvl=60
+net.ipv4.tcp_keepalive_probes=5
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
 

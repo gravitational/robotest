@@ -19,8 +19,8 @@ import (
 	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -333,12 +333,12 @@ func (r *node) Connect() (*ssh.Session, error) {
 }
 
 func (r *node) Client() (*ssh.Client, error) {
-	keyFile, err := os.Open(r.identityFile)
+	signer, err := sshutils.MakePrivateKeySignerFromFile(r.identityFile)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	defer keyFile.Close()
-	return sshutils.Client(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
+
+	return sshutils.Client(fmt.Sprintf("%v:22", r.addrIP), "vagrant", signer)
 }
 
 func (r node) String() string {

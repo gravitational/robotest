@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"flag"
-	"os"
 	"testing"
 	"time"
 
@@ -27,11 +26,10 @@ func TestSshUtils(t *testing.T) {
 	require.NotEmpty(t, *sshTestKeyPath, "ssh key")
 	require.NotEmpty(t, *sshTestUser, "ssh user")
 
-	keyFile, err := os.Open(*sshTestKeyPath)
+	signer, err := MakePrivateKeySignerFromFile(*sshTestKeyPath)
 	require.NoError(t, err, "SSH file")
-	defer keyFile.Close()
 
-	client, err := Client(*sshTestHost, *sshTestUser, keyFile)
+	client, err := Client(*sshTestHost, *sshTestUser, signer)
 	require.NoError(t, err, "ssh client")
 
 	t.Run("environment", func(t *testing.T) {

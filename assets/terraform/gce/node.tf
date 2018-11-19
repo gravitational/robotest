@@ -61,6 +61,10 @@ resource "google_compute_instance" "node" {
 
   metadata_startup_script = "${data.template_file.bootstrap.rendered}"
 
+  # FIXME: This is the platform that avoid 'connection reset by peer' issues
+  # (as oppposed to Broadwell). Sticking to it until that's been sorted out
+  min_cpu_platform = "Intel Skylake"
+
   boot_disk {
     initialize_params {
       image = "${lookup(var.oss, var.os)}"
@@ -99,8 +103,6 @@ resource "google_compute_instance" "node" {
     # If preempted, the test will be retried with a new configuration
     automatic_restart = false
   }
-
-  can_ip_forward = true
 }
 
 resource "google_compute_disk" "etcd" {
@@ -119,10 +121,11 @@ resource "google_compute_disk" "docker" {
   # TODO: make docker disk optional
   # count = "${var.devicemapper_used ? var.nodes : 0}"
   count = "${var.nodes}"
-  name  = "${var.node_tag}-disk-docker-${count.index}"
-  type  = "${var.disk_type}"
-  zone  = "${local.zone}"
-  size  = 50
+
+  name = "${var.node_tag}-disk-docker-${count.index}"
+  type = "${var.disk_type}"
+  zone = "${local.zone}"
+  size = 50
 
   labels {
     cluster = "${var.node_tag}"

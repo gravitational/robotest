@@ -21,11 +21,11 @@ func (r *node) PrivateAddr() string {
 }
 
 func (r *node) Connect() (*ssh.Session, error) {
-	return r.owner.Connect(r.publicIP)
+	return r.owner.Connect(fmt.Sprintf("%v:22", r.publicIP))
 }
 
 func (r *node) Client() (*ssh.Client, error) {
-	return r.owner.Client(r.publicIP)
+	return r.owner.Client(fmt.Sprintf("%v:22", r.publicIP))
 }
 
 func (r node) String() string {
