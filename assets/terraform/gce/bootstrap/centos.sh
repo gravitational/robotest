@@ -59,6 +59,7 @@ done
 
 # Make changes permanent
 cat > /etc/sysctl.d/50-telekube.conf <<EOF
+fs.may_detach_mounts=1
 net.ipv4.ip_forward=1
 net.bridge.bridge-nf-call-iptables=1
 net.ipv4.tcp_keepalive_time=60
