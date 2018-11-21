@@ -21,8 +21,7 @@ type OutputParseFn func(r *bufio.Reader) error
 func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
 	err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
 	if err != nil {
-		log.WithError(err).WithField("cmd", cmd).Warnf("Command failed.")
-		return trace.Wrap(err, cmd)
+		return trace.Wrap(err, "command %q failed", cmd)
 	}
 
 	return nil

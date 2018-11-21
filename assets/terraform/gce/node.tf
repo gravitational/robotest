@@ -96,10 +96,10 @@ resource "google_compute_instance" "node" {
   scheduling {
     # https://cloud.google.com/compute/docs/instances/preemptible
     # This is a spot instance
-    preemptible = true
+    preemptible = "${var.preemptible}"
 
     # If preempted, the test will be retried with a new configuration
-    automatic_restart = false
+    automatic_restart = "!${var.preemptible}"
   }
 }
 

@@ -64,6 +64,12 @@ variable "disk_type" {
   default     = "pd-ssd"
 }
 
+variable "preemptible" {
+  description = "Whether to use preemptible VMs. See https://cloud.google.com/preemptible-vms"
+  type        = "string"
+  default     = "true"
+}
+
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"

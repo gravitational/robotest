@@ -96,4 +96,6 @@ type Config struct {
 	VariablesFile string `json:"custom_vars_file" yaml:"variables_file"`
 	// OnpremProvider specifies usage of onprem provider for installation
 	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
+	// Preemptible is whether to use preemptible VMs
+	Preemptible bool `json:"preemptible" yaml:"preemptible"`
 }

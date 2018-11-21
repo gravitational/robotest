@@ -312,6 +312,7 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
+		"-var", fmt.Sprintf("preemptible=%s", r.Preemptible),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
 	if r.VariablesFile != "" {
