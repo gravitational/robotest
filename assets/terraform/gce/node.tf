@@ -99,7 +99,7 @@ resource "google_compute_instance" "node" {
     preemptible = "${var.preemptible}"
 
     # If preempted, the test will be retried with a new configuration
-    automatic_restart = "!${var.preemptible}"
+    automatic_restart = "${var.preemptible ? "false" : "true"}"
   }
 }
 
