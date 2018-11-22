@@ -34,11 +34,11 @@ func SetEnv(envs ...string) CommandOptionSetter {
 }
 
 // ExecL executes the specified command and outputs its Stdout/Stderr into the specified
-// writer `out`, using `entry` for logging.
+// writer `out`, using `logger` for logging.
 // Accepts configuration as a series of CommandOptionSetters
-func ExecL(cmd *exec.Cmd, out io.Writer, entry *log.Entry, setters ...CommandOptionSetter) error {
+func ExecL(cmd *exec.Cmd, out io.Writer, logger log.FieldLogger, setters ...CommandOptionSetter) error {
 	err := Exec(cmd, out, setters...)
-	entry.WithFields(log.Fields{
+	logger.WithFields(log.Fields{
 		constants.FieldCommandError:       (err != nil),
 		constants.FieldCommandErrorReport: trace.UserMessage(err),
 	}).Info(strings.Join(cmd.Args, " "))
@@ -82,7 +82,7 @@ func ExecWithInput(cmd *exec.Cmd, input string, out io.Writer, setters ...Comman
 	}
 
 	if stdin != nil {
-		io.WriteString(stdin, input)
+		_, _ = io.WriteString(stdin, input)
 	}
 
 	if err := cmd.Wait(); err != nil {

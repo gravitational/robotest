@@ -13,11 +13,12 @@ import (
 
 // Status walks around all nodes and checks whether they all feel OK
 func (c *TestContext) Status(nodes []Gravity) error {
+	c.Logger().WithField("nodes", Nodes(nodes)).Info("Check status on nodes.")
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
 	retry := wait.Retryer{
-		Attempts: 1000,
+		Attempts: 100,
 		Delay:    time.Second * 20,
 	}
 
@@ -35,7 +36,7 @@ func (c *TestContext) Status(nodes []Gravity) error {
 		if err == nil {
 			return nil
 		}
-		c.Logger().Warn("status not available on some nodes, will retry")
+		c.Logger().Warnf("Status not available on some nodes, will retry: %v.", err)
 		return wait.Continue("status not ready on some nodes")
 	})
 
@@ -45,15 +46,17 @@ func (c *TestContext) Status(nodes []Gravity) error {
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits
 func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 	timeNodes := []sshutils.SshNode{}
-	for _, n := range timeNodes {
-		timeNodes = append(timeNodes, n)
+	for _, n := range nodes {
+		timeNodes = append(timeNodes, sshutils.SshNode{
+			Client: n.Client(),
+			Log:    c.Logger(),
+		})
 	}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
 
 	err := sshutils.CheckTimeSync(ctx, timeNodes)
-
 	return trace.Wrap(err)
 }
 

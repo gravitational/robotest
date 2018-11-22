@@ -6,33 +6,18 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
-	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/debug"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
-
-type valueList []string
-
-func (r *valueList) String() string {
-	if r == nil {
-		return ""
-	} else {
-		return strings.Join(*r, ",")
-	}
-}
-func (r *valueList) Set(value string) error {
-	*r = strings.Split(value, ",")
-	return nil
-}
 
 var testSuite = flag.String("suite", "sanity", "test suite to run")
 var provision = flag.String("provision", "", "cloud credentials in JSON string")
@@ -48,7 +33,8 @@ var collectLogs = flag.Bool("always-collect-logs", true, "collect logs from node
 
 var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the cloud")
 
-var testSets valueList
+var debugFlag = flag.Bool("debug", false, "Verbose mode")
+var debugPort = flag.Int("debug-port", 6060, "Profiling port")
 
 // max amount of time test will run
 var testMaxTime = time.Hour * 12
@@ -57,36 +43,9 @@ var suites = map[string]*config.Config{
 	"sanity": sanity.Suite(),
 }
 
-func flavorSupported(os, version, storageDriver string) bool {
-	if os != constants.OSRedHat {
-		return true
-	}
-
-	if version == "7.4" {
-		return true
-	}
-
-	if storageDriver == constants.DeviceMapper {
-		return true
-	}
-
-	return false
-}
-
-func in(val string, arr []string) bool {
-	for _, v := range arr {
-		if val == v {
-			return true
-		}
-	}
-	return false
-}
-
 func setupSignals(suite gravity.TestSuite) {
 	c := make(chan os.Signal, 3)
-	signal.Notify(c, syscall.SIGTERM)
-	signal.Notify(c, syscall.SIGHUP)
-	signal.Notify(c, syscall.SIGINT)
+	signal.Notify(c, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT)
 
 	go func() {
 		for s := range c {
@@ -105,8 +64,12 @@ func TestMain(t *testing.T) {
 		t.Fatal("options required")
 	}
 
-	config := gravity.ProvisionerConfig{}
-	gravity.LoadConfig(t, []byte(*provision), &config)
+	initLogger(*debugFlag)
+	if *debugFlag {
+		debug.StartProfiling(fmt.Sprintf("localhost:%v", *debugPort))
+	}
+
+	config := gravity.LoadConfig(t, []byte(*provision))
 	config = config.WithTag(*tag)
 
 	suiteCfg, there := suites[*testSuite]
@@ -132,7 +95,7 @@ func TestMain(t *testing.T) {
 	}
 	gravity.SetProvisionerPolicy(policy)
 
-	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, logrus.Fields{
+	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, log.Fields{
 		"test_suite":         *testSuite,
 		"test_set":           testSet,
 		"provisioner_policy": policy,
@@ -152,14 +115,23 @@ func TestMain(t *testing.T) {
 	}
 
 	result := suite.Run()
-	log := suite.Logger()
+	logger := suite.Logger()
 	for _, res := range result {
-		log.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
+		logger.Debugf("%s %s %q %s", res.Name, res.Status, res.LogUrl, xlog.ToJSON(res.Param))
 	}
 
 	fmt.Println("\n******** TEST SUITE COMPLETED **********")
 	for _, res := range result {
 		fmt.Printf("%s %s %s %s\n", res.Status, res.Name, xlog.ToJSON(res.Param), res.LogUrl)
 	}
+}
 
+func initLogger(debug bool) {
+	level := log.InfoLevel
+	if debug {
+		level = log.DebugLevel
+	}
+	log.StandardLogger().Hooks = make(log.LevelHooks)
+	log.SetOutput(os.Stderr)
+	log.SetLevel(level)
 }

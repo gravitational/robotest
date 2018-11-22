@@ -19,8 +19,8 @@ import (
 	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -91,10 +91,6 @@ func (r *vagrant) Create(ctx context.Context, withInstaller bool) (installer inf
 	node, err := r.pool.Node(r.installerIP)
 
 	return node, trace.Wrap(err)
-}
-
-func (r *vagrant) LoadFromState(outputFile string, withInstaller bool) (infra.Node, error) {
-	return nil, trace.NotImplemented("this method is not implemented for vagrant provider")
 }
 
 func (r *vagrant) Destroy(ctx context.Context) error {
@@ -297,20 +293,6 @@ func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
 	return "", trace.NotFound("failed to find IP address for node %q", nodename)
 }
 
-func (r *vagrant) getIPVirtualbox(nodename string) (string, error) {
-	out, err := r.command(args("ssh", nodename, "-c", "ip r|tail -n 1|cut -d' ' -f12", "--", "-q"))
-	if err != nil {
-		return "", trace.Wrap(err, "failed to discover VM public IP: %s", out)
-	}
-
-	publicIP := strings.TrimSpace(string(out))
-	if publicIP == "" {
-		return "", trace.NotFound("failed to discover VM public IP")
-	}
-
-	return publicIP, nil
-}
-
 func (r *vagrant) command(args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
 	cmd := exec.Command("vagrant", args...)
 	var out bytes.Buffer
@@ -351,12 +333,12 @@ func (r *node) Connect() (*ssh.Session, error) {
 }
 
 func (r *node) Client() (*ssh.Client, error) {
-	keyFile, err := os.Open(r.identityFile)
+	signer, err := sshutils.MakePrivateKeySignerFromFile(r.identityFile)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	defer keyFile.Close()
-	return sshutils.Client(fmt.Sprintf("%v:22", r.addrIP), "vagrant", keyFile)
+
+	return sshutils.Client(fmt.Sprintf("%v:22", r.addrIP), "vagrant", signer)
 }
 
 func (r node) String() string {
@@ -400,9 +382,6 @@ type vagrant struct {
 	pool        infra.NodePool
 	stateDir    string
 	installerIP string
-	// nodes maps node address to a node.
-	// nodes represents the total cluster capacity as defined by the Vagrantfile
-	nodes map[string]node
 }
 
 type node struct {

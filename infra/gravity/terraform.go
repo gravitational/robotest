@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,34 +44,37 @@ var testStatus = map[bool]string{true: "failed", false: "ok"}
 
 const finalTeardownTimeout = time.Minute * 5
 
-// wrapDestroyFn implements a global conditional logic
+// wrapDestroyFn returns a function that wraps the specified set of nodes and the given clean up function
+// that implements report collection and resource clean up.
 func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func() error {
 		defer func() {
 			if r := recover(); r != nil {
-				c.Logger().WithField("panic", r).Error("panic in terraform destroy")
+				c.Logger().WithFields(
+					logrus.Fields{
+						"stack": string(debug.Stack()),
+						"where": r,
+					},
+				).Error("panic in terraform destroy")
 			}
 		}()
 
 		log := c.Logger().WithFields(logrus.Fields{
 			"nodes":              nodes,
 			"provisioner_policy": policy,
-			"test_status":        testStatus[c.Failed()]})
+			"test_status":        testStatus[c.Failed()],
+		})
 
 		skipLogCollection := false
 		ctx := c.Context()
 
-		if ctx.Err() != nil && policy.DestroyOnFailure == false {
+		if ctx.Err() != nil && !policy.DestroyOnFailure {
 			log.WithError(ctx.Err()).Info("skipped destroy")
 			return trace.Wrap(ctx.Err())
 		}
 
 		if ctx.Err() != nil {
-			log.WithError(ctx.Err()).Warn("extra cycles for teardown")
 			skipLogCollection = true
-			var cancel func()
-			ctx, cancel = context.WithTimeout(context.Background(), finalTeardownTimeout)
-			defer cancel()
 		}
 
 		if !skipLogCollection && (c.Failed() || policy.AlwaysCollectLogs) {
@@ -81,8 +85,8 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			}
 		}
 
-		if (policy.DestroyOnSuccess == false) ||
-			(c.Failed() && policy.DestroyOnFailure == false) {
+		if !policy.DestroyOnSuccess ||
+			(c.Failed() && !policy.DestroyOnFailure) {
 			log.Info("not destroying VMs per policy")
 			return nil
 		}
@@ -91,9 +95,11 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 
 		err := destroyResource(destroy)
 		if err != nil {
-			log.WithError(err).Error("destroying VM resources")
+			log.WithError(err).Error("Failed to destroy VM resources.")
 		} else {
-			resourceDestroyed(tag)
+			if errDestroy := resourceDestroyed(tag); errDestroy != nil {
+				log.WithError(errDestroy).Warn("Failed to remove resource account.")
+			}
 		}
 
 		return trace.Wrap(err)
@@ -156,20 +162,27 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	// enforce compatible values
 	var ok bool
 	usernames := map[string]map[string]string{
-		"azure": map[string]string{
+		constants.Azure: map[string]string{
 			"ubuntu": "robotest",
 			"debian": "admin",
-			"redhat": "redhat", // TODO: check
+			"redhat": "redhat",
 			"centos": "centos",
 			"suse":   "robotest",
 		},
-		"aws": map[string]string{
+		constants.GCE: map[string]string{
+			"ubuntu": "ubuntu",
+			"debian": "robotest",
+			"redhat": "redhat",
+			"centos": "centos",
+			"suse":   "robotest",
+		},
+		constants.AWS: map[string]string{
 			"ubuntu": "ubuntu",
 			"debian": "admin",
 			"redhat": "redhat",
 			"centos": "centos",
 		},
-		"ops": map[string]string{
+		constants.Ops: map[string]string{
 			"centos": "centos",
 		},
 	}
@@ -181,7 +194,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	param.homeDir = filepath.Join("/home", param.user)
 
-	param.tf = terraform.Config{
+	param.terraform = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.NodeCount),
@@ -189,31 +202,41 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	}
 
 	if baseConfig.AWS != nil {
-		aws := *baseConfig.AWS
-		param.tf.AWS = &aws
-		param.tf.AWS.ClusterName = baseConfig.tag
-		param.tf.AWS.SSHUser = param.user
-
+		// AWS configuration is also used to download from S3 (i.e. even with
+		// another cloud provider configured)
+		config := *baseConfig.AWS
+		param.terraform.AWS = &config
+		param.terraform.AWS.ClusterName = baseConfig.tag
+		param.terraform.AWS.SSHUser = param.user
 		param.env = map[string]string{
-			"AWS_ACCESS_KEY_ID":     param.tf.AWS.AccessKey,
-			"AWS_SECRET_ACCESS_KEY": param.tf.AWS.SecretKey,
-			"AWS_DEFAULT_REGION":    param.tf.AWS.Region,
+			"AWS_ACCESS_KEY_ID":     param.terraform.AWS.AccessKey,
+			"AWS_SECRET_ACCESS_KEY": param.terraform.AWS.SecretKey,
+			"AWS_DEFAULT_REGION":    param.terraform.AWS.Region,
 		}
 	}
 
-	if baseConfig.Azure != nil {
-		azure := *baseConfig.Azure
-		param.tf.Azure = &azure
-		param.tf.Azure.ResourceGroup = baseConfig.tag
-		param.tf.Azure.SSHUser = param.user
-		param.tf.Azure.Location = azureRegions.Next()
+	switch {
+	case baseConfig.Azure != nil:
+		config := *baseConfig.Azure
+		param.terraform.Azure = &config
+		param.terraform.Azure.ResourceGroup = baseConfig.tag
+		param.terraform.Azure.SSHUser = param.user
+		param.terraform.Azure.Location = baseConfig.cloudRegions.Next()
+	case baseConfig.GCE != nil:
+		config := *baseConfig.GCE
+		param.terraform.GCE = &config
+		param.terraform.GCE.SSHUser = param.user
+		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
+		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
+		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
+		param.terraform.Preemptible = baseConfig.GCE.Preemptible
 	}
 
 	return &param, nil
 }
 
-func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (nodes []infra.Node, destroyFn func(context.Context) error, params *cloudDynamicParams, err error) {
-	retr := wait.Retryer{
+func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logrus.FieldLogger) (resp *terraformResp, err error) {
+	retryer := wait.Retryer{
 		Delay:       defaults.TerraformRetryDelay,
 		Attempts:    defaults.TerraformRetries,
 		FieldLogger: logger,
@@ -221,20 +244,22 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 
 	retry := 0
 	cfg := baseConfig
-
-	err = retr.Do(ctx, func() error {
+	err = retryer.Do(ctx, func() error {
 		if retry != 0 {
 			cfg = baseConfig.WithTag(fmt.Sprintf("R%d", retry))
-			logger.Info("retrying terraform provisioning")
+			logger.WithFields(logrus.Fields{
+				"state-dir": cfg.StateDir,
+				"tag":       cfg.Tag(),
+			}).Info("Retrying terraform provisioning.")
 		}
 		retry++
 
-		params, err = makeDynamicParams(cfg)
+		params, err := makeDynamicParams(cfg)
 		if err != nil {
 			return wait.Abort(trace.Wrap(err))
 		}
-		nodes, destroyFn, err = runTerraformOnce(ctx, cfg, *params)
 
+		resp, err = runTerraformOnce(ctx, cfg, *params, logger)
 		if err == nil {
 			return nil
 		}
@@ -242,26 +267,25 @@ func runTerraform(ctx context.Context, baseConfig ProvisionerConfig, logger logr
 		logger.WithError(err).Warn("terraform provisioning failed")
 		return wait.Continue(err.Error())
 	})
-
-	if err == nil {
-		return nodes, destroyFn, params, nil
-	}
-	return nil, nil, nil, trace.Wrap(err)
+	return resp, trace.Wrap(err)
 }
 
 // terraform deals with underlying terraform provisioner
-func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig, params cloudDynamicParams) ([]infra.Node, func(context.Context) error, error) {
+func runTerraformOnce(
+	baseContext context.Context,
+	baseConfig ProvisionerConfig,
+	params cloudDynamicParams,
+	logger logrus.FieldLogger,
+) (resp *terraformResp, err error) {
 	// there's an internal retry in provisioners,
 	// however they get stuck sometimes and the only real way to deal with it is to kill and retry
 	// as they'll pick up incomplete state from cloud and proceed
 	// only second chance is provided
 	//
-	// TODO: this seems to require more thorough testing, and same approach applied to Destory
-	//
-
-	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.tf)
+	// TODO: this seems to require more thorough testing, and same approach applied to Destroy
+	p, err := terraform.New(filepath.Join(baseConfig.StateDir, "tf"), params.terraform)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
 	for _, threshold := range []time.Duration{time.Minute * 15, time.Minute * 10} {
@@ -274,16 +298,30 @@ func runTerraformOnce(baseContext context.Context, baseConfig ProvisionerConfig,
 			defer cancel()
 			err1 := trace.Errorf("[terraform interrupted on apply due to upper context=%v, result=%v]", ctx.Err(), err)
 			err2 := trace.Wrap(p.Destroy(teardownCtx))
-			return nil, nil, trace.NewAggregate(err1, err2)
+			return nil, trace.NewAggregate(err1, err2)
 		}
 
 		if err != nil {
 			continue
 		}
 
-		resourceAllocated(baseConfig.Tag())
-		return p.NodePool().Nodes(), p.Destroy, nil
+		if errAlloc := resourceAllocated(baseConfig.Tag()); errAlloc != nil {
+			logger.Warnf("Failed to account for resource allocation: %v.", errAlloc)
+		}
+
+		return &terraformResp{
+			nodes:     p.NodePool().Nodes(),
+			destroyFn: p.Destroy,
+			params:    params,
+		}, nil
 	}
 
-	return nil, nil, trace.NewAggregate(err, p.Destroy(baseContext))
+	return nil, trace.NewAggregate(err, p.Destroy(baseContext))
+}
+
+// terraformResp describes the result of provisioning infrastructure with terraform.
+type terraformResp struct {
+	nodes     []infra.Node
+	destroyFn func(context.Context) error
+	params    cloudDynamicParams
 }

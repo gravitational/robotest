@@ -2,10 +2,10 @@ package ops
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/gravitational/robotest/infra"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
+
 	"github.com/gravitational/trace"
 	"golang.org/x/crypto/ssh"
 )
@@ -46,12 +46,12 @@ func (r *node) Connect() (*ssh.Session, error) {
 }
 
 func (r *node) Client() (*ssh.Client, error) {
-	keyFile, err := os.Open(r.sshKeyPath)
+	signer, err := sshutils.MakePrivateKeySignerFromFile(r.sshKeyPath)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return sshutils.Client(fmt.Sprintf("%v:22", r.publicIP), r.sshUser, keyFile)
+	return sshutils.Client(fmt.Sprintf("%v:22", r.publicIP), r.sshUser, signer)
 }
 
 func (r node) String() string {

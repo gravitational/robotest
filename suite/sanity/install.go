@@ -29,7 +29,7 @@ func (p installParam) Save() (row map[string]bigquery.Value, insertID string, er
 	return row, "", nil
 }
 
-func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) ([]gravity.Gravity, gravity.DestroyFn, error) {
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) (gravity.Cluster, error) {
 	return g.Provision(cfg.WithOS(param.OSFlavor).
 		WithStorageDriver(param.DockerStorageDriver).
 		WithNodes(param.NodeCount))
@@ -39,24 +39,24 @@ func install(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		cluster, err := provisionNodes(g, cfg, param)
 		g.OK("VMs ready", err)
-		defer destroyFn()
+		defer func() {
+			g.Maybe("destroy", cluster.Destroy())
+		}()
 
 		installerURL := cfg.InstallerURL
 		if param.InstallerURL != "" {
 			installerURL = param.InstallerURL
 		}
 
-		g.OK("installer downloaded", g.SetInstaller(nodes, installerURL, "install"))
+		g.OK("installer downloaded", g.SetInstaller(cluster.Nodes, installerURL, "install"))
 		if param.Script != nil {
 			g.OK("post bootstrap script",
-				g.ExecScript(nodes, param.Script.Url, param.Script.Args))
+				g.ExecScript(cluster.Nodes, param.Script.Url, param.Script.Args))
 		}
-
-		g.OK("application installed", g.OfflineInstall(nodes, param.InstallParam))
-
-		g.OK("status", g.Status(nodes))
+		g.OK("application installed", g.OfflineInstall(cluster.Nodes, param.InstallParam))
+		g.OK("status", g.Status(cluster.Nodes))
 	}, nil
 }
 
@@ -64,15 +64,17 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 	param := p.(installParam)
 
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
-		nodes, destroyFn, err := provisionNodes(g, cfg, param)
+		cluster, err := provisionNodes(g, cfg, param)
 		g.OK("provision nodes", err)
-		defer destroyFn()
+		defer func() {
+			g.Maybe("destroy", cluster.Destroy())
+		}()
 
 		installerURL := cfg.InstallerURL
 		if param.InstallerURL != "" {
 			installerURL = param.InstallerURL
 		}
 
-		g.OK("download installer", g.SetInstaller(nodes, installerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, installerURL, "install"))
 	}, nil
 }

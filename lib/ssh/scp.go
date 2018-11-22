@@ -51,7 +51,9 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	}
 
 	go func() {
-		err := scpSendFile(stdin, f, fi)
+		const MiB = 1048576
+		buf := make([]byte, 32*MiB)
+		err := scpSendFile(stdin, f, fi, buf)
 		stdin.Close()
 		errCh <- trace.Wrap(err)
 	}()
@@ -61,8 +63,8 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	err = trace.NewAggregate(errReceive, errSend)
 
 	if ctx.Err() != nil {
-		session.Signal(ssh.SIGTERM)
-		return "", trace.Errorf("scp timed out")
+		_ = session.Signal(ssh.SIGTERM)
+		return "", trace.LimitExceeded("scp timed out")
 	}
 
 	if err != nil {
@@ -73,18 +75,18 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	return remotePath, nil
 }
 
-func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo) error {
+func scpSendFile(out io.WriteCloser, file *os.File, fi os.FileInfo, buf []byte) error {
 	_, err := fmt.Fprintf(out, "C%04o %d %s\n", fi.Mode()&os.ModePerm, fi.Size(), fi.Name())
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
 
-	n, err := io.Copy(out, file)
+	n, err := io.CopyBuffer(out, file, buf)
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
 	if n != fi.Size() {
-		return trace.Errorf("short write: %v %v", n, fi.Size())
+		return trace.BadParameter("short write: %v %v", n, fi.Size())
 	}
 
 	if _, err := out.Write([]byte{0x0}); err != nil {
@@ -138,17 +140,18 @@ func PipeCommand(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 		errCh <- trace.Wrap(err)
 	}()
 
-	go io.Copy(ioutil.Discard,
-		&readLogger{log.WithField("stream", "stderr"), stderr})
+	go func() {
+		_, _ = io.Copy(ioutil.Discard,
+			&readLogger{log.WithField("stream", "stderr"), stderr})
+	}()
 
 	err = utils.CollectErrors(ctx, errCh)
 	if ctx.Err() != nil {
-		session.Signal(ssh.SIGTERM)
-		trace.Errorf("%s -> %s killed due to context cancelled", cmd, dst)
+		_ = session.Signal(ssh.SIGTERM)
+		return trace.LimitExceeded("%s -> %s killed due to context cancelled", cmd, dst)
 	}
 	if err != nil {
-		trace.Wrap(err)
+		return trace.Wrap(err)
 	}
-
 	return nil
 }

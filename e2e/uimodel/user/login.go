@@ -1,12 +1,9 @@
 package user
 
 import (
-	"time"
-
 	"github.com/gravitational/robotest/e2e/framework"
 	"github.com/gravitational/robotest/e2e/uimodel/defaults"
 	"github.com/gravitational/robotest/e2e/uimodel/utils"
-	"github.com/gravitational/trace"
 
 	. "github.com/onsi/gomega"
 	web "github.com/sclevine/agouti"
@@ -15,10 +12,9 @@ import (
 )
 
 const (
-	WithEmail         = "email"
-	WithGoogle        = "google"
-	WithNoProvider    = ""
-	googlePageTimeout = 1 * time.Second
+	WithEmail      = "email"
+	WithGoogle     = "google"
+	WithNoProvider = ""
 )
 
 // User contains ui user information
@@ -106,7 +102,7 @@ func EnsureUserAt(page *web.Page, URL string) {
 		case WithGoogle:
 			user.LoginWithGoogle()
 		default:
-			trace.BadParameter("unknown auth type %s", login.AuthProvider)
+			framework.Failf("unknown auth type %s", login.AuthProvider)
 		}
 
 		utils.PauseForComponentJs()

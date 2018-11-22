@@ -126,12 +126,6 @@ func (r *parser) parseArg() argument {
 	}
 }
 
-func (r *parser) parseIdent() string {
-	name := r.literal
-	r.expect(scanner.Ident)
-	return name
-}
-
 func (r *parser) parseIndentOrLiteral() (value string) {
 	var err error
 	if value, err = strconv.Unquote(r.literal); err != nil {

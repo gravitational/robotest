@@ -17,20 +17,11 @@ import (
 
 type OutputParseFn func(r *bufio.Reader) error
 
-const (
-	exitStatusUndefined = -1
-	exitCode            = "exit"
-)
-
 // Run is a simple method to run external program and don't care about its output or exit status
 func Run(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string) error {
-	exit, err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
+	err := RunAndParse(ctx, client, log, cmd, env, ParseDiscard)
 	if err != nil {
-		return trace.Wrap(err, cmd)
-	}
-
-	if exit != 0 {
-		return trace.Errorf("%s returned %d", cmd, exit)
+		return trace.Wrap(err, "command %q failed", cmd)
 	}
 
 	return nil
@@ -50,56 +41,74 @@ var (
 	}
 )
 
-// RunAndParse runs remote SSH command with environment variables set by `env`
-// exitStatus is -1 if undefined
-func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, cmd string, env map[string]string, parse OutputParseFn) (exitStatus int, err error) {
+// RunAndParse runs remote SSH command cmd with environment variables set with env.
+// parse if set, will be provided the reader that consumes stdout of the command.
+// Returns *ssh.ExitError if the command has completed with a non-0 exit code,
+// *ssh.ExitMissingError if the other side has terminated the session without providing
+// the exit code and nil for no errors
+func RunAndParse(
+	ctx context.Context,
+	client *ssh.Client,
+	log logrus.FieldLogger,
+	cmd string,
+	env map[string]string,
+	parse OutputParseFn,
+) (err error) {
+	log = log.WithField("cmd", cmd)
+
 	session, err := client.NewSession()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 	defer session.Close()
 
 	err = session.RequestPty(term, termH, termW, termModes)
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
 	envStrings := []string{}
-	if env != nil {
-		for k, v := range env {
-			envStrings = append(envStrings, fmt.Sprintf("%s=%s", k, v))
-		}
+	for k, v := range env {
+		envStrings = append(envStrings, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	session.Stdin = new(bytes.Buffer)
 
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+	var stdout io.Reader
+	if parse != nil {
+		// Only create a pipe to remote command's stdout if it's going to be
+		// processed, otherwise the remote command might block
+		stdout, err = session.StdoutPipe()
+		if err != nil {
+			return trace.Wrap(err)
+		}
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		return exitStatusUndefined, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
-	log = log.WithField("cmd", cmd)
+	sessionCommand := fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd)
+	err = session.Start(sessionCommand)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 
 	errCh := make(chan error, 2)
-	expectErrs := 1
+	expectErrors := 1
 	if parse != nil {
-		expectErrs++
+		expectErrors = 2
 		go func() {
 			err := parse(bufio.NewReader(
-				&readLogger{log.WithField("stream", "stdout"), stdout}))
-			errCh <- trace.Wrap(err)
+				&readLogger{
+					log: log.WithField("stream", "stdout"),
+					r:   stdout,
+				}))
+			err = trace.Wrap(err)
+			errCh <- err
 		}()
 	}
-
-	go func() {
-		log.Debug(cmd)
-		errCh <- session.Run(fmt.Sprintf("%s %s", strings.Join(envStrings, " "), cmd))
-	}()
 
 	go func() {
 		r := bufio.NewReader(stderr)
@@ -109,41 +118,47 @@ func RunAndParse(ctx context.Context, client *ssh.Client, log logrus.FieldLogger
 			if line != "" {
 				stderrLog.Debug(line)
 			}
-			if parse == nil {
-				session.Close()
-				errCh <- nil // FIXME : this is a hack; session closure does not unblock session.Run() wonder if there's a better way
-				return
-			}
 			if err != nil {
 				return
 			}
 		}
 	}()
 
-	for i := 0; i < expectErrs; i++ {
+	go func() {
+		err := trace.Wrap(session.Wait())
+		errCh <- err
+	}()
+
+	for i := 0; i < expectErrors; i++ {
 		select {
 		case <-ctx.Done():
-			session.Signal(ssh.SIGTERM)
-			log.WithError(ctx.Err()).Debug("context terminated, sent SIGTERM")
-			return exitStatusUndefined, err
+			_ = session.Signal(ssh.SIGTERM)
+			log.WithError(ctx.Err()).Debug("Context terminated, sent SIGTERM.")
+			return trace.Wrap(ctx.Err())
 		case err = <-errCh:
-			if exitErr, isExitErr := err.(*ssh.ExitError); isExitErr {
-				err = trace.Wrap(exitErr)
-				log.WithError(err).Debugf("%s : %s", cmd, exitErr.Error())
-				return exitErr.ExitStatus(), err
+			switch sshError := trace.Unwrap(err).(type) {
+			case *ssh.ExitError:
+				err = trace.Wrap(sshError)
+				log.WithError(err).Debugf("Command %v failed: %v", cmd, sshError.Error())
+				return err
+			case *ssh.ExitMissingError:
+				err = trace.Wrap(sshError)
+				log.WithError(err).Debug("Session aborted unexpectedly (node destroyed?).")
+				return err
 			}
 			if err != nil {
 				err = trace.Wrap(err)
-				log.WithError(err).Debug("unexpected error")
-				return exitStatusUndefined, err
+				log.WithError(err).Debug("Unexpected error.")
+				return err
 			}
 		}
 	}
-	return 0, nil
+
+	return nil
 }
 
 func ParseDiscard(r *bufio.Reader) error {
-	io.Copy(ioutil.Discard, r)
+	_, _ = io.Copy(ioutil.Discard, r)
 	return nil
 }
 
@@ -156,6 +171,18 @@ func ParseAsString(out *string) OutputParseFn {
 		*out = strings.Replace(string(b), `\r`, ``, -1)
 		return nil
 	}
+}
+
+func IsExitMissingError(err error) bool {
+	_, ok := trace.Unwrap(err).(*ssh.ExitMissingError)
+	return ok
+}
+
+// ExitStatusError describes the class of errors that
+// report exit status
+type ExitStatusError interface {
+	// ExitStatus reports the exist status of an operation
+	ExitStatus() int
 }
 
 type readLogger struct {

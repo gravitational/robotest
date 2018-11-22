@@ -13,10 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/lib/constants"
@@ -24,9 +20,12 @@ import (
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
-	"github.com/gravitational/trace"
-
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
+	"github.com/gravitational/trace"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -34,10 +33,10 @@ import (
 // cloudDynamicParams is a necessary evil to marry terraform vars, e2e legacy objects and needs of this provisioner
 type cloudDynamicParams struct {
 	ProvisionerConfig
-	user    string
-	homeDir string
-	tf      terraform.Config
-	env     map[string]string
+	user      string
+	homeDir   string
+	terraform terraform.Config
+	env       map[string]string
 }
 
 func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
@@ -69,38 +68,39 @@ func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudD
 }
 
 // Provision will attempt to provision the requested cluster
-func (c *TestContext) Provision(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func (c *TestContext) Provision(cfg ProvisionerConfig) (cluster Cluster, err error) {
 	// store the configuration used for provisioning
 	c.provisionerCfg = cfg
 
-	var nodes []Gravity
-	var destroy DestroyFn
-	var err error
 	switch cfg.CloudProvider {
-	case "azure", "aws":
-		nodes, destroy, err = c.provisionCloud(cfg)
-	case "ops":
-		nodes, destroy, err = c.provisionOps(cfg)
+	case constants.Azure, constants.AWS, constants.GCE:
+		var config *terraform.Config
+		cluster, config, err = c.provisionCloud(cfg)
+		if err == nil && cfg.CloudProvider == constants.GCE {
+			c.WithFields(logrus.Fields{"node_tag": config.GCE.NodeTag})
+		}
+	case constants.Ops:
+		cluster, err = c.provisionOps(cfg)
 	default:
-		err = trace.BadParameter("unkown cloud provider: %v", cfg.CloudProvider)
+		err = trace.BadParameter("unkown cloud provider: %q", cfg.CloudProvider)
 	}
 
 	// call `destroyFn` if provided to destroy infrastructure
-	if err != nil && destroy != nil {
-		dErr := destroy()
-		if dErr != nil {
-			err = trace.NewAggregate(err, dErr)
+	if err != nil && cluster.Destroy != nil {
+		destroyErr := cluster.Destroy()
+		if destroyErr != nil {
+			err = trace.NewAggregate(err, destroyErr)
 		}
 		// if we destroy the cluster, make sure nodes and the destroy functions are returned as nil
-		nodes = nil
-		destroy = nil
+		cluster.Nodes = nil
+		cluster.Destroy = nil
 	}
 
-	return nodes, destroy, trace.Wrap(err)
+	return cluster, trace.Wrap(err)
 }
 
 // provisionOps utilizes an ops center installation flow to complete cluster installation
-func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn, error) {
+func (c *TestContext) provisionOps(cfg ProvisionerConfig) (cluster Cluster, err error) {
 	c.Logger().WithField("config", cfg).Debug("Provisioning via Ops Center")
 
 	// verify connection before starting provisioning
@@ -110,12 +110,12 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 		Credentials: credentials.NewStaticCredentials(cfg.Ops.EC2AccessKey, cfg.Ops.EC2SecretKey, ""),
 	})
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 	c.Logger().Debug("logging into the ops center")
 	out, err := exec.Command("tele", "login", "-o", cfg.Ops.URL, "--key", cfg.Ops.OpsKey).CombinedOutput()
 	if err != nil {
-		return nil, nil, trace.WrapWithMessage(err, string(out))
+		return cluster, trace.WrapWithMessage(err, string(out))
 	}
 
 	// generate a random cluster name
@@ -126,50 +126,51 @@ func (c *TestContext) provisionOps(cfg ProvisionerConfig) ([]Gravity, DestroyFn,
 	c.Logger().Debug("validating configuration")
 	err = validateConfig(cfg)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 
 	c.Logger().Debug("generating ops center cluster configuration")
 	clusterPath := path.Join(cfg.StateDir, "cluster.yaml")
 	err = os.MkdirAll(cfg.StateDir, constants.SharedDirMask)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 	defn, err := generateClusterConfig(cfg, clusterName)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 	err = ioutil.WriteFile(clusterPath, []byte(defn), constants.SharedReadMask)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 
 	// next, we need to tell the ops center to create our cluster
 	c.Logger().Debug("requesting ops center to provision our cluster")
 	out, err = exec.Command("tele", "create", clusterPath).CombinedOutput()
 	if err != nil {
-		return nil, nil, trace.Wrap(err, string(out))
+		return cluster, trace.Wrap(err, string(out))
 	}
 
 	// destroyFn defines the clean up function that will destroy provisioned resources
-	destroyFn := cfg.DestroyOpsFn(c, clusterName)
+	cluster.Destroy = cfg.DestroyOpsFn(c, clusterName)
 
 	// monitor the cluster until it's created or times out
 	timeout := time.After(cloudInitTimeout)
-	tick := time.Tick(15 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
 
 	c.Logger().Debug("waiting for ops center provisioning to complete")
 Loop:
 	for {
 		select {
 		case <-timeout:
-			return nil, destroyFn, errors.New("clusterInitTimeout exceeded")
-		case <-tick:
+			return cluster, errors.New("clusterInitTimeout exceeded")
+		case <-ticker.C:
 			// check provisioning status
 			status, err := getTeleClusterStatus(clusterName)
 			c.Logger().WithField("status", status).Debug("provisioning status")
 			if err != nil {
-				return nil, destroyFn, trace.Wrap(err)
+				return cluster, trace.Wrap(err)
 			}
 
 			switch status {
@@ -179,7 +180,7 @@ Loop:
 				// the cluster install completed, we can continue the install process
 				break Loop
 			default:
-				return nil, destroyFn, trace.BadParameter("unexpected cluster status: %v", status)
+				return cluster, trace.BadParameter("unexpected cluster status: %v", status)
 			}
 		}
 	}
@@ -189,99 +190,99 @@ Loop:
 	ec2svc := ec2.New(sess)
 	gravityNodes, err := c.getAWSNodes(ec2svc, "tag:KubernetesCluster", clusterName)
 	if err != nil {
-		return nil, destroyFn, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
-
-	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
-	defer cancel()
 
 	c.Logger().Debugf("running post provisioning tasks")
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		return nil, destroyFn, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")})
+	err = validateDiskSpeed(c.Context(), gravityNodes, cfg.dockerDevice, c.Logger())
 	if err != nil {
-		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
-		c.Logger().WithError(err).Error(err.Error())
-		return nil, destroyFn, trace.Wrap(err)
+		return cluster, trace.Wrap(err)
 	}
 
+	cluster.Nodes = gravityNodes
 	c.Logger().Info("provisioning complete")
-	return gravityNodes, destroyFn, nil
+	return cluster, nil
 }
 
 // provisionCloud gets VMs up, running and ready to use
-func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (gravityNodes []Gravity, destroyResources DestroyFn, err error) {
-	c.Logger().WithField("config", cfg).Debug("Provisioning VMs")
+func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, config *terraform.Config, err error) {
+	log := c.Logger().WithField("config", cfg)
+	log.Debug("Provisioning VMs")
 
 	err = validateConfig(cfg)
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, nil, trace.Wrap(err)
 	}
 
-	nodes, destroyFn, params, err := runTerraform(c.Context(), cfg, c.Logger())
+	infra, err := runTerraform(c.Context(), cfg, c.Logger())
 	if err != nil {
-		return nil, nil, trace.Wrap(err)
+		return cluster, nil, trace.Wrap(err)
 	}
 	defer func() {
-		if err == nil {
+		if err == nil || infra.destroyFn == nil {
 			return
 		}
-		if errDestroy := destroyResource(destroyFn); errDestroy != nil {
-			c.Logger().WithError(errDestroy).Error("Failed to destroy resources.")
+		if errDestroy := destroyResource(infra.destroyFn); errDestroy != nil {
+			log.WithError(errDestroy).Error("Failed to destroy resources.")
 		}
 	}()
 
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	c.Logger().Debug("Configuring VMs")
-	gravityNodes, err = configureVMs(ctx, c.Logger(), *params, nodes)
+	log.Debug("Configuring VMs")
+	gravityNodes, err := configureVMs(ctx, c.Logger(), infra.params, infra.nodes)
 	if err != nil {
-		c.Logger().WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
-		return nil, nil, trace.Wrap(err)
+		log.WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
+		return cluster, nil, trace.NewAggregate(err, destroyResource(infra.destroyFn))
 	}
 
 	err = c.postProvision(cfg, gravityNodes)
 	if err != nil {
-		c.Logger().WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
-		return nil, nil, trace.Wrap(err)
+		log.WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
+		return cluster, nil, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	ctx, cancel = context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", cfg.dockerDevice})
-	if err != nil {
-		err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
-		c.Logger().WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
-		return nil, nil, trace.Wrap(err)
+	if cfg.CloudProvider == constants.Azure {
+		err = validateDiskSpeed(c.Context(), gravityNodes, cfg.dockerDevice, c.Logger())
+		if err != nil {
+			return cluster, nil, trace.Wrap(err)
+		}
 	}
 
-	c.Logger().WithField("nodes", gravityNodes).Debug("Provisioning complete")
+	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
-	return gravityNodes, wrapDestroyFn(c, cfg.Tag(), gravityNodes, destroyFn), nil
+	cluster.Nodes = gravityNodes
+	cluster.Destroy = wrapDestroyFn(c, cfg.Tag(), gravityNodes, infra.destroyFn)
+
+	return cluster, &infra.params.terraform, nil
 }
 
 // postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
 func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
-	c.Logger().Debug("streaming logs")
+	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
-		go node.(*gravity).streamLogs(c.Context())
+		go func(node Gravity) {
+			if err := node.(*gravity).streamLogs(c.Context()); err != nil {
+				if !sshutil.IsExitMissingError(err) {
+					c.Logger().Warnf("Failed to stream logs: %v.", err)
+				}
+			}
+		}(node)
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
 	c.Logger().Debug("synchronizing clocks")
-	timeNodes := []sshutil.SshNode{}
+	var timeNodes []sshutil.SshNode
 	for _, node := range gravityNodes {
-		timeNodes = append(timeNodes, sshutil.SshNode{node.Client(), node.Logger()})
+		timeNodes = append(timeNodes, sshutil.SshNode{Client: node.Client(), Log: node.Logger()})
 	}
 	if err := sshutil.WaitTimeSync(ctx, timeNodes); err != nil {
 		return trace.Wrap(err)
@@ -310,8 +311,6 @@ const (
 	cloudInitSupportedFile = "/var/lib/bootstrap_started"
 	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
 )
-
-const cloudInitWait = time.Second * 10
 
 // bootstrapAzure workarounds some issues with Azure platform init
 func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
@@ -346,8 +345,8 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 	return trace.Wrap(err)
 }
 
-// bootstrapAWS is a simple workflow to wait for cloud-init to complete
-func bootstrapAWS(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+// bootstrapCloud is a simple workflow to wait for cloud-init to complete
+func bootstrapCloud(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	if err != nil {
 		return trace.Wrap(err)
@@ -379,11 +378,13 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	g.ssh = client
 
 	switch param.CloudProvider {
-	case "aws":
-		err = bootstrapAWS(ctx, g, param)
-	case "azure":
+	case constants.AWS:
+		err = bootstrapCloud(ctx, g, param)
+	case constants.Azure:
 		err = bootstrapAzure(ctx, g, param)
-	case "ops":
+	case constants.GCE:
+		err = bootstrapCloud(ctx, g, param)
+	case constants.Ops:
 		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
 		g.installDir = "/bin"
 	default:
@@ -396,14 +397,27 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	return g, nil
 }
 
+func validateDiskSpeed(ctx context.Context, nodes []Gravity, device string, logger logrus.FieldLogger) error {
+	logger.Debug("Ensuring disk speed is adequate across nodes.")
+	ctx, cancel := context.WithTimeout(ctx, diskWaitTimeout)
+	defer cancel()
+	err := waitDisks(ctx, nodes, []string{"/iotest", device}, logger)
+	if err != nil {
+		err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
+		logger.WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
 // waitDisks is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
 // otherwise it'll fail telekube pre-install checks
-func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
+func waitDisks(ctx context.Context, nodes []Gravity, paths []string, logger logrus.FieldLogger) error {
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {
 		go func(node Gravity) {
-			errs <- waitDisk(ctx, node, paths, minDiskSpeed)
+			errs <- waitDisk(ctx, node, paths, minDiskSpeed, logger)
 		}(node)
 	}
 
@@ -411,14 +425,20 @@ func waitDisks(ctx context.Context, nodes []Gravity, paths []string) error {
 }
 
 // waitDisk will wait specific disk performance to report OK
-func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64) error {
+func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64, logger logrus.FieldLogger) error {
 	err := wait.Retry(ctx, func() error {
 		for _, path := range paths {
 			if !strings.HasPrefix(path, "/dev") {
-				defer sshutil.Run(ctx, node.Client(), node.Logger(), fmt.Sprintf("sudo /bin/rm -f %s", path), nil)
+				defer func() {
+					errRemove := sshutil.Run(ctx, node.Client(), node.Logger(),
+						fmt.Sprintf("sudo /bin/rm -f %s", path), nil)
+					if errRemove != nil {
+						logger.Warnf("Failed to remove path: %v.", errRemove)
+					}
+				}()
 			}
 			var out string
-			_, err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
+			err := sshutil.RunAndParse(ctx, node.Client(), node.Logger(),
 				fmt.Sprintf("sudo dd if=/dev/zero of=%s bs=100K count=1024 conv=fdatasync 2>&1", path),
 				nil, sshutil.ParseAsString(&out))
 			if err != nil {
@@ -444,4 +464,12 @@ func destroyResource(handler func(context.Context) error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), finalTeardownTimeout)
 	defer cancel()
 	return trace.Wrap(handler(ctx))
+}
+
+// Cluster describes the result of provisioning cluster infrastructure.
+type Cluster struct {
+	// Nodes is the list of gravity nodes in the cluster
+	Nodes []Gravity
+	// Destroy is the resource destruction handler
+	Destroy DestroyFn
 }

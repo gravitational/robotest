@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/infra/gravity"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
 
@@ -74,13 +74,15 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
 		config := baseConfig.WithNodes(param.NodeCount + 1)
 
-		allNodes, destroyFn, err := g.Provision(config)
+		cluster, err := g.Provision(config)
 		g.OK("provision nodes", err)
-		defer destroyFn()
+		defer func() {
+			g.Maybe("destroy", cluster.Destroy())
+		}()
 
-		g.OK("download installer", g.SetInstaller(allNodes, config.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, config.InstallerURL, "install"))
 
-		nodes := allNodes[0:param.NodeCount]
+		nodes := cluster.Nodes[0:param.NodeCount]
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
 		g.OK("install status", g.Status(nodes))
 
@@ -94,8 +96,8 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 
 		if param.ExpandBeforeShrink {
 			g.OK("expand before shrinking",
-				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
-			nodes = append(nodes, allNodes[param.NodeCount])
+				g.Expand(nodes, cluster.Nodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
+			nodes = append(nodes, cluster.Nodes[param.NodeCount])
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node roles after expand", err)
@@ -112,8 +114,8 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 				Info("Roles after remove")
 
 			g.OK("replace node",
-				g.Expand(nodes, allNodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
-			nodes = append(nodes, allNodes[param.NodeCount])
+				g.Expand(nodes, cluster.Nodes[param.NodeCount:param.NodeCount+1], param.InstallParam))
+			nodes = append(nodes, cluster.Nodes[param.NodeCount])
 		}
 
 		roles, err := g.NodesByRole(nodes)

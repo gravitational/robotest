@@ -49,7 +49,7 @@ func (p *ServerPage) GetSiteServers() []SiteServer {
 	var items []SiteServer
 	var result string
 
-	p.site.page.RunScript(script, nil, &result)
+	Expect(p.site.page.RunScript(script, nil, &result)).To(Succeed())
 	Expect(json.Unmarshal([]byte(result), &items)).To(Succeed())
 	return items
 }
@@ -223,7 +223,7 @@ func (p *ServerPage) clickDeleteServer(serverId string) {
 	page := p.site.page
 
 	script := fmt.Sprintf(scriptTemplate, serverId)
-	page.RunScript(script, nil, &result)
+	Expect(page.RunScript(script, nil, &result)).To(Succeed())
 
 	result = result + 1
 	actionsMenuPath := fmt.Sprintf(".grv-site-servers tr:nth-child(%v) .dropdown-toggle", result)

@@ -2,6 +2,7 @@ package gravity
 
 import (
 	"bufio"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,44 +12,12 @@ import (
 	"github.com/gravitational/trace"
 )
 
-// i.e. "Status: active"
-var rStatusKV = regexp.MustCompile(`^(?P<key>[\w\s]+)\:\s*(?P<val>[\w\d\_\-]+),*.*`)
-var rStatusNodeIp = regexp.MustCompile(`^[\s\w\-\d]+\((?P<ip>[\d\.]+)\).*`)
-
 // parse `gravity status`
 func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
 	return func(r *bufio.Reader) error {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			line := scanner.Text()
-			vars := rStatusKV.FindStringSubmatch(line)
-			if len(vars) == 3 {
-				populateStatus(vars[1], vars[2], status)
-				continue
-			}
-
-			vars = rStatusNodeIp.FindStringSubmatch(line)
-			if len(vars) == 2 {
-				status.Nodes = append(status.Nodes, vars[1])
-			}
-		}
-		return trace.ConvertSystemError(scanner.Err())
+		decoder := json.NewDecoder(r)
+		return trace.Wrap(decoder.Decode(status))
 	}
-}
-
-func populateStatus(key, value string, status *GravityStatus) error {
-	switch key {
-	case "Cluster":
-		status.Cluster = value
-	case "Join token":
-		status.Token = value
-	case "Application":
-		status.Application = value
-	case "Status":
-		status.Status = value
-	default:
-	}
-	return nil
 }
 
 // from https://github.com/gravitational/gravity/blob/master/lib/utils/parse.go

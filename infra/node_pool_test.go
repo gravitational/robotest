@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -107,6 +108,7 @@ type node struct {
 	addr string
 }
 
+func (r node) String() string      { return fmt.Sprintf("node(%v)", r.addr) }
 func (r node) Addr() string        { return r.addr }
 func (r node) PrivateAddr() string { return r.addr }
 func (r node) Client() (*ssh.Client, error) {

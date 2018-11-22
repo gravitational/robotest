@@ -9,10 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Val struct {
-	Val int `json:"val"`
-}
-
 func TestGcl(t *testing.T) {
 	ctx := context.Background()
 	client, err := NewGCLClient(ctx, "kubeadm-167321")

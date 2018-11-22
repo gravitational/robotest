@@ -40,16 +40,18 @@ const (
 	// TerraformRetryDelay
 	TerraformRetryDelay = 5 * time.Minute
 
-	// TerraformRetries
+	// TerraformRetries is the maximum number of attempts to reprovision the
+	// infrastructure upon encountering an error from 'terraform apply'
 	TerraformRetries = 2
 
-	// BQDataset is bigquery dataset where run data is stored
+	// BQDataset is the BigQuery dataset where run data is stored
 	BQDataset = "robotest"
 
-	// BQTable is bigquery table where run data is stored
+	// BQTable is the BigQuery table where progress data is stored
 	BQTable = "progress"
 
-	// MaxRetriesPerTest
+	// MaxRetriesPerTest specifies the maximum number of attempts a failing
+	// test is retried (including the first failure)
 	MaxRetriesPerTest = 3
 
 	// TmpDir is temporary file folder

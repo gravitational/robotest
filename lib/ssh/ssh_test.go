@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"context"
 	"flag"
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -24,15 +22,14 @@ var sshTestKeyPath = flag.String("key", "", "Path to SSH private key")
 func TestSshUtils(t *testing.T) {
 	flag.Parse()
 
-	require.NotEmpty(t, *sshTestHost, "ssh host")
+	require.NotEmpty(t, *sshTestHost, "ssh host (including the port)")
 	require.NotEmpty(t, *sshTestKeyPath, "ssh key")
 	require.NotEmpty(t, *sshTestUser, "ssh user")
 
-	keyFile, err := os.Open(*sshTestKeyPath)
+	signer, err := MakePrivateKeySignerFromFile(*sshTestKeyPath)
 	require.NoError(t, err, "SSH file")
-	defer keyFile.Close()
 
-	client, err := Client(fmt.Sprintf("%s:22", *sshTestHost), *sshTestUser, keyFile)
+	client, err := Client(*sshTestHost, *sshTestUser, signer)
 	require.NoError(t, err, "ssh client")
 
 	t.Run("environment", func(t *testing.T) {
@@ -72,7 +69,7 @@ func testPutFile(t *testing.T, client *ssh.Client) {
 
 func testEnv(t *testing.T, client *ssh.Client) {
 	var out string
-	exit, err := RunAndParse(context.Background(),
+	err := RunAndParse(context.Background(),
 		client,
 		logrus.New(),
 		"echo $AWS_SECURE_KEY",
@@ -83,7 +80,6 @@ func testEnv(t *testing.T, client *ssh.Client) {
 			return trace.Wrap(err)
 		})
 	assert.NoError(t, err)
-	assert.Zero(t, exit, "exit code")
 	assert.Equal(t, "SECUREKEY\n", out)
 }
 
@@ -91,20 +87,22 @@ func testTimeout(t *testing.T, client *ssh.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	exit, err := RunAndParse(ctx,
+	err := RunAndParse(ctx,
 		client,
 		logrus.New(),
 		"sleep 100",
 		nil,
 		ParseDiscard)
 	assert.Error(t, err)
-	assert.Equal(t, exitStatusUndefined, exit)
 }
 
 func testExitErr(t *testing.T, client *ssh.Client) {
-	exit, err := RunAndParse(context.Background(), client, logrus.New(), "false", nil, ParseDiscard)
-	assert.NoError(t, err)
-	assert.NotZero(t, exit)
+	err := RunAndParse(context.Background(), client, logrus.New(), "false", nil, ParseDiscard)
+	assert.Error(t, err)
+	assert.Condition(t, func() bool {
+		exitErr, ok := trace.Unwrap(err).(ExitStatusError)
+		return ok && exitErr.ExitStatus() == 1
+	}, "exit code should be 1")
 }
 
 func testFile(t *testing.T, client *ssh.Client) {

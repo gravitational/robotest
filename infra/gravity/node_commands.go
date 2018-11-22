@@ -25,6 +25,7 @@ import (
 // Gravity is interface to remote gravity CLI
 type Gravity interface {
 	json.Marshaler
+	fmt.Stringer
 	// SetInstaller transfers and prepares installer package
 	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
 	// ExecScript transfers and executes script with predefined parameters
@@ -43,6 +44,8 @@ type Gravity interface {
 	Remove(ctx context.Context, node string, graceful Graceful) error
 	// Uninstall will wipe gravity installation from node
 	Uninstall(ctx context.Context) error
+	// UninstallApp uninstalls cluster application
+	UninstallApp(ctx context.Context) error
 	// PowerOff will power off the node
 	PowerOff(ctx context.Context, graceful Graceful) error
 	// Reboot will reboot this node and wait until it will become available again
@@ -61,8 +64,6 @@ type Gravity interface {
 	Offline() bool
 	// Client returns SSH client to VM instance
 	Client() *ssh.Client
-	// Text representation
-	String() string
 	// Will log using extended info such as current tag, node info, etc
 	Logger() logrus.FieldLogger
 }
@@ -91,6 +92,9 @@ type InstallParam struct {
 	LicenseURL string `json:"license,omitempty"`
 	// CloudProvider defines tighter integration with cloud vendor, i.e. use AWS networking on Amazon
 	CloudProvider string `json:"cloud_provider,omitempty"`
+	// GCENodeTag specifies the node tag on GCE.
+	// Node tag replaces the cluster name if the cluster name does not comply with the GCE naming convention
+	GCENodeTag string `json:"gce_node_tag,omitempty"`
 	// StateDir is the directory where all gravity data will be stored on the node
 	StateDir string `json:"state_dir" validate:"required"`
 	// OSFlavor is operating system and optional version separated by ':'
@@ -117,15 +121,42 @@ type JoinCmd struct {
 	StateDir string
 }
 
-// GravityStatus is serialized form of `gravity status` CLI.
+// GravityStatus describes the status of the Gravity cluster
 type GravityStatus struct {
-	Application string
-	Cluster     string
-	Status      string
+	// Cluster describes the cluster status
+	Cluster ClusterStatus `json:"cluster"`
+}
+
+// ClusterStatus describes the status of a Gravity cluster
+type ClusterStatus struct {
+	// Application defines the cluster application
+	Application Application `json:"application"`
+	// Cluster is the name of the cluster
+	Cluster string `json:"domain"`
+	// Status is the cluster status
+	Status string `json:"state"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
-	Token string `validation:"required"`
-	// Nodes defines nodes the cluster observes
-	Nodes []string
+	Token Token `json:"token"`
+	// Nodes describes the nodes in the cluster
+	Nodes []NodeStatus `json:"nodes"`
+}
+
+// Application defines the cluster application
+type Application struct {
+	// Name is the name of the cluster application
+	Name string `json:"name"`
+}
+
+// NodeStatus describes the status of a cluster node
+type NodeStatus struct {
+	// Addr is the advertised address of this cluster node
+	Addr string `json:"advertise_ip"`
+}
+
+// Token describes the cluster join token
+type Token struct {
+	// Token is the join token value
+	Token string `json:"token"`
 }
 
 type gravity struct {
@@ -151,7 +182,6 @@ func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLog
 
 	for {
 		client, err := node.Client()
-
 		if err == nil {
 			log.Debug("connected via SSH")
 			return client, nil
@@ -173,7 +203,8 @@ func (g *gravity) Logger() logrus.FieldLogger {
 
 // String returns public and private addresses of the node
 func (g *gravity) String() string {
-	return fmt.Sprintf("%s/%s", g.node.PrivateAddr(), g.node.Addr())
+	return fmt.Sprintf("node(private_addr=%s, public_addr=%s)",
+		g.node.PrivateAddr(), g.node.Addr())
 }
 
 func (g *gravity) Node() infra.Node {
@@ -190,57 +221,66 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 	// cmd specify additional configuration for the install command
 	// collected from defaults and/or computed values
 	type cmd struct {
-		InstallDir      string
-		PrivateAddr     string
-		EnvDockerDevice string
-		StorageDriver   string
+		InstallDir    string
+		PrivateAddr   string
+		DockerDevice  string
+		StorageDriver string
 		InstallParam
 	}
 
+	dockerDevice := g.param.dockerDevice
+	if g.param.storageDriver != constants.DeviceMapper {
+		// Docker device is not used with non-devicemapper storage drivers
+		dockerDevice = ""
+	}
+
+	config := cmd{
+		InstallDir:    g.installDir,
+		PrivateAddr:   g.Node().PrivateAddr(),
+		DockerDevice:  dockerDevice,
+		StorageDriver: g.param.storageDriver.Driver(),
+		InstallParam:  param,
+	}
+
 	var buf bytes.Buffer
-	err := installCmdTemplate.Execute(&buf, cmd{
-		InstallDir:      g.installDir,
-		PrivateAddr:     g.Node().PrivateAddr(),
-		EnvDockerDevice: constants.EnvDockerDevice,
-		StorageDriver:   g.param.storageDriver.Driver(),
-		InstallParam:    param,
-	})
+	err := installCmdTemplate.Execute(&buf, config)
 	if err != nil {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
-		constants.EnvDockerDevice: g.param.dockerDevice,
-	})
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
 	return trace.Wrap(err, param)
 }
 
 var installCmdTemplate = template.Must(
 	template.New("gravity_install").Parse(`
-		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
 		cd {{.InstallDir}} && ./gravity version && sudo ./gravity install --debug \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
-		--docker-device=${{.EnvDockerDevice}} \
+		--docker-device={{.DockerDevice}} \
 		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
 		--system-log-file=./telekube-system.log \
-		--cloud-provider={{.CloudProvider}} --state-dir={{.StateDir}} \
+		--cloud-provider=generic --state-dir={{.StateDir}} \
+		--httpprofile=localhost:6061 \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
 		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}
 `))
 
 // Status queries cluster status
 func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
-	cmd := "sudo gravity status --system-log-file=./telekube-system.log"
+	cmd := "sudo gravity status --output=json --system-log-file=./telekube-system.log"
 	status := GravityStatus{}
-	exit, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
-
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 	if err != nil {
+		if exitErr, ok := trace.Unwrap(err).(sshutils.ExitStatusError); ok {
+			g.Logger().WithFields(logrus.Fields{
+				"private_addr": g.Node().PrivateAddr(),
+				"addr":         g.Node().Addr(),
+				"command":      cmd,
+				"exit code":    exitErr.ExitStatus(),
+			}).Warn("Failed.")
+		}
 		return nil, trace.Wrap(err, cmd)
-	}
 
-	if exit != 0 {
-		return nil, trace.Errorf("[%s/%s] %s returned %d",
-			g.Node().PrivateAddr(), g.Node().Addr(), cmd, exit)
 	}
 
 	return &status, nil
@@ -254,34 +294,40 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 	// cmd specify additional configuration for the join command
 	// collected from defaults and/or computed values
 	type cmd struct {
-		InstallDir, PrivateAddr, EnvDockerDevice string
+		InstallDir   string
+		PrivateAddr  string
+		DockerDevice string
 		JoinCmd
+	}
+
+	dockerDevice := g.param.dockerDevice
+	if g.param.storageDriver != constants.DeviceMapper {
+		// Docker device is not used with non-devicemapper storage drivers
+		dockerDevice = ""
 	}
 
 	var buf bytes.Buffer
 	err := joinCmdTemplate.Execute(&buf, cmd{
-		InstallDir:      g.installDir,
-		PrivateAddr:     g.Node().PrivateAddr(),
-		EnvDockerDevice: constants.EnvDockerDevice,
-		JoinCmd:         param,
+		InstallDir:   g.installDir,
+		PrivateAddr:  g.Node().PrivateAddr(),
+		DockerDevice: dockerDevice,
+		JoinCmd:      param,
 	})
 	if err != nil {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), map[string]string{
-		constants.EnvDockerDevice: g.param.dockerDevice,
-	})
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
 	return trace.Wrap(err, param)
 }
 
 var joinCmdTemplate = template.Must(
 	template.New("gravity_join").Parse(`
-		source /tmp/gravity_environment >/dev/null 2>&1 || true; \
 		cd {{.InstallDir}} && sudo ./gravity join {{.PeerAddr}} \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --debug \
-		--role={{.Role}} --docker-device=${{.EnvDockerDevice}} \
-		--system-log-file=./telekube-system.log --state-dir={{.StateDir}}`))
+		--role={{.Role}} --docker-device={{.DockerDevice}} \
+		--system-log-file=./telekube-system.log --state-dir={{.StateDir}} \
+		--httpprofile=localhost:6061`))
 
 // Leave makes given node leave the cluster
 func (g *gravity) Leave(ctx context.Context, graceful Graceful) error {
@@ -313,6 +359,15 @@ func (g *gravity) Uninstall(ctx context.Context) error {
 	return trace.Wrap(err, cmd)
 }
 
+// UninstallApp uninstalls the cluster application.
+// This is usually required to properly clean up cloud resources
+// internally managed by kubernetes in case of kubernetes cloud integration
+func (g *gravity) UninstallApp(ctx context.Context) error {
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity app uninstall $(./gravity app-package) --system-log-file=./telekube-system.log", g.installDir)
+	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
+	return trace.Wrap(err, cmd)
+}
+
 // PowerOff forcibly halts a machine
 func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 	var cmd string
@@ -322,7 +377,10 @@ func (g *gravity) PowerOff(ctx context.Context, graceful Graceful) error {
 		cmd = "sudo poweroff -f"
 	}
 
-	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	g.ssh = nil
 	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	return nil
@@ -340,9 +398,13 @@ func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 	} else {
 		cmd = "sudo reboot -f"
 	}
-	sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
-	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// TODO: reliably destinguish between force close of SSH control channel and command being unable to run
 	client, err := sshClient(ctx, g.Node(), g.Logger())
 	if err != nil {
 		return trace.Wrap(err, "SSH reconnect")
@@ -368,11 +430,11 @@ func (g *gravity) SetInstaller(ctx context.Context, installerURL string, subdir 
 	installDir := filepath.Join(g.param.homeDir, subdir)
 	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerURL, "install_dir": installDir})
 
-	log.Debugf("Set installer %v -> %v", installerURL, installDir)
+	log.Infof("Set installer %v -> %v.", installerURL, installDir)
 
 	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerURL, installDir, g.param.env)
 	if err != nil {
-		log.WithError(err).Error("Failed to transfer installer")
+		log.WithError(err).Warn("Failed to transfer installer.")
 		return trace.Wrap(err)
 	}
 
@@ -390,7 +452,7 @@ func (g *gravity) ExecScript(ctx context.Context, scriptUrl string, args []strin
 	log := g.Logger().WithFields(logrus.Fields{
 		"script": scriptUrl, "args": args})
 
-	log.Debug("execute")
+	log.Debug("Execute.")
 
 	spath, err := sshutils.TransferFile(ctx, g.Client(), log,
 		scriptUrl, defaults.TmpDir, g.param.env)
@@ -427,7 +489,7 @@ const (
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string) error {
 	var code string
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
 			g.installDir, command),
 		nil, sshutils.ParseAsString(&code))
@@ -447,7 +509,7 @@ func (g *gravity) runOp(ctx context.Context, command string) error {
 	err = retry.Do(ctx, func() error {
 		var response string
 		cmd := fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code)
-		_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
+		err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 			cmd, nil, sshutils.ParseAsString(&response))
 		if err != nil {
 			return wait.Continue(cmd)
@@ -471,10 +533,22 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 		g.installDir, cmd, strings.Join(args, " "))
 
 	var out string
-	_, err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), c, nil, sshutils.ParseAsString(&out))
+	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), c, nil, sshutils.ParseAsString(&out))
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
 
 	return out, nil
 }
+
+// String returns a textual representation of this list of nodes
+func (r Nodes) String() string {
+	nodes := make([]string, 0, len(r))
+	for _, node := range r {
+		nodes = append(nodes, node.String())
+	}
+	return strings.Join(nodes, ",")
+}
+
+// Nodes is a list of gravity nodes
+type Nodes []Gravity

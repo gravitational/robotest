@@ -1,15 +1,15 @@
 package gravity
 
 import (
-	"github.com/gravitational/robotest/infra/ops"
+	"github.com/gravitational/robotest/infra/providers/ops"
 	"github.com/gravitational/robotest/lib/wait"
-	"github.com/gravitational/trace"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gravitational/trace"
 )
 
 // AutoScale will update the autoscaling group to the target number of nodes,

@@ -3,17 +3,16 @@ package gravity
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/gravitational/robotest/infra/providers/gce"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -32,16 +31,17 @@ func (c *TestContext) FromPreviousInstall(nodes []Gravity, subdir string) {
 // ProvisionInstaller deploys a specific installer
 func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag string) error {
 	// Cloud Provider ops will install telekube for us, so we can just exit early
-	if c.provisionerCfg.CloudProvider == "ops" {
+	if c.provisionerCfg.CloudProvider == constants.Ops {
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
+	defer cancel()
+
 	err := waitFileInstaller(ctx, installerUrl, c.Logger())
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	defer cancel()
 
 	ctx, cancel = context.WithTimeout(c.parent, c.timeouts.Install)
 	defer cancel()
@@ -58,28 +58,22 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		return trace.Wrap(err)
 	}
 
-	// only forward node logs to the cloud
-	if c.suite.client == nil {
-		return nil
-	}
-
 	return nil
 }
 
 // OfflineInstall sets up cluster using nodes provided
 func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error {
 	// Cloud Provider ops will install telekube for us, so we can just exit early
-	if c.provisionerCfg.CloudProvider == "ops" {
+	if c.provisionerCfg.CloudProvider == constants.Ops {
 		return nil
 	}
+
+	c.Logger().Info("Offline install.")
 
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
-	if len(nodes) == 0 {
-		return trace.NotFound("at least one node")
-	}
-
+	param.CloudProvider = c.provisionerCfg.CloudProvider
 	master := nodes[0].(*gravity)
 	if param.Token == "" {
 		param.Token = "ROBOTEST"
@@ -87,14 +81,19 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 	if param.Cluster == "" {
 		param.Cluster = master.param.Tag()
 	}
+	if param.CloudProvider == constants.GCE {
+		param.GCENodeTag = gce.TranslateClusterName(param.Cluster)
+	}
 
 	errs := make(chan error, len(nodes))
 	go func() {
+		c.Logger().WithField("node", master).Info("Install on leader node.")
 		errs <- master.Install(ctx, param)
 	}()
 
 	for _, node := range nodes[1:] {
 		go func(n Gravity) {
+			c.Logger().WithField("node", n).Info("Join.")
 			err := n.Join(ctx, JoinCmd{
 				PeerAddr: master.Node().PrivateAddr(),
 				Token:    param.Token,
@@ -102,7 +101,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 				StateDir: param.StateDir,
 			})
 			if err != nil {
-				n.Logger().WithError(err).Error("join failed")
+				n.Logger().WithError(err).Warn("Join failed.")
 			}
 			errs <- err
 		}(node)
@@ -110,7 +109,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 
 	_, err := utils.Collect(ctx, cancel, errs, nil)
 	if err != nil {
-		c.Logger().WithError(err).Error("install failed")
+		c.Logger().WithError(err).Warn("Install failed.")
 		return trace.Wrap(err)
 	}
 
@@ -140,23 +139,13 @@ func waitFileInstaller(ctx context.Context, file string, logger log.FieldLogger)
 			return nil
 		}
 		if os.IsNotExist(err) {
+			logger.Info("Waiting for installer file to become available.")
 			return wait.Continue("waiting for installer file %s", file)
-			logger.Warn("waiting for installer file to become available")
 		}
 		return wait.Abort(trace.ConvertSystemError(err))
 	})
 
 	return trace.Wrap(err)
-}
-
-func makePassword() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
-	result := make([]byte, 10)
-	for i := range result {
-		result[i] = chars[r.Intn(len(chars))]
-	}
-	return string(result)
 }
 
 // Uninstall makes nodes leave cluster and uninstall gravity
@@ -176,6 +165,24 @@ func (c *TestContext) Uninstall(nodes []Gravity) error {
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
+// UninstallApp uninstalls cluster application
+func (c *TestContext) UninstallApp(nodes []Gravity) error {
+	roles, err := c.NodesByRole(nodes)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), c.timeouts.UninstallApp)
+	defer cancel()
+
+	master := roles.ApiMaster
+	err = master.UninstallApp(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
 // Upgrade tries to perform an upgrade procedure on all nodes
 func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
 	roles, err := c.NodesByRole(nodes)
@@ -184,6 +191,8 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	}
 
 	master := roles.ApiMaster
+	log := c.Logger().WithField("leader", master)
+	log.Info("Pull installer.")
 
 	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
@@ -193,6 +202,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 		return trace.Wrap(err)
 	}
 
+	log.Info("Upload upgrade.")
 	err = master.Upload(ctx)
 	if err != nil {
 		return trace.Wrap(err)
@@ -201,6 +211,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Upgrade, len(nodes)))
 	defer cancel()
 
+	log.Info("Upgrade.")
 	err = master.Upgrade(ctx)
 	return trace.Wrap(err)
 }

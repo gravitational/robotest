@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -eu -o pipefail
 
 #
@@ -11,16 +10,19 @@ if [ -d $(dirname ${INSTALLER_URL}) ]; then
 	EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
 fi
 
-# OS could be ubuntu,centos,redhat
-# storage driver: could be devicemapper,loopback,overlay,overlay2
-#  separate multiple values by comma for OS and storage driver
+# TEST_OS could be "ubuntu,centos,redhat"
+# STORAGE_DRIVER could be "devicemapper,loopback,overlay,overlay2"
 TEST_OS=${TEST_OS:-ubuntu}
-STORAGE_DRIVER=${STORAGE_DRIVER:-devicemapper}
+STORAGE_DRIVER=${STORAGE_DRIVER:-overlay2}
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
 FAIL_FAST=${FAIL_FAST:-false}
 ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
+GCE_VM=${GCE_VM:-'custom-8-8192'}
+GCE_REGION=${GCE_REGION:-'northamerica-northeast1,us-west1,us-west2,us-east1,us-east4,us-central1'}
+GCE_PREEMPTIBLE=${GCE_PREEMPTIBLE:-'true'}
+DOCKER_DEVICE=${DOCKER_DEVICE:-'/dev/sdc'}
 
 # choose something relatively unique to avoid intersection with other people runs
 # tag would prefix cloud resource groups for your test runs
@@ -47,7 +49,10 @@ check_files () {
 	fi
 }
 
-if [ $DEPLOY_TO != "azure" ] && [ $DEPLOY_TO != "aws" ] && [ $DEPLOY_TO != "ops" ] ; then
+if [ $DEPLOY_TO != "azure" ] && \
+    [ $DEPLOY_TO != "aws" ] && \
+    [ $DEPLOY_TO != "gce" ] && \
+    [ $DEPLOY_TO != "ops" ] ; then
 	echo "Unsupported deployment cloud ${DEPLOY_TO}"
 	exit 1
 fi
@@ -80,6 +85,18 @@ AZURE_CONFIG="azure:
   docker_device: /dev/sdd"
 fi
 
+if [ $DEPLOY_TO == "gce" ] ; then
+check_files ${SSH_KEY} ${SSH_PUB} ${GOOGLE_APPLICATION_CREDENTIALS}
+GCE_CONFIG="gce:
+  credentials: /robotest/config/creds.json
+  vm_type: ${GCE_VM}
+  region: ${GCE_REGION}
+  ssh_key_path: /robotest/config/ops.pem
+  ssh_pub_key_path: /robotest/config/ops_rsa.pub
+  docker_device: \"${DOCKER_DEVICE:-}\"
+  preemptible: ${GCE_PREEMPTIBLE}"
+fi
+
 if [ $DEPLOY_TO == "ops" ] ; then
 OPS_CONFIG="ops:
   url: ${OPS_URL}
@@ -103,6 +120,7 @@ state_dir: /robotest/state
 cloud: ${DEPLOY_TO}
 ${AWS_CONFIG:-}
 ${AZURE_CONFIG:-}
+${GCE_CONFIG:-}
 ${OPS_CONFIG:-}
 "
 
@@ -120,6 +138,8 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-v ${P}/wd_suite/state:/robotest/state \
 	-v ${SSH_KEY}:/robotest/config/ops.pem \
 	${AZURE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
+	${GCE_CONFIG:+'-v' "${SSH_PUB}:/robotest/config/ops_rsa.pub"} \
+	${GCE_CONFIG:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/creds.json"} \
 	${ROBOTEST_DEV:+'-v' "${P}/assets/terraform:/robotest/terraform"} \
 	${ROBOTEST_DEV:+'-v' "${P}/build/robotest-suite:/usr/bin/robotest-suite"} \
 	${EXTRA_VOLUME_MOUNTS:-} \
@@ -130,6 +150,6 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
-	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE}  \
-	-tag=${TAG} -suite=sanity \
+	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE} \
+	-tag=${TAG} -suite=sanity -debug \
 	$@

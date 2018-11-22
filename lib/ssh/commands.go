@@ -23,12 +23,9 @@ type Cmd struct {
 // RunCommands executes commands sequentially
 func RunCommands(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, commands []Cmd) error {
 	for _, cmd := range commands {
-		exit, err := RunAndParse(ctx, client, log, cmd.Command, cmd.Env, ParseDiscard)
+		err := RunAndParse(ctx, client, log, cmd.Command, cmd.Env, ParseDiscard)
 		if err != nil {
 			return trace.Wrap(err, cmd.Command)
-		}
-		if exit != 0 {
-			return trace.Errorf("%s returned %d", cmd.Command, exit)
 		}
 	}
 	return nil

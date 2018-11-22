@@ -2,23 +2,29 @@ TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
 VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 TAG ?= latest
-PULL ?= --pull
+DOCKER_ARGS ?= --pull
 
-TERRAFORM_VERSION := 0.11.7
+GRAVITY_VERSION := 5.2.3
+TERRAFORM_VERSION := 0.11.10
 CHROMEDRIVER_VERSION := 2.39
-TERRAFORM_AWS_VERSION := 1.19.0
-TERRAFORM_AZURERM_VERSION := 1.5.0
-GRAVITY_VERSION := 5.0.23
+TERRAFORM_PROVIDER_AWS_VERSION := 1.19.0
+TERRAFORM_PROVIDER_AZURERM_VERSION := 1.5.0
+TERRAFORM_PROVIDER_GOOGLE_VERSION := 1.19.1
+TERRAFORM_PROVIDER_RANDOM_VERSION := 2.0.0
+TERRAFORM_PROVIDER_TEMPLATE_VERSION := 1.0.0
+export
 
-E2E_BUILD_ARGS := --build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
-	--build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION) \
-	--build-arg TERRAFORM_AZURERM_VERSION=$(TERRAFORM_AZURERM_VERSION) \
-	--build-arg TERRAFORM_AWS_VERSION=$(TERRAFORM_AWS_VERSION)
+providers := AZURERM AWS GOOGLE RANDOM TEMPLATE
+provider_args := $(foreach provider,$(providers),--build-arg TERRAFORM_PROVIDER_$(provider)_VERSION=$$TERRAFORM_PROVIDER_$(provider)_VERSION)
 
-SUITE_BUILD_ARGS := \
+BUILD_ARGS := \
 	--build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
-	--build-arg TERRAFORM_AZURERM_VERSION=$(TERRAFORM_AZURERM_VERSION) \
-	--build-arg TERRAFORM_AWS_VERSION=$(TERRAFORM_AWS_VERSION)
+	--build-arg GRAVITY_VERSION=$(GRAVITY_VERSION) \
+	$(provider_args)
+
+E2E_BUILD_ARGS := $(BUILD_ARGS) \
+	--build-arg CHROMEDRIVER_VERSION=$(CHROMEDRIVER_VERSION)
+SUITE_BUILD_ARGS := $(BUILD_ARGS)
 
 .PHONY: containers
 containers: $(TARGETS)
@@ -40,9 +46,9 @@ $(TARGETS): $(BINARIES)
 	cp -a ../build/robotest-$@ $(TEMPDIR)/build/
 	cp -r $@/* $(TEMPDIR)/
 	if [ "$@" = "e2e" ]; then \
-	  cd $(TEMPDIR) && docker build $(E2E_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	  cd $(TEMPDIR) && docker build $(E2E_BUILD_ARGS) --rm=true $(DOCKER_ARGS) -t $(IMAGE) . ; \
 	else \
-	  cd $(TEMPDIR) && docker build $(SUITE_BUILD_ARGS) --rm=true $(PULL) -t $(IMAGE) . ; \
+	  cd $(TEMPDIR) && docker build $(SUITE_BUILD_ARGS) --rm=true $(DOCKER_ARGS) -t $(IMAGE) . ; \
 	fi
 	rm -rf $(TEMPDIR)
 	@echo Built $(IMAGE)

@@ -9,16 +9,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/gravitational/configure"
 	"github.com/gravitational/robotest/e2e/framework/defaults"
 	"github.com/gravitational/robotest/infra"
+	"github.com/gravitational/robotest/infra/providers/aws"
+	"github.com/gravitational/robotest/infra/providers/azure"
+	"github.com/gravitational/robotest/infra/providers/gce"
 	"github.com/gravitational/robotest/infra/terraform"
 	"github.com/gravitational/robotest/infra/vagrant"
 	"github.com/gravitational/robotest/lib/debug"
 	"github.com/gravitational/robotest/lib/loc"
-	"github.com/gravitational/trace"
 
 	"github.com/go-yaml/yaml"
+	"github.com/gravitational/configure"
+	"github.com/gravitational/trace"
 	"github.com/kr/pretty"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
@@ -203,12 +206,14 @@ type TestContextType struct {
 	FlavorLabel string `json:"flavor_label" yaml:"flavor_label" `
 
 	// AWS defines the AWS-specific test configuration
-	AWS *infra.AWSConfig `json:"aws" yaml:"aws"`
+	AWS *aws.Config `json:"aws" yaml:"aws"`
 	// Azure defines Azure cloud specific parameters
-	Azure *infra.AzureConfig `yaml:"azure"`
-
+	Azure *azure.Config `json:"azure" yaml:"azure"`
+	// GCE defines Google Compute Engine specific parameters
+	GCE *gce.Config `json:"gce" yaml:"gce"`
 	// Onprem defines the test configuration for bare metal tests
-	Onprem OnpremConfig `json:"onprem" yaml:"onprem"`
+	Onprem *OnpremConfig `json:"onprem" yaml:"onprem"`
+
 	// Bandwagon defines the test configuration for post-install setup in bandwagon
 	Bandwagon BandwagonConfig `json:"bandwagon" yaml:"bandwagon"`
 	// WebDriverURL specifies optional WebDriver URL to use
@@ -286,9 +291,7 @@ type ClusterAddress struct {
 
 // OnpremConfig defines the test configuration for bare metal tests
 type OnpremConfig struct {
-	// Onprem
 	// NumNodes defines the total cluster capacity.
-	// This is a total number of nodes to provision
 	NumNodes int `json:"nodes" yaml:"nodes"`
 	// InstallerURL defines the location of the installer tarball.
 	// Depending on the provisioner - this can be either a URL or local path
@@ -458,7 +461,7 @@ func initLogger(debug bool) {
 
 func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, err error) {
 	if TestContext.CloudProvider == "" {
-		return nil, trace.Errorf("cloud_provider parameter is required for Terraform")
+		return nil, trace.Errorf("cloud provider parameter is required for Terraform provisioner")
 	}
 
 	config = &terraform.Config{
@@ -470,6 +473,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		CloudProvider:       TestContext.CloudProvider,
 		AWS:                 TestContext.AWS,
 		Azure:               TestContext.Azure,
+		GCE:                 TestContext.GCE,
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
 		VariablesFile:       TestContext.Onprem.VariablesFile,
@@ -484,15 +488,17 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 	return config, nil
 }
 
-func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisioner Provisioner) (infraProvisioner infra.Provisioner, err error) {
-	switch provisioner.Type {
+func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisionerConfig Provisioner) (provisioner infra.Provisioner, err error) {
+	switch provisionerConfig.Type {
 	case provisionerTerraform:
 		config, err := makeTerraformConfig(infraConfig)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-
-		infraProvisioner, err = terraform.New(stateDir, *config)
+		provisioner, err = terraform.New(stateDir, *config)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -501,22 +507,22 @@ func provisionerFromConfig(infraConfig infra.Config, stateDir string, provisione
 			NumNodes:     TestContext.Onprem.NumNodes,
 			DockerDevice: TestContext.Onprem.DockerDevice,
 		}
-		err := config.Validate()
+		err = config.Validate()
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		infraProvisioner, err = vagrant.New(stateDir, config)
+		provisioner, err = vagrant.New(stateDir, config)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
-		if provisionerName != "" {
-			return nil, trace.BadParameter("unknown provisioner %q", provisionerName)
+		if provisionerConfig.Type != "" {
+			return nil, trace.BadParameter("unknown provisioner %q", provisionerConfig.Type)
 		}
 	}
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return infraProvisioner, nil
+	return provisioner, nil
 }
 
 func provisionerFromState(infraConfig infra.Config, testState TestState) (provisioner infra.Provisioner, err error) {
@@ -536,6 +542,9 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = terraform.NewFromState(*config, *testState.ProvisionerState)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	case provisionerVagrant:
 		config := vagrant.Config{
 			Config:       infraConfig,
@@ -548,6 +557,9 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			return nil, trace.Wrap(err)
 		}
 		provisioner, err = vagrant.NewFromState(config, *testState.ProvisionerState)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
 	default:
 		// no provisioner when the cluster has already been provisioned
 		// or automatic provisioning is used
@@ -555,38 +567,34 @@ func provisionerFromState(infraConfig infra.Config, testState TestState) (provis
 			return nil, trace.BadParameter("unknown provisioner %q", testState.Provisioner.Type)
 		}
 	}
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
 	return provisioner, nil
 }
 
 func outputSensitiveConfig(testConfig TestContextType) {
 	testConfig.AWS = nil
 	testConfig.Azure = nil
+	testConfig.GCE = nil
 	testConfig.Login.Password = mask
 	testConfig.ServiceLogin.Password = mask
 	testConfig.License = mask
 	var buf bytes.Buffer
-	pretty.Fprintf(&buf, "[CONFIG] %# v", testConfig)
+	pretty.Fprintf(&buf, "[CONFIG] %#v", testConfig)
 	log.Debug(buf.String())
 }
 
 func outputSensitiveState(testState TestState) {
 	if testState.Login != nil {
-		login := &Login{}
-		*login = *testState.Login
+		login := *testState.Login
 		login.Password = mask
-		testState.Login = login
+		testState.Login = &login
 	}
 	if testState.ServiceLogin != nil {
-		login := &ServiceLogin{}
-		*login = *testState.ServiceLogin
+		login := *testState.ServiceLogin
 		login.Password = mask
-		testState.ServiceLogin = login
+		testState.ServiceLogin = &login
 	}
 	var buf bytes.Buffer
-	pretty.Fprintf(&buf, "[STATE]: %# v", testState)
+	pretty.Fprintf(&buf, "[STATE]: %#v", testState)
 	log.Debug(buf.String())
 }
 

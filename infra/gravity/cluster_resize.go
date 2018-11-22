@@ -3,20 +3,25 @@ package gravity
 import (
 	"context"
 
-	sshutils "github.com/gravitational/robotest/lib/ssh"
+	"github.com/gravitational/robotest/lib/constants"
 	"github.com/gravitational/robotest/lib/utils"
-	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
+	"github.com/sirupsen/logrus"
 )
 
 func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	if len(current) == 0 || len(extra) == 0 {
-		return trace.Errorf("empty node list")
+		return trace.BadParameter("empty node list")
 	}
-	if c.provisionerCfg.CloudProvider == "ops" {
-		return trace.Errorf("not implemented")
+	if c.provisionerCfg.CloudProvider == constants.Ops {
+		return trace.NotImplemented("not implemented")
 	}
+
+	c.Logger().WithFields(logrus.Fields{
+		"current": current,
+		"extra":   extra,
+	}).Info("Expand.")
 
 	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
 	defer cancel()
@@ -32,9 +37,10 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	defer cancel()
 
 	for _, node := range extra {
+		c.Logger().WithField("node", node).Info("Join.")
 		err = node.Join(ctx, JoinCmd{
 			PeerAddr: joinAddr,
-			Token:    status.Token,
+			Token:    status.Cluster.Token.Token,
 			Role:     p.Role,
 			StateDir: p.StateDir,
 		})
@@ -44,23 +50,6 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 	}
 
 	return nil
-}
-
-func waitEtcdHealthOk(ctx context.Context, node Gravity) func() error {
-	return func() error {
-		exitCode, err := sshutils.RunAndParse(ctx, node.Client(), node.Logger(),
-			`sudo /usr/bin/gravity enter -- --notty /usr/bin/etcdctl -- cluster-health`,
-			nil, sshutils.ParseDiscard)
-		if err == nil {
-			return nil
-		}
-
-		if exitCode > 0 {
-			return wait.Continue(err.Error())
-		} else {
-			return wait.Abort(err)
-		}
-	}
 }
 
 // ShrinkLeave will gracefully leave cluster
