@@ -24,7 +24,7 @@ type Config struct {
 	// SSHUser defines SSH user to connect to the provisioned machines.
 	// Required attribute.
 	// Will be determined based on selected cloud provder.
-	SSHUser string `json:"os_user" yaml:"ssh_user"`
+	SSHUser string `json:"os_user" yaml:"os_user"`
 	// SSHPublicKeyPath specifies the location of the public SSH key
 	SSHPublicKeyPath string `json:"ssh_pub_key_path" yaml:"ssh_pub_key_path" validate:"required"`
 	// DockerDevice specifies the block device for Docker

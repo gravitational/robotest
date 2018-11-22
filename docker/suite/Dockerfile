@@ -3,6 +3,7 @@ FROM quay.io/gravitational/debian-grande:latest
 RUN apt-get update && \
     apt-get install -y curl unzip
 
+ARG GRAVITY_VERSION
 ARG TERRAFORM_VERSION
 ARG TERRAFORM_PROVIDER_AZURERM_VERSION
 ARG TERRAFORM_PROVIDER_AWS_VERSION
@@ -38,7 +39,7 @@ RUN curl ${TF_TARBALL} -o terraform.zip && \
         /usr/share/{doc,doc-base,man}/ \
         /tmp/*
 
-RUN (curl https://get.gravitational.io/telekube/install | bash)
+RUN (curl https://get.gravitational.io/telekube/install/${GRAVITY_VERSION} | bash)
 
 RUN mkdir /robotest
 WORKDIR /robotest

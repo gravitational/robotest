@@ -4,6 +4,7 @@ VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 
 TAG ?= latest
 DOCKER_ARGS ?= --pull
 
+GRAVITY_VERSION := 5.2.3
 TERRAFORM_VERSION := 0.11.10
 CHROMEDRIVER_VERSION := 2.39
 TERRAFORM_PROVIDER_AWS_VERSION := 1.19.0
@@ -18,6 +19,7 @@ provider_args := $(foreach provider,$(providers),--build-arg TERRAFORM_PROVIDER_
 
 BUILD_ARGS := \
 	--build-arg TERRAFORM_VERSION=$(TERRAFORM_VERSION) \
+	--build-arg GRAVITY_VERSION=$(GRAVITY_VERSION) \
 	$(provider_args)
 
 E2E_BUILD_ARGS := $(BUILD_ARGS) \

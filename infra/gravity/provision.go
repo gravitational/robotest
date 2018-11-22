@@ -199,14 +199,8 @@ Loop:
 		return cluster, trace.Wrap(err)
 	}
 
-	c.Logger().Debug("ensuring disk speed is adequate across nodes")
-	ctx, cancel := context.WithTimeout(c.Context(), diskWaitTimeout)
-	defer cancel()
-
-	err = waitDisks(ctx, gravityNodes, []string{"/iotest", path.Join(cfg.dockerDevice, "/iotest")}, c.Logger())
+	err = validateDiskSpeed(c.Context(), gravityNodes, cfg.dockerDevice, c.Logger())
 	if err != nil {
-		err = trace.Wrap(err, "VM disks do not meet minimum write performance requirements")
-		c.Logger().WithError(err).Error(err.Error())
 		return cluster, trace.Wrap(err)
 	}
 
@@ -252,6 +246,13 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 	if err != nil {
 		log.WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
 		return cluster, nil, trace.Wrap(err)
+	}
+
+	if cfg.CloudProvider == constants.Azure {
+		err = validateDiskSpeed(c.Context(), gravityNodes, cfg.dockerDevice, c.Logger())
+		if err != nil {
+			return cluster, nil, trace.Wrap(err)
+		}
 	}
 
 	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
@@ -394,6 +395,19 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	}
 
 	return g, nil
+}
+
+func validateDiskSpeed(ctx context.Context, nodes []Gravity, device string, logger logrus.FieldLogger) error {
+	logger.Debug("Ensuring disk speed is adequate across nodes.")
+	ctx, cancel := context.WithTimeout(ctx, diskWaitTimeout)
+	defer cancel()
+	err := waitDisks(ctx, nodes, []string{"/iotest", device}, logger)
+	if err != nil {
+		err = trace.Wrap(err, "VM disks did not meet performance requirements, tear down as non-usable")
+		logger.WithError(err).Error("VM disks did not meet performance requirements, tear down as non-usable.")
+		return trace.Wrap(err)
+	}
+	return nil
 }
 
 // waitDisks is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete

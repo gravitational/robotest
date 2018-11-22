@@ -51,7 +51,8 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	}
 
 	go func() {
-		buf := make([]byte, 32<<20)
+		const MiB = 1048576
+		buf := make([]byte, 32*MiB)
 		err := scpSendFile(stdin, f, fi, buf)
 		stdin.Close()
 		errCh <- trace.Wrap(err)

@@ -354,7 +354,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity leave --force --confirm --system-log-file=./telekube-system.log`, g.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm --system-log-file=./telekube-system.log`, g.installDir)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
