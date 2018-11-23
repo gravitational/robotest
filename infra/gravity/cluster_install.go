@@ -35,7 +35,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.WaitForInstaller)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.WaitForInstaller)
 	defer cancel()
 
 	err := waitFileInstaller(ctx, installerUrl, c.Logger())
@@ -43,7 +43,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 		return trace.Wrap(err)
 	}
 
-	ctx, cancel = context.WithTimeout(c.parent, c.timeouts.Install)
+	ctx, cancel = context.WithTimeout(c.ctx, c.timeouts.Install)
 	defer cancel()
 
 	errs := make(chan error, len(nodes))
@@ -70,7 +70,7 @@ func (c *TestContext) OfflineInstall(nodes []Gravity, param InstallParam) error 
 
 	c.Logger().Info("Offline install.")
 
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
 	param.CloudProvider = c.provisionerCfg.CloudProvider
@@ -151,7 +151,7 @@ func waitFileInstaller(ctx context.Context, file string, logger log.FieldLogger)
 // Uninstall makes nodes leave cluster and uninstall gravity
 // it is not asserting internally
 func (c *TestContext) Uninstall(nodes []Gravity) error {
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
 	errs := make(chan error, len(nodes))
@@ -194,7 +194,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 	log := c.Logger().WithField("leader", master)
 	log.Info("Pull installer.")
 
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(nodes)))
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(nodes)))
 	defer cancel()
 
 	err = master.SetInstaller(ctx, installerUrl, subdir)
@@ -208,7 +208,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 		return trace.Wrap(err)
 	}
 
-	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Upgrade, len(nodes)))
+	ctx, cancel = context.WithTimeout(c.ctx, withDuration(c.timeouts.Upgrade, len(nodes)))
 	defer cancel()
 
 	log.Info("Upgrade.")
@@ -218,7 +218,7 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 
 // ExecScript will run and execute a script on all nodes
 func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []string) error {
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
 	errs := make(chan error, len(nodes))

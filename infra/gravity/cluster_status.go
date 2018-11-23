@@ -14,7 +14,7 @@ import (
 // Status walks around all nodes and checks whether they all feel OK
 func (c *TestContext) Status(nodes []Gravity) error {
 	c.Logger().WithField("nodes", Nodes(nodes)).Info("Check status on nodes.")
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
 	retry := wait.Retryer{
@@ -53,7 +53,7 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
 	err := sshutils.CheckTimeSync(ctx, timeNodes)
@@ -63,7 +63,7 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 // PullLogs requests logs from all nodes
 // prefix `postmortem` is reserved for cleanup procedure
 func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.CollectLogs)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.CollectLogs)
 	defer cancel()
 
 	errs := make(chan error, len(nodes))
@@ -105,7 +105,7 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) 
 
 	roles := ClusterNodesByRole{}
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
 	apiMaster, err := ResolveInPlanet(ctx, nodes[0], apiserver)

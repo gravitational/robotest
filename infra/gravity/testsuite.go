@@ -72,8 +72,9 @@ type testSuite struct {
 	t         *testing.T
 
 	failFast, isFailingFast bool
-	ctx                     context.Context
-	cancelFn                func()
+
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	logger logrus.FieldLogger
 }
@@ -95,7 +96,8 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	if err != nil {
 		logger.WithError(err).Error("cloud progress reporting not available")
 	}
-	ctx, cancelFn := context.WithCancel(ctx)
+
+	ctx, cancel := context.WithCancel(ctx)
 
 	return &testSuite{
 		RWMutex:         sync.RWMutex{},
@@ -107,7 +109,7 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 		t:               t,
 		failFast:        failFast,
 		ctx:             ctx,
-		cancelFn:        cancelFn,
+		cancel:          cancel,
 		logger:          logger,
 	}
 }
@@ -125,7 +127,7 @@ func (s *testSuite) Cancel(reason string) {
 	s.isFailingFast = true
 	s.Unlock()
 
-	s.cancelFn()
+	s.cancel()
 	s.Logger().WithField("reason", reason).Warn("test suite canceled")
 }
 
@@ -225,11 +227,9 @@ func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interf
 	}
 }
 
-func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig, param interface{}) (err error) {
+func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg ProvisionerConfig, param interface{}) (err error) {
 	uid := uuid.NewV4().String()
-
 	labels := logrus.Fields{}
-
 	var logLink string
 
 	if s.client != nil {
@@ -243,12 +243,14 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 		}
 	}
 
-	ctx, cancelFn := context.WithCancel(s.ctx)
-	defer cancelFn()
+	ctx, cancel := context.WithCancel(s.ctx)
+	defer cancel()
+	monitorCtx, monitorCancel := context.WithCancel(ctx)
 
-	cx := &TestContext{
+	testCtx := &TestContext{
 		name:     cfg.Tag(),
-		parent:   ctx,
+		ctx:      ctx,
+		cancel:   cancel,
 		timeouts: DefaultTimeouts,
 		uid:      uid,
 		suite:    s,
@@ -257,31 +259,33 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 		log: xlog.NewLogger(s.client, t, labels).WithFields(logrus.Fields{
 			"name": cfg.Tag(),
 		}),
+		monitorCtx:    monitorCtx,
+		monitorCancel: monitorCancel,
 	}
 
 	defer func() {
 		r := recover()
 		if r == nil {
-			cx.updateStatus(TestStatusPassed)
+			testCtx.updateStatus(TestStatusPassed)
 			return
 		}
 
 		if s.failingFast() {
-			cx.updateStatus(TestStatusCancelled)
+			testCtx.updateStatus(TestStatusCancelled)
 			return
 		}
 
-		if cx.Failed() {
-			cx.updateStatus(TestStatusFailed)
-			err = cx.Error()
+		if testCtx.Failed() {
+			testCtx.updateStatus(TestStatusFailed)
+			err = testCtx.Error()
 			return
 		}
 
 		// genuine panic by test itself, not after cx.OK()
 		// usually that is a logical error in a test itself
 		// there is no reason to retry it
-		cx.updateStatus(TestStatusPaniced)
-		cx.Logger().WithFields(
+		testCtx.updateStatus(TestStatusPaniced)
+		testCtx.Logger().WithFields(
 			logrus.Fields{
 				"stack": string(debug.Stack()),
 				"where": r,
@@ -291,16 +295,16 @@ func (s *testSuite) runTestFunc(t *testing.T, fn TestFunc, cfg ProvisionerConfig
 	}()
 
 	if logLink != "" {
-		cx.log = cx.log.WithField("logs", logLink)
+		testCtx.log = testCtx.log.WithField("logs", logLink)
 	}
 
 	s.Lock()
-	s.tests = append(s.tests, cx)
+	s.tests = append(s.tests, testCtx)
 	s.Unlock()
-	cx.updateStatus(TestStatusRunning)
+	testCtx.updateStatus(TestStatusRunning)
 
-	cx.timestamp = time.Now()
-	fn(cx, cfg)
+	testCtx.timestamp = time.Now()
+	testFunc(testCtx, cfg)
 
 	return nil
 }

@@ -84,8 +84,8 @@ func TestMain(t *testing.T) {
 
 	// testing package has internal 10 mins timeout, can be reset from command line only
 	// see docker/suite/entrypoint.sh
-	ctx, cancelFn := context.WithTimeout(context.Background(), testMaxTime)
-	defer cancelFn()
+	ctx, cancel := context.WithTimeout(context.Background(), testMaxTime)
+	defer cancel()
 
 	policy := gravity.ProvisionerPolicy{
 		DestroyOnSuccess:  *destroyOnSuccess,

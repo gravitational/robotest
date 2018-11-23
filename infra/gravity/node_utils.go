@@ -46,7 +46,7 @@ func doRelocate(ctx context.Context, g Gravity) error {
 		}
 	}
 	if master == nil {
-		return wait.Abort(trace.Errorf("no current cluster master: %+v", pods))
+		return wait.Abort(trace.NotFound("no current cluster master: %+v", pods))
 	}
 
 	if err = KubectlDeletePod(ctx, g, kubeSystemNS, master.Name); err != nil {
