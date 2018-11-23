@@ -278,6 +278,8 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 					// Consider the abort to be an indication of node preemption and
 					// cancel the test
 					c.cancel()
+				case utils.IsContextCancelledError(err):
+					// Ignore
 				default:
 					c.Logger().Warnf("Failed to stream logs: %v.", err)
 				}
