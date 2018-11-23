@@ -44,9 +44,9 @@ var testStatus = map[bool]string{true: "failed", false: "ok"}
 
 const finalTeardownTimeout = time.Minute * 5
 
-// wrapDestroyFn returns a function that wraps the specified set of nodes and the given clean up function
-// that implements report collection and resource clean up.
-func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
+// wrapDestroyFunc returns a function that wraps the specified set of nodes
+// and the given clean up function that implements report collection and resource clean up.
+func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(context.Context) error) DestroyFn {
 	return func() error {
 		defer func() {
 			if r := recover(); r != nil {
@@ -90,6 +90,9 @@ func wrapDestroyFn(c *TestContext, tag string, nodes []Gravity, destroy func(con
 			log.Info("not destroying VMs per policy")
 			return nil
 		}
+
+		// Close the monitor processes
+		c.monitorCancel()
 
 		log.Info("destroying VMs")
 

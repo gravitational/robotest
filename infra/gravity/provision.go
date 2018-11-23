@@ -258,7 +258,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	cluster.Nodes = gravityNodes
-	cluster.Destroy = wrapDestroyFn(c, cfg.Tag(), gravityNodes, infra.destroyFn)
+	cluster.Destroy = wrapDestroyFunc(c, cfg.Tag(), gravityNodes, infra.destroyFn)
 
 	return cluster, &infra.params.terraform, nil
 }
