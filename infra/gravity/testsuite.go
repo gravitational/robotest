@@ -246,6 +246,7 @@ func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg Provisioner
 	ctx, cancel := context.WithCancel(s.ctx)
 	defer cancel()
 	monitorCtx, monitorCancel := context.WithCancel(ctx)
+	defer monitorCancel()
 
 	testCtx := &TestContext{
 		name:     cfg.Tag(),
