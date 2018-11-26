@@ -48,3 +48,9 @@ func Collect(ctx context.Context, cancel func(), errChan chan error, valuesChan 
 
 	return values, trace.NewAggregate(errors...)
 }
+
+// IsContextCancelledError returns true if the given error
+// is a context cancelled error
+func IsContextCancelledError(err error) bool {
+	return trace.Unwrap(err) == context.Canceled
+}

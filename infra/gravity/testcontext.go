@@ -37,7 +37,8 @@ type TestContext struct {
 	err            error
 	timestamp      time.Time
 	name           string
-	parent         context.Context
+	ctx            context.Context
+	cancel         context.CancelFunc
 	timeouts       OpTimeouts
 	log            logrus.FieldLogger
 	uid            string
@@ -47,6 +48,15 @@ type TestContext struct {
 	status         string
 	provisionerCfg ProvisionerConfig
 	fields         logrus.Fields
+
+	// Context and cancel function for the SSH channel monitor process.
+	// Monitor process is usually a long-running process that is active
+	// for the lifetime of a single test.
+	// Whenever the monitor process is aborted (i.e. interrupted w/o
+	// providing exit code), the whole test is aborted and retried
+	// (subject to a maximum number of retry attempts)
+	monitorCtx    context.Context
+	monitorCancel context.CancelFunc
 }
 
 // Run allows a running test to spawn a subtest
@@ -58,7 +68,7 @@ func (cx *TestContext) Run(fn TestFunc, cfg ProvisionerConfig, param interface{}
 
 // Context provides a context for a current test run
 func (c *TestContext) Context() context.Context {
-	return c.parent
+	return c.ctx
 }
 
 // Logger returns preconfigured logger for this test
@@ -161,7 +171,7 @@ func (c *TestContext) Sleep(msg string, d time.Duration) {
 	c.log.Debugf("sleep %v %s...", d, msg)
 	select {
 	case <-time.After(d):
-	case <-c.parent.Done():
+	case <-c.ctx.Done():
 	}
 }
 

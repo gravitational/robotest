@@ -23,7 +23,7 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 		"extra":   extra,
 	}).Info("Expand.")
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
 	master := current[0]
@@ -33,7 +33,7 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 		return trace.Wrap(err, "query status from [%v]", master)
 	}
 
-	ctx, cancel = context.WithTimeout(c.parent, withDuration(c.timeouts.Install, len(extra)))
+	ctx, cancel = context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(extra)))
 	defer cancel()
 
 	for _, node := range extra {
@@ -54,7 +54,7 @@ func (c *TestContext) Expand(current, extra []Gravity, p InstallParam) error {
 
 // ShrinkLeave will gracefully leave cluster
 func (c *TestContext) ShrinkLeave(nodesToKeep, nodesToRemove []Gravity) error {
-	ctx, cancel := context.WithTimeout(c.parent, withDuration(c.timeouts.Leave, len(nodesToRemove)))
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Leave, len(nodesToRemove)))
 	defer cancel()
 
 	errs := make(chan error, len(nodesToRemove))
@@ -76,7 +76,7 @@ func (c *TestContext) RemoveNode(nodesToKeep []Gravity, remove Gravity) error {
 
 	master := nodesToKeep[0]
 
-	ctx, cancel := context.WithTimeout(c.parent, c.timeouts.Leave)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Leave)
 	defer cancel()
 
 	err := master.Remove(ctx, remove.Node().PrivateAddr(), Graceful(!remove.Offline()))

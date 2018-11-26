@@ -258,7 +258,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
 
 	cluster.Nodes = gravityNodes
-	cluster.Destroy = wrapDestroyFn(c, cfg.Tag(), gravityNodes, infra.destroyFn)
+	cluster.Destroy = wrapDestroyFunc(c, cfg.Tag(), gravityNodes, infra.destroyFn)
 
 	return cluster, &infra.params.terraform, nil
 }
@@ -268,8 +268,20 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
 		go func(node Gravity) {
-			if err := node.(*gravity).streamLogs(c.Context()); err != nil {
-				if !sshutil.IsExitMissingError(err) {
+			if err := node.(*gravity).streamLogs(c.monitorCtx); err != nil {
+				switch {
+				case sshutil.IsExitMissingError(err):
+					if c.Context().Err() != nil {
+						// This test has already been cancelled / has timed out
+						return
+					}
+					// Consider the abort to be an indication of node preemption and
+					// cancel the test
+					c.Logger().Infof("Node %v was stopped/preempted, cancelling test.", node)
+					c.cancel()
+				case utils.IsContextCancelledError(err):
+					// Ignore
+				default:
 					c.Logger().Warnf("Failed to stream logs: %v.", err)
 				}
 			}
