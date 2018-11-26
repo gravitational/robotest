@@ -2,6 +2,7 @@ package gravity
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -23,16 +24,16 @@ func (c *TestContext) Status(nodes []Gravity) error {
 	}
 
 	err := retry.Do(ctx, func() error {
-		errs := make(chan error, len(nodes))
+		errors := make(chan error, len(nodes))
 
 		for _, node := range nodes {
 			go func(n Gravity) {
 				_, err := n.Status(ctx)
-				errs <- err
+				errors <- err
 			}(node)
 		}
 
-		err := utils.CollectErrors(ctx, errs)
+		err := utils.CollectErrors(ctx, errors)
 		if err == nil {
 			return nil
 		}
@@ -65,23 +66,32 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.CollectLogs)
 	defer cancel()
+	errors := make(chan error, len(nodes))
 
-	errs := make(chan error, len(nodes))
-
-	c.Logger().WithField("nodes", nodes).Debug("Collecting logs from nodes")
-	for _, node := range nodes {
-		go func(n Gravity) {
-			localPath, err := n.CollectLogs(ctx, prefix)
-			if err == nil {
-				n.Logger().Debugf("logs in %s", localPath)
-			} else {
-				n.Logger().WithError(err).Error("error fetching node logs")
-			}
-			errs <- err
-		}(node)
+	api, other, err := apiserverNode(ctx, nodes)
+	if err != nil {
+		return trace.Wrap(err)
 	}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+	c.Logger().WithField("nodes", nodes).Debug("Collecting logs from nodes.")
+	for i, node := range append([]Gravity{api}, other...) {
+		go func(i int, n Gravity) {
+			args := []string{"--filter=system"}
+			if i == 0 {
+				// Use the API server node to collect kubernetes logs
+				args = append(args, "--filter=kubernetes")
+			}
+			localPath, err := n.CollectLogs(ctx, prefix, args...)
+			if err == nil {
+				n.Logger().Debugf("Node logs in %v.", localPath)
+			} else {
+				n.Logger().WithError(err).Error("Failed to fetch node logs.")
+			}
+			errors <- err
+		}(i, node)
+	}
+
+	return trace.Wrap(utils.CollectErrors(ctx, errors))
 }
 
 // ClusterNodesByRole defines which roles every node plays in a cluster
@@ -94,39 +104,23 @@ type ClusterNodesByRole struct {
 	ClusterBackup []Gravity
 	// Regular nodes are those which are part of the cluster but have no role assigned
 	Regular []Gravity
+	// Other lists all nodes but the API server node
+	Other []Gravity
 }
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
-func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) {
-	const apiserver = "leader.telekube.local"
-	if len(nodes) < 1 {
-		return nil, trace.BadParameter("at least one node required")
-	}
-
-	roles := ClusterNodesByRole{}
-
+func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, err error) {
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
-	apiMaster, err := ResolveInPlanet(ctx, nodes[0], apiserver)
+	roles = &ClusterNodesByRole{}
+	roles.ApiMaster, roles.Other, err = apiserverNode(ctx, nodes)
 	if err != nil {
-		return nil, trace.Wrap(err, "resolving %v: %v", apiserver, err)
+		return nil, trace.Wrap(err)
 	}
 
 	// Run query on the apiserver
-	var queryNode Gravity
-	for _, node := range nodes {
-		if node.Node().PrivateAddr() == apiMaster {
-			queryNode = node
-			break
-		}
-	}
-
-	if queryNode == nil {
-		return nil, trace.NotFound("failed to find a master node")
-	}
-
-	pods, err := KubectlGetPods(ctx, queryNode, kubeSystemNS, appGravityLabel)
+	pods, err := KubectlGetPods(ctx, roles.ApiMaster, kubeSystemNS, appGravityLabel)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -134,10 +128,6 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (*ClusterNodesByRole, error) 
 nodeLoop:
 	for _, node := range nodes {
 		ip := node.Node().PrivateAddr()
-
-		if ip == apiMaster {
-			roles.ApiMaster = node
-		}
 
 		for _, pod := range pods {
 			if ip == pod.NodeIP {
@@ -150,8 +140,33 @@ nodeLoop:
 			}
 		}
 
+		// Since we filter Pods that run gravity-site (i.e. master nodes) above,
+		// here only the regular nodes are left
 		roles.Regular = append(roles.Regular, node)
 	}
 
-	return &roles, nil
+	return roles, nil
+}
+
+// apiserverNode returns the node that runs the API server
+func apiserverNode(ctx context.Context, nodes []Gravity) (api Gravity, other []Gravity, err error) {
+	const apiserver = "leader.telekube.local"
+	if len(nodes) < 1 {
+		return nil, nil, trace.BadParameter("at least one node required")
+	}
+
+	apiserverAddr, err := ResolveInPlanet(ctx, nodes[0], apiserver)
+	if err != nil {
+		return nil, nil, trace.Wrap(err, "failed to resolve %v", apiserver)
+	}
+
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].Node().PrivateAddr() == apiserverAddr
+	})
+	api = nodes[0]
+	if api.Node().PrivateAddr() != apiserverAddr {
+		return nil, nil, trace.NotFound("no apiserver node found")
+	}
+
+	return api, nodes[1:], nil
 }

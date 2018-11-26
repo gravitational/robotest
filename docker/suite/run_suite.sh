@@ -10,10 +10,10 @@ if [ -d $(dirname ${INSTALLER_URL}) ]; then
 	EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
 fi
 
-# TEST_OS could be "ubuntu,centos,redhat"
-# STORAGE_DRIVER could be "devicemapper,loopback,overlay,overlay2"
-TEST_OS=${TEST_OS:-ubuntu}
-STORAGE_DRIVER=${STORAGE_DRIVER:-overlay2}
+# GRAVTIY_FILE/GRAVITY_URL specify the location of the up-to-date gravity binary
+if [ -d $(dirname ${GRAVITY_URL}) ]; then
+	GRAVITY_FILE='/installer/'$(basename ${GRAVITY_URL})
+fi
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
@@ -115,6 +115,7 @@ fi
 
 CLOUD_CONFIG="
 installer_url: ${INSTALLER_FILE:-${INSTALLER_URL}}
+gravity_url: ${GRAVITY_FILE:-${GRAVITY_URL}}
 script_path: /robotest/terraform/${DEPLOY_TO}
 state_dir: /robotest/state
 cloud: ${DEPLOY_TO}
