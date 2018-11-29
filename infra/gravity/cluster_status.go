@@ -24,16 +24,16 @@ func (c *TestContext) Status(nodes []Gravity) error {
 	}
 
 	err := retry.Do(ctx, func() error {
-		errors := make(chan error, len(nodes))
+		errs := make(chan error, len(nodes))
 
 		for _, node := range nodes {
 			go func(n Gravity) {
 				_, err := n.Status(ctx)
-				errors <- err
+				errs <- err
 			}(node)
 		}
 
-		err := utils.CollectErrors(ctx, errors)
+		err := utils.CollectErrors(ctx, errs)
 		if err == nil {
 			return nil
 		}
@@ -66,7 +66,7 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.CollectLogs)
 	defer cancel()
-	errors := make(chan error, len(nodes))
+	errs := make(chan error, len(nodes))
 
 	api, other, err := apiserverNode(ctx, nodes)
 	if err != nil {
@@ -87,11 +87,11 @@ func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
 			} else {
 				n.Logger().WithError(err).Error("Failed to fetch node logs.")
 			}
-			errors <- err
+			errs <- err
 		}(i, node)
 	}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errors))
+	return trace.Wrap(utils.CollectErrors(ctx, errs))
 }
 
 // ClusterNodesByRole defines which roles every node plays in a cluster

@@ -240,15 +240,15 @@ func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []strin
 }
 
 func uploadBinaries(ctx context.Context, nodes []Gravity, url, subdir string) error {
-	errors := make(chan error, len(nodes)-1)
+	errs := make(chan error, len(nodes)-1)
 	for _, node := range nodes {
 		go func(node Gravity) {
 			err := node.TransferFile(ctx, url, subdir)
-			errors <- trace.Wrap(err)
+			errs <- trace.Wrap(err)
 		}(node)
 	}
 
-	err := utils.CollectErrors(ctx, errors)
+	err := utils.CollectErrors(ctx, errs)
 	if err != nil {
 		return trace.Wrap(err)
 	}
