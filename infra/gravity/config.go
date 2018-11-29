@@ -82,10 +82,10 @@ type ProvisionerConfig struct {
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
 	// InstallerURL specifies the location of the installer tarball.
-	// Can either a local path or S3 URL
+	// Can either be a local path or S3 URL
 	InstallerURL string `yaml:"installer_url" validate:"required"`
 	// GravityURL specifies the location of the up-to-date gravity binary.
-	// Can either a local path or S3 URL
+	// Can either be a local path or S3 URL
 	GravityURL string `yaml:"gravity_url" validate:"required"`
 	// StateDir defines base directory where to keep state (i.e. terraform configs/vars)
 	StateDir string `yaml:"state_dir" validate:"required"`
