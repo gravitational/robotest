@@ -184,7 +184,7 @@ func (c *TestContext) UninstallApp(nodes []Gravity) error {
 }
 
 // Upgrade tries to perform an upgrade procedure on all nodes
-func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) error {
+func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, gravityURL, subdir string) error {
 	roles, err := c.NodesByRole(nodes)
 	if err != nil {
 		return trace.Wrap(err)
@@ -208,6 +208,14 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, subdir string) erro
 		return trace.Wrap(err)
 	}
 
+	if len(nodes) > 1 {
+		log.Info("Upload gravity binaries.")
+		err = uploadBinaries(ctx, roles.Other, gravityURL, subdir)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+	}
+
 	ctx, cancel = context.WithTimeout(c.ctx, withDuration(c.timeouts.Upgrade, len(nodes)))
 	defer cancel()
 
@@ -229,4 +237,21 @@ func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []strin
 	}
 
 	return trace.Wrap(utils.CollectErrors(ctx, errs))
+}
+
+func uploadBinaries(ctx context.Context, nodes []Gravity, url, subdir string) error {
+	errs := make(chan error, len(nodes)-1)
+	for _, node := range nodes {
+		go func(node Gravity) {
+			err := node.TransferFile(ctx, url, subdir)
+			errs <- trace.Wrap(err)
+		}(node)
+	}
+
+	err := utils.CollectErrors(ctx, errs)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
 }

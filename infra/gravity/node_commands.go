@@ -26,8 +26,15 @@ import (
 type Gravity interface {
 	json.Marshaler
 	fmt.Stringer
-	// SetInstaller transfers and prepares installer package
-	SetInstaller(ctx context.Context, installerUrl string, subdir string) error
+	// SetInstaller transfers and prepares installer package given with installerUrl.
+	// The install directory will be overridden to the specified sub-directory
+	// in user's home
+	SetInstaller(ctx context.Context, installerUrl, subdir string) error
+	// TransferFile transfers the file specified with url into the given sub-directory
+	// subdir in user's home.
+	// The install directory will be overridden to the specified sub-directory
+	// in user's home
+	TransferFile(ctx context.Context, url, subdir string) error
 	// ExecScript transfers and executes script with predefined parameters
 	ExecScript(ctx context.Context, scriptUrl string, args []string) error
 	// Install operates on initial master node
@@ -51,7 +58,7 @@ type Gravity interface {
 	// Reboot will reboot this node and wait until it will become available again
 	Reboot(ctx context.Context, graceful Graceful) error
 	// CollectLogs will pull essential logs from node and store it in state dir under node-logs/prefix
-	CollectLogs(ctx context.Context, prefix string) (localPath string, err error)
+	CollectLogs(ctx context.Context, prefix string, args ...string) (localPath string, err error)
 	// Upload uploads packages in current installer dir to cluster
 	Upload(ctx context.Context) error
 	// Upgrade takes currently active installer (see SetInstaller) and tries to perform upgrade
@@ -414,27 +421,34 @@ func (g *gravity) Reboot(ctx context.Context, graceful Graceful) error {
 	return nil
 }
 
-// PullLogs fetches essential logs from the host and stores them in state dir
-func (g *gravity) CollectLogs(ctx context.Context, prefix string) (string, error) {
+// CollectLogs fetches system logs from the host into a local directory.
+// prefix names the state sub-directory to store logs into. args specifies optional additional
+// arguments to the report command.
+// Returns the local path where the report files will be stored
+func (g *gravity) CollectLogs(ctx context.Context, prefix string, args ...string) (localPath string, err error) {
 	if g.ssh == nil {
-		return "", trace.AccessDenied("node %v is poweroff", g)
+		return "", trace.AccessDenied("cannot collect logs from an offline node %v", g)
 	}
 
-	localPath := filepath.Join(g.param.StateDir, "node-logs", prefix, fmt.Sprintf("%s-logs.tgz", g.Node().PrivateAddr()))
+	localPath = filepath.Join(g.param.StateDir, "node-logs", prefix,
+		fmt.Sprintf("%v-logs.tgz", g.Node().PrivateAddr()))
 	return localPath, trace.Wrap(sshutils.PipeCommand(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf("cd %s && sudo ./gravity system report", g.installDir), localPath))
+		fmt.Sprintf("cd %v && sudo ./gravity system report %v", g.installDir,
+			strings.Join(args, " ")), localPath))
 }
 
-// SetInstaller overrides default installer into
+// SetInstaller transfers and prepares installer package given with installerUrl.
+// The install directory will be overridden to the specified sub-directory
+// in user's home
 func (g *gravity) SetInstaller(ctx context.Context, installerURL string, subdir string) error {
 	installDir := filepath.Join(g.param.homeDir, subdir)
-	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerURL, "install_dir": installDir})
+	log := g.Logger().WithFields(logrus.Fields{"installer_url": installerURL, "installer_dir": installDir})
 
-	log.Infof("Set installer %v -> %v.", installerURL, installDir)
+	log.Infof("Transfer installer %v -> %v.", installerURL, installDir)
 
 	tgz, err := sshutils.TransferFile(ctx, g.Client(), log, installerURL, installDir, g.param.env)
 	if err != nil {
-		log.WithError(err).Warn("Failed to transfer installer.")
+		log.WithError(err).Warnf("Failed to transfer installer %v -> %v.", installerURL, installDir)
 		return trace.Wrap(err)
 	}
 
@@ -444,6 +458,26 @@ func (g *gravity) SetInstaller(ctx context.Context, installerURL string, subdir 
 	}
 
 	g.installDir = installDir
+	return nil
+}
+
+// TransferFile transfers the file specified with url into the given sub-directory
+// subdir in user's home.
+// The install directory will be overridden to the specified sub-directory
+// in user's home
+func (g *gravity) TransferFile(ctx context.Context, url, subdir string) error {
+	dir := filepath.Join(g.param.homeDir, subdir)
+	log := g.Logger().WithFields(logrus.Fields{"url": url, "dir": dir})
+
+	log.Infof("Transfer %v -> %v.", url, dir)
+
+	_, err := sshutils.TransferFile(ctx, g.Client(), log, url, dir, g.param.env)
+	if err != nil {
+		log.WithError(err).Warnf("Failed to transfer file %v -> %v.", url, dir)
+		return trace.Wrap(err)
+	}
+
+	g.installDir = dir
 	return nil
 }
 

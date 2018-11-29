@@ -68,6 +68,9 @@ func PutFile(ctx context.Context, client *ssh.Client, log logrus.FieldLogger, sr
 	}
 
 	if err != nil {
+		if IsExitMissingError(err) {
+			log.WithError(err).Warn("Session aborted unexpectedly (node destroyed?).")
+		}
 		return "", trace.Wrap(err)
 	}
 
