@@ -7,13 +7,13 @@ set -eu -o pipefail
 
 if [ -d $(dirname ${INSTALLER_URL}) ]; then
   INSTALLER_FILE='/installer/'$(basename ${INSTALLER_URL})
-  EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "${INSTALLER_URL}:${INSTALLER_FILE}
+  EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
 fi
 
 # GRAVTIY_FILE/GRAVITY_URL specify the location of the up-to-date gravity binary
 if [ -d $(dirname ${GRAVITY_URL}) ]; then
   GRAVITY_FILE='/installer/'$(basename ${GRAVITY_URL})
-  EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "${GRAVITY_URL}:${GRAVITY_FILE}
+  EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${GRAVITY_URL}):$(dirname ${GRAVITY_FILE})
 fi
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
