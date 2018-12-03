@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/lib/xlog"
-	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
 
@@ -57,6 +57,9 @@ type TestContext struct {
 	// (subject to a maximum number of retry attempts)
 	monitorCtx    context.Context
 	monitorCancel context.CancelFunc
+	// preempted indicates that a node part of the cluster that belongs
+	// to this context was preempted
+	preempted bool
 }
 
 // Run allows a running test to spawn a subtest
@@ -249,4 +252,12 @@ func (c *TestContext) updateStatus(status string) {
 	if err != nil {
 		log.WithError(err).Error("BQ status update failed")
 	}
+}
+
+func (c *TestContext) markPreempted(node Gravity) {
+	// Consider the abort to be an indication of node preemption and
+	// cancel the test
+	c.Logger().Infof("Node %v was stopped/preempted, cancelling test.", node)
+	c.preempted = true
+	c.cancel()
 }

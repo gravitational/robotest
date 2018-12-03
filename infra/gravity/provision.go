@@ -275,10 +275,7 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 						// This test has already been cancelled / has timed out
 						return
 					}
-					// Consider the abort to be an indication of node preemption and
-					// cancel the test
-					c.Logger().Infof("Node %v was stopped/preempted, cancelling test.", node)
-					c.cancel()
+					c.markPreempted(node)
 				case utils.IsContextCancelledError(err):
 					// Ignore
 				default:
