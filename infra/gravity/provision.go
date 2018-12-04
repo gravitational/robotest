@@ -270,6 +270,11 @@ func (c *TestContext) streamLogs(gravityNodes []*gravity) {
 	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
 		go func(node *gravity) {
+			if err := node.streamStartupLogs(c.monitorCtx); err != nil {
+				c.Logger().Warnf("Failed to stream startup script logs: %v.", err)
+			}
+		}(node)
+		go func(node *gravity) {
 			if err := node.streamLogs(c.monitorCtx); err != nil {
 				switch {
 				case sshutil.IsExitMissingError(err):

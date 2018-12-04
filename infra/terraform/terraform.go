@@ -238,6 +238,11 @@ func (r *terraform) Connect(addr string) (*ssh.Session, error) {
 
 // Client establishes an SSH connection to the specified address
 func (r *terraform) Client(addr string) (*ssh.Client, error) {
+	r.WithFields(log.Fields{
+		"addr":     addr,
+		"ssh_user": r.sshUser,
+		"ssh_key":  r.sshKeyPath,
+	}).Debug("Connect via SSH.")
 	signer, err := sshutils.MakePrivateKeySignerFromFile(r.sshKeyPath)
 	if err != nil {
 		return nil, trace.Wrap(err)

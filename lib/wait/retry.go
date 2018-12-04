@@ -112,7 +112,7 @@ func RetryWithInterval(interval libbackoff.BackOff, fn func() error, logger log.
 		err := fn()
 		return err
 	}, interval, func(err error, d time.Duration) {
-		logger.Infof("Retrying: %v (time %v).", trace.UserMessage(err), d)
+		logger.Debugf("Retrying: %v (time %v).", trace.UserMessage(err), d)
 	})
 	if err != nil {
 		log.Warnf("All attempts failed: %v.", trace.DebugReport(err))

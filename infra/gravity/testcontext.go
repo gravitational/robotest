@@ -257,7 +257,7 @@ func (c *TestContext) updateStatus(status string) {
 func (c *TestContext) markPreempted(node Gravity) {
 	// Consider the abort to be an indication of node preemption and
 	// cancel the test
-	c.Logger().Infof("Node %v was stopped/preempted, cancelling test.", node)
+	c.Logger().Infof("%v was stopped/preempted, cancelling test.", node)
 	c.preempted = true
 	c.cancel()
 }
