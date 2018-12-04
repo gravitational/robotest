@@ -70,6 +70,11 @@ variable "preemptible" {
   default     = "true"
 }
 
+variable "robotest_node_ip" {
+  description = "Public IP address of the robotest controller node to add to allow whitelist"
+  type        = "string"
+}
+
 provider "google" {
   credentials = "${file("${var.credentials}")}"
   project     = "${var.project}"

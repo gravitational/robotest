@@ -270,7 +270,8 @@ func (c *TestContext) streamLogs(gravityNodes []*gravity) {
 	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
 		go func(node *gravity) {
-			if err := node.streamStartupLogs(c.monitorCtx); err != nil {
+			err := node.streamStartupLogs(c.monitorCtx)
+			if err != nil && !utils.IsContextCancelledError(err) {
 				c.Logger().Warnf("Failed to stream startup script logs: %v.", err)
 			}
 		}(node)

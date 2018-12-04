@@ -33,6 +33,6 @@ type Config struct {
 	// Required attribute.
 	// Will be computed based on the cluster name during provisioning
 	NodeTag string `json:"node_tag" yaml:"node_tag"`
-	// Preemptible is whether to use preemptible VMs
-	Preemptible bool `json:"preemptible" yaml:"preemptible"`
+	// VarFilePath is the path to file with custom terraform variables
+	VarFilePath string `json:"var_file_path" yaml:"var_file_path"`
 }

@@ -311,8 +311,8 @@ type OnpremConfig struct {
 	DockerDevice string `json:"docker_device" yaml:"docker_device" validate:"required"`
 	// ClusterAddress defines configuration for accessing installed cluster web page
 	ClusterAddress *ClusterAddress `json:"cluster_address" yaml:"cluster_address"`
-	// VariablesFile defines the path to file with custom terraform variables
-	VariablesFile string `json:"variables_file" yaml:"variables_file"`
+	// VarFilePath defines the path to file with custom terraform variables
+	VarFilePath string `json:"variables_file" yaml:"variables_file"`
 	// OnpremProvider specifies if the installation is on-premise
 	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
 }
@@ -476,7 +476,7 @@ func makeTerraformConfig(infraConfig infra.Config) (config *terraform.Config, er
 		GCE:                 TestContext.GCE,
 		DockerDevice:        TestContext.Onprem.DockerDevice,
 		PostInstallerScript: TestContext.Onprem.PostInstallerScript,
-		VariablesFile:       TestContext.Onprem.VariablesFile,
+		VarFilePath:         TestContext.Onprem.VarFilePath,
 		OnpremProvider:      TestContext.Onprem.OnpremProvider,
 	}
 

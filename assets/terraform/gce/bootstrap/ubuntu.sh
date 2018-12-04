@@ -71,5 +71,7 @@ fi
 chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/gravity/planet/etcd /home/${os_user}
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
+echo ${robotest_node_ip} >> /etc/sshguard/whitelist
+
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete
