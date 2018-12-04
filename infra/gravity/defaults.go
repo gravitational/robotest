@@ -14,7 +14,6 @@ var clockSyncTimeout = time.Minute * 15
 var diskWaitTimeout = time.Minute * 10
 
 const (
-	retrySSH    = time.Second * 10
 	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
 
 	autoscaleRetries = 20               // total number of attempts when checking autoscale changes

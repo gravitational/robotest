@@ -55,5 +55,5 @@ func (r *node) Client() (*ssh.Client, error) {
 }
 
 func (r node) String() string {
-	return fmt.Sprintf("node(addr=%v)", r.publicIP)
+	return fmt.Sprintf("node(addr=%v, private_addr=%v)", r.publicIP, r.privateIP)
 }

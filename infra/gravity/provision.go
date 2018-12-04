@@ -39,32 +39,25 @@ type cloudDynamicParams struct {
 	env       map[string]string
 }
 
-func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) ([]Gravity, error) {
+func configureVMs(baseCtx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []*gravity) error {
 	errChan := make(chan error, len(nodes))
-	nodeChan := make(chan interface{}, len(nodes))
 
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
 
 	for _, node := range nodes {
-		go func(node infra.Node) {
-			val, err := configureVM(ctx, log, node, params)
-			nodeChan <- val
+		go func(node *gravity) {
+			err := configureVM(ctx, log, node, params)
 			errChan <- err
 		}(node)
 	}
 
-	nodeVals, err := utils.Collect(ctx, cancel, errChan, nodeChan)
+	err := utils.CollectErrors(ctx, errChan)
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
-	gravityNodes := []Gravity{}
-	for _, node := range nodeVals {
-		gravityNodes = append(gravityNodes, node.(Gravity))
-	}
-
-	return sorted(gravityNodes), nil
+	return nil
 }
 
 // Provision will attempt to provision the requested cluster
@@ -186,15 +179,15 @@ Loop:
 	}
 
 	// now that the requested cluster has been created, we have to build the []Gravity slice of nodes
-	c.Logger().Debug("attempting to get a listing of instances from AWS for the cluster")
+	c.Logger().Debug("Attempting to get a listing of instances from AWS for the cluster.")
 	ec2svc := ec2.New(sess)
 	gravityNodes, err := c.getAWSNodes(ec2svc, "tag:KubernetesCluster", clusterName)
 	if err != nil {
 		return cluster, trace.Wrap(err)
 	}
 
-	c.Logger().Debugf("running post provisioning tasks")
-	err = c.postProvision(cfg, gravityNodes)
+	c.Logger().Debugf("Running post provisioning tasks.")
+	err = c.postProvision(gravityNodes)
 	if err != nil {
 		return cluster, trace.Wrap(err)
 	}
@@ -204,15 +197,15 @@ Loop:
 		return cluster, trace.Wrap(err)
 	}
 
-	cluster.Nodes = gravityNodes
-	c.Logger().Info("provisioning complete")
+	cluster.Nodes = asNodes(gravityNodes)
+	c.Logger().Info("Provisioning complete.")
 	return cluster, nil
 }
 
 // provisionCloud gets VMs up, running and ready to use
 func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, config *terraform.Config, err error) {
 	log := c.Logger().WithField("config", cfg)
-	log.Debug("Provisioning VMs")
+	log.Debug("Provisioning VMs.")
 
 	err = validateConfig(cfg)
 	if err != nil {
@@ -235,14 +228,23 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 	ctx, cancel := context.WithTimeout(c.Context(), cloudInitTimeout)
 	defer cancel()
 
-	log.Debug("Configuring VMs")
-	gravityNodes, err := configureVMs(ctx, c.Logger(), infra.params, infra.nodes)
+	log.Debug("Connecting to VMs.")
+	gravityNodes, err := connectVMs(ctx, c.Logger(), infra.params, infra.nodes)
+	if err != nil {
+		log.WithError(err).Error("Some nodes failed to connect, tear down as non-usable.")
+		return cluster, nil, trace.NewAggregate(err, destroyResource(infra.destroyFn))
+	}
+	// Start streaming logs as soon as connected
+	c.streamLogs(gravityNodes)
+
+	log.Debug("Configuring VMs.")
+	err = configureVMs(ctx, c.Logger(), infra.params, gravityNodes)
 	if err != nil {
 		log.WithError(err).Error("Some nodes failed to initialize, tear down as non-usable.")
 		return cluster, nil, trace.NewAggregate(err, destroyResource(infra.destroyFn))
 	}
 
-	err = c.postProvision(cfg, gravityNodes)
+	err = c.postProvision(gravityNodes)
 	if err != nil {
 		log.WithError(err).Error("Post-provisioning failed, tear down as non-usable.")
 		return cluster, nil, trace.Wrap(err)
@@ -255,20 +257,20 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 		}
 	}
 
-	log.WithField("nodes", gravityNodes).Debug("Provisioning complete")
+	log.WithField("nodes", gravityNodes).Debug("Provisioning complete.")
 
-	cluster.Nodes = gravityNodes
-	cluster.Destroy = wrapDestroyFunc(c, cfg.Tag(), gravityNodes, infra.destroyFn)
+	nodes := asNodes(gravityNodes)
+	cluster.Nodes = nodes
+	cluster.Destroy = wrapDestroyFunc(c, cfg.Tag(), nodes, infra.destroyFn)
 
 	return cluster, &infra.params.terraform, nil
 }
 
-// postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
-func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravity) error {
+func (c *TestContext) streamLogs(gravityNodes []*gravity) {
 	c.Logger().Debug("Streaming logs.")
 	for _, node := range gravityNodes {
-		go func(node Gravity) {
-			if err := node.(*gravity).streamLogs(c.monitorCtx); err != nil {
+		go func(node *gravity) {
+			if err := node.streamLogs(c.monitorCtx); err != nil {
 				switch {
 				case sshutil.IsExitMissingError(err):
 					if c.Context().Err() != nil {
@@ -284,7 +286,10 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 			}
 		}(node)
 	}
+}
 
+// postProvision runs common tasks for both ops and cloud provisioners once the VMs have been setup and are running
+func (c *TestContext) postProvision(gravityNodes []*gravity) error {
 	ctx, cancel := context.WithTimeout(c.Context(), clockSyncTimeout)
 	defer cancel()
 
@@ -299,20 +304,6 @@ func (c *TestContext) postProvision(cfg ProvisionerConfig, gravityNodes []Gravit
 	return nil
 }
 
-// sort Interface implementation
-type byPrivateAddr []Gravity
-
-func (g byPrivateAddr) Len() int      { return len(g) }
-func (g byPrivateAddr) Swap(i, j int) { g[i], g[j] = g[j], g[i] }
-func (g byPrivateAddr) Less(i, j int) bool {
-	return g[i].Node().PrivateAddr() < g[j].Node().PrivateAddr()
-}
-
-func sorted(nodes []Gravity) []Gravity {
-	sort.Sort(byPrivateAddr(nodes))
-	return nodes
-}
-
 const (
 	// set by https://github.com/Azure/WALinuxAgent which is bundled with all Azure linux distro
 	// once basic provisioning procedures are complete
@@ -322,7 +313,7 @@ const (
 )
 
 // bootstrapAzure workarounds some issues with Azure platform init
-func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+func bootstrapAzure(ctx context.Context, g *gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(),
 		waagentProvisionFile, sshutil.TestRegularFile)
 	if err != nil {
@@ -355,7 +346,7 @@ func bootstrapAzure(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 }
 
 // bootstrapCloud is a simple workflow to wait for cloud-init to complete
-func bootstrapCloud(ctx context.Context, g Gravity, param cloudDynamicParams) (err error) {
+func bootstrapCloud(ctx context.Context, g *gravity, param cloudDynamicParams) (err error) {
 	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
 	if err != nil {
 		return trace.Wrap(err)
@@ -364,12 +355,38 @@ func bootstrapCloud(ctx context.Context, g Gravity, param cloudDynamicParams) (e
 	return trace.Wrap(err)
 }
 
-// ConfigureNode is used to configure a provisioned node
-// 1. wait for node to boot
-// 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
-// 2.  - i.e. run bootstrap commands, load installer, etc.
-// TODO: migrate bootstrap scripts here as well;
-func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, param cloudDynamicParams) (Gravity, error) {
+func connectVMs(ctx context.Context, log logrus.FieldLogger, params cloudDynamicParams, nodes []infra.Node) (out []*gravity, err error) {
+	errC := make(chan error, len(nodes))
+	nodeC := make(chan interface{}, len(nodes))
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for _, node := range nodes {
+		go func(node infra.Node) {
+			gnode, err := connectVM(ctx, log, node, params)
+			nodeC <- gnode
+			errC <- err
+		}(node)
+	}
+
+	gnodes, err := utils.Collect(ctx, cancel, errC, nodeC)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	for _, node := range gnodes {
+		out = append(out, node.(*gravity))
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Node().PrivateAddr() < out[j].Node().PrivateAddr()
+	})
+
+	return out, nil
+}
+
+func connectVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, param cloudDynamicParams) (*gravity, error) {
 	g := &gravity{
 		node:  node,
 		param: param,
@@ -384,29 +401,37 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node infra.Node, p
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
 	g.ssh = client
-
-	switch param.CloudProvider {
-	case constants.AWS:
-		err = bootstrapCloud(ctx, g, param)
-	case constants.Azure:
-		err = bootstrapAzure(ctx, g, param)
-	case constants.GCE:
-		err = bootstrapCloud(ctx, g, param)
-	case constants.Ops:
-		// For ops installs, we don't run the installer. So just hardcode the install directory to /bin
-		g.installDir = "/bin"
-	default:
-		return nil, trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
-	}
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
 	return g, nil
 }
 
-func validateDiskSpeed(ctx context.Context, nodes []Gravity, device string, logger logrus.FieldLogger) error {
+// ConfigureNode is used to configure a provisioned node
+// 1. wait for node to boot
+// 2. (TODO) run bootstrap scripts - as Azure doesn't support them for RHEL/CentOS, will migrate here
+// 2.  - i.e. run bootstrap commands, load installer, etc.
+// TODO: migrate bootstrap scripts here as well;
+func configureVM(ctx context.Context, log logrus.FieldLogger, node *gravity, param cloudDynamicParams) (err error) {
+	switch param.CloudProvider {
+	case constants.AWS:
+		err = bootstrapCloud(ctx, node, param)
+	case constants.Azure:
+		err = bootstrapAzure(ctx, node, param)
+	case constants.GCE:
+		err = bootstrapCloud(ctx, node, param)
+	case constants.Ops:
+		// For ops installs the installer is not needed
+	default:
+		return trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)
+	}
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func validateDiskSpeed(ctx context.Context, nodes []*gravity, device string, logger logrus.FieldLogger) error {
 	logger.Debug("Ensuring disk speed is adequate across nodes.")
 	ctx, cancel := context.WithTimeout(ctx, diskWaitTimeout)
 	defer cancel()
@@ -421,11 +446,11 @@ func validateDiskSpeed(ctx context.Context, nodes []Gravity, device string, logg
 
 // waitDisks is a necessary workaround for Azure VMs to wait until their disk initialization processes are complete
 // otherwise it'll fail telekube pre-install checks
-func waitDisks(ctx context.Context, nodes []Gravity, paths []string, logger logrus.FieldLogger) error {
+func waitDisks(ctx context.Context, nodes []*gravity, paths []string, logger logrus.FieldLogger) error {
 	errs := make(chan error, len(nodes))
 
 	for _, node := range nodes {
-		go func(node Gravity) {
+		go func(node *gravity) {
 			errs <- waitDisk(ctx, node, paths, minDiskSpeed, logger)
 		}(node)
 	}
@@ -434,7 +459,7 @@ func waitDisks(ctx context.Context, nodes []Gravity, paths []string, logger logr
 }
 
 // waitDisk will wait specific disk performance to report OK
-func waitDisk(ctx context.Context, node Gravity, paths []string, minSpeed uint64, logger logrus.FieldLogger) error {
+func waitDisk(ctx context.Context, node *gravity, paths []string, minSpeed uint64, logger logrus.FieldLogger) error {
 	err := wait.Retry(ctx, func() error {
 		for _, path := range paths {
 			if !strings.HasPrefix(path, "/dev") {

@@ -12,8 +12,8 @@ import (
 	"github.com/gravitational/robotest/lib/loc"
 	"github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
-	"github.com/gravitational/trace"
 
+	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
