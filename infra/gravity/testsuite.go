@@ -174,9 +174,9 @@ func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interf
 		t.Helper()
 		t.Parallel()
 
-		b := newPreemptiveBackoff(s.ctx, defaults.MaxRetriesPerTest, defaults.MaxPreemptedRetriesPerTest)
+		b := newPreemptiveBackoff(defaults.MaxRetriesPerTest, defaults.MaxPreemptedRetriesPerTest)
 		try := 0
-		err := wait.RetryWithInterval(b, func() error {
+		err := wait.RetryWithInterval(s.ctx, b, func() error {
 			t.Helper()
 
 			try++
@@ -333,11 +333,10 @@ func (s *testSuite) Run() []TestStatus {
 	return status
 }
 
-func newPreemptiveBackoff(ctx context.Context, maxTries, maxPreempted int) *preemptiveBackoff {
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0 // unlimited
+func newPreemptiveBackoff(maxTries, maxPreempted int) *preemptiveBackoff {
+	b := wait.NewUnlimitedExponentialBackoff()
 	return &preemptiveBackoff{
-		delegate:     backoff.WithContext(b, ctx),
+		delegate:     b,
 		maxTries:     maxTries,
 		maxPreempted: maxPreempted,
 	}

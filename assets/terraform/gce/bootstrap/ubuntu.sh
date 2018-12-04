@@ -1,8 +1,13 @@
 #!/bin/bash
 #
-# VM bootstrap script for Debian/Ubuntu
+# VM bootstrap script for Ubuntu
 #
 set -exuo pipefail
+
+# Add robotest node IP to sshguard's whitelist
+# to avoid robotest getting blacklisted for initial spamming
+# of SSH connect requests as os_user
+echo ${robotest_node_ip} >> /etc/sshguard/whitelist
 
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
@@ -70,8 +75,6 @@ fi
 
 chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/gravity/planet/etcd /home/${os_user}
 sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
-
-echo ${robotest_node_ip} >> /etc/sshguard/whitelist
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete

@@ -71,7 +71,7 @@ variable "preemptible" {
 }
 
 variable "robotest_node_ip" {
-  description = "Public IP address of the robotest controller node to add to allow whitelist"
+  description = "Public IP address of the robotest controller node to add to sshguard's whitelist"
   type        = "string"
 }
 

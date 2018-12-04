@@ -17,7 +17,6 @@ import (
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
 
-	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -189,9 +188,8 @@ func sshClient(ctx context.Context, node infra.Node, log logrus.FieldLogger) (*s
 	defer cancel()
 
 	var client *ssh.Client
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
-	err := wait.RetryWithInterval(backoff.WithContext(b, ctx), func() (err error) {
+	b := wait.NewUnlimitedExponentialBackoff()
+	err := wait.RetryWithInterval(ctx, b, func() (err error) {
 		client, err = node.Client()
 		if err == nil {
 			log.Debug("Connected via SSH.")
