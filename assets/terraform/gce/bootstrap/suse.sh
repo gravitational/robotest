@@ -4,9 +4,23 @@
 #
 set -exuo pipefail
 
+function secureSSHConfig {
+  local sshd_config=/etc/ssh/sshd_config
+  cp $sshd_config $sshd_config.old
+  (grep -qE '(\#?)\WPasswordAuthentication' $sshd_config && \
+    sed -re 's/^(\#?)\W*(PasswordAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
+    echo 'PasswordAuthentication no' >> $sshd_config
+  (grep -qE '(\#?)\WChallengeResponseAuthentication' $sshd_config && \
+    sed -re 's/^(\#?)\W*(ChallengeResponseAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
+    echo 'ChallengeResponseAuthentication no' >> $sshd_config
+  systemctl reload ssh
+}
+
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 touch /var/lib/bootstrap_started
+
+secureSSHConfig
 
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli

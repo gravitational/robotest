@@ -1,17 +1,34 @@
 #!/bin/bash
 #
-# VM bootstrap script for Ubuntu
+# VM bootstrap script for Ubuntu/Debian
 #
 set -exuo pipefail
 
-# Add robotest node IP to sshguard's whitelist
-# to avoid robotest getting blacklisted for initial spamming
-# of SSH connect requests as os_user
-echo ${robotest_node_ip} >> /etc/sshguard/whitelist
+function secureSSHConfig {
+  local sshd_config=/etc/ssh/sshd_config
+  cp $sshd_config $sshd_config.old
+  (grep -qE '(\#?)\WPasswordAuthentication' $sshd_config && \
+    sed -re 's/^(\#?)\W*(PasswordAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
+    echo 'PasswordAuthentication no' >> $sshd_config
+  (grep -qE '(\#?)\WChallengeResponseAuthentication' $sshd_config && \
+    sed -re 's/^(\#?)\W*(ChallengeResponseAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
+    echo 'ChallengeResponseAuthentication no' >> $sshd_config
+  systemctl reload ssh
+}
+
+function removeSSHGuard {
+  if systemctl is-active --quiet sshguard; then
+    apt-get -y remove --auto-remove sshguard
+    apt-get -y purge --auto-remove sshguard
+  fi
+}
 
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 touch /var/lib/bootstrap_started
+
+removeSSHGuard
+secureSSHConfig
 
 apt update
 apt install -y chrony lvm2 curl wget thin-provisioning-tools python

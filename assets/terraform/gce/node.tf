@@ -136,6 +136,5 @@ data "template_file" "bootstrap" {
   vars {
     os_user     = "${var.os_user}"
     ssh_pub_key = "${file("${var.ssh_pub_key_path}")}"
-    robotest_node_ip = "${var.robotest_node_ip}"
   }
 }

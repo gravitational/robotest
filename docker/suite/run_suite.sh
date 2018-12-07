@@ -1,11 +1,6 @@
 #!/bin/bash
 set -eu -o pipefail
 
-function get-robotest-node-ip {
-  # Fetch jenkins IP address from azure
-  curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text"
-}
-
 #
 # installer could be local .tar installer or s3:// or http(s) URL
 #
@@ -27,7 +22,6 @@ ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
 GCE_VM=${GCE_VM:-'custom-8-8192'}
 GCE_REGION=${GCE_REGION:-'northamerica-northeast1,us-west1,us-west2,us-east1,us-east4,us-central1'}
 GCE_PREEMPTIBLE=${GCE_PREEMPTIBLE:-'true'}
-GCE_ROBOTEST_NODE_IP=${GCE_ROBOTEST_NODE_IP:-$(get-robotest-node-ip)}
 DOCKER_DEVICE=${DOCKER_DEVICE:-'/dev/sdc'}
 
 # choose something relatively unique to avoid intersection with other people runs
@@ -99,7 +93,6 @@ trap "{ rm -f $CUSTOM_VAR_FILE; }" EXIT
 cat <<EOF > $CUSTOM_VAR_FILE
 {
   "preemptible": "${GCE_PREEMPTIBLE}",
-  "robotest_node_ip": "${GCE_ROBOTEST_NODE_IP}"
 }
 EOF
 EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$CUSTOM_VAR_FILE:/robotest/config/vars.json

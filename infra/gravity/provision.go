@@ -231,7 +231,7 @@ func (c *TestContext) provisionCloud(cfg ProvisionerConfig) (cluster Cluster, co
 	log.Debug("Connecting to VMs.")
 	gravityNodes, err := connectVMs(ctx, c.Logger(), infra.params, infra.nodes)
 	if err != nil {
-		log.WithError(err).Error("Some nodes failed to connect, tear down as non-usable.")
+		log.WithError(err).Error("Some nodes failed to connect, tear down as unusable.")
 		return cluster, nil, trace.NewAggregate(err, destroyResource(infra.destroyFn))
 	}
 	// Start streaming logs as soon as connected

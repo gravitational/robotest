@@ -57,8 +57,8 @@ type TestContext struct {
 	// (subject to a maximum number of retry attempts)
 	monitorCtx    context.Context
 	monitorCancel context.CancelFunc
-	// preempted indicates that a node part of the cluster that belongs
-	// to this context was preempted
+	// preempted indicates that a node belonging to this test context
+	// was preempted
 	preempted bool
 }
 

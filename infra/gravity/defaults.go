@@ -15,6 +15,8 @@ var diskWaitTimeout = time.Minute * 10
 
 const (
 	deadlineSSH = time.Minute * 5 // abort if we can't get it within this reasonable period
+	// retrySSH defines the frequency of SSH connect attempts
+	retrySSH = 5 * time.Second
 
 	autoscaleRetries = 20               // total number of attempts when checking autoscale changes
 	autoscaleWait    = time.Second * 15 // amount of time to wait between attempts to autoscale the cluster
