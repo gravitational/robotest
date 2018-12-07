@@ -1,10 +1,14 @@
 #!/bin/bash
 #
-# VM bootstrap script for Ubuntu/Debian
+# VM bootstrap script for Debian/Ubuntu
 #
 set -exuo pipefail
 
-function secureSSHConfig {
+etcd_device_name=sdb
+etcd_dir=/var/lib/gravity/planet/etcd
+DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
+function secure-ssh {
   local sshd_config=/etc/ssh/sshd_config
   cp $sshd_config $sshd_config.old
   (grep -qE '(\#?)\WPasswordAuthentication' $sshd_config && \
@@ -16,19 +20,46 @@ function secureSSHConfig {
   systemctl reload ssh
 }
 
-function removeSSHGuard {
+function remove-sshguard {
   if systemctl is-active --quiet sshguard; then
     apt-get -y remove --auto-remove sshguard
     apt-get -y purge --auto-remove sshguard
   fi
 }
 
-DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+function setup-user {
+  local service_uid=$(id ${os_user} -u 2>/dev/null || true)
+  local service_gid=$(id ${os_user} -g 2>/dev/null || true)
+
+  if [ -z "$service_gid" ]; then
+    service_gid=1000
+    (groupadd --system --non-unique --gid $service_gid ${os_user} 2>/dev/null; err=$?; if (( $err != 9 )); then exit $err; fi) || true
+  fi
+
+  if [ -z "$service_uid" ]; then
+    service_uid=1000
+    useradd --system --non-unique -g $service_gid -u $service_uid ${os_user}
+  fi
+
+  if [ ! -d "/home/${os_user}/.ssh" ]; then
+    mkdir -p /home/${os_user}/.ssh
+    echo "${ssh_pub_key}" | tee /home/${os_user}/.ssh/authorized_keys
+    chmod 0700 /home/${os_user}/.ssh
+    chmod 0600 /home/${os_user}/.ssh/authorized_keys
+    chsh -s /bin/bash ${os_user}
+  fi
+
+  chown -R $service_uid:$service_gid /var/lib/gravity $etcd_dir /home/${os_user}
+  sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
+}
 
 touch /var/lib/bootstrap_started
 
-removeSSHGuard
-secureSSHConfig
+mkdir -p $etcd_dir /var/lib/data
+
+remove-sshguard
+secure-ssh
+setup-user
 
 apt update
 apt install -y chrony lvm2 curl wget thin-provisioning-tools python
@@ -36,9 +67,6 @@ apt install -y chrony lvm2 curl wget thin-provisioning-tools python
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
 
-etcd_device_name=sdb
-etcd_dir=/var/lib/gravity/planet/etcd
-mkdir -p $etcd_dir /var/lib/data
 if ! grep -qs "$etcd_dir" /proc/mounts; then
   mkfs.ext4 -F /dev/$etcd_device_name
   sed -i.bak "/$etcd_device_name/d" /etc/fstab
@@ -69,29 +97,7 @@ net.ipv4.tcp_keepalive_probes=5
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
 
-service_uid=$(id ${os_user} -u 2>/dev/null || true)
-service_gid=$(id ${os_user} -g 2>/dev/null || true)
 
-if [ -z "$service_gid" ]; then
-  service_gid=1000
-  (groupadd --system --non-unique --gid $service_gid ${os_user} 2>/dev/null; err=$?; if (( $err != 9 )); then exit $err; fi) || true
-fi
-
-if [ -z "$service_uid" ]; then
-  service_uid=1000
-  useradd --system --non-unique -g $service_gid -u $service_uid ${os_user}
-fi
-
-if [ ! -d "/home/${os_user}/.ssh" ]; then
-  mkdir -p /home/${os_user}/.ssh
-  echo "${ssh_pub_key}" | tee /home/${os_user}/.ssh/authorized_keys
-  chmod 0700 /home/${os_user}/.ssh
-  chmod 0600 /home/${os_user}/.ssh/authorized_keys
-  chsh -s /bin/bash ${os_user}
-fi
-
-chown -R $service_uid:$service_gid /var/lib/gravity /var/lib/gravity/planet/etcd /home/${os_user}
-sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete
