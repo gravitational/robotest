@@ -97,7 +97,7 @@ func checkForNodeAssignment(svc *autoscaling.AutoScaling, describeASG *autoscali
 }
 
 // getAWSNodes will connect to the AWS API, and get a listing of nodes matching the specified filter.
-func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValue string) ([]Gravity, error) {
+func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValue string) (nodes []*gravity, err error) {
 	cloudParams, err := makeDynamicParams(c.provisionerCfg)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -117,12 +117,18 @@ func (c *TestContext) getAWSNodes(ec2svc *ec2.EC2, filterName string, filterValu
 		return nil, trace.Wrap(err)
 	}
 
-	var nodes []Gravity
 	for _, reservation := range resp.Reservations {
 		for _, inst := range reservation.Instances {
-			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress, c.provisionerCfg.Ops.SSHUser, c.provisionerCfg.Ops.SSHKeyPath)
+			node := ops.New(*inst.PublicIpAddress, *inst.PrivateIpAddress,
+				c.provisionerCfg.Ops.SSHUser, c.provisionerCfg.Ops.SSHKeyPath)
 
-			gravityNode, err := configureVM(c.Context(), c.Logger(), node, *cloudParams)
+			gravityNode, err := connectVM(c.Context(), c.Logger(), node, *cloudParams)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			gravityNode.installDir = "/bin"
+
+			err = configureVM(c.Context(), c.Logger(), gravityNode, *cloudParams)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}

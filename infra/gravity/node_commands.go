@@ -16,8 +16,9 @@ import (
 	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
-	"github.com/gravitational/trace"
 
+	"github.com/cenkalti/backoff"
+	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -183,25 +184,26 @@ func (g *gravity) MarshalJSON() ([]byte, error) {
 }
 
 // waits for SSH to be up on node and returns client
-func sshClient(baseContext context.Context, node infra.Node, log logrus.FieldLogger) (*ssh.Client, error) {
-	ctx, cancel := context.WithTimeout(baseContext, deadlineSSH)
+func sshClient(ctx context.Context, node infra.Node, log logrus.FieldLogger) (*ssh.Client, error) {
+	ctx, cancel := context.WithTimeout(ctx, deadlineSSH)
 	defer cancel()
 
-	for {
-		client, err := node.Client()
+	var client *ssh.Client
+	b := backoff.NewConstantBackOff(retrySSH)
+	err := wait.RetryWithInterval(ctx, b, func() (err error) {
+		client, err = node.Client()
 		if err == nil {
-			log.Debug("connected via SSH")
-			return client, nil
+			log.Debug("Connected via SSH.")
+			return nil
 		}
 
-		log.WithFields(logrus.Fields{"error": err, "retry_in": retrySSH}).Debug("waiting for SSH")
-		select {
-		case <-ctx.Done():
-			log.WithError(ctx.Err()).Debug("context cancelled or timed out, SSH connection cancelled")
-			return nil, trace.Wrap(err, "SSH timed out dialing %s", node.Addr())
-		case <-time.After(retrySSH):
-		}
+		log.WithError(err).Debug("Waiting for SSH.")
+		return trace.Wrap(err)
+	}, log)
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
+	return client, nil
 }
 
 func (g *gravity) Logger() logrus.FieldLogger {
@@ -573,6 +575,14 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 	}
 
 	return out, nil
+}
+
+func asNodes(nodes []*gravity) (out Nodes) {
+	out = make([]Gravity, 0, len(nodes))
+	for _, node := range nodes {
+		out = append(out, node)
+	}
+	return out
 }
 
 // String returns a textual representation of this list of nodes

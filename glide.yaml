@@ -5,6 +5,8 @@ import:
 - package: github.com/sclevine/agouti
 - package: github.com/sirupsen/logrus
   version: v1.0.0
+- package: github.com/cenkalti/backoff
+  version: v2.1.0
 - package: github.com/gravitational/configure
   subpackages:
   - cstrings

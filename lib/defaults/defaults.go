@@ -53,6 +53,9 @@ const (
 	// MaxRetriesPerTest specifies the maximum number of attempts a failing
 	// test is retried (including the first failure)
 	MaxRetriesPerTest = 3
+	// MaxPreemptedRetriesPerTest specifies the maximum number of node preemptions
+	// to tolerate before aborting the test
+	MaxPreemptedRetriesPerTest = 10
 
 	// TmpDir is temporary file folder
 	TmpDir = "/tmp"

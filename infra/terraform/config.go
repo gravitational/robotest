@@ -92,10 +92,8 @@ type Config struct {
 	// PostInstallerScript defines a path to the script on a remote node
 	// that is executed after the installer has been downloaded
 	PostInstallerScript string `json:"post_installer_script" yaml:"post_installer_script"`
-	// VariablesFile is the file with custom terraform variables
-	VariablesFile string `json:"custom_vars_file" yaml:"variables_file"`
+	// VarFilePath is the file path with custom terraform variables
+	VarFilePath string `json:"var_file_path" yaml:"var_file_path"`
 	// OnpremProvider specifies usage of onprem provider for installation
 	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
-	// Preemptible is whether to use preemptible VMs
-	Preemptible bool `json:"preemptible" yaml:"preemptible"`
 }

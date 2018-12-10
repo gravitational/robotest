@@ -24,13 +24,13 @@ func Collect(ctx context.Context, cancel func(), errChan chan error, valuesChan 
 	valuesLeft := cap(valuesChan)
 
 	if valuesLeft != 0 && (errorsLeft != valuesLeft) {
-		return nil, trace.Errorf("cap(errChan)=%d, cap(valueChan)=%d", errorsLeft, valuesLeft)
+		return nil, trace.BadParameter("cap(errChan)=%d, cap(valueChan)=%d", errorsLeft, valuesLeft)
 	}
 
 	for errorsLeft > 0 || valuesLeft > 0 {
 		select {
 		case <-ctx.Done():
-			errors = append(errors, trace.Errorf("timed out"))
+			errors = append(errors, trace.LimitExceeded("timed out"))
 			return nil, trace.NewAggregate(errors...)
 		case err := <-errChan:
 			errorsLeft--

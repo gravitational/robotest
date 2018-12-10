@@ -55,7 +55,7 @@ func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(c
 						"stack": string(debug.Stack()),
 						"where": r,
 					},
-				).Error("panic in terraform destroy")
+				).Error("Panic in terraform destroy.")
 			}
 		}()
 
@@ -69,7 +69,7 @@ func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(c
 		ctx := c.Context()
 
 		if ctx.Err() != nil && !policy.DestroyOnFailure {
-			log.WithError(ctx.Err()).Info("skipped destroy")
+			log.WithError(ctx.Err()).Info("Skipping destroy.")
 			return trace.Wrap(ctx.Err())
 		}
 
@@ -78,10 +78,10 @@ func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(c
 		}
 
 		if !skipLogCollection && (c.Failed() || policy.AlwaysCollectLogs) {
-			log.Debug("collecting logs from nodes...")
+			log.Debug("Collecting logs from nodes...")
 			err := c.CollectLogs("postmortem", nodes)
 			if err != nil {
-				log.WithError(err).Error("collecting logs")
+				log.WithError(err).Warn("Failed to collect node logs.")
 			}
 		}
 
@@ -94,7 +94,7 @@ func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(c
 		// Close the monitor processes
 		c.monitorCancel()
 
-		log.Info("destroying VMs")
+		log.Info("Destroying VMs.")
 
 		err := destroyResource(destroy)
 		if err != nil {
@@ -232,7 +232,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
 		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
-		param.terraform.Preemptible = baseConfig.GCE.Preemptible
+		param.terraform.VarFilePath = baseConfig.GCE.VarFilePath
 	}
 
 	return &param, nil

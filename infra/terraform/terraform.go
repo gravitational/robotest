@@ -214,8 +214,8 @@ func (r *terraform) Destroy(ctx context.Context) error {
 		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
-	if r.VariablesFile != "" {
-		destroyCommand = append(destroyCommand, fmt.Sprintf("-var-file=%s", r.VariablesFile))
+	if r.VarFilePath != "" {
+		destroyCommand = append(destroyCommand, fmt.Sprintf("-var-file=%s", r.VarFilePath))
 	}
 	_, err := r.command(ctx, destroyCommand)
 	return trace.Wrap(err)
@@ -312,11 +312,10 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 		"apply", "-input=false", "-auto-approve",
 		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
 		"-var", fmt.Sprintf("os=%s", r.OS),
-		"-var", fmt.Sprintf("preemptible=%v", r.Preemptible),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
-	if r.VariablesFile != "" {
-		applyCommand = append(applyCommand, fmt.Sprintf("-var-file=%s", r.VariablesFile))
+	if r.VarFilePath != "" {
+		applyCommand = append(applyCommand, fmt.Sprintf("-var-file=%s", r.VarFilePath))
 	}
 
 	out, err = r.command(ctx, applyCommand)

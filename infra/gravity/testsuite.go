@@ -13,8 +13,8 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/robotest/lib/xlog"
 
+	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
-
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ type TestFunc func(c *TestContext, config ProvisionerConfig)
 
 type TestSuite interface {
 	// Cancel requests teardown for all subordinate tests
-	Cancel(reason string)
+	Cancel(reason string, args ...interface{})
 	// Schedule adds tests to the plan
 	Schedule(fn TestFunc, baseConfig ProvisionerConfig, param interface{})
 	// Run executes scheduled (and derived) tests and returns their status
@@ -58,7 +58,7 @@ type TestStatus struct {
 	Param         interface{}
 }
 
-// testRun logically groups multiple test runs for centralized progress and status reporting
+// testSuite logically groups multiple test runs for centralized progress and status reporting
 type testSuite struct {
 	sync.RWMutex
 
@@ -119,7 +119,7 @@ func (s *testSuite) Logger() logrus.FieldLogger {
 }
 
 // Cancel will request everything to teardown
-func (s *testSuite) Cancel(reason string) {
+func (s *testSuite) Cancel(reason string, args ...interface{}) {
 	if s.failingFast() {
 		return
 	}
@@ -128,7 +128,7 @@ func (s *testSuite) Cancel(reason string) {
 	s.Unlock()
 
 	s.cancel()
-	s.Logger().WithField("reason", reason).Warn("test suite canceled")
+	s.Logger().WithField("reason", fmt.Sprintf(reason, args...)).Warn("Test suite canceled.")
 }
 
 func (s *testSuite) failingFast() bool {
@@ -174,30 +174,31 @@ func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interf
 		t.Helper()
 		t.Parallel()
 
-		retry := wait.Retryer{
-			Delay:       time.Second,
-			Attempts:    defaults.MaxRetriesPerTest,
-			FieldLogger: s.Logger(),
-		}
-
+		b := newPreemptiveBackoff(defaults.MaxRetriesPerTest, defaults.MaxPreemptedRetriesPerTest)
 		try := 0
-		err := retry.Do(s.ctx, func() error {
+		err := wait.RetryWithInterval(s.ctx, b, func() error {
 			t.Helper()
 
 			try++
 			cfg := baseConfig
 			if try > 1 {
 				cfg = baseConfig.WithTag(fmt.Sprintf("T%d", try))
-				s.Logger().Warnf("retrying %q (%d/%d)",
-					cfg.Tag(), try, retry.Attempts)
+				s.Logger().Warnf("Retrying %q (%d/%d).",
+					cfg.Tag(), b.numTries, b.maxTries)
 			}
 
-			err := s.runTestFunc(t, fn, cfg, param)
+			testCtx, err := s.runTestFunc(t, fn, cfg, param)
 			if err == nil {
 				return nil
 			}
 
-			s.Logger().WithError(err).Warnf("test %q completed with error", cfg.Tag())
+			if testCtx.preempted {
+				b.nextPreempted()
+			} else {
+				b.next()
+			}
+
+			s.Logger().WithError(err).Warnf("Test %q completed with error.", cfg.Tag())
 
 			if s.failingFast() {
 				t.Skip("context cancelled")
@@ -208,26 +209,26 @@ func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interf
 				// this usually means either a panic inside test,
 				// or bad configuration parameters passed to it
 				// there's no reason to retry it
-				return wait.Abort(trace.Wrap(err))
+				return &backoff.PermanentError{Err: trace.Wrap(err)}
 			}
 
 			// an error will be retried
 			return trace.Wrap(err)
-		})
+		}, s.Logger())
 
 		if err == nil {
 			return
 		}
 
 		if s.failFast {
-			s.Cancel(fmt.Sprintf("test %s failed, FailFast=true, cancelling other", t.Name()))
+			s.Cancel("Test %s failed, FailFast=true, cancelling other.", t.Name())
 		}
 
 		t.Error(trace.Wrap(err))
 	}
 }
 
-func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg ProvisionerConfig, param interface{}) (err error) {
+func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg ProvisionerConfig, param interface{}) (testCtx *TestContext, err error) {
 	uid := uuid.NewV4().String()
 	labels := logrus.Fields{}
 	var logLink string
@@ -248,7 +249,7 @@ func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg Provisioner
 	monitorCtx, monitorCancel := context.WithCancel(ctx)
 	defer monitorCancel()
 
-	testCtx := &TestContext{
+	testCtx = &TestContext{
 		name:     cfg.Tag(),
 		ctx:      ctx,
 		cancel:   cancel,
@@ -291,7 +292,7 @@ func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg Provisioner
 				"stack": string(debug.Stack()),
 				"where": r,
 			},
-		).Error("panic in test")
+		).Error("Panic in test.")
 		err = trace.BadParameter("panic inside test - aborted")
 	}()
 
@@ -307,7 +308,7 @@ func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg Provisioner
 	testCtx.timestamp = time.Now()
 	testFunc(testCtx, cfg)
 
-	return nil
+	return testCtx, nil
 }
 
 // Run executes all tests in this suite and returns test results
@@ -330,4 +331,56 @@ func (s *testSuite) Run() []TestStatus {
 		})
 	}
 	return status
+}
+
+func newPreemptiveBackoff(maxTries, maxPreempted int) *preemptiveBackoff {
+	b := wait.NewUnlimitedExponentialBackoff()
+	return &preemptiveBackoff{
+		delegate:     b,
+		maxTries:     maxTries,
+		maxPreempted: maxPreempted,
+	}
+}
+
+func (r *preemptiveBackoff) NextBackOff() time.Duration {
+	if r.numTries >= r.maxTries {
+		return backoff.Stop
+	}
+	return r.delegate.NextBackOff()
+}
+
+func (r *preemptiveBackoff) Reset() {
+	r.numTries = 0
+	r.numPreempted = 0
+	r.delegate.Reset()
+}
+
+func (r *preemptiveBackoff) nextPreempted() {
+	r.numPreempted += 1
+	if r.numPreempted >= r.maxPreempted {
+		r.numTries = r.maxTries
+	}
+}
+
+func (r *preemptiveBackoff) next() {
+	r.numTries += 1
+	r.numPreempted = 0
+}
+
+// preemptiveBackoff implements a backoff.BackOff that takes
+// node preemptions into account.
+// The interval has a retry counter which is bumped by 1
+// each time next() is invoked until it exceeds the specified
+// maximum at which point the interval is stopped.
+// If a node is preempted, preemption counter is bumped by 1
+// each time nextPreempted() is invoked until it exceeds the
+// specified maximum at which point the interval is stopped.
+//
+// Increasing the preemption counter does not increase the regular
+// counter. If the regular counter is increased, the preemption
+// counter is reset.
+type preemptiveBackoff struct {
+	delegate                   backoff.BackOff
+	numPreempted, maxPreempted int
+	numTries, maxTries         int
 }

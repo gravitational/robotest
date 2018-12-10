@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gravitational/robotest/lib/defaults"
+
+	libbackoff "github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
@@ -103,6 +105,30 @@ type Retryer struct {
 	Attempts int
 	// FieldLogger specifies the log sink
 	log.FieldLogger
+}
+
+// RetryWithInterval retries the specified operation fn using the specified
+// backoff interval
+func RetryWithInterval(ctx context.Context, interval libbackoff.BackOff, fn func() error, logger log.FieldLogger) error {
+	err := libbackoff.RetryNotify(func() error {
+		err := fn()
+		return err
+	}, libbackoff.WithContext(interval, ctx), func(err error, d time.Duration) {
+		logger.Debugf("Retrying: %v (time %v).", trace.UserMessage(err), d)
+	})
+	if err != nil {
+		log.Warnf("All attempts failed: %v.", trace.DebugReport(err))
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// NewUnlimitedExponentialBackoff returns a new exponential backoff
+// interval without time limit
+func NewUnlimitedExponentialBackoff() libbackoff.BackOff {
+	b := libbackoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+	return b
 }
 
 func backoff(baseDelay time.Duration, errCount int) time.Duration {

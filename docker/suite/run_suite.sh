@@ -4,7 +4,6 @@ set -eu -o pipefail
 #
 # installer could be local .tar installer or s3:// or http(s) URL
 #
-
 if [ -d $(dirname ${INSTALLER_URL}) ]; then
   INSTALLER_FILE='/installer/'$(basename ${INSTALLER_URL})
   EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${INSTALLER_URL}):$(dirname ${INSTALLER_FILE})
@@ -88,6 +87,16 @@ fi
 
 if [ $DEPLOY_TO == "gce" ] ; then
 check_files ${SSH_KEY} ${SSH_PUB} ${GOOGLE_APPLICATION_CREDENTIALS}
+
+CUSTOM_VAR_FILE=$(mktemp)
+trap "{ rm -f $CUSTOM_VAR_FILE; }" EXIT
+cat <<EOF > $CUSTOM_VAR_FILE
+{
+  "preemptible": "${GCE_PREEMPTIBLE}",
+}
+EOF
+EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$CUSTOM_VAR_FILE:/robotest/config/vars.json
+
 GCE_CONFIG="gce:
   credentials: /robotest/config/creds.json
   vm_type: ${GCE_VM}
@@ -95,7 +104,7 @@ GCE_CONFIG="gce:
   ssh_key_path: /robotest/config/ops.pem
   ssh_pub_key_path: /robotest/config/ops_rsa.pub
   docker_device: \"${DOCKER_DEVICE:-}\"
-  preemptible: ${GCE_PREEMPTIBLE}"
+  var_file_path: /robotest/config/vars.json"
 fi
 
 if [ $DEPLOY_TO == "ops" ] ; then
