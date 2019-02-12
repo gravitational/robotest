@@ -347,7 +347,7 @@ func (g *gravity) Leave(ctx context.Context, graceful Graceful) error {
 		cmd = `leave --confirm --force`
 	}
 
-	return trace.Wrap(g.runOp(ctx, cmd))
+	return trace.Wrap(g.runOp(ctx, cmd, nil))
 }
 
 // Remove ejects node from cluster
@@ -358,7 +358,7 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 	} else {
 		cmd = fmt.Sprintf(`remove --confirm --force %s`, node)
 	}
-	return trace.Wrap(g.runOp(ctx, cmd))
+	return trace.Wrap(g.runOp(ctx, cmd, nil))
 }
 
 // Uninstall removes gravity installation. It requires Leave beforehand
@@ -511,7 +511,12 @@ func (g *gravity) Upload(ctx context.Context) error {
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
 	return trace.Wrap(g.runOp(ctx,
-		fmt.Sprintf("upgrade $(./gravity app-package --state-dir=.) --etcd-retry-timeout=%v", defaults.EtcdRetryTimeout)))
+		fmt.Sprintf("upgrade $(./gravity app-package --state-dir=.) --etcd-retry-timeout=%v",
+			defaults.EtcdRetryTimeout),
+		// Run update unattended (changed in 5.4).
+		// Do this via the environment though to avoid breaking versions that
+		// update in a non-blocking mode by default
+		map[string]string{"GRAVITY_BLOCKING_OPERATION": "false"}))
 }
 
 // for cases when gravity doesn't return just opcode but an extended message
@@ -523,12 +528,12 @@ const (
 )
 
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
-func (g *gravity) runOp(ctx context.Context, command string) error {
+func (g *gravity) runOp(ctx context.Context, command string, env map[string]string) error {
 	var code string
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf(`cd %s && sudo ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
+		fmt.Sprintf(`cd %s && sudo -E ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
 			g.installDir, command),
-		nil, sshutils.ParseAsString(&code))
+		env, sshutils.ParseAsString(&code))
 	if err != nil {
 		return trace.Wrap(err)
 	}
