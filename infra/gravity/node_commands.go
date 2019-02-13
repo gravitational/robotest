@@ -531,7 +531,7 @@ const (
 func (g *gravity) runOp(ctx context.Context, command string, env map[string]string) error {
 	var code string
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf(`cd %s && sudo -E ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log`,
+		fmt.Sprintf(`sh -c "cd %s && sudo -E ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log"`,
 			g.installDir, command),
 		env, sshutils.ParseAsString(&code))
 	if err != nil {
