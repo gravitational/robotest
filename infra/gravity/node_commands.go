@@ -510,8 +510,11 @@ func (g *gravity) Upload(ctx context.Context) error {
 
 // Upgrade takes current installer and tries to perform upgrade
 func (g *gravity) Upgrade(ctx context.Context) error {
+	executablePath := filepath.Join(g.installDir, "gravity")
 	return trace.Wrap(g.runOp(ctx,
-		fmt.Sprintf("upgrade $(./gravity app-package --state-dir=.) --etcd-retry-timeout=%v",
+		fmt.Sprintf("upgrade $(%v app-package --state-dir=%v) --etcd-retry-timeout=%v",
+			executablePath,
+			g.installDir,
 			defaults.EtcdRetryTimeout),
 		// Run update unattended (changed in 5.4).
 		// Do this via the environment though to avoid breaking versions that
@@ -530,9 +533,11 @@ const (
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string, env map[string]string) error {
 	var code string
+	executablePath := filepath.Join(g.installDir, "gravity")
+	logPath := filepath.Join(g.installDir, "telekube-system.log")
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf(`sh -c "cd %s && sudo -E ./gravity %s --insecure --quiet --system-log-file=./telekube-system.log"`,
-			g.installDir, command),
+		fmt.Sprintf(`sudo -E %v %v --insecure --quiet --system-log-file=%v`,
+			executablePath, command, logPath),
 		env, sshutils.ParseAsString(&code))
 	if err != nil {
 		return trace.Wrap(err)
