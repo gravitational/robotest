@@ -168,7 +168,7 @@ func ParseAsString(out *string) OutputParseFn {
 		if err != nil {
 			return trace.Wrap(err)
 		}
-		*out = strings.Replace(string(b), `\r`, ``, -1)
+		*out = string(bytes.TrimSpace(b))
 		return nil
 	}
 }
