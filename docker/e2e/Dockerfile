@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:0.0.1
+FROM quay.io/gravitational/debian-grande:stretch
 
 ARG TERRAFORM_VERSION
 ARG CHROMEDRIVER_VERSION
@@ -12,7 +12,7 @@ ENV CHROMEDRIVER_TARBALL http://chromedriver.storage.googleapis.com/${CHROMEDRIV
 
 RUN \
     apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl gnupg2 dirmngr && \
     curl "https://dl-ssl.google.com/linux/linux_signing_key.pub" | apt-key add - && \
     echo 'deb http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google.list && \
     apt-get update && \

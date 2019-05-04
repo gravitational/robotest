@@ -1,7 +1,7 @@
-FROM quay.io/gravitational/debian-grande:latest
+FROM quay.io/gravitational/debian-grande:stretch
 
 RUN apt-get update && \
-    apt-get install -y curl unzip
+    apt-get install -y curl unzip gnupg2 dirmngr
 
 ARG GRAVITY_VERSION
 ARG TERRAFORM_VERSION
