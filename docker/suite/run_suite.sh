@@ -11,7 +11,7 @@ fi
 
 # GRAVTIY_FILE/GRAVITY_URL specify the location of the up-to-date gravity binary
 if [ -d $(dirname ${GRAVITY_URL}) ]; then
-  GRAVITY_FILE='/installer/'$(basename ${GRAVITY_URL})
+  GRAVITY_FILE='/installer/bin/'$(basename ${GRAVITY_URL})
   EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$(dirname ${GRAVITY_URL}):$(dirname ${GRAVITY_FILE})
 fi
 
