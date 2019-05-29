@@ -163,10 +163,14 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 labels.__uuid__="%s"
 labels.__suite__="%s"
 severity>=INFO`, testUID, s.uid)},
-		}.Encode()}
+		}.Encode(),
+	}
 
-	short, err := s.client.Shorten(s.ctx, longUrl.String())
-	return short, trace.Wrap(err)
+	// Google URL shortener has been discontinued.
+	// See https://developers.googleblog.com/2018/03/transitioning-google-url-shortener.html for details.
+	// TODO(dmitri): decide whether it would make sense to migrate to Firebase Dynamic Links as a replacement.
+	// For now, return full URLs
+	return longUrl.String(), nil
 }
 
 func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interface{}) func(t *testing.T) {
