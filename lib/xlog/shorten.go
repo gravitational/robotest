@@ -20,6 +20,9 @@ type shortenerMsg struct {
 	Kind  string `json:"kind,omitempty"`
 }
 
+// Google URL shortener has been discontinued.
+// See https://developers.googleblog.com/2018/03/transitioning-google-url-shortener.html for details.
+// TODO(dmitri): remove or update to use another service
 func (c GCLClient) Shorten(ctx context.Context, url string) (short string, err error) {
 	var buf bytes.Buffer
 

@@ -166,10 +166,8 @@ severity>=INFO`, testUID, s.uid)},
 		}.Encode(),
 	}
 
-	// Google UIRL shortener has been discontinued.
+	// Google URL shortener has been discontinued.
 	// See https://developers.googleblog.com/2018/03/transitioning-google-url-shortener.html for details.
-	// short, err := s.client.Shorten(s.ctx, longUrl.String())
-	// return short, trace.Wrap(err)
 	// TODO(dmitri): decide whether it would make sense to migrate to Firebase Dynamic Links as a replacement.
 	// For now, return full URLs
 	return longUrl.String(), nil
