@@ -10,6 +10,7 @@ import (
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 // Status walks around all nodes and checks whether they all feel OK
@@ -61,37 +62,59 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 	return trace.Wrap(err)
 }
 
-// PullLogs requests logs from all nodes
+// CollectLogs requests logs from all nodes.
 // prefix `postmortem` is reserved for cleanup procedure
 func (c *TestContext) CollectLogs(prefix string, nodes []Gravity) error {
+	if len(nodes) < 1 {
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.CollectLogs)
 	defer cancel()
-	errs := make(chan error, len(nodes))
 
-	api, other, err := apiserverNode(ctx, nodes)
+	nodes, err := c.reorderNodesForCollection(ctx, nodes)
 	if err != nil {
-		return trace.Wrap(err)
+		c.Logger().WithError(err).Warn("Failed to reorder nodes for collection.")
+		// nodes is still valid
 	}
 
 	c.Logger().WithField("nodes", nodes).Debug("Collecting logs from nodes.")
-	for i, node := range append([]Gravity{api}, other...) {
-		go func(i int, n Gravity) {
-			args := []string{"--filter=system"}
-			if i == 0 {
-				// Use the API server node to collect kubernetes logs
-				args = append(args, "--filter=kubernetes")
-			}
-			localPath, err := n.CollectLogs(ctx, prefix, args...)
-			if err == nil {
-				n.Logger().Debugf("Node logs in %v.", localPath)
-			} else {
-				n.Logger().WithError(err).Error("Failed to fetch node logs.")
-			}
-			errs <- err
-		}(i, node)
-	}
+	firstNodeArgs := []string{"--filter=system", "--filter=kubernetes"}
+	nodeArgs := []string{"--filter=system"}
+	err = c.collectLogsFromNodes(ctx, nodes, prefix, firstNodeArgs, nodeArgs)
+	return trace.Wrap(err)
+}
 
-	return trace.Wrap(utils.CollectErrors(ctx, errs))
+func (c *TestContext) reorderNodesForCollection(ctx context.Context, nodes []Gravity) ([]Gravity, error) {
+	api, other, err := apiserverNode(ctx, nodes)
+	if err != nil {
+		// Return nodes unaltered in case of error
+		return nodes, trace.Wrap(err)
+	}
+	return append([]Gravity{api}, other...), nil
+}
+
+func (c *TestContext) collectLogsFromNodes(ctx context.Context, nodes []Gravity, prefix string, firstNodeArgs, nodeArgs []string) error {
+	errors := make(chan error, len(nodes))
+	go func(node Gravity) {
+		localPath, err := node.CollectLogs(ctx, prefix, firstNodeArgs...)
+		node.Logger().WithFields(log.Fields{
+			log.ErrorKey: err,
+			"path":       localPath,
+		}).Error("Fetching node logs.")
+		errors <- err
+	}(nodes[0])
+	for _, node := range nodes[1:] {
+		node := node
+		go func() {
+			localPath, err := node.CollectLogs(ctx, prefix, nodeArgs...)
+			node.Logger().WithFields(log.Fields{
+				log.ErrorKey: err,
+				"path":       localPath,
+			}).Error("Fetching node logs.")
+			errors <- err
+		}()
+	}
+	return trace.Wrap(utils.CollectErrors(ctx, errors))
 }
 
 // ClusterNodesByRole defines which roles every node plays in a cluster
