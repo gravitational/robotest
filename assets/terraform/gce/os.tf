@@ -11,7 +11,7 @@ variable "oss" {
   default = {
     # os -> {project}/{image}
     "ubuntu:16"     = "ubuntu-os-cloud/ubuntu-1604-xenial-v20181004"
-    "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20181003"
+    "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20190813a"
     "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-1804-bionic-v20181003"
     "redhat:7"      = "rhel-cloud/rhel-7-v20181011"
     "centos:7"      = "centos-cloud/centos-7-v20181011"
