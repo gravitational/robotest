@@ -15,7 +15,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 

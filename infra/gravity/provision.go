@@ -19,6 +19,7 @@ import (
 	sshutil "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -26,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
 	"github.com/gravitational/trace"
-	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -66,7 +66,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) (cluster Cluster, err err
 	c.provisionerCfg = cfg
 
 	switch cfg.CloudProvider {
-	case constants.Azure, constants.AWS, constants.GCE:
+	case constants.Azure, constants.AWS, constants.GCE, constants.LibVirt:
 		var config *terraform.Config
 		cluster, config, err = c.provisionCloud(cfg)
 		if err == nil && cfg.CloudProvider == constants.GCE {
@@ -75,7 +75,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) (cluster Cluster, err err
 	case constants.Ops:
 		cluster, err = c.provisionOps(cfg)
 	default:
-		err = trace.BadParameter("unkown cloud provider: %q", cfg.CloudProvider)
+		err = trace.BadParameter("unknown cloud provider: %q", cfg.CloudProvider)
 	}
 
 	// call `destroyFn` if provided to destroy infrastructure
@@ -425,7 +425,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node *gravity, par
 		err = bootstrapAzure(ctx, node, param)
 	case constants.GCE:
 		err = bootstrapCloud(ctx, node, param)
-	case constants.Ops:
+	case constants.Ops, constants.LibVirt:
 		// For ops installs the installer is not needed
 	default:
 		return trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)

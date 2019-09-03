@@ -185,6 +185,11 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"redhat": "redhat",
 			"centos": "centos",
 		},
+		constants.LibVirt: map[string]string{
+			"ubuntu": "ubuntu",
+			"redhat": "redhat",
+			"centos": "centos",
+		},
 		constants.Ops: map[string]string{
 			"centos": "centos",
 		},
@@ -233,6 +238,11 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
 		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
 		param.terraform.VarFilePath = baseConfig.GCE.VarFilePath
+	case baseConfig.LibVirt != nil:
+		config := *baseConfig.LibVirt
+		param.terraform.LibVirt = &config
+		param.terraform.LibVirt.SSHUser = param.user
+		param.terraform.LibVirt.DockerDevice = baseConfig.LibVirt.DockerDevice
 	}
 
 	return &param, nil

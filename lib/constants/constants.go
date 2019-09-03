@@ -54,6 +54,8 @@ const (
 	Azure = "azure"
 	// GCE is Google Compute Engine cloud
 	GCE = "gce"
+	// LibVirt specifies libvirt provider
+	LibVirt = "libvirt"
 	// Ops specifies a special cloud provider - a telekube Ops Center
 	Ops = "ops"
 )

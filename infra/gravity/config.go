@@ -13,6 +13,7 @@ import (
 	"github.com/gravitational/robotest/infra/providers/aws"
 	"github.com/gravitational/robotest/infra/providers/azure"
 	"github.com/gravitational/robotest/infra/providers/gce"
+	"github.com/gravitational/robotest/infra/providers/libvirt"
 	"github.com/gravitational/robotest/infra/providers/ops"
 	"github.com/gravitational/robotest/lib/constants"
 
@@ -69,13 +70,15 @@ func (drv StorageDriver) Driver() string {
 // CloudProvider, AWS, Azure, ScriptPath and InstallerURL
 type ProvisionerConfig struct {
 	// DeployTo defines cloud to deploy to
-	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure|eq=gce|eq=ops"`
+	CloudProvider string `yaml:"cloud" validate:"required,eq=aws|eq=azure|eq=gce|eq=libvirt|eq=ops"`
 	// AWS defines AWS connection parameters
 	AWS *aws.Config `yaml:"aws"`
 	// Azure defines Azure connection parameters
 	Azure *azure.Config `yaml:"azure"`
 	// GCE defines Google Compute Engine connection parameters
 	GCE *gce.Config `yaml:"gce"`
+	// LibVirt defines libvirt connection parameters
+	LibVirt *libvirt.Config `yaml:"libvirt"`
 	// Ops defines Ops Center connection parameters
 	Ops *ops.Config `yaml:"ops"`
 
@@ -122,6 +125,9 @@ func LoadConfig(t *testing.T, configBytes []byte) (cfg ProvisionerConfig) {
 		require.NotNil(t, cfg.GCE)
 		cfg.dockerDevice = cfg.GCE.DockerDevice
 		cfg.cloudRegions = newCloudRegions(strings.Split(cfg.GCE.Region, ","))
+	case constants.LibVirt:
+		require.NotNil(t, cfg.LibVirt)
+		cfg.dockerDevice = cfg.LibVirt.DockerDevice
 	case constants.Ops:
 		require.NotNil(t, cfg.Ops)
 		// set AWS environment variables to be used by subsequent commands
@@ -197,7 +203,7 @@ func (config ProvisionerConfig) WithStorageDriver(storageDriver StorageDriver) P
 // validateConfig checks that key parameters are present
 func validateConfig(config ProvisionerConfig) error {
 	switch config.CloudProvider {
-	case constants.AWS, constants.Azure, constants.GCE, constants.Ops:
+	case constants.AWS, constants.Azure, constants.GCE, constants.Ops, constants.LibVirt:
 	default:
 		return trace.BadParameter("unknown cloud provider %s", config.CloudProvider)
 	}

@@ -67,7 +67,7 @@ func (r Retryer) Do(ctx context.Context, fn func() error) (err error) {
 	for i := 1; i <= r.Attempts; i += 1 {
 		err = fn()
 		if err == nil {
-			r.Debug("succeded")
+			r.Debug("succeeded")
 			return nil
 		}
 

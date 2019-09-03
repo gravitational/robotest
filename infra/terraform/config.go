@@ -5,6 +5,7 @@ import (
 	"github.com/gravitational/robotest/infra/providers/aws"
 	"github.com/gravitational/robotest/infra/providers/azure"
 	"github.com/gravitational/robotest/infra/providers/gce"
+	"github.com/gravitational/robotest/infra/providers/libvirt"
 	"github.com/gravitational/robotest/lib/constants"
 
 	"github.com/gravitational/trace"
@@ -49,6 +50,13 @@ func (c *Config) Validate() error {
 		if c.GCE.SSHUser == "" || c.GCE.SSHKeyPath == "" {
 			return trace.BadParameter("GCE SSH access configuration is required")
 		}
+	case constants.LibVirt:
+		if c.LibVirt == nil {
+			return trace.BadParameter("LibVirt configuration is required")
+		}
+		if c.LibVirt.SSHUser == "" || c.LibVirt.SSHKeyPath == "" {
+			return trace.BadParameter("LibVirt SSH access configuration is required")
+		}
 	}
 
 	return nil
@@ -62,6 +70,8 @@ func (c Config) SSHConfig() (user, keypath string) {
 		return c.Azure.SSHUser, c.Azure.SSHKeyPath
 	case constants.GCE:
 		return c.GCE.SSHUser, c.GCE.SSHKeyPath
+	case constants.LibVirt:
+		return c.LibVirt.SSHUser, c.LibVirt.SSHKeyPath
 	default:
 		return "", ""
 	}
@@ -72,13 +82,15 @@ type Config struct {
 	// Config specifies common infrastructure configuration
 	infra.Config
 	// CloudProvider defines cloud to deploy to
-	CloudProvider string `validate:"required,eq=aws|eq=azure|eq=gce"`
+	CloudProvider string `validate:"required,eq=aws|eq=azure|eq=gce|eq=libvirt"`
 	// AWS defines AWS connection parameters
 	AWS *aws.Config
 	// Azure defines Azure connection parameters
 	Azure *azure.Config
 	// GCE defines Google Compute Engine connection parameters
 	GCE *gce.Config
+	// LibVirt defines libvirt connection parameters
+	LibVirt *libvirt.Config
 	// OS specified the OS distribution
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian|eq=suse"`
 	// ScriptPath is the path to the terraform script or directory for provisioning

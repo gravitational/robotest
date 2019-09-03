@@ -359,6 +359,8 @@ func (r *terraform) saveVarsJSON(varFile string) error {
 		config = r.Config.Azure
 	case constants.GCE:
 		config = r.Config.GCE
+	case constants.LibVirt:
+		config = r.Config.LibVirt
 	default:
 		return trace.BadParameter("invalid cloud provider: %v", r.Config.CloudProvider)
 	}
