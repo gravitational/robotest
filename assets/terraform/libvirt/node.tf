@@ -4,11 +4,10 @@
 
 # Use locally pre-fetched image
 resource "libvirt_volume" "os-qcow2" {
-  name    = "os-${count.index}-qcow2"
+  name    = "os-qcow2"
   pool    = "default"
   source  = "/var/lib/libvirt/images/${var.image_name}"
   format  = "qcow2"
-  count   = "${var.nodes}"
 }
 
 # Create a network for our VMs
@@ -17,20 +16,13 @@ resource "libvirt_network" "vm_network" {
    addresses  = ["172.28.128.0/24"]
 }
 
-# 12 GB volume for gravity install
+# Create main disk
 resource "libvirt_volume" "gravity" {
-  name  = "gravity-disk-${count.index}.qcow2"
-  pool  = "default"
-  size  = "${var.gravity_dir_size}"
-  count = "${var.nodes}"
-}
-
-# 12 GB volume for tmp
-resource "libvirt_volume" "tmp" {
-  name  = "gravity-tmp-disk-${count.index}.qcow2"
-  pool  = "default"
-  size  = 12000000000
-  count = "${var.nodes}"
+  name            = "gravity-disk-${count.index}.qcow2"
+  base_volume_id  = libvirt_volume.os-qcow2.id
+  pool            = "default"
+  size            = "${var.disk_size}"
+  count           = "${var.nodes}"
 }
 
 # Use CloudInit to add our ssh-key to the instance
@@ -39,7 +31,7 @@ resource "libvirt_cloudinit_disk" "commoninit" {
   user_data = <<EOF
     #cloud-config
     packages: [python, curl, htop, iotop, lsof, ltrace, mc, net-tools, strace, tcpdump, telnet, vim, wget, ntp, traceroute, bash-completion]
-    ssh_authorized_keys: ["${file("ssh/key.pub")}"]
+    ssh_authorized_keys: ["${file(var.ssh_pub_key_path)}"]
     write_files:
     - content: "br_netfilter"
       path: /etc/modules-load.d/br_netfilter.conf
@@ -63,6 +55,8 @@ resource "libvirt_cloudinit_disk" "commoninit" {
     - content: |
         fs.may_detach_mounts=1
       path: /etc/sysctl.d/10-fs-may-detach-mounts.conf
+    bootcmd:
+    - echo 127.0.1.1 "${var.ssh_user}" >> /etc/hosts
     runcmd:
     - 'modprobe overlay'
     - 'modprobe br_netfilter'
@@ -73,30 +67,19 @@ resource "libvirt_cloudinit_disk" "commoninit" {
     - 'sysctl -p /etc/sysctl.d/10-br-netfilter.conf'
     - 'sysctl -p /etc/sysctl.d/10-ipv4-forwarding-on.conf'
     - 'sysctl -p /etc/sysctl.d/10-fs-may-detach-mounts.conf'
-    - 'parted -a opt /dev/vdb mktable msdos'
-    - 'parted -a opt /dev/vdb mkpart primary ext4 0% 100%'
-    - 'mkfs.ext4 -L GRAVITY /dev/vdb1'
-    - 'parted -a opt /dev/vdc mktable msdos'
-    - 'parted -a opt /dev/vdc mkpart primary ext4 0% 100%'
-    - 'mkfs.ext4 -L TMP /dev/vdc1'
-    - 'echo "/dev/vdb1 /var/lib/gravity ext4 discard,noatime,nodiratime 0 0" >> /etc/fstab'
-    - 'echo "/dev/vdc1 /tmp ext4 discard,noatime,nodiratime 0 0" >> /etc/fstab'
-    - 'mkdir -p /var/lib/gravity'
-    - 'mount -a'
-    - 'chmod 777 /tmp'
     EOF
 }
 
 # Create the machine
 resource "libvirt_domain" "domain-gravity" {
-  name      = "telekube${count.index}"
+  name      = "gravity${count.index}"
   memory    = "${var.memory_size}"
   vcpu      = "${var.cpu_count}"
   count     = "${var.nodes}"
   cloudinit = "${libvirt_cloudinit_disk.commoninit.id}"
 
   network_interface {
-    hostname        = "telekube${count.index}"
+    hostname        = "gravity${count.index}"
     network_id      = "${libvirt_network.vm_network.id}"
     addresses       = ["172.28.128.${count.index+3}"]
     mac             = "6E:02:C0:21:62:5${count.index+3}"
@@ -119,14 +102,6 @@ resource "libvirt_domain" "domain-gravity" {
   }
 
   disk {
-    volume_id = "${element(libvirt_volume.os-qcow2.*.id, count.index)}"
-  }
-
-  disk {
     volume_id = "${element(libvirt_volume.gravity.*.id, count.index)}"
-  }
-
-  disk {
-    volume_id = "${element(libvirt_volume.tmp.*.id, count.index)}"
   }
 }
