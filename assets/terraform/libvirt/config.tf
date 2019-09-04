@@ -9,7 +9,7 @@ variable "ssh_user" {
 }
 
 variable "ssh_pub_key_path" {
-  description = "Path to the public SSH key."
+  description = "Path to the public SSH key"
   type        = "string"
 }
 
@@ -30,22 +30,22 @@ variable "image_name" {
   default     = "ubuntu-16.04-server-cloudimg-amd64-disk1.img"
 }
 
-variable "gravity_dir_size" {
-  description = "Disk size for gravity directory"
+variable "disk_size" {
+  description = "Main disk size in bytes"
   type        = "string"
-  default     = "12000000000"
+  default     = "40000000000" # ~40GB
 }
 
 variable "memory_size" {
   description = "Node memory size"
-  type    = "string"
-  default = "2048"
+  type        = "string"
+  default     = "2048" # 2GB
 }
 
 variable "cpu_count" {
   description = "Virtual CPU count"
   type        = "string"
-  default     = "1"
+  default     = "2"
 }
 
 provider "libvirt" {
