@@ -66,7 +66,7 @@ func (c *TestContext) Provision(cfg ProvisionerConfig) (cluster Cluster, err err
 	c.provisionerCfg = cfg
 
 	switch cfg.CloudProvider {
-	case constants.Azure, constants.AWS, constants.GCE, constants.LibVirt:
+	case constants.Azure, constants.AWS, constants.GCE, constants.Libvirt:
 		var config *terraform.Config
 		cluster, config, err = c.provisionCloud(cfg)
 		if err == nil && cfg.CloudProvider == constants.GCE {
@@ -425,7 +425,7 @@ func configureVM(ctx context.Context, log logrus.FieldLogger, node *gravity, par
 		err = bootstrapAzure(ctx, node, param)
 	case constants.GCE:
 		err = bootstrapCloud(ctx, node, param)
-	case constants.Ops, constants.LibVirt:
+	case constants.Ops, constants.Libvirt:
 		// For ops installs the installer is not needed
 	default:
 		return trace.BadParameter("unsupported cloud provider %s", param.CloudProvider)

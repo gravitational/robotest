@@ -50,12 +50,12 @@ func (c *Config) Validate() error {
 		if c.GCE.SSHUser == "" || c.GCE.SSHKeyPath == "" {
 			return trace.BadParameter("GCE SSH access configuration is required")
 		}
-	case constants.LibVirt:
-		if c.LibVirt == nil {
-			return trace.BadParameter("LibVirt configuration is required")
+	case constants.Libvirt:
+		if c.Libvirt == nil {
+			return trace.BadParameter("Libvirt configuration is required")
 		}
-		if c.LibVirt.SSHUser == "" || c.LibVirt.SSHKeyPath == "" {
-			return trace.BadParameter("LibVirt SSH access configuration is required")
+		if c.Libvirt.SSHUser == "" || c.Libvirt.SSHKeyPath == "" {
+			return trace.BadParameter("Libvirt SSH access configuration is required")
 		}
 	}
 
@@ -70,8 +70,8 @@ func (c Config) SSHConfig() (user, keypath string) {
 		return c.Azure.SSHUser, c.Azure.SSHKeyPath
 	case constants.GCE:
 		return c.GCE.SSHUser, c.GCE.SSHKeyPath
-	case constants.LibVirt:
-		return c.LibVirt.SSHUser, c.LibVirt.SSHKeyPath
+	case constants.Libvirt:
+		return c.Libvirt.SSHUser, c.Libvirt.SSHKeyPath
 	default:
 		return "", ""
 	}
@@ -89,8 +89,8 @@ type Config struct {
 	Azure *azure.Config
 	// GCE defines Google Compute Engine connection parameters
 	GCE *gce.Config
-	// LibVirt defines libvirt connection parameters
-	LibVirt *libvirt.Config
+	// Libvirt defines libvirt connection parameters
+	Libvirt *libvirt.Config
 	// OS specified the OS distribution
 	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian|eq=suse"`
 	// ScriptPath is the path to the terraform script or directory for provisioning
