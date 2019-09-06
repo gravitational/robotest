@@ -27,47 +27,11 @@ resource "libvirt_volume" "gravity" {
 
 # Use CloudInit to add our ssh-key to the instance
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name           = "commoninit.iso"
-  user_data = <<EOF
-    #cloud-config
-    packages: [python, curl, htop, iotop, lsof, ltrace, mc, net-tools, strace, tcpdump, telnet, vim, wget, ntp, traceroute, bash-completion]
-    ssh_authorized_keys: ["${file(var.ssh_pub_key_path)}"]
-    write_files:
-    - content: "br_netfilter"
-      path: /etc/modules-load.d/br_netfilter.conf
-    - content: "ebtables"
-      path: /etc/modules-load.d/ebtables.conf
-    - content: "overlay"
-      path: /etc/modules-load.d/overlay.conf
-    - content: |
-        ip_tables
-        iptable_nat
-        iptable_filter
-      path: /etc/modules-load.d/iptables.conf
-    - content: |
-        net.bridge.bridge-nf-call-arptables=1
-        net.bridge.bridge-nf-call-ip6tables=1
-        net.bridge.bridge-nf-call-iptables=1
-      path: /etc/sysctl.d/10-br-netfilter.conf
-    - content: |
-        net.ipv4.ip_forward=1
-      path: /etc/sysctl.d/10-ipv4-forwarding-on.conf
-    - content: |
-        fs.may_detach_mounts=1
-      path: /etc/sysctl.d/10-fs-may-detach-mounts.conf
-    bootcmd:
-    - echo 127.0.1.1 "${var.ssh_user}" >> /etc/hosts
-    runcmd:
-    - 'modprobe overlay'
-    - 'modprobe br_netfilter'
-    - 'modprobe ebtables'
-    - 'modprobe ip_tables'
-    - 'modprobe iptable_nat'
-    - 'modprobe iptable_filter'
-    - 'sysctl -p /etc/sysctl.d/10-br-netfilter.conf'
-    - 'sysctl -p /etc/sysctl.d/10-ipv4-forwarding-on.conf'
-    - 'sysctl -p /etc/sysctl.d/10-fs-may-detach-mounts.conf'
-    EOF
+  name      = "commoninit.iso"
+  user_data = "${templatefile("${path.module}/cloud_init.cfg", {
+    ssh_pub_key = "${file(var.ssh_pub_key_path)}",
+    ssh_user = var.ssh_user 
+  })}"
 }
 
 # Create the machine
