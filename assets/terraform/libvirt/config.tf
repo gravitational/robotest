@@ -1,7 +1,6 @@
 #
 # libvirt provider
 #   
-#
 
 variable "ssh_user" {
   description = "SSH user to login onto nodes"
@@ -36,13 +35,13 @@ variable "disk_size" {
   default     = "40000000000" # ~40GB
 }
 
-variable "memory_size" {
-  description = "Node memory size"
+variable "memory" {
+  description = "Node memory size in MB"
   type        = "string"
   default     = "2048" # 2GB
 }
 
-variable "cpu_count" {
+variable "cpu" {
   description = "Virtual CPU count"
   type        = "string"
   default     = "2"

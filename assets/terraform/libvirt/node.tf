@@ -37,8 +37,8 @@ resource "libvirt_cloudinit_disk" "commoninit" {
 # Create the machine
 resource "libvirt_domain" "domain-gravity" {
   name      = "gravity${count.index}"
-  memory    = "${var.memory_size}"
-  vcpu      = "${var.cpu_count}"
+  memory    = "${var.memory}"
+  vcpu      = "${var.cpu}"
   count     = "${var.nodes}"
   cloudinit = "${libvirt_cloudinit_disk.commoninit.id}"
 
