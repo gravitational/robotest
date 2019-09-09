@@ -6,7 +6,7 @@
 resource "libvirt_volume" "os-qcow2" {
   name    = "os-qcow2"
   pool    = "default"
-  source  = "/var/lib/libvirt/images/${var.image_name}"
+  source  = "/var/lib/libvirt/images/${lookup(var.os_images, var.os)}"
   format  = "qcow2"
 }
 
@@ -28,7 +28,7 @@ resource "libvirt_volume" "gravity" {
 # Use CloudInit to add our ssh-key to the instance
 resource "libvirt_cloudinit_disk" "commoninit" {
   name      = "commoninit.iso"
-  user_data = "${templatefile("${path.module}/cloud_init.cfg", {
+  user_data = "${templatefile("${path.module}/cloudinit/${split(":","${var.os}").0}.cfg", {
     ssh_pub_key = "${file(var.ssh_pub_key_path)}",
     ssh_user = var.ssh_user 
   })}"

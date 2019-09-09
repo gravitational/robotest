@@ -23,12 +23,6 @@ variable "os" {
   type        = "string"
 }
 
-variable "image_name" {
-  description = "OS image file"
-  type        = "string"
-  default     = "ubuntu-16.04-server-cloudimg-amd64-disk1.img"
-}
-
 variable "disk_size" {
   description = "Main disk size in bytes"
   type        = "string"
