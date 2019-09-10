@@ -27,12 +27,15 @@ resource "libvirt_volume" "gravity" {
 
 # Use CloudInit to add our ssh-key to the instance
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name      = "commoninit.iso"
+  name      = "commoninit-${count.index}.iso"
   user_data = "${templatefile("${path.module}/cloudinit/${split(":","${var.os}").0}.cfg", {
     ssh_pub_key = "${file(var.ssh_pub_key_path)}",
-    ssh_user = var.ssh_user 
+    ip_address = "172.28.128.${count.index+3}",
+    hostname = "gravity${count.index}"
   })}"
+  count = "${var.nodes}"
 }
+
 
 # Create the machine
 resource "libvirt_domain" "domain-gravity" {
@@ -40,7 +43,7 @@ resource "libvirt_domain" "domain-gravity" {
   memory    = "${var.memory}"
   vcpu      = "${var.cpu}"
   count     = "${var.nodes}"
-  cloudinit = "${libvirt_cloudinit_disk.commoninit.id}"
+  cloudinit = "${element(libvirt_cloudinit_disk.commoninit.*.id, count.index)}"
 
   network_interface {
     hostname        = "gravity${count.index}"
