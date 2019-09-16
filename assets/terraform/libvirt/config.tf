@@ -12,6 +12,12 @@ variable "ssh_pub_key_path" {
   type        = "string"
 }
 
+var "storage_pool" {
+  description = "Storage pool"
+  type        = "string"
+  default     = "default"
+}
+
 variable "nodes" {
   description = "Number of nodes to provision"
   type        = "string"

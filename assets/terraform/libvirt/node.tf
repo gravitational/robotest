@@ -3,11 +3,11 @@
 #
 
 # Use locally pre-fetched image
-resource "libvirt_volume" "os-qcow2" {
-  name    = "os-qcow2"
+resource "libvirt_volume" "os-img" {
+  name    = "os-img"
   pool    = "default"
   source  = "/var/lib/libvirt/images/${lookup(var.os_images, var.os)}"
-  format  = "qcow2"
+  format  = "raw"
 }
 
 # Create a network for our VMs
@@ -18,9 +18,9 @@ resource "libvirt_network" "vm_network" {
 
 # Create main disk
 resource "libvirt_volume" "gravity" {
-  name            = "gravity-disk-${count.index}.qcow2"
-  base_volume_id  = libvirt_volume.os-qcow2.id
-  pool            = "default"
+  name            = "gravity-disk-${count.index}"
+  base_volume_id  = libvirt_volume.os-img.id
+  pool            = "${var.stoage_pool}"
   size            = "${var.disk_size}"
   count           = "${var.nodes}"
 }
@@ -36,12 +36,14 @@ resource "libvirt_cloudinit_disk" "commoninit" {
   count = "${var.nodes}"
 }
 
-
 # Create the machine
 resource "libvirt_domain" "domain-gravity" {
   name      = "gravity${count.index}"
   memory    = "${var.memory}"
   vcpu      = "${var.cpu}"
+  cpu       = {
+    mode = "host-passthrough"
+  }
   count     = "${var.nodes}"
   cloudinit = "${element(libvirt_cloudinit_disk.commoninit.*.id, count.index)}"
 
