@@ -14,4 +14,6 @@ type Config struct {
 	CPU int `json:"cpu" yaml:"cpu" validate:"required"`
 	// Memory specifies the amount of memory per machine in MB
 	Memory int `json:"memory" yaml:"memory" validate:"required"`
+	// StoragePool specifies the storage pool used to create volumes
+	StoragePool string `json:"storage_pool" yaml:"storage_pool"`
 }

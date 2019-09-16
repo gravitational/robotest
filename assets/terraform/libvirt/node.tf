@@ -20,7 +20,7 @@ resource "libvirt_network" "vm_network" {
 resource "libvirt_volume" "gravity" {
   name            = "gravity-disk-${count.index}"
   base_volume_id  = libvirt_volume.os-img.id
-  pool            = "${var.stoage_pool}"
+  pool            = "${var.storage_pool}"
   size            = "${var.disk_size}"
   count           = "${var.nodes}"
 }

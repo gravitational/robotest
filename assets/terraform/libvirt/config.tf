@@ -12,7 +12,7 @@ variable "ssh_pub_key_path" {
   type        = "string"
 }
 
-var "storage_pool" {
+variable "storage_pool" {
   description = "Storage pool"
   type        = "string"
   default     = "default"
