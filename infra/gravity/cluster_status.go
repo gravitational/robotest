@@ -193,3 +193,16 @@ func apiserverNode(ctx context.Context, nodes []Gravity) (api Gravity, other []G
 
 	return api, nodes[1:], nil
 }
+
+// GetLeaderNode finds and returns the leader node.
+func (c *TestContext) GetLeaderNode(nodes []Gravity) (leader Gravity, err error) {
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	defer cancel()
+	for _, node := range nodes {
+		if node.IsLeader(ctx) {
+			leader = node
+			return leader, nil
+		}
+	}
+	return nil, trace.NotFound("unable to find leader node")
+}

@@ -25,6 +25,7 @@ func Suite() *config.Config {
 	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
 	cfg.Add("upgrade3lts", upgrade, upgradeParam{installParam: defaultInstallParam})
 	cfg.Add("autoscale", autoscale, defaultInstallParam)
+	cfg.Add("failover", failover, failoverParam{installParam: defaultInstallParam})
 
 	return cfg
 }
