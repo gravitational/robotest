@@ -3,9 +3,15 @@ package gravity
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"fmt"
 	"testing"
 
+	. "gopkg.in/check.v1"
+
+	"github.com/gravitational/trace"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/ssh"
 )
 
 var testStatusStr = []byte(`
@@ -34,4 +40,55 @@ func TestGravityOutput(t *testing.T) {
 	err := parseStatus(&status)(bufio.NewReader(bytes.NewReader(testStatusStr)))
 	assert.NoError(t, err)
 	assert.Equal(t, expectedStatus, &status, "parseStatus")
+}
+
+func (s *S) TestGetLeaderNode(c *C) {
+	gravityNodes := []Gravity{
+		&mockGravity{gravity: &gravity{node: &mockNode{addr: "10.0.0.1"}}},
+		&mockGravity{gravity: &gravity{node: &mockNode{addr: "10.0.0.2"}}},
+		&mockGravity{gravity: &gravity{node: &mockNode{addr: "10.0.0.3"}}},
+	}
+	testCtx := &TestContext{ctx: context.TODO()}
+	leader, err := testCtx.GetLeaderNode(gravityNodes)
+	c.Assert(err, IsNil)
+	c.Assert(leader, DeepEquals, gravityNodes[0])
+}
+
+// mockGravity represents a mock gravity node to be used for testing.
+type mockGravity struct {
+	*gravity
+}
+
+// IsLeader returns true if gravity node has address "10.0.0.1".
+func (g *mockGravity) IsLeader(ctx context.Context) bool {
+	if "10.0.0.1" == g.Node().PrivateAddr() {
+		return true
+	}
+	return false
+}
+
+// mockNode represents a mock node to be used for testing.
+type mockNode struct {
+	addr string
+}
+
+// String returns string representation of node.
+func (r mockNode) String() string { return fmt.Sprintf("node(%v)", r.addr) }
+
+// Addr returns the public address of the node.
+func (r mockNode) Addr() string { return r.addr }
+
+// PrivateAddr returns the private address of the node.
+func (r mockNode) PrivateAddr() string { return r.addr }
+
+// Client connects to this node and returns a new SSH Client.
+// *Not Implemented* for mockNode
+func (r mockNode) Client() (*ssh.Client, error) {
+	return nil, trace.BadParameter("not implemented")
+}
+
+// Connect connects to this node and returns a new session object.
+// *Not Implemented* for mockNode.
+func (r mockNode) Connect() (*ssh.Session, error) {
+	return nil, trace.BadParameter("not implemented")
 }

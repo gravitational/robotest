@@ -200,9 +200,14 @@ func (c *TestContext) GetLeaderNode(nodes []Gravity) (leader Gravity, err error)
 	defer cancel()
 	for _, node := range nodes {
 		if node.IsLeader(ctx) {
+			if leader != nil {
+				return nil, trace.BadParameter("multiple leader nodes")
+			}
 			leader = node
-			return leader, nil
 		}
 	}
-	return nil, trace.NotFound("unable to find leader node")
+	if leader == nil {
+		return nil, trace.NotFound("unable to get leader node")
+	}
+	return leader, nil
 }
