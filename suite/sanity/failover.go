@@ -1,8 +1,6 @@
 package sanity
 
 import (
-	"fmt"
-
 	"github.com/gravitational/robotest/infra/gravity"
 )
 
@@ -34,15 +32,6 @@ func failover(p interface{}) (gravity.TestFunc, error) {
 		}
 		g.OK("application installed", g.OfflineInstall(cluster.Nodes, param.InstallParam))
 		g.OK("status", g.Status(cluster.Nodes))
-
-		leader, err := g.GetLeaderNode(cluster.Nodes)
-		g.OK(fmt.Sprintf("leader=%v", leader), err)
-		g.OK("disconnect leader", g.Disconnect(leader))
-
-		leader, err = g.GetLeaderNode(cluster.Nodes)
-		g.OK(fmt.Sprintf("new leader=%v", leader), err)
-
-		g.OK("reconnect previous leader", g.Connect(leader))
-		g.OK("status", g.Status(cluster.Nodes))
+		g.OK("master failover", g.Failover(cluster.Nodes))
 	}, nil
 }
