@@ -599,7 +599,7 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 	// not require args.
 	// leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view")
 	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", "gravity/local/leader")
-	if err == nil && leaderIP == g.Node().Addr() {
+	if err == nil && leaderIP == g.Node().PrivateAddr() {
 		return true
 	}
 	return false
