@@ -74,12 +74,14 @@ type Gravity interface {
 	Client() *ssh.Client
 	// Will log using extended info such as current tag, node info, etc
 	Logger() logrus.FieldLogger
-	// Connect connects the node to the cluster.
-	Connect(ctx context.Context) error
-	// Disconnect disconnects the node from the cluster.
-	Disconnect(ctx context.Context) error
 	// IsLeader returns true if node is leader, false o.w.
 	IsLeader(ctx context.Context) bool
+	// PartitionNetwork creates a network partition between this gravity node and
+	// the cluster.
+	PartitionNetwork(ctx context.Context) error
+	// UnpartitionNetwork removes network partition between this gravity node and
+	// the cluster.
+	UnpartitionNetwork(ctx context.Context) error
 }
 
 type Graceful bool
@@ -154,6 +156,15 @@ type ClusterStatus struct {
 	// Nodes describes the nodes in the cluster
 	Nodes []NodeStatus `json:"nodes"`
 }
+
+const (
+	// StatusActive indicates that the Gravity cluster is in a healthy state.
+	StatusActive = "active"
+	// StatusDegraded indicates that the Gravity cluster is in a degraded state
+	// but still functional.
+	StatusDegraded = "degraded"
+	// TODO: add additional state
+)
 
 // Application defines the cluster application
 type Application struct {
@@ -593,20 +604,48 @@ func (g *gravity) RunInPlanet(ctx context.Context, cmd string, args ...string) (
 	return out, nil
 }
 
-// IsLeader returns true if node is leader, false o.w.
+// IsLeader returns true if node is leader
 func (g *gravity) IsLeader(ctx context.Context) bool {
+	status, err := g.Status(ctx)
+	if err != nil {
+		return false
+	}
+	etcdLeaderKey := fmt.Sprintf("/planet/cluster/%s/master", status.Cluster.Cluster)
+
 	// TODO: use planet cmd once planet cli is updated s.t. `leader view` does
 	// not require args.
 	// leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view")
-	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", "gravity/local/leader")
+	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", etcdLeaderKey)
 	if err == nil && leaderIP == g.Node().PrivateAddr() {
 		return true
 	}
 	return false
 }
 
-// Connect connects the node to the cluster.
-func (g *gravity) Connect(ctx context.Context) error {
+// PartitionNetwork creates a network partition between this gravity node and
+// the cluster.
+func (g *gravity) ParitionNetwork(ctx context.Context) error {
+	status, err := g.Status(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	for _, node := range status.Cluster.Nodes {
+		cmdDropInput := fmt.Sprintf("iptables -I INPUT -s %s -j DROP", node.Addr)
+		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropInput, nil); err != nil {
+			return trace.Wrap(err, cmdDropInput)
+		}
+		cmdDropOutput := fmt.Sprintf("iptables -I OUTPUT -s %s -j DROP", node.Addr)
+		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropOutput, nil); err != nil {
+			return trace.Wrap(err, cmdDropOutput)
+		}
+	}
+	return nil
+}
+
+// UnpartitionNetwork removes network partition between this gravity node and
+// the cluster. If a network partition does not already exist, this will have
+// no effect.
+func (g *gravity) UnpartitionNetwork(ctx context.Context) error {
 	status, err := g.Status(ctx)
 	if err != nil {
 		return trace.Wrap(err)
@@ -620,25 +659,6 @@ func (g *gravity) Connect(ctx context.Context) error {
 		cmdAcceptOutput := fmt.Sprintf("iptables -I OUTPUT -s %s -j ACCEPT", node.Addr)
 		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptOutput, nil); err != nil {
 			return trace.Wrap(err, cmdAcceptOutput)
-		}
-	}
-	return nil
-}
-
-// Disconnect disconnects node from the cluster.
-func (g *gravity) Disconnect(ctx context.Context) error {
-	status, err := g.Status(ctx)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	for _, node := range status.Cluster.Nodes {
-		cmdDropInput := fmt.Sprintf("iptables -I INPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropInput, nil); err != nil {
-			return trace.Wrap(err, cmdDropInput)
-		}
-		cmdDropOutput := fmt.Sprintf("iptables -I OUTPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropOutput, nil); err != nil {
-			return trace.Wrap(err, cmdDropOutput)
 		}
 	}
 	return nil
