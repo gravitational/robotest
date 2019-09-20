@@ -74,7 +74,7 @@ type Gravity interface {
 	Client() *ssh.Client
 	// Will log using extended info such as current tag, node info, etc
 	Logger() logrus.FieldLogger
-	// IsLeader returns true if node is leader, false o.w.
+	// IsLeader returns true if node is leader
 	IsLeader(ctx context.Context) bool
 	// PartitionNetwork creates a network partition between this gravity node and
 	// the cluster.
