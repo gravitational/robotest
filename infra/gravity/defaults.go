@@ -23,6 +23,16 @@ const (
 
 	// minimum required disk speed (10MB/s)
 	minDiskSpeed = uint64(1e7)
+
+	// TODO: configure proper retry configs for new leader election
+	// retry config when checking for new leader
+	leaderElectionRetries = 30
+	leaderElectionWait    = time.Second * 15
+
+	// TODO: ...
+	// retry config when waiting for active status
+	activeStatusRetries = 30
+	activeStatusWait    = time.Second * 15
 )
 
 var DefaultTimeouts = OpTimeouts{
