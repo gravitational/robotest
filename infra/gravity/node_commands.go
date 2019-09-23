@@ -636,7 +636,7 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 
 // PartitionNetwork creates a network partition between this gravity node and
 // the cluster.
-func (g *gravity) ParitionNetwork(ctx context.Context) error {
+func (g *gravity) PartitionNetwork(ctx context.Context) error {
 	status, err := g.Status(ctx)
 	if err != nil {
 		return trace.Wrap(err)
