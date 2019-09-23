@@ -43,19 +43,18 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 	if err := oldLeader.PartitionNetwork(ctx); err != nil {
 		return trace.Wrap(err, "failed to create network partition")
 	}
-	// NOTE: is subnets an appropriate name for the separate networks, or is the
-	// term only relevant when grouping a range of IP addresses?
-	subnets := make([][]Gravity, 0, 2)
-	subnets[0] = []Gravity{oldLeader}
+
+	partitions := make([][]Gravity, 0, 2)
+	partitions[0] = []Gravity{oldLeader}
 	for i, node := range nodes {
 		if node == oldLeader {
-			subnets[1] = append(nodes[:i], nodes[i+1:]...)
+			partitions[1] = append(nodes[:i], nodes[i+1:]...)
 			break
 		}
 	}
 	c.Logger().WithFields(logrus.Fields{
-		"subnets": subnets,
-	}).Info("Created network partition")
+		"partitions": partitions,
+	}).Info("Created network partitions")
 
 	retry := wait.Retryer{
 		Attempts: leaderElectionRetries,
@@ -64,7 +63,7 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 
 	var newLeader Gravity
 	err = retry.Do(ctx, func() error {
-		newLeader, err = getLeaderNode(ctx, subnets[1])
+		newLeader, err = getLeaderNode(ctx, partitions[1])
 		if err != nil || newLeader == oldLeader {
 			return wait.Continue("new leader not yet elected", err)
 		}
@@ -78,6 +77,10 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 		"oldLeader": oldLeader,
 		"newLeader": newLeader,
 	}).Info("New leader elected")
+
+	if err := c.Status(partitions[1]); err != nil {
+		return trace.Wrap(err, "cluster partition is nonoperational")
+	}
 
 	if err := oldLeader.UnpartitionNetwork(ctx); err != nil {
 		return trace.Wrap(err, "failed to remove network partition")

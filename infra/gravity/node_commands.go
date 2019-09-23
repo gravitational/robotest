@@ -1,3 +1,19 @@
+/*
+Copyright 2018 Gravitational, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package gravity
 
 import (
@@ -611,11 +627,7 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 		return false
 	}
 	etcdLeaderKey := fmt.Sprintf("/planet/cluster/%s/master", status.Cluster.Cluster)
-
-	// TODO: use planet cmd once planet cli is updated s.t. `leader view` does
-	// not require args.
-	// leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view")
-	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", etcdLeaderKey)
+	leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view", fmt.Sprintf("--leader-key=%s", etcdLeaderKey))
 	if err == nil && leaderIP == g.Node().PrivateAddr() {
 		return true
 	}
@@ -652,11 +664,11 @@ func (g *gravity) UnpartitionNetwork(ctx context.Context) error {
 	}
 	for _, node := range status.Cluster.Nodes {
 		// TODO: look into using existing libs for manipulating network traffic.
-		cmdAcceptInput := fmt.Sprintf("iptables -I INPUT -s %s -j ACCEPT", node.Addr)
+		cmdAcceptInput := fmt.Sprintf("iptables -D INPUT -s %s -j DROP", node.Addr)
 		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptInput, nil); err != nil {
 			return trace.Wrap(err, cmdAcceptInput)
 		}
-		cmdAcceptOutput := fmt.Sprintf("iptables -I OUTPUT -s %s -j ACCEPT", node.Addr)
+		cmdAcceptOutput := fmt.Sprintf("iptables -D OUTPUT -s %s -j DROP", node.Addr)
 		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptOutput, nil); err != nil {
 			return trace.Wrap(err, cmdAcceptOutput)
 		}
