@@ -7,7 +7,7 @@ BUILDBOX := robotest:buildbox
 TAG ?= latest
 DOCKER_ARGS ?= --pull
 GLIDE_VER ?= v0.13.2
-GOLANGCI_LINT_VER ?= 1.12.2
+GOLANGCI_LINT_VER ?= 1.19.0
 
 # Rules below run on host
 

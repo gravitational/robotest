@@ -129,8 +129,8 @@ func (r *TestContextType) Validate() error {
 		log.Warningf("service login not configured - reports will likely not be collected")
 	}
 	if TestContext.Provisioner != nil && TestContext.Onprem.IsEmpty() {
-		errors = append(errors, trace.BadParameter("Onprem configuration is required for provisioner %q",
-			TestContext.Provisioner))
+		errors = append(errors, trace.BadParameter("Onprem configuration is required for provisioner %v",
+			TestContext.Provisioner.Type))
 	}
 	// Do not mandate AWS.AccessKey/AWS.SecretKey for terraform as scripts can be written to consume
 	// credentials not only from environment

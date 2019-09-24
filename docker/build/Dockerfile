@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-venti:go1.10.3-stretch
+FROM quay.io/gravitational/debian-venti:go1.12.9-stretch
 
 ARG UID
 ARG GID

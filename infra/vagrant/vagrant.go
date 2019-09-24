@@ -237,7 +237,7 @@ func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
 		}
 	}
 	if domainName == "" {
-		return "", trace.NotFound("failed to find libvirt domain for node %q: %s", nodename)
+		return "", trace.NotFound("failed to find libvirt domain for node %q", nodename)
 	}
 
 	out.Reset()
@@ -261,7 +261,7 @@ func (r *vagrant) getIPLibvirt(nodename string) (string, error) {
 		}
 	}
 	if macAddr == "" {
-		return "", trace.NotFound("failed to find MAC address for node %q: %s", nodename)
+		return "", trace.NotFound("failed to find MAC address for node %q", nodename)
 	}
 
 	arpFile, err := os.Open("/proc/net/arp")
