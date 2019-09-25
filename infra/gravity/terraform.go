@@ -231,7 +231,6 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
-		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
 		param.terraform.VarFilePath = baseConfig.GCE.VarFilePath
 	}
 
