@@ -94,10 +94,10 @@ type Gravity interface {
 	IsLeader(ctx context.Context) bool
 	// PartitionNetwork creates a network partition between this gravity node and
 	// the cluster.
-	PartitionNetwork(ctx context.Context) error
+	PartitionNetwork(ctx context.Context, cluster []Gravity) error
 	// UnpartitionNetwork removes network partition between this gravity node and
 	// the cluster.
-	UnpartitionNetwork(ctx context.Context) error
+	UnpartitionNetwork(ctx context.Context, cluster []Gravity) error
 }
 
 type Graceful bool
@@ -636,41 +636,48 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 
 // PartitionNetwork creates a network partition between this gravity node and
 // the cluster.
-func (g *gravity) PartitionNetwork(ctx context.Context) error {
-	status, err := g.Status(ctx)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	for _, node := range status.Cluster.Nodes {
-		cmdDropInput := fmt.Sprintf("iptables -I INPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropInput, nil); err != nil {
-			return trace.Wrap(err, cmdDropInput)
-		}
-		cmdDropOutput := fmt.Sprintf("iptables -I OUTPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropOutput, nil); err != nil {
-			return trace.Wrap(err, cmdDropOutput)
+func (g *gravity) PartitionNetwork(ctx context.Context, cluster []Gravity) error {
+	for _, node := range cluster {
+		if node.Node() != g.Node() {
+			cmdDropInput := fmt.Sprintf("sudo iptables -I INPUT -s %s -j DROP", node.Node().PrivateAddr())
+			if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropInput, nil); err != nil {
+				return trace.Wrap(err, cmdDropInput)
+			}
+			cmdDropOutput := fmt.Sprintf("sudo iptables -I OUTPUT -s %s -j DROP", node.Node().PrivateAddr())
+			if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdDropOutput, nil); err != nil {
+				return trace.Wrap(err, cmdDropOutput)
+			}
+			g.Logger().WithFields(logrus.Fields{
+				"dropInput":  cmdDropInput,
+				"dropOutput": cmdDropOutput,
+			}).Infof("%s Dropping packets to/from %s", g.Node().PrivateAddr(), node.Node().PrivateAddr())
 		}
 	}
 	return nil
 }
 
 // UnpartitionNetwork removes network partition between this gravity node and
-// the cluster. If a network partition does not already exist, this will have
-// no effect.
-func (g *gravity) UnpartitionNetwork(ctx context.Context) error {
-	status, err := g.Status(ctx)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	for _, node := range status.Cluster.Nodes {
-		// TODO: look into using existing libs for manipulating network traffic.
-		cmdAcceptInput := fmt.Sprintf("iptables -D INPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptInput, nil); err != nil {
-			return trace.Wrap(err, cmdAcceptInput)
-		}
-		cmdAcceptOutput := fmt.Sprintf("iptables -D OUTPUT -s %s -j DROP", node.Addr)
-		if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptOutput, nil); err != nil {
-			return trace.Wrap(err, cmdAcceptOutput)
+// the cluster. Unpartitioning will fail if network partition does not already
+// exist.
+func (g *gravity) UnpartitionNetwork(ctx context.Context, cluster []Gravity) error {
+	// TODO: `iptables -D ...` will fail with 'Bad rule (does a matching rule exist
+	// in that chain?)' when we attempt to delete a rule that doesn't exist. Either
+	// verify the rule exists beforehand or use a different command?
+
+	for _, node := range cluster {
+		if node.Node() != g.Node() {
+			cmdAcceptInput := fmt.Sprintf("sudo iptables -D INPUT -s %s -j DROP", node.Node().PrivateAddr())
+			if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptInput, nil); err != nil {
+				return trace.Wrap(err, cmdAcceptInput)
+			}
+			cmdAcceptOutput := fmt.Sprintf("sudo iptables -D OUTPUT -s %s -j DROP", node.Node().PrivateAddr())
+			if err := sshutils.Run(ctx, g.Client(), g.Logger(), cmdAcceptOutput, nil); err != nil {
+				return trace.Wrap(err, cmdAcceptOutput)
+			}
+			g.Logger().WithFields(logrus.Fields{
+				"acceptInput":  cmdAcceptInput,
+				"acceptOutput": cmdAcceptOutput,
+			}).Infof("%s Accepting packets to/from %s", g.Node().PrivateAddr(), node.Node().PrivateAddr())
 		}
 	}
 	return nil
