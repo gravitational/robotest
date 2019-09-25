@@ -19,6 +19,7 @@ package gravity
 import (
 	"context"
 
+	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 
@@ -27,12 +28,12 @@ import (
 
 // Failover isolates the current leader node and elects a new leader node.
 // Conforms to ConfigFn interface.
-func (c *TestContext) Failover(nodes []Gravity) error {
+func (c *TestContext) Failover(cluster []Gravity) error {
 	// TODO: Configure timeouts
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
-	oldLeader, err := getLeaderNode(ctx, nodes)
+	oldLeader, err := getLeaderNode(ctx, cluster)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -40,16 +41,16 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 		"oldLeader": oldLeader,
 	}).Info("Leader found")
 
-	if err := oldLeader.PartitionNetwork(ctx, nodes); err != nil {
+	if err := oldLeader.PartitionNetwork(ctx, cluster); err != nil {
 		return trace.Wrap(err, "failed to create network partition")
 	}
 
 	var partitions [2][]Gravity
 	partitions[0] = []Gravity{oldLeader}
-	for i, node := range nodes {
+	for i, node := range cluster {
 		if node == oldLeader {
-			partitions[1] = append(partitions[1], nodes[:i]...)
-			partitions[1] = append(partitions[1], nodes[i+1:]...)
+			partitions[1] = append(partitions[1], cluster[:i]...)
+			partitions[1] = append(partitions[1], cluster[i+1:]...)
 			break
 		}
 	}
@@ -83,7 +84,7 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 		return trace.Wrap(err, "cluster partition is nonoperational")
 	}
 
-	if err := oldLeader.UnpartitionNetwork(ctx, nodes); err != nil {
+	if err := oldLeader.UnpartitionNetwork(ctx, cluster); err != nil {
 		return trace.Wrap(err, "failed to remove network partition")
 	}
 	c.Logger().Info("Removed network partition")
@@ -92,31 +93,46 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 		Attempts: activeStatusRetries,
 		Delay:    activeStatusWait,
 	}
+	err = retry.Do(ctx, retryIsActive(ctx, cluster))
+	if err != nil {
+		c.Logger().WithError(err).Error("Cluster has not recovered healthy status")
+		return trace.Wrap(err, "cluster has not recovered healthy status")
+	}
+	c.Logger().Info("Cluster status is active")
 
-	err = retry.Do(ctx, func() error {
-		var status [2]*GravityStatus
-		status[0], err = newLeader.Status(ctx)
+	return nil
+}
+
+// retryIsActive returns a retry function. This function verifies that the
+// cluster status is active.
+func retryIsActive(ctx context.Context, cluster []Gravity) (retryFunc func() error) {
+	return func() error {
+		statusChan := make(chan interface{}, len(cluster))
+		errChan := make(chan error, len(cluster))
+
+		for _, node := range cluster {
+			go func(n Gravity) {
+				status, err := n.Status(ctx)
+				errChan <- err
+				statusChan <- status
+			}(node)
+		}
+
+		statuses, err := utils.Collect(ctx, nil, errChan, statusChan)
 		if err != nil {
-			return wait.Continue("status is unavailable on new leader: %v", err)
+			return wait.Continue("status not available on some nodes: %v", err)
 		}
-
-		status[1], err = oldLeader.Status(ctx)
-		if err != nil {
-			return wait.Continue("status is unavailable on old leader: %v", err)
-		}
-
-		if status[0].Cluster.Status != status[1].Cluster.Status {
-			c.Logger().Warnf("cluster status is not in sync: [%v, %v]", status[0], status[1])
-			return wait.Continue("cluster status is not in sync")
-		}
-
-		if status[0].Cluster.Status != StatusActive {
-			c.Logger().Warnf("cluster status is not active: %v", status[0])
-			return wait.Continue("cluster status is not active")
+		for _, s := range statuses {
+			status, ok := s.(*GravityStatus)
+			if !ok {
+				return trace.BadParameter("expected *GravityStatus, got %T", s)
+			}
+			if status.Cluster.Status != StatusActive {
+				return wait.Continue("cluster status is not active: %v", status)
+			}
 		}
 		return nil
-	})
-	return trace.Wrap(err)
+	}
 }
 
 // getLeaderNode returns the current leader node.
