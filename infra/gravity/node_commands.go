@@ -630,10 +630,14 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 	// TODO: not working, need to debug
 	// leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view", fmt.Sprintf("--leader-key=%s", etcdLeaderKey))
 	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", etcdLeaderKey)
-	if err == nil && leaderIP == g.Node().PrivateAddr() {
-		return true
+	if err != nil {
+		g.Logger().WithError(err).Warn("Failed to get leader")
+		return false
 	}
-	return false
+	if leaderIP != g.Node().PrivateAddr() {
+		return false
+	}
+	return true
 }
 
 // PartitionNetwork creates a network partition between this gravity node and

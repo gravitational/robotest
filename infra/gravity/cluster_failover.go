@@ -22,8 +22,6 @@ import (
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
-
-	"github.com/sirupsen/logrus"
 )
 
 // Failover isolates the current leader node and elects a new leader node.
@@ -33,49 +31,53 @@ func (c *TestContext) Failover(cluster []Gravity) error {
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
 	defer cancel()
 
+	c.Logger().WithField("cluster", cluster).Info("Start failover test")
+
+	// Get initial leader node
+
 	oldLeader, err := getLeaderNode(ctx, cluster)
 	if err != nil {
+		c.Logger().WithError(err).Error("Failed to get initial leader")
 		return trace.Wrap(err)
 	}
-	c.Logger().WithFields(logrus.Fields{
-		"oldLeader": oldLeader,
-	}).Info("Leader found")
+	c.Logger().WithField("leader", oldLeader).Info("Initial leader node")
+
+	// Create network partition
 
 	if err := oldLeader.PartitionNetwork(ctx, cluster); err != nil {
+		c.Logger().WithError(err).Error("Failed to created network partition")
 		return trace.Wrap(err, "failed to create network partition")
 	}
+	partitions := getPartitions(cluster, oldLeader)
+	c.Logger().WithField("partitions", partitions).Info("Created network partition")
 
-	var partitions [2][]Gravity
-	partitions[0] = []Gravity{oldLeader}
-	for i, node := range cluster {
-		if node == oldLeader {
-			partitions[1] = append(partitions[1], cluster[:i]...)
-			partitions[1] = append(partitions[1], cluster[i+1:]...)
-			break
-		}
-	}
-	c.Logger().WithFields(logrus.Fields{
-		"partitions": partitions,
-	}).Info("Created network partition")
+	// Wait for cluster to become functional
 
+	c.Logger().Info("Waiting for new leader to be elected")
 	if err := c.Status(partitions[1]); err != nil {
+		c.Logger().WithError(err).Error("Cluster partition is non-operational")
 		return trace.Wrap(err, "cluster partition is non-operational")
 	}
+	c.Logger().WithField("cluster", partitions[1]).Info("Cluster is functional")
+
+	// Get new leader node
 
 	newLeader, err := getLeaderNode(ctx, partitions[1])
 	if err != nil {
-		return trace.Wrap(err, "new leader was not elected")
+		c.Logger().WithError(err).Error("Failed to get new leader")
+		return trace.Wrap(err)
 	}
+	c.Logger().WithField("leader", newLeader).Info("New leader elected")
 
-	c.Logger().WithFields(logrus.Fields{
-		"oldLeader": oldLeader,
-		"newLeader": newLeader,
-	}).Info("New leader elected")
+	// Remove network partition
 
 	if err := oldLeader.UnpartitionNetwork(ctx, cluster); err != nil {
+		c.Logger().WithError(err).Error("Failed to remove network partition")
 		return trace.Wrap(err, "failed to remove network partition")
 	}
 	c.Logger().Info("Removed network partition")
+
+	// Verify healthy cluster status
 
 	retry := wait.Retryer{
 		Attempts: activeStatusRetries,
@@ -124,19 +126,27 @@ func retryIsActive(ctx context.Context, cluster []Gravity) (retryFunc func() err
 }
 
 // getLeaderNode returns the current leader node.
-func getLeaderNode(ctx context.Context, nodes []Gravity) (leader Gravity, err error) {
-	for _, node := range nodes {
+// If there are multiple nodes in the cluster that think they are the leader,
+// this function will return the first one it encounters.
+func getLeaderNode(ctx context.Context, cluster []Gravity) (leader Gravity, err error) {
+	for _, node := range cluster {
 		if node.IsLeader(ctx) {
-			// TODO: is this check necessary, is it a reachable state where two
-			// nodes think they are leader at the same time in the same cluster?
-			if leader != nil {
-				return nil, trace.BadParameter("multiple leader nodes [%v, %v]", leader, node)
-			}
-			leader = node
+			return node, nil
 		}
 	}
-	if leader == nil {
-		return nil, trace.NotFound("unable to get leader node")
+	return nil, trace.NotFound("this cluster does not contain a leader node")
+}
+
+// getPartitions returns the two cluster partitions created when isolating node
+// from the cluster
+func getPartitions(cluster []Gravity, node Gravity) (partitions [2][]Gravity) {
+	partitions[0] = []Gravity{node}
+	for i, n := range cluster {
+		if n == node {
+			partitions[1] = append(partitions[1], cluster[:i]...)
+			partitions[1] = append(partitions[1], cluster[i+1:]...)
+			break
+		}
 	}
-	return leader, nil
+	return partitions
 }
