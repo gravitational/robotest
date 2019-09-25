@@ -91,9 +91,7 @@ check_files ${SSH_KEY} ${SSH_PUB} ${GOOGLE_APPLICATION_CREDENTIALS}
 CUSTOM_VAR_FILE=$(mktemp)
 trap "{ rm -f $CUSTOM_VAR_FILE; }" EXIT
 cat <<EOF > $CUSTOM_VAR_FILE
-{
-  "preemptible": "${GCE_PREEMPTIBLE}",
-}
+{"preemptible": "${GCE_PREEMPTIBLE}"}
 EOF
 EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$CUSTOM_VAR_FILE:/robotest/config/vars.json
 
