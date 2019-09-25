@@ -627,7 +627,9 @@ func (g *gravity) IsLeader(ctx context.Context) bool {
 		return false
 	}
 	etcdLeaderKey := fmt.Sprintf("/planet/cluster/%s/master", status.Cluster.Cluster)
-	leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view", fmt.Sprintf("--leader-key=%s", etcdLeaderKey))
+	// TODO: not working, need to debug
+	// leaderIP, err := g.RunInPlanet(ctx, "planet", "leader", "view", fmt.Sprintf("--leader-key=%s", etcdLeaderKey))
+	leaderIP, err := g.RunInPlanet(ctx, "etcdctl", "get", etcdLeaderKey)
 	if err == nil && leaderIP == g.Node().PrivateAddr() {
 		return true
 	}
