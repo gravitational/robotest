@@ -58,19 +58,11 @@ func (c *TestContext) Failover(cluster []Gravity) error {
 		"partitions": partitions,
 	}).Info("Created network partition")
 
-	retry := wait.Retryer{
-		Attempts: leaderElectionRetries,
-		Delay:    leaderElectionWait,
+	if err := c.Status(partitions[1]); err != nil {
+		return trace.Wrap(err, "cluster partition is non-operational")
 	}
 
-	var newLeader Gravity
-	err = retry.Do(ctx, func() error {
-		newLeader, err = getLeaderNode(ctx, partitions[1])
-		if err != nil || newLeader == oldLeader {
-			return wait.Continue("new leader not yet elected: %v", err)
-		}
-		return nil
-	})
+	newLeader, err := getLeaderNode(ctx, partitions[1])
 	if err != nil {
 		return trace.Wrap(err, "new leader was not elected")
 	}
@@ -80,16 +72,12 @@ func (c *TestContext) Failover(cluster []Gravity) error {
 		"newLeader": newLeader,
 	}).Info("New leader elected")
 
-	if err := c.Status(partitions[1]); err != nil {
-		return trace.Wrap(err, "cluster partition is nonoperational")
-	}
-
 	if err := oldLeader.UnpartitionNetwork(ctx, cluster); err != nil {
 		return trace.Wrap(err, "failed to remove network partition")
 	}
 	c.Logger().Info("Removed network partition")
 
-	retry = wait.Retryer{
+	retry := wait.Retryer{
 		Attempts: activeStatusRetries,
 		Delay:    activeStatusWait,
 	}
