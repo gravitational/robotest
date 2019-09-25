@@ -5,34 +5,33 @@
 resource "google_compute_instance_group" "robotest" {
   description = "Instance group controlling instances of a single robotest cluster"
   name        = "${var.node_tag}-node-group"
-  zone        = "${local.zone}"
-  network     = "${data.google_compute_network.robotest.self_link}"
-  instances   = ["${google_compute_instance.node.*.self_link}"]
+  zone        = local.zone
+  network     = data.google_compute_network.robotest.self_link
+  instances   = google_compute_instance.node.*.self_link
 }
 
 resource "google_compute_instance" "node" {
   description  = "Instance is a single robotest cluster node"
-  count        = "${var.nodes}"
+  count        = var.nodes
   name         = "${var.node_tag}-node-${count.index}"
-  machine_type = "${var.vm_type}"
-  zone         = "${local.zone}"
+  machine_type = var.vm_type
+  zone         = local.zone
 
   tags = [
     "robotest",
     "${var.node_tag}-node-${count.index}",
   ]
 
-  labels {
-    cluster = "${var.node_tag}"
+  labels = {
+    cluster = var.node_tag
   }
 
   network_interface {
-    subnetwork = "${data.google_compute_subnetwork.robotest.self_link}"
+    subnetwork = data.google_compute_subnetwork.robotest.self_link
 
     access_config {
       # Ephemeral IP
     }
-
     # # https://www.terraform.io/docs/providers/google/r/compute_instance.html#alias_ip_range
     # # https://cloud.google.com/vpc/docs/alias-ip#key_benefits_of_alias_ip_ranges
     # #
@@ -50,36 +49,35 @@ resource "google_compute_instance" "node" {
     # }
   }
 
-  metadata {
+  metadata = {
     # Enable OS login using IAM roles
     enable-oslogin = "true"
-
     # ssh-keys controls access to an instance using a custom SSH key
     # See: https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#instance-only
-    ssh-keys = "${var.os_user}:${file("${var.ssh_pub_key_path}")}"
+    ssh-keys = "${var.os_user}:${file(var.ssh_pub_key_path)}"
   }
 
-  metadata_startup_script = "${data.template_file.bootstrap.rendered}"
+  metadata_startup_script = data.template_file.bootstrap.rendered
 
   min_cpu_platform = "Intel Skylake"
 
   boot_disk {
     initialize_params {
-      image = "${lookup(var.oss, var.os)}"
+      image = var.oss[var.os]
       size  = 64
-      type  = "${var.disk_type}"
+      type  = var.disk_type
     }
 
     auto_delete = true
   }
 
   attached_disk {
-    source = "${google_compute_disk.etcd.*.self_link[count.index]}"
+    source = google_compute_disk.etcd[count.index].self_link
     mode   = "READ_WRITE"
   }
 
   attached_disk {
-    source = "${google_compute_disk.docker.*.self_link[count.index]}"
+    source = google_compute_disk.docker[count.index].self_link
     mode   = "READ_WRITE"
   }
 
@@ -96,45 +94,46 @@ resource "google_compute_instance" "node" {
   scheduling {
     # https://cloud.google.com/compute/docs/instances/preemptible
     # This is a spot instance
-    preemptible = "${var.preemptible}"
+    preemptible = var.preemptible
 
     # If preempted, the test will be retried with a new configuration
-    automatic_restart = "${var.preemptible ? "false" : "true"}"
+    automatic_restart = var.preemptible ? "false" : "true"
   }
 }
 
 resource "google_compute_disk" "etcd" {
-  count = "${var.nodes}"
+  count = var.nodes
   name  = "${var.node_tag}-disk-etcd-${count.index}"
-  type  = "${var.disk_type}"
-  zone  = "${local.zone}"
+  type  = var.disk_type
+  zone  = local.zone
   size  = 50
 
-  labels {
-    cluster = "${var.node_tag}"
+  labels = {
+    cluster = var.node_tag
   }
 }
 
 resource "google_compute_disk" "docker" {
   # TODO: make docker disk optional
   # count = "${var.devicemapper_used ? var.nodes : 0}"
-  count = "${var.nodes}"
+  count = var.nodes
 
   name = "${var.node_tag}-disk-docker-${count.index}"
-  type = "${var.disk_type}"
-  zone = "${local.zone}"
+  type = var.disk_type
+  zone = local.zone
   size = 50
 
-  labels {
-    cluster = "${var.node_tag}"
+  labels = {
+    cluster = var.node_tag
   }
 }
 
 data "template_file" "bootstrap" {
-  template = "${file("./bootstrap/${element(split(":",var.os),0)}.sh")}"
+  template = file("./bootstrap/${element(split(":", var.os), 0)}.sh")
 
-  vars {
-    os_user     = "${var.os_user}"
-    ssh_pub_key = "${file("${var.ssh_pub_key_path}")}"
+  vars = {
+    os_user     = var.os_user
+    ssh_pub_key = file(var.ssh_pub_key_path)
   }
 }
+

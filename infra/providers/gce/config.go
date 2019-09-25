@@ -19,20 +19,19 @@ type Config struct {
 	// VMType specifies the type of machine to provision
 	// https://cloud.google.com/compute/docs/machine-types
 	VMType string `json:"vm_type" yaml:"vm_type" validate:"required"`
-	// SSHKeyPath specifies the location of the SSH private key for remote access
-	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// SSHUser defines SSH user to connect to the provisioned machines.
 	// Required attribute.
 	// Will be determined based on selected cloud provder.
 	SSHUser string `json:"os_user" yaml:"os_user"`
 	// SSHPublicKeyPath specifies the location of the public SSH key
 	SSHPublicKeyPath string `json:"ssh_pub_key_path" yaml:"ssh_pub_key_path" validate:"required"`
-	// DockerDevice specifies the block device for Docker
-	DockerDevice string `json:"docker_device,omitempty" yaml:"docker_device"`
 	// NodeTag specifies the node tag to use on GCE.
 	// Required attribute.
 	// Will be computed based on the cluster name during provisioning
 	NodeTag string `json:"node_tag" yaml:"node_tag"`
+
+	// SSHKeyPath specifies the location of the SSH private key for remote access
+	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// VarFilePath is the path to file with custom terraform variables
-	VarFilePath string `json:"var_file_path" yaml:"var_file_path"`
+	VarFilePath string `json:"-" yaml:"var_file_path"`
 }

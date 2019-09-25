@@ -125,4 +125,3 @@ data "google_compute_subnetwork" "robotest" {
 #     ip_cidr_range = "/24"
 #   }
 # }
-
