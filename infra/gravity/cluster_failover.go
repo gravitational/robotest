@@ -44,17 +44,18 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 		return trace.Wrap(err, "failed to create network partition")
 	}
 
-	partitions := make([][]Gravity, 0, 2)
+	var partitions [2][]Gravity
 	partitions[0] = []Gravity{oldLeader}
 	for i, node := range nodes {
 		if node == oldLeader {
-			partitions[1] = append(nodes[:i], nodes[i+1:]...)
+			partitions[1] = append(partitions[1], nodes[:i]...)
+			partitions[1] = append(partitions[1], nodes[i+1:]...)
 			break
 		}
 	}
 	c.Logger().WithFields(logrus.Fields{
 		"partitions": partitions,
-	}).Info("Created network partitions")
+	}).Info("Created network partition")
 
 	retry := wait.Retryer{
 		Attempts: leaderElectionRetries,
@@ -65,7 +66,7 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 	err = retry.Do(ctx, func() error {
 		newLeader, err = getLeaderNode(ctx, partitions[1])
 		if err != nil || newLeader == oldLeader {
-			return wait.Continue("new leader not yet elected", err)
+			return wait.Continue("new leader not yet elected: %v", err)
 		}
 		return nil
 	})
@@ -93,15 +94,15 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 	}
 
 	err = retry.Do(ctx, func() error {
-		status := make([]*GravityStatus, 0, 2)
+		var status [2]*GravityStatus
 		status[0], err = newLeader.Status(ctx)
 		if err != nil {
-			return wait.Continue("status is unavailable on new leader", err)
+			return wait.Continue("status is unavailable on new leader: %v", err)
 		}
 
 		status[1], err = oldLeader.Status(ctx)
 		if err != nil {
-			return wait.Continue("status is unavailable on old leader", err)
+			return wait.Continue("status is unavailable on old leader: %v", err)
 		}
 
 		if status[0].Cluster.Status != status[1].Cluster.Status {
@@ -109,7 +110,6 @@ func (c *TestContext) Failover(nodes []Gravity) error {
 			return wait.Continue("cluster status is not in sync")
 		}
 
-		// TODO: add Status.IsActive function
 		if status[0].Cluster.Status != StatusActive {
 			c.Logger().Warnf("cluster status is not active: %v", status[0])
 			return wait.Continue("cluster status is not active")
