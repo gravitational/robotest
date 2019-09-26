@@ -21,6 +21,7 @@ import (
 
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
+
 	"github.com/gravitational/trace"
 )
 
