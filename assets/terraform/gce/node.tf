@@ -76,11 +76,6 @@ resource "google_compute_instance" "node" {
     mode   = "READ_WRITE"
   }
 
-  attached_disk {
-    source = google_compute_disk.docker[count.index].self_link
-    mode   = "READ_WRITE"
-  }
-
   service_account {
     # TODO: consider using robotest-specific service account instead of
     # the default service account
@@ -107,21 +102,6 @@ resource "google_compute_disk" "etcd" {
   type  = var.disk_type
   zone  = local.zone
   size  = 50
-
-  labels = {
-    cluster = var.node_tag
-  }
-}
-
-resource "google_compute_disk" "docker" {
-  # TODO: make docker disk optional
-  # count = "${var.devicemapper_used ? var.nodes : 0}"
-  count = var.nodes
-
-  name = "${var.node_tag}-disk-docker-${count.index}"
-  type = var.disk_type
-  zone = local.zone
-  size = 50
 
   labels = {
     cluster = var.node_tag
