@@ -153,7 +153,7 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	${EXTRA_VOLUME_MOUNTS:-} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
-	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
+	dumb-init robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
 	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
