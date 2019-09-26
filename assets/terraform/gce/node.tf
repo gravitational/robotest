@@ -50,8 +50,12 @@ resource "google_compute_instance" "node" {
   }
 
   metadata = {
-    # Enable OS login using IAM roles
-    enable-oslogin = "true"
+    ## Enable OS login using IAM roles
+    # FIXME: if OS Login is enabled with ssh-keys metadata, there's a race
+    # between the bootstrap script and the google accounts deamon when both modify
+    # /etc/ssh/sshd_config
+    # enable-oslogin = "true"
+
     # ssh-keys controls access to an instance using a custom SSH key
     # See: https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#instance-only
     ssh-keys = "${var.os_user}:${file(var.ssh_pub_key_path)}"
