@@ -91,9 +91,7 @@ check_files ${SSH_KEY} ${SSH_PUB} ${GOOGLE_APPLICATION_CREDENTIALS}
 CUSTOM_VAR_FILE=$(mktemp)
 trap "{ rm -f $CUSTOM_VAR_FILE; }" EXIT
 cat <<EOF > $CUSTOM_VAR_FILE
-{
-  "preemptible": "${GCE_PREEMPTIBLE}",
-}
+{"preemptible": "${GCE_PREEMPTIBLE}"}
 EOF
 EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$CUSTOM_VAR_FILE:/robotest/config/vars.json
 
@@ -103,7 +101,6 @@ GCE_CONFIG="gce:
   region: ${GCE_REGION}
   ssh_key_path: /robotest/config/ops.pem
   ssh_pub_key_path: /robotest/config/ops_rsa.pub
-  docker_device: \"${DOCKER_DEVICE:-}\"
   var_file_path: /robotest/config/vars.json"
 fi
 
@@ -156,7 +153,7 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	${EXTRA_VOLUME_MOUNTS:-} \
 	${GCL_PROJECT_ID:+'-v' "${GOOGLE_APPLICATION_CREDENTIALS}:/robotest/config/gcp.json" '-e' 'GOOGLE_APPLICATION_CREDENTIALS=/robotest/config/gcp.json'} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
-	robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
+	dumb-init robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
 	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
 	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \

@@ -108,11 +108,11 @@ func (c *GCLClient) Context() context.Context {
 func (c *GCLClient) Hook(name string, fields logrus.Fields) *GCLHook {
 	labels := map[string]string{}
 	for k, v := range fields {
-		switch v.(type) {
+		switch value := v.(type) {
 		case string:
-			labels[k] = v.(string)
+			labels[k] = value
 		default:
-			labels[k] = ToJSON(v)
+			labels[k] = ToJSON(value)
 		}
 	}
 
@@ -143,7 +143,7 @@ func (hook *GCLHook) Fire(e *logrus.Entry) error {
 	}
 
 	payload := e.WithFields(logrus.Fields{"stack": where(maxStack), "message": e.Message}).Data
-	for key, _ := range hook.commonFields {
+	for key := range hook.commonFields {
 		delete(payload, key)
 	}
 

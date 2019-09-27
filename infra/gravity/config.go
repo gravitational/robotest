@@ -120,7 +120,6 @@ func LoadConfig(t *testing.T, configBytes []byte) (cfg ProvisionerConfig) {
 		cfg.dockerDevice = cfg.AWS.DockerDevice
 	case constants.GCE:
 		require.NotNil(t, cfg.GCE)
-		cfg.dockerDevice = cfg.GCE.DockerDevice
 		cfg.cloudRegions = newCloudRegions(strings.Split(cfg.GCE.Region, ","))
 	case constants.Ops:
 		require.NotNil(t, cfg.Ops)

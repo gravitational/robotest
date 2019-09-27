@@ -97,7 +97,5 @@ net.ipv4.tcp_keepalive_probes=5
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
 
-
-
 # Mark bootstrap step complete for robotest
 touch /var/lib/bootstrap_complete

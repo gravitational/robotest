@@ -172,7 +172,7 @@ func bump(v semver.Version) string {
 	for i, s := range segments {
 		formatted[i] = strconv.Itoa(s)
 	}
-	fmt.Fprintf(&buf, strings.Join(formatted, "."))
+	fmt.Fprint(&buf, strings.Join(formatted, "."))
 	if v.Prerelease() != "" {
 		fmt.Fprintf(&buf, "-%s", v.Prerelease())
 	}

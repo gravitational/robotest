@@ -20,9 +20,10 @@ func RunE2ETests(t *testing.T) {
 	if framework.TestContext.ReportDir != "" {
 		errCreate := os.MkdirAll(framework.TestContext.ReportDir, constants.SharedDirMask)
 		if errCreate != nil {
-			framework.Failf("failed to create report directory %q: %v", errCreate)
+			framework.Failf("Failed to create report directory %q: %v",
+				framework.TestContext.ReportDir, errCreate)
 		}
-		log.Infof("report directory: %q", framework.TestContext.ReportDir)
+		log.WithField("dir", framework.TestContext.ReportDir).Info("New report directory.")
 	}
 	gomega.SetDefaultEventuallyPollingInterval(uidefaults.EventuallyPollInterval)
 	ginkgo.RunSpecs(t, "Robotest e2e suite")

@@ -8,6 +8,15 @@ etcd_device_name=sdb
 etcd_dir=/var/lib/gravity/planet/etcd
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
+function retry {
+  local count=0
+  while ! $@; do
+    ((count++)) && ((count==20)) && return 1
+    sleep 5
+  done
+  return 0
+}
+
 function secure-ssh {
   local sshd_config=/etc/ssh/sshd_config
   cp $sshd_config $sshd_config.old
@@ -41,8 +50,8 @@ function setup-user {
     chmod 0600 /home/${os_user}/.ssh/authorized_keys
     chown -R $service_uid:$service_gid /home/${os_user}
     # FIXME: make sure that SELinux is in effect for the command below (`getenforce`)
-    semanage fcontext -a -t user_home_t /home/${os_user}
-    restorecon -vR /home/${os_user}
+    retry semanage fcontext -a -t user_home_t /home/${os_user}
+    retry restorecon -vR /home/${os_user}
   fi
 
   chown -R $service_uid:$service_gid /var/lib/gravity $etcd_dir /home/${os_user}

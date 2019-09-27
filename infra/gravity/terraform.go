@@ -147,7 +147,7 @@ func saveResourceAllocations() error {
 	}
 	defer file.Close()
 
-	for res, _ := range resourceAllocations.tags {
+	for res := range resourceAllocations.tags {
 		_, err = fmt.Fprintln(file, res)
 		if err != nil {
 			return trace.ConvertSystemError(err)
@@ -165,27 +165,27 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 	// enforce compatible values
 	var ok bool
 	usernames := map[string]map[string]string{
-		constants.Azure: map[string]string{
+		constants.Azure: {
 			"ubuntu": "robotest",
 			"debian": "admin",
 			"redhat": "redhat",
 			"centos": "centos",
 			"suse":   "robotest",
 		},
-		constants.GCE: map[string]string{
+		constants.GCE: {
 			"ubuntu": "ubuntu",
 			"debian": "robotest",
 			"redhat": "redhat",
 			"centos": "centos",
 			"suse":   "robotest",
 		},
-		constants.AWS: map[string]string{
+		constants.AWS: {
 			"ubuntu": "ubuntu",
 			"debian": "admin",
 			"redhat": "redhat",
 			"centos": "centos",
 		},
-		constants.Ops: map[string]string{
+		constants.Ops: {
 			"centos": "centos",
 		},
 	}
@@ -231,7 +231,6 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 		param.terraform.GCE.SSHUser = param.user
 		param.terraform.GCE.Region = baseConfig.cloudRegions.Next()
 		param.terraform.GCE.NodeTag = gce.TranslateClusterName(baseConfig.tag)
-		param.terraform.DockerDevice = baseConfig.GCE.DockerDevice
 		param.terraform.VarFilePath = baseConfig.GCE.VarFilePath
 	}
 

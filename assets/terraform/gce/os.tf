@@ -6,7 +6,7 @@
 
 variable "oss" {
   description = "Map of supported Linux distributions"
-  type        = "map"
+  type        = map(string)
 
   default = {
     # os -> {project}/{image}
@@ -23,3 +23,4 @@ variable "oss" {
     "suse:latest"   = "suse-cloud/sles-15-sp1-v20190828"
   }
 }
+
