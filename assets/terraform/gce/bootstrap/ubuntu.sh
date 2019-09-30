@@ -61,8 +61,11 @@ remove-sshguard
 secure-ssh
 setup-user
 
-apt update
-apt install -y chrony lvm2 curl wget thin-provisioning-tools python
+# Bump number of retries for download failures
+echo "APT::Acquire::Retries \"10\";" > /etc/apt/apt.conf.d/80-retries
+
+apt-get update
+apt-get install -y chrony lvm2 curl wget thin-provisioning-tools python
 
 curl https://bootstrap.pypa.io/get-pip.py | python -
 pip install --upgrade awscli
