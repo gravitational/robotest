@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/gravitational/robotest/infra"
@@ -333,16 +334,37 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 }
 
 func (r *terraform) command(ctx context.Context, args []string, opts ...system.CommandOptionSetter) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "terraform", args...)
+	cmd := exec.Command("terraform", args...)
+	// Run terraform in a process group since if the context expires, we have to
+	// terminate all child processes terraform itself had spawned to avoid blocking
+	// forever on the children's stdout/stderr in case terraform is terminated as a result
+	// of the context expiring
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Dir = r.stateDir
+	cmd.Env = append(cmd.Env, "TF_LOG=DEBUG",
+		fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")))
 	var out bytes.Buffer
-	opts = append(opts,
-		system.Dir(r.stateDir),
-		system.SetEnv(
-			"TF_LOG=DEBUG",
-			fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")),
-		))
-	err := system.ExecL(cmd, &out, r.FieldLogger, opts...)
-	r.Infof("Command %#v: %s.", cmd, out.Bytes())
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Start()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	waitDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		case <-waitDone:
+		}
+	}()
+	err = cmd.Wait()
+	close(waitDone)
+	r.WithFields(log.Fields{
+		log.ErrorKey: err,
+		"cmd":        cmd,
+		"output":     out.String(),
+	}).Info("Command finished.")
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %#v failed: %s", cmd, out.Bytes())
 	}
