@@ -341,8 +341,10 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	// of the context expiring
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = r.stateDir
-	cmd.Env = append(cmd.Env, "TF_LOG=DEBUG",
-		fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")))
+	cmd.Env = append(cmd.Env,
+		"TF_LOG=DEBUG",
+		fmt.Sprintf("TF_LOG_PATH=%v", filepath.Join(r.stateDir, "terraform.log")),
+	)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -350,6 +352,11 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	logger := r.WithFields(log.Fields{
+		"cmd": cmd,
+		"pid": cmd.Process.Pid,
+	})
+	logger.Info("Command started.")
 	waitDone := make(chan struct{})
 	go func() {
 		select {
@@ -360,9 +367,8 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	}()
 	err = cmd.Wait()
 	close(waitDone)
-	r.WithFields(log.Fields{
+	logger.WithFields(log.Fields{
 		log.ErrorKey: err,
-		"cmd":        cmd,
 		"output":     out.String(),
 	}).Info("Command finished.")
 	if err != nil {
