@@ -38,7 +38,7 @@ function setup-user {
 
   if [ -z "$service_uid" ]; then
     service_uid=1000
-    useradd --system --non-unique -g $service_gid -u $service_uid ${os_user}
+    (useradd --system --non-unique --gid $service_gid --uid $service_uid ${os_user} 2>/dev/null; err=$?; if (( $err != 9 )); then exit $err; fi) || true
   fi
 
   if [ ! -d "/home/${os_user}/.ssh" ]; then
