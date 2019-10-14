@@ -42,7 +42,7 @@ func SetProvisionerPolicy(p ProvisionerPolicy) {
 
 var testStatus = map[bool]string{true: "failed", false: "ok"}
 
-const finalTeardownTimeout = time.Minute * 5
+const finalTeardownTimeout = 20 * time.Minute
 
 // wrapDestroyFunc returns a function that wraps the specified set of nodes
 // and the given clean up function that implements report collection and resource clean up.
