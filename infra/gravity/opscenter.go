@@ -8,9 +8,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/go-yaml/yaml"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 // getTeleClusterStatus will attempt to get the cluster status from an ops center

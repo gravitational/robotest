@@ -275,7 +275,20 @@ var installCmdTemplate = template.Must(
 `))
 
 // Status queries cluster status
-func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
+func (g *gravity) Status(ctx context.Context) (status *GravityStatus, err error) {
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = defaults.ClusterStatusTimeout
+	err = wait.RetryWithInterval(ctx, b, func() (err error) {
+		status, err = g.status(ctx)
+		return trace.Wrap(err)
+	}, g.log)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return status, nil
+}
+
+func (g *gravity) status(ctx context.Context) (*GravityStatus, error) {
 	cmd := "sudo gravity status --output=json --system-log-file=./telekube-system.log"
 	status := GravityStatus{}
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
@@ -289,9 +302,7 @@ func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 			}).Warn("Failed.")
 		}
 		return nil, trace.Wrap(err, cmd)
-
 	}
-
 	return &status, nil
 }
 

@@ -6,8 +6,7 @@ DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/
 BUILDBOX := robotest:buildbox
 TAG ?= latest
 DOCKER_ARGS ?= --pull
-GLIDE_VER ?= v0.13.2
-GOLANGCI_LINT_VER ?= 1.19.0
+GOLANGCI_LINT_VER ?= 1.21.0
 
 # Rules below run on host
 
@@ -24,7 +23,6 @@ buildbox:
 	docker build $(DOCKER_ARGS) --tag $(BUILDBOX) \
 		--build-arg UID=$$(id -u) \
 		--build-arg GID=$$(id -g) \
-		--build-arg GLIDE_VER=$(GLIDE_VER) \
 		--build-arg GOLANGCI_LINT_VER=$(GOLANGCI_LINT_VER) \
 		docker/build
 
@@ -46,12 +44,12 @@ $(TARGETS): vendor
 	cd $(SRCDIR) && \
 		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
-vendor: glide.yaml
-	cd $(SRCDIR) && glide install
+vendor: go.mod
+	cd $(SRCDIR) && go mod vendor
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILDDIR)/* .glide vendor
+	@rm -rf $(BUILDDIR)/*
 
 .PHONY: test
 test:
@@ -59,4 +57,4 @@ test:
 
 .PHONY: lint
 lint: buildbox
-	docker run $(DOCKERFLAGS) $(BUILDBOX) golangci-lint run --skip-dirs=.glide --skip-dirs=vendor ./...
+	docker run $(DOCKERFLAGS) $(BUILDBOX) dumb-init golangci-lint run --skip-dirs=vendor --verbose --timeout=2m

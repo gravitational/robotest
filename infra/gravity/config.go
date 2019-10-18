@@ -16,10 +16,10 @@ import (
 	"github.com/gravitational/robotest/infra/providers/ops"
 	"github.com/gravitational/robotest/lib/constants"
 
-	"github.com/go-yaml/yaml"
 	"github.com/gravitational/trace"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/go-playground/validator.v9"
+	"gopkg.in/yaml.v2"
 )
 
 // OS represents OS vendor/version

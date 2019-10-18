@@ -17,11 +17,11 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/system"
 
-	"github.com/go-yaml/yaml"
 	"github.com/gravitational/trace"
 	semver "github.com/hashicorp/go-version"
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v2"
 )
 
 // FakeUpdateApplication implements site update test by downloading the application tarball,
