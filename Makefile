@@ -13,7 +13,8 @@ GOLANGCI_LINT_VER ?= 1.21.0
 .PHONY: build
 build: buildbox
 	mkdir -p build
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS)
+	docker run $(DOCKERFLAGS) $(BUILDBOX) \
+		dumb-init make -j $(TARGETS)
 
 .PHONY: all
 all: clean build
@@ -50,11 +51,19 @@ vendor: go.mod
 .PHONY: clean
 clean:
 	@rm -rf $(BUILDDIR)/*
+	@rm -rf vendor
 
 .PHONY: test
 test:
-	docker run $(DOCKERFLAGS) $(BUILDBOX) go test -cover -race -v ./infra/...
+	docker run $(DOCKERFLAGS) \
+		--env="GO111MODULE=off" \
+		$(BUILDBOX) \
+		dumb-init go test -cover -race -v ./infra/...
 
 .PHONY: lint
 lint: buildbox
-	docker run $(DOCKERFLAGS) $(BUILDBOX) dumb-init golangci-lint run --skip-dirs=vendor --verbose --timeout=2m
+	docker run $(DOCKERFLAGS) \
+		--env="GO111MODULE=off" \
+		$(BUILDBOX) dumb-init golangci-lint run \
+		--skip-dirs=vendor \
+		--timeout=2m

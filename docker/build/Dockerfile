@@ -4,10 +4,14 @@ ARG UID
 ARG GID
 ARG GOLANGCI_LINT_VER
 
+# Output errors from go list
+# https://github.com/golang/tools/commit/4a1b41eed170862fe82028699015842e9382fe2b
+ENV GOPACKAGESPRINTGOLISTERRORS=true
+
 RUN groupadd builder --gid=$GID -o; \
     useradd builder --uid=$UID --gid=$GID --create-home --shell=/bin/bash;
 
-RUN (mkdir -p /go/src/github.com/gravitational/robotest && chown -R builder /go /gopath)
+RUN (mkdir -p /go/src/github.com/gravitational/robotest && chown -R builder /go ${GOPATH})
 RUN (mkdir -p /go/bin)
 
 ENV LANGUAGE="en_US.UTF-8" \
