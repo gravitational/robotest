@@ -54,11 +54,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 	}
 
 	_, err = utils.Collect(ctx, cancel, errs, nil)
-	if err = trace.Wrap(err); err != nil {
-		return trace.Wrap(err)
-	}
-
-	return nil
+	return trace.Wrap(err)
 }
 
 // OfflineInstall sets up cluster using nodes provided
@@ -249,18 +245,12 @@ func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []strin
 }
 
 func uploadBinaries(ctx context.Context, nodes []Gravity, url, subdir string) error {
-	errs := make(chan error, len(nodes)-1)
+	errs := make(chan error, len(nodes))
 	for _, node := range nodes {
 		go func(node Gravity) {
 			err := node.TransferFile(ctx, url, subdir)
 			errs <- trace.Wrap(err)
 		}(node)
 	}
-
-	err := utils.CollectErrors(ctx, errs)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	return nil
+	return utils.CollectErrors(ctx, errs)
 }
