@@ -129,6 +129,11 @@ type JoinCmd struct {
 	StateDir string
 }
 
+// IsDegraded determines whether the cluster is in degraded state
+func (r GravityStatus) IsDegraded() bool {
+	return Cluster.Status == "degraded"
+}
+
 // GravityStatus describes the status of the Gravity cluster
 type GravityStatus struct {
 	// Cluster describes the cluster status
@@ -280,7 +285,13 @@ func (g *gravity) Status(ctx context.Context) (status *GravityStatus, err error)
 	b.MaxElapsedTime = defaults.ClusterStatusTimeout
 	err = wait.RetryWithInterval(ctx, b, func() (err error) {
 		status, err = g.status(ctx)
-		return trace.Wrap(err)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		if status.IsDegraded() {
+			return trace.BadParameter("degraded")
+		}
+		return nil
 	}, g.log)
 	if err != nil {
 		return nil, trace.Wrap(err)
