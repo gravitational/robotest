@@ -131,7 +131,7 @@ type JoinCmd struct {
 
 // IsDegraded determines whether the cluster is in degraded state
 func (r GravityStatus) IsDegraded() bool {
-	return Cluster.Status == "degraded"
+	return r.Cluster.Status == "degraded"
 }
 
 // GravityStatus describes the status of the Gravity cluster
