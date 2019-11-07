@@ -43,7 +43,7 @@ publish: build lint
 $(TARGETS): vendor
 	@go version
 	cd $(SRCDIR) && \
-		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+		GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
 vendor: go.mod
 	cd $(SRCDIR) && go mod vendor
