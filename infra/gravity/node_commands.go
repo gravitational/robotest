@@ -239,6 +239,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		PrivateAddr   string
 		DockerDevice  string
 		StorageDriver string
+		AgentLogPath  string
 		InstallParam
 	}
 
@@ -253,6 +254,7 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		PrivateAddr:   g.Node().PrivateAddr(),
 		DockerDevice:  dockerDevice,
 		StorageDriver: g.param.storageDriver.Driver(),
+		AgentLogPath:  defaults.AgentLogPath,
 		InstallParam:  param,
 	}
 
@@ -272,7 +274,7 @@ var installCmdTemplate = template.Must(
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --flavor={{.Flavor}} \
 		--docker-device={{.DockerDevice}} \
 		{{if .StorageDriver}}--storage-driver={{.StorageDriver}}{{end}} \
-		--system-log-file=./telekube-system.log \
+		--system-log-file={{ .AgentLogPath }} \
 		--cloud-provider=generic --state-dir={{.StateDir}} \
 		--httpprofile=localhost:6061 \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
@@ -300,7 +302,8 @@ func (g *gravity) Status(ctx context.Context) (status *GravityStatus, err error)
 }
 
 func (g *gravity) status(ctx context.Context) (*GravityStatus, error) {
-	cmd := "sudo gravity status --output=json --system-log-file=./telekube-system.log"
+	cmd := fmt.Sprintf("sudo gravity status --output=json --system-log-file=%v",
+		defaults.AgentLogPath)
 	status := GravityStatus{}
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, parseStatus(&status))
 	if err != nil {
@@ -328,6 +331,7 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 		InstallDir   string
 		PrivateAddr  string
 		DockerDevice string
+		AgentLogPath string
 		JoinCmd
 	}
 
@@ -342,6 +346,7 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 		InstallDir:   g.installDir,
 		PrivateAddr:  g.Node().PrivateAddr(),
 		DockerDevice: dockerDevice,
+		AgentLogPath: defaults.AgentLogPath,
 		JoinCmd:      param,
 	})
 	if err != nil {
@@ -357,7 +362,7 @@ var joinCmdTemplate = template.Must(
 		cd {{.InstallDir}} && sudo ./gravity join {{.PeerAddr}} \
 		--advertise-addr={{.PrivateAddr}} --token={{.Token}} --debug \
 		--role={{.Role}} --docker-device={{.DockerDevice}} \
-		--system-log-file=./telekube-system.log --state-dir={{.StateDir}} \
+		--system-log-file={{.AgentLogPath}} --state-dir={{.StateDir}} \
 		--httpprofile=localhost:6061`))
 
 // Leave makes given node leave the cluster
@@ -385,7 +390,8 @@ func (g *gravity) Remove(ctx context.Context, node string, graceful Graceful) er
 
 // Uninstall removes gravity installation. It requires Leave beforehand
 func (g *gravity) Uninstall(ctx context.Context) error {
-	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm --system-log-file=./telekube-system.log`, g.installDir)
+	cmd := fmt.Sprintf(`cd %s && sudo ./gravity system uninstall --confirm --system-log-file=%v`,
+		g.installDir, defaults.AgentLogPath)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
@@ -394,7 +400,8 @@ func (g *gravity) Uninstall(ctx context.Context) error {
 // This is usually required to properly clean up cloud resources
 // internally managed by kubernetes in case of kubernetes cloud integration
 func (g *gravity) UninstallApp(ctx context.Context) error {
-	cmd := fmt.Sprintf("cd %s && sudo ./gravity app uninstall $(./gravity app-package) --system-log-file=./telekube-system.log", g.installDir)
+	cmd := fmt.Sprintf("cd %s && sudo ./gravity app uninstall $(./gravity app-package) --system-log-file=%v",
+		g.installDir, defaults.AgentLogPath)
 	err := sshutils.Run(ctx, g.Client(), g.Logger(), cmd, nil)
 	return trace.Wrap(err, cmd)
 }
@@ -556,7 +563,7 @@ const (
 func (g *gravity) runOp(ctx context.Context, command string, env map[string]string) error {
 	var code string
 	executablePath := filepath.Join(g.installDir, "gravity")
-	logPath := filepath.Join(g.installDir, "telekube-system.log")
+	logPath := filepath.Join(g.installDir, defaults.AgentLogPath)
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
 		fmt.Sprintf(`sudo -E %v %v --insecure --quiet --system-log-file=%v`,
 			executablePath, command, logPath),

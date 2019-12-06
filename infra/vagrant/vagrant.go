@@ -17,6 +17,7 @@ import (
 
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
 
@@ -413,4 +414,4 @@ rm -rf /home/vagrant/installer; mkdir -p /home/vagrant/installer; \
 tar -xvf /vagrant/installer.tar.gz -C /home/vagrant/installer; \
 cd /home/vagrant/installer/; sudo ./upload`
 
-const installerLogPath = "/home/vagrant/installer/telekube-system.log"
+var installerLogPath = filepath.Join("/home/vagrant/installer", defaults.AgentLogPath)
