@@ -148,7 +148,7 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, e
 		return nil, trace.Wrap(err)
 	}
 
-nodeLoop:
+L:
 	for _, node := range nodes {
 		ip := node.Node().PrivateAddr()
 
@@ -159,7 +159,7 @@ nodeLoop:
 				} else {
 					roles.ClusterBackup = append(roles.ClusterBackup, node)
 				}
-				continue nodeLoop
+				continue L
 			}
 		}
 

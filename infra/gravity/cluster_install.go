@@ -54,11 +54,7 @@ func (c *TestContext) SetInstaller(nodes []Gravity, installerUrl string, tag str
 	}
 
 	_, err = utils.Collect(ctx, cancel, errs, nil)
-	if err = trace.Wrap(err); err != nil {
-		return trace.Wrap(err)
-	}
-
-	return nil
+	return trace.Wrap(err)
 }
 
 // OfflineInstall sets up cluster using nodes provided
@@ -183,21 +179,32 @@ func (c *TestContext) UninstallApp(nodes []Gravity) error {
 	return nil
 }
 
-// Upgrade tries to perform an upgrade procedure on all nodes
-func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, gravityURL, subdir string) error {
+// Upgrade performs an upgrade procedure on all nodes
+func (c *TestContext) Upgrade(nodes []Gravity, installerURL, gravityURL, subdir string) error {
 	roles, err := c.NodesByRole(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}
-
 	master := roles.ApiMaster
+	err = c.uploadInstaller(roles.ApiMaster, roles.Other, installerURL, gravityURL, subdir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = c.Status(nodes)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return c.upgrade(master, len(nodes))
+}
+
+func (c *TestContext) uploadInstaller(master Gravity, nodes []Gravity, installerURL, gravityURL, subdir string) error {
 	log := c.Logger().WithField("leader", master)
 	log.Info("Pull installer.")
 
-	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(nodes)))
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Install, len(nodes)+1))
 	defer cancel()
 
-	err = master.SetInstaller(ctx, installerUrl, subdir)
+	err := master.SetInstaller(ctx, installerURL, subdir)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -210,18 +217,16 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerUrl, gravityURL, subdir 
 
 	if len(nodes) > 1 {
 		log.Info("Upload gravity binaries.")
-		err = uploadBinaries(ctx, roles.Other, gravityURL, subdir)
-		if err != nil {
-			return trace.Wrap(err)
-		}
+		return uploadBinaries(ctx, nodes, gravityURL, subdir)
 	}
+	return nil
+}
 
-	ctx, cancel = context.WithTimeout(c.ctx, withDuration(c.timeouts.Upgrade, len(nodes)))
+func (c *TestContext) upgrade(master Gravity, numNodes int) error {
+	ctx, cancel := context.WithTimeout(c.ctx, withDuration(c.timeouts.Upgrade, numNodes))
 	defer cancel()
-
 	log.Info("Upgrade.")
-	err = master.Upgrade(ctx)
-	return trace.Wrap(err)
+	return master.Upgrade(ctx)
 }
 
 // ExecScript will run and execute a script on all nodes
@@ -240,18 +245,12 @@ func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []strin
 }
 
 func uploadBinaries(ctx context.Context, nodes []Gravity, url, subdir string) error {
-	errs := make(chan error, len(nodes)-1)
+	errs := make(chan error, len(nodes))
 	for _, node := range nodes {
 		go func(node Gravity) {
 			err := node.TransferFile(ctx, url, subdir)
 			errs <- trace.Wrap(err)
 		}(node)
 	}
-
-	err := utils.CollectErrors(ctx, errs)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	return nil
+	return utils.CollectErrors(ctx, errs)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/gravitational/robotest/infra"
 	"github.com/gravitational/robotest/infra/providers/azure"
 	"github.com/gravitational/robotest/lib/constants"
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/system"
 
@@ -270,7 +271,7 @@ func (r *terraform) UploadUpdate(session *ssh.Session) error {
 func (r *terraform) NodePool() infra.NodePool { return r.pool }
 
 func (r *terraform) InstallerLogPath() string {
-	return fmt.Sprintf("/home/%s/installer/telekube-system.log", r.sshUser)
+	return filepath.Join(fmt.Sprintf("/home/%v/installer", r.sshUser), defaults.AgentLogPath)
 }
 
 func (r *terraform) State() infra.ProvisionerState {

@@ -6,15 +6,15 @@ DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/
 BUILDBOX := robotest:buildbox
 TAG ?= latest
 DOCKER_ARGS ?= --pull
-GLIDE_VER ?= v0.13.2
-GOLANGCI_LINT_VER ?= 1.19.0
+GOLANGCI_LINT_VER ?= 1.21.0
 
 # Rules below run on host
 
 .PHONY: build
 build: buildbox
 	mkdir -p build
-	docker run $(DOCKERFLAGS) $(BUILDBOX) make -j $(TARGETS)
+	docker run $(DOCKERFLAGS) $(BUILDBOX) \
+		dumb-init make -j $(TARGETS)
 
 .PHONY: all
 all: clean build
@@ -24,7 +24,6 @@ buildbox:
 	docker build $(DOCKER_ARGS) --tag $(BUILDBOX) \
 		--build-arg UID=$$(id -u) \
 		--build-arg GID=$$(id -g) \
-		--build-arg GLIDE_VER=$(GLIDE_VER) \
 		--build-arg GOLANGCI_LINT_VER=$(GOLANGCI_LINT_VER) \
 		docker/build
 
@@ -44,19 +43,27 @@ publish: build lint
 $(TARGETS): vendor
 	@go version
 	cd $(SRCDIR) && \
-		go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+		GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
 
-vendor: glide.yaml
-	cd $(SRCDIR) && glide install
+vendor: go.mod
+	cd $(SRCDIR) && go mod vendor
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILDDIR)/* .glide vendor
+	@rm -rf $(BUILDDIR)/*
+	@rm -rf vendor
 
 .PHONY: test
 test:
-	docker run $(DOCKERFLAGS) $(BUILDBOX) go test -cover -race -v ./infra/...
+	docker run $(DOCKERFLAGS) \
+		--env="GO111MODULE=off" \
+		$(BUILDBOX) \
+		dumb-init go test -cover -race -v ./infra/...
 
 .PHONY: lint
 lint: buildbox
-	docker run $(DOCKERFLAGS) $(BUILDBOX) golangci-lint run --skip-dirs=.glide --skip-dirs=vendor ./...
+	docker run $(DOCKERFLAGS) \
+		--env="GO111MODULE=off" \
+		$(BUILDBOX) dumb-init golangci-lint run \
+		--skip-dirs=vendor \
+		--timeout=2m

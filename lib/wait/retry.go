@@ -110,14 +110,11 @@ type Retryer struct {
 // RetryWithInterval retries the specified operation fn using the specified
 // backoff interval
 func RetryWithInterval(ctx context.Context, interval libbackoff.BackOff, fn func() error, logger log.FieldLogger) error {
-	err := libbackoff.RetryNotify(func() error {
-		err := fn()
-		return err
-	}, libbackoff.WithContext(interval, ctx), func(err error, d time.Duration) {
+	err := libbackoff.RetryNotify(fn, libbackoff.WithContext(interval, ctx), func(err error, d time.Duration) {
 		logger.Debugf("Retrying: %v (time %v).", trace.UserMessage(err), d)
 	})
 	if err != nil {
-		log.Warnf("All attempts failed: %v.", trace.DebugReport(err))
+		log.WithError(err).Warn("All attempts failed.")
 		return trace.Wrap(err)
 	}
 	return nil

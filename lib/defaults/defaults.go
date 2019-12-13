@@ -40,6 +40,9 @@ const (
 	// TerraformRetryDelay
 	TerraformRetryDelay = 5 * time.Minute
 
+	// ClusterStatusTimeout specifies the maximum amount of time to wait for cluster status
+	ClusterStatusTimeout = 5 * time.Minute
+
 	// TerraformRetries is the maximum number of attempts to reprovision the
 	// infrastructure upon encountering an error from 'terraform apply'
 	TerraformRetries = 2
