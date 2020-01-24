@@ -15,7 +15,7 @@ require (
 	github.com/go-playground/universal-translator v0.0.0-20170327191703-71201497bace // indirect
 	github.com/googleapis/gax-go v0.0.0-20181202182837-5d9b035a0f09 // indirect
 	github.com/gravitational/configure v0.0.0-20180808141939-c3428bd84c23
-	github.com/gravitational/trace v0.0.0-20190626162700-a535a178675f
+	github.com/gravitational/trace v0.0.0-20190726142706-a535a178675f
 	github.com/hashicorp/go-version v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/jonboulle/clockwork v0.0.0-20180716110948-e7c6d408fd5c // indirect

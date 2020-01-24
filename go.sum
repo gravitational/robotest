@@ -37,8 +37,8 @@ github.com/googleapis/gax-go/v2 v2.0.2 h1:/rNgUniLy2vDXiK2xyJOcirGpC3G99dtK1NWx2
 github.com/googleapis/gax-go/v2 v2.0.2/go.mod h1:LLvjysVCY1JZeum8Z6l8qUty8fiNwE08qbEPm1M08qg=
 github.com/gravitational/configure v0.0.0-20180808141939-c3428bd84c23 h1:havbccuFO5fRj0O67oHXI7doShLig3rSIXfMrd/UnkA=
 github.com/gravitational/configure v0.0.0-20180808141939-c3428bd84c23/go.mod h1:XL9nebvlfNVvRzRPWdDcWootcyA0l7THiH/A+W1233g=
-github.com/gravitational/trace v0.0.0-20190626162700-a535a178675f h1:n7wK/5ShjZz3gSX5Ds1Y490DMsjTlNAwKtehddk61lM=
-github.com/gravitational/trace v0.0.0-20190626162700-a535a178675f/go.mod h1:RvdOUHE4SHqR3oXlFFKnGzms8a5dugHygGw1bqDstYI=
+github.com/gravitational/trace v0.0.0-20190726142706-a535a178675f h1:68WxnfBzJRYktZ30fmIjGQ74RsXYLoeH2/NITPktTMY=
+github.com/gravitational/trace v0.0.0-20190726142706-a535a178675f/go.mod h1:RvdOUHE4SHqR3oXlFFKnGzms8a5dugHygGw1bqDstYI=
 github.com/grpc-ecosystem/grpc-gateway v1.5.0/go.mod h1:RSKVYQBd5MCa4OVpNdGskqpgL2+G+NZTnrVHpWWfpdw=
 github.com/hashicorp/go-version v1.0.0 h1:21MVWPKDphxa7ineQQTrCU5brh7OuVVAzGOCnnCPtE8=
 github.com/hashicorp/go-version v1.0.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
