@@ -13,8 +13,10 @@ require (
 	github.com/go-ini/ini v1.39.2 // indirect
 	github.com/go-playground/locales v0.12.1 // indirect
 	github.com/go-playground/universal-translator v0.0.0-20170327191703-71201497bace // indirect
+	github.com/google/martian v2.1.0+incompatible // indirect
 	github.com/googleapis/gax-go v0.0.0-20181202182837-5d9b035a0f09 // indirect
 	github.com/gravitational/configure v0.0.0-20180808141939-c3428bd84c23
+	github.com/gravitational/log v0.0.0-20200127200505-fdffa14162b0 // indirect
 	github.com/gravitational/trace v0.0.0-20190726142706-a535a178675f
 	github.com/hashicorp/go-version v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
@@ -26,21 +28,18 @@ require (
 	github.com/satori/go.uuid v0.0.0-20180102140702-bba152fbf2c4
 	github.com/sclevine/agouti v0.0.0-20180825234404-5e39ce136dd6
 	github.com/sirupsen/logrus v1.0.0
+	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/stretchr/testify v0.0.0-20181115233458-8019298d9fa5
-	github.com/tebeka/selenium v0.0.0-20181011202039-edf31bb7fd71 // indirect
 	go.opencensus.io v0.0.0-20181129005706-8b019f31bc1c // indirect
-	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
-	golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3 // indirect
-	golang.org/x/net v0.0.0-20181201002055-351d144fa1fc // indirect
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/oauth2 v0.0.0-20181128211412-28207608b838
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
-	golang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35 // indirect
-	golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e // indirect
 	google.golang.org/api v0.0.0-20181129220737-af4fc4062c26 // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20181202183823-bd91e49a0898 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
-	gopkg.in/fsnotify/fsnotify.v1 v1.4.7 // indirect
+	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.23.0
+	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 )
