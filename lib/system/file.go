@@ -77,27 +77,40 @@ func copyAll(src, dst string, fileCount *uint) (err error) {
 	dst = filepath.Clean(dst)
 
 	log.Debugf("copy %s -> %s", src, dst)
+
+	// fetch source permissions
 	si, err := os.Stat(src)
 	if err != nil {
 		return trace.ConvertSystemError(err)
 	}
+
+	// files often don't have execute, but directories need it
+	mode := si.Mode()
 	if si.Mode().IsRegular() {
-		*fileCount++
-		return CopyFile(src, filepath.Join(dst, filepath.Base(src)))
+		mode = mode | os.ModeDir
+		mode = mode | 0100
 	}
 
+	// ensure destination exists
 	_, err = os.Stat(dst)
 	if err != nil && !os.IsNotExist(err) {
 		return trace.ConvertSystemError(err)
 	}
 
 	if err != nil && os.IsNotExist(err) {
-		err = os.MkdirAll(dst, si.Mode())
+		err = os.MkdirAll(dst, mode)
 		if err != nil {
 			return trace.ConvertSystemError(err)
 		}
 	}
 
+	// if source is a file, copy
+	if si.Mode().IsRegular() {
+		*fileCount++
+		return CopyFile(src, filepath.Join(dst, filepath.Base(src)))
+	}
+
+	// if sorce is a directory, copy all contents
 	entries, err := ioutil.ReadDir(src)
 	if err != nil {
 		return trace.ConvertSystemError(err)
