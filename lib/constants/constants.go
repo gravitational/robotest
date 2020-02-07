@@ -42,9 +42,6 @@ const (
 
 	// ManifestStorageDriver is empty string identifying that install should use driver defined by the manifest
 	ManifestStorageDriver = ""
-
-	// TerraformPluginDir specifies the location of terraform plugins
-	TerraformPluginDir = "/etc/terraform/plugins"
 )
 
 const (

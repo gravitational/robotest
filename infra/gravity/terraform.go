@@ -197,11 +197,18 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 
 	param.homeDir = filepath.Join("/home", param.user)
 
+	// this seems like an awkward way to set a default value, there must be a better pattern
+	// -- 2020-02 wdella
+	if baseConfig.TerraformPluginDir == "" {
+		baseConfig.TerraformPluginDir = "/etc/terraform/plugins"
+	}
+
 	param.terraform = terraform.Config{
 		CloudProvider: baseConfig.CloudProvider,
 		ScriptPath:    baseConfig.ScriptPath,
 		NumNodes:      int(baseConfig.NodeCount),
 		OS:            baseConfig.os.String(),
+		PluginDir:     baseConfig.TerraformPluginDir,
 	}
 
 	if baseConfig.AWS != nil {

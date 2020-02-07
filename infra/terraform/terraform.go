@@ -38,9 +38,11 @@ func New(stateDir string, config Config) (*terraform, error) {
 			constants.FieldProvisioner: "terraform",
 			constants.FieldCluster:     config.ClusterName,
 			"state-dir":                stateDir,
+			"plugin-dir":               config.PluginDir,
 		}),
-		Config:   config,
-		stateDir: stateDir,
+		Config:    config,
+		stateDir:  stateDir,
+		pluginDir: config.PluginDir,
 		// pool will be reset in Create
 		pool: infra.NewNodePool(nil, nil),
 
@@ -297,7 +299,7 @@ func (r *terraform) State() infra.ProvisionerState {
 func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 	out, err := r.command(ctx, []string{
 		"init", "-input=false", "-get-plugins=false",
-		fmt.Sprintf("-plugin-dir=%v", constants.TerraformPluginDir),
+		fmt.Sprintf("-plugin-dir=%v", r.PluginDir),
 		r.stateDir},
 	)
 	if err != nil {
@@ -432,6 +434,7 @@ type terraform struct {
 	stateDir       string
 	installerIP    string
 	loadbalancerIP string
+	pluginDir      string
 }
 
 type outputs struct {

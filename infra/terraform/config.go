@@ -96,4 +96,6 @@ type Config struct {
 	VarFilePath string `json:"var_file_path" yaml:"var_file_path"`
 	// OnpremProvider specifies usage of onprem provider for installation
 	OnpremProvider bool `json:"onprem_provider" yaml:"onprem_provider"`
+	// PluginDir is the directory terraform plugins reside in
+	PluginDir string `json:"plugin_dir,omitempty" yaml:"plugin_dir,omitempty"`
 }
