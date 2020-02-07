@@ -8,9 +8,9 @@ import (
 )
 
 // populates a test workspace (tmp) with a src containing several files
-func createSourceDir(t *testing.T) (tmp, src string, fcount int, err error) {
+func createSourceDir(t *testing.T) (tmp, src string, fcount int) {
 	// create a workspace
-	tmp, err = ioutil.TempDir("", "robotest-test")
+	tmp, err := ioutil.TempDir("", "robotest-test")
 	if err != nil {
 		t.Skipf("unable to create tempdir: %s", err)
 	}
@@ -34,15 +34,15 @@ func createSourceDir(t *testing.T) (tmp, src string, fcount int, err error) {
 			t.Skipf("unable to write to %s: %s", tmpfile.Name(), err)
 		}
 	}
-	return tmp, src, fcount, nil
+	return tmp, src, fcount
 }
 
 func TestCopyAllDirDstPresent(t *testing.T) {
-	tmp, src, fcount, err := createSourceDir(t)
+	tmp, src, fcount := createSourceDir(t)
 	defer os.RemoveAll(tmp)
 
 	dst := filepath.Join(tmp, "/dst")
-	err = os.MkdirAll(dst, 0750)
+	err := os.MkdirAll(dst, 0750)
 	if err != nil {
 		t.Skipf("unable to create dst dir: %s", err)
 	}
@@ -58,14 +58,14 @@ func TestCopyAllDirDstPresent(t *testing.T) {
 }
 
 func TestCopyAllDirDstAbsent(t *testing.T) {
-	tmp, src, fcount, err := createSourceDir(t)
+	tmp, src, fcount := createSourceDir(t)
 	defer os.RemoveAll(tmp)
 
 	// no destination directory
 	dst := filepath.Join(tmp, "/dst")
 
 	var cnt uint
-	err = copyAll(src, dst, &cnt)
+	err := copyAll(src, dst, &cnt)
 	if err != nil {
 		t.Errorf("copy %q -> %q failed: %s", src, dst, err)
 	}
@@ -78,9 +78,9 @@ func TestCopyAllDirDstAbsent(t *testing.T) {
 }
 
 // populates a test workspace (tmp) with a src file
-func createSourceFile(t *testing.T) (tmp, src string, fcount int, err error) {
+func createSourceFile(t *testing.T) (tmp, src string, fcount int) {
 	// create a workspace
-	tmp, err = ioutil.TempDir("", "robotest-test")
+	tmp, err := ioutil.TempDir("", "robotest-test")
 	if err != nil {
 		t.Skipf("unable to create tempdir: %s", err)
 	}
@@ -92,16 +92,16 @@ func createSourceFile(t *testing.T) (tmp, src string, fcount int, err error) {
 		t.Skipf("unable to write to %s: %s", src, err)
 	}
 
-	return tmp, src, fcount, nil
+	return tmp, src, fcount
 }
 
 func TestCopyAllFileDstPresent(t *testing.T) {
-	tmp, src, fcount, err := createSourceFile(t)
+	tmp, src, fcount := createSourceFile(t)
 	defer os.RemoveAll(tmp)
 
 	// create destination directory
 	dst := filepath.Join(tmp, "/dst")
-	err = os.MkdirAll(dst, 0750)
+	err := os.MkdirAll(dst, 0750)
 	if err != nil {
 		t.Skipf("unable to create dst dir: %s", err)
 	}
@@ -117,14 +117,14 @@ func TestCopyAllFileDstPresent(t *testing.T) {
 }
 
 func TestCopyAllFileDstAbsent(t *testing.T) {
-	tmp, src, fcount, err := createSourceFile(t)
+	tmp, src, fcount := createSourceFile(t)
 	defer os.RemoveAll(tmp)
 
 	// no destination directory
 	dst := filepath.Join(tmp, "/dst")
 
 	var cnt uint
-	err = copyAll(src, dst, &cnt)
+	err := copyAll(src, dst, &cnt)
 	if err != nil {
 		t.Errorf("copy %q -> %q failed: %s", src, dst, err)
 	}
