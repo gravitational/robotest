@@ -77,20 +77,27 @@ func TestCopyAllDirDstAbsent(t *testing.T) {
 	}
 }
 
-func TestCopyAllFileDstPresent(t *testing.T) {
+// populates a test workspace (tmp) with a src file
+func createSourceFile(t *testing.T) (tmp, src string, fcount int, err error) {
 	// create a workspace
-	tmp, err := ioutil.TempDir("", "robotest-test")
+	tmp, err = ioutil.TempDir("", "robotest-test")
 	if err != nil {
 		t.Skipf("unable to create tempdir: %s", err)
 	}
-	defer os.RemoveAll(tmp)
 
 	// create source file
-	fcount := 1
-	src := filepath.Join(tmp, "/src")
+	fcount = 1
+	src = filepath.Join(tmp, "/src")
 	if err = ioutil.WriteFile(src, []byte("data"), 0640); err != nil {
 		t.Skipf("unable to write to %s: %s", src, err)
 	}
+
+	return tmp, src, fcount, nil
+}
+
+func TestCopyAllFileDstPresent(t *testing.T) {
+	tmp, src, fcount, err := createSourceFile(t)
+	defer os.RemoveAll(tmp)
 
 	// create destination directory
 	dst := filepath.Join(tmp, "/dst")
@@ -110,19 +117,8 @@ func TestCopyAllFileDstPresent(t *testing.T) {
 }
 
 func TestCopyAllFileDstAbsent(t *testing.T) {
-	// create a workspace
-	tmp, err := ioutil.TempDir("", "robotest-test")
-	if err != nil {
-		t.Skipf("unable to create tempdir: %s", err)
-	}
+	tmp, src, fcount, err := createSourceFile(t)
 	defer os.RemoveAll(tmp)
-
-	// create source file
-	fcount := 1
-	src := filepath.Join(tmp, "/src")
-	if err = ioutil.WriteFile(src, []byte("data"), 0640); err != nil {
-		t.Skipf("unable to write to %s: %s", src, err)
-	}
 
 	// no destination directory
 	dst := filepath.Join(tmp, "/dst")
