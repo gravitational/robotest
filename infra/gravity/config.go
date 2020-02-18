@@ -81,7 +81,7 @@ type ProvisionerConfig struct {
 
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `yaml:"script_path" validate:"required"`
-	// TerraformPluginDir
+	// TerraformPluginDir is the path to the terraform plugin directory
 	TerraformPluginDir string `yaml:"tf_plugin_dir"`
 	// InstallerURL specifies the location of the installer tarball.
 	// Can either be a local path or S3 URL
