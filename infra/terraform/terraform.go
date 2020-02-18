@@ -40,9 +40,8 @@ func New(stateDir string, config Config) (*terraform, error) {
 			"state-dir":                stateDir,
 			"plugin-dir":               config.PluginDir,
 		}),
-		Config:    config,
-		stateDir:  stateDir,
-		pluginDir: config.PluginDir,
+		Config:   config,
+		stateDir: stateDir,
 		// pool will be reset in Create
 		pool: infra.NewNodePool(nil, nil),
 
