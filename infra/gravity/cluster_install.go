@@ -190,10 +190,6 @@ func (c *TestContext) Upgrade(nodes []Gravity, installerURL, gravityURL, subdir 
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	err = c.Status(nodes)
-	if err != nil {
-		return trace.Wrap(err)
-	}
 	return c.upgrade(master, len(nodes))
 }
 
@@ -205,6 +201,11 @@ func (c *TestContext) uploadInstaller(master Gravity, nodes []Gravity, installer
 	defer cancel()
 
 	err := master.SetInstaller(ctx, installerURL, subdir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = c.Status(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}
