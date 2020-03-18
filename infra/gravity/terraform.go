@@ -81,7 +81,7 @@ func wrapDestroyFunc(c *TestContext, tag string, nodes []Gravity, destroy func(c
 			log.Debug("Collecting logs from nodes...")
 			err := c.CollectLogs("postmortem", nodes)
 			if err != nil {
-				log.WithError(err).Warn("Failed to collect node logs.")
+				log.WithError(err).Warn("Failed to collect logs from at least one node.")
 			}
 		}
 
