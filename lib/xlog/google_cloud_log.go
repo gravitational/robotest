@@ -27,14 +27,12 @@ import (
 	"github.com/gravitational/trace"
 
 	cl "cloud.google.com/go/logging"
-	"cloud.google.com/go/pubsub"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2/google"
 )
 
 const (
-	statusTopic = "robotest"
-	maxStack    = 10
+	maxStack = 10
 )
 
 var levelMap map[logrus.Level]cl.Severity = map[logrus.Level]cl.Severity{
@@ -49,15 +47,11 @@ var levelMap map[logrus.Level]cl.Severity = map[logrus.Level]cl.Severity{
 type GCLClient struct {
 	shortenerClient *http.Client
 	gclClient       *cl.Client
-	pubsubClient    *pubsub.Client
-	topic           *pubsub.Topic
 	ctx             context.Context
 }
 
 func (client *GCLClient) Close() {
 	client.gclClient.Close()
-	client.topic.Stop()
-	client.pubsubClient.Close()
 }
 
 type GCLHook struct {
@@ -86,27 +80,6 @@ func NewGCLClient(ctx context.Context, projectID string) (client *GCLClient, err
 	}
 
 	err = client.gclClient.Ping(ctx)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	// Pub/Sub API
-	client.pubsubClient, err = pubsub.NewClient(ctx, projectID)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	client.topic = client.pubsubClient.Topic(statusTopic)
-	ok, err := client.topic.Exists(ctx)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	if ok {
-		return client, nil
-	}
-
-	client.topic, err = client.pubsubClient.CreateTopic(ctx, statusTopic)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -144,11 +117,6 @@ func ToJSON(obj interface{}) string {
 		return fmt.Sprintf("%v", obj)
 	}
 	return string(data)
-}
-
-// Topic returns google pub/sub topic for test result status reporting
-func (c GCLClient) Topic() *pubsub.Topic {
-	return c.topic
 }
 
 // Fire fires the event to the GCL
