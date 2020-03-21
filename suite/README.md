@@ -44,7 +44,7 @@ export SSH_KEY=
 export SSH_PUB=
 
 # Define to enable all log forwarding to google cloud logger and dashboard
-export GCL_PROJECT_ID=kubeadm-167321
+export GCL_PROJECT_ID=
 
 # Installer could be a local file path (don't prefix with file://) , s3:// or http(s):// URL
 export INSTALLER_URL='s3://s3.gravitational.io/builds/c1b6794-telekube-3.56.4-installer.tar'

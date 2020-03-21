@@ -111,6 +111,7 @@ EOF
 EXTRA_VOLUME_MOUNTS=${EXTRA_VOLUME_MOUNTS:-}" -v "$CUSTOM_VAR_FILE:/robotest/config/vars.json
 
 GCE_CONFIG="gce:
+  project: ${GCL_PROJECT_ID}
   credentials: /robotest/config/creds.json
   vm_type: ${GCE_VM}
   region: ${GCE_REGION}
