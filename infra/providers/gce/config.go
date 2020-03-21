@@ -20,7 +20,7 @@ package gce
 type Config struct {
 	// Project name
 	// https://cloud.google.com/resource-manager/docs/creating-managing-projects
-	Project string `json:"project,omitempty" yaml:"project"`
+	Project string `json:"project" yaml:"project" validate:"required"`
 	// Credentials names the service account file
 	// https://cloud.google.com/compute/docs/api/how-tos/authorization
 	Credentials string `json:"credentials" yaml:"credentials" validate:"required"`

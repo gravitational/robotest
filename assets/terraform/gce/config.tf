@@ -4,18 +4,17 @@
 #
 
 variable "credentials" {
-  description = "JSON-encoded access credentials"
+  description = "JSON-encoded access credentials."
   type        = string
 }
 
 variable "project" {
-  description = "Project to deploy to, if not set the default provider project is used."
+  description = "Project cluster resources will be deployed in."
   type        = string
-  default     = "kubeadm-167321"
 }
 
 variable "region" {
-  description = "Region for cluster resources"
+  description = "Region for cluster resources."
   type        = string
   default     = "us-central1"
 }

@@ -183,7 +183,7 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 // Logic split out from getLogLink to aid in unit testing.
 //
 // The resulting url will look like:
-//   https://console.cloud.google.com/logs/query;query=severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22;timeRange=2020-09-22T22:33:00Z%2F2020-09-22T22:35:00Z?authuser=0&project=kubeadm-167321
+//   https://console.cloud.google.com/logs/query;query=severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22;timeRange=2020-09-22T22:33:00Z%2F2020-09-22T22:35:00Z?authuser=0&project=example
 func encodeLogLink(tUID, sUID, project string, date time.Time) string {
 	// severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22
 	query := fmt.Sprintf("severity>=INFO\nlabels.__uuid__=%q\nlabels.__suite__=%q", tUID, sUID)

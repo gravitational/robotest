@@ -27,6 +27,7 @@ import (
 func TestConvertConfigToTerraformVars(t *testing.T) {
 	gceConfig := gce.Config{
 		Credentials:      "/robotest/gce-creds.json",
+		Project:          "unittesting",
 		VMType:           "excellent",
 		SSHUser:          "ubuntu",
 		SSHPublicKeyPath: "/robotest/.ssh/robo.pub",
@@ -54,6 +55,7 @@ func TestConvertConfigToTerraformVars(t *testing.T) {
 	}
 	expected := make(map[string]interface{})
 	expected["credentials"] = "/robotest/gce-creds.json"
+	expected["project"] = "unittesting"
 	expected["nodes"] = 3
 	expected["vm_type"] = "excellent"
 	expected["os"] = "ubuntu"
