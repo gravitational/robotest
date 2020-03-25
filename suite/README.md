@@ -87,6 +87,8 @@ Every test is passed as argument to launch script as `testname={json}`. Mind the
 * `flavor` (string) flavor corresponding to number of nodes.
 * `remote_support` (bool, default=false) enable remote support via `gravity complete` after install using OPS center and token burned into installer.
 * `uninstall` (bool, default=false) uninstall at the end
+* `service_uid` (uint, default=gravity default) the uid that planet will run under, see https://gravitational.com/gravity/docs/ver/7.x/pack/#service-user
+* `service_gid` (uint, default=gravity default) the gid that planet will run under
 
 `provision` takes same args but will not run any installer, just provision VMs. 
 

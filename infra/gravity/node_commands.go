@@ -113,6 +113,10 @@ type InstallParam struct {
 	InstallerURL string `json:"installer_url,omitempty"`
 	// OpsAdvertiseAddr is optional Ops Center advertise address to pass to the install command
 	OpsAdvertiseAddr string `json:"ops_advertise_addr,omitempty"`
+	// ServiceUID is an optional parameter for install's --service-uid flag: https://gravitational.com/gravity/docs/ver/7.x/pack/#service-user
+	ServiceUID *uint `json:"service_uid,omitempty"`
+	// ServiceGID is an optional parameter for install's --service-gid flag
+	ServiceGID *uint `json:"service_gid,omitempty"`
 }
 
 // JoinCmd represents various parameters for Join
@@ -278,7 +282,9 @@ var installCmdTemplate = template.Must(
 		--cloud-provider=generic --state-dir={{.StateDir}} \
 		--httpprofile=localhost:6061 \
 		{{if .Cluster}}--cluster={{.Cluster}}{{end}} \
-		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}
+		{{if .OpsAdvertiseAddr}}--ops-advertise-addr={{.OpsAdvertiseAddr}}{{end}}\
+		{{if .ServiceUID}}--service-uid={{.ServiceUID}}{{end}}\
+		{{if .ServiceGID}}--service-gid={{.ServiceGID}}{{end}}\
 `))
 
 // Status queries cluster status
