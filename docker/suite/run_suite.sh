@@ -21,7 +21,7 @@ FAIL_FAST=${FAIL_FAST:-false}
 ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
 GCE_VM=${GCE_VM:-'custom-8-8192'}
 GCE_REGION=${GCE_REGION:-'northamerica-northeast1,us-west1,us-west2,us-east1,us-east4,us-central1'}
-GCE_PREEMPTIBLE=${GCE_PREEMPTIBLE:-'true'}
+GCE_PREEMPTIBLE=${GCE_PREEMPTIBLE:-'false'}
 DOCKER_DEVICE=${DOCKER_DEVICE:-'/dev/sdc'}
 
 # choose something relatively unique to avoid intersection with other people runs
