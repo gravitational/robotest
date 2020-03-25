@@ -101,7 +101,7 @@ Inherits parameters from `install`, plus:
 
 ### Install cluster, then upgrade
 
-`upgrade3lts` - current upgrade procedure for 3.x LTS branch. Inherits parameters from `install`. 
+`upgrade` inherits parameters from `install`.
 
 * `upgrade_from` initial installer to use
 
