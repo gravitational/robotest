@@ -67,7 +67,7 @@ variable "disk_type" {
 variable "preemptible" {
   description = "Whether to use preemptible VMs. See https://cloud.google.com/preemptible-vms"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 provider "google" {
