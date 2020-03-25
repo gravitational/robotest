@@ -23,7 +23,7 @@ func Suite() *config.Config {
 	cfg.Add("install", install, defaultInstallParam)
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
 	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
-	cfg.Add("upgrade3lts", upgrade, upgradeParam{installParam: defaultInstallParam})
+	cfg.Add("upgrade", upgrade, upgradeParam{installParam: defaultInstallParam})
 	cfg.Add("autoscale", autoscale, defaultInstallParam)
 
 	return cfg
