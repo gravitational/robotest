@@ -560,11 +560,10 @@ const (
 // runOp launches specific command and waits for operation to complete, ignoring transient errors
 func (g *gravity) runOp(ctx context.Context, command string, env map[string]string) error {
 	var code string
-	executablePath := filepath.Join(g.installDir, "gravity")
+	sudoGravity := fmt.Sprintf(`cd %v && sudo -E ./gravity`, g.installDir)
 	logPath := filepath.Join(g.installDir, defaults.AgentLogPath)
 	err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-		fmt.Sprintf(`sudo -E %v %v --insecure --quiet --system-log-file=%v`,
-			executablePath, command, logPath),
+		fmt.Sprintf(`%v %v --insecure --quiet --system-log-file=%v`, sudoGravity, command, logPath),
 		env, sshutils.ParseAsString(&code))
 	if err != nil {
 		return trace.Wrap(err)
@@ -581,9 +580,8 @@ func (g *gravity) runOp(ctx context.Context, command string, env map[string]stri
 
 	err = retry.Do(ctx, func() error {
 		var response string
-		cmd := fmt.Sprintf(`cd %s && ./gravity status --operation-id=%s -q`, g.installDir, code)
-		err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(),
-			cmd, nil, sshutils.ParseAsString(&response))
+		cmd := fmt.Sprintf(`%v status --quiet --operation-id=%s`, sudoGravity, code)
+		err := sshutils.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, sshutils.ParseAsString(&response))
 		if err != nil {
 			return wait.Continue(cmd)
 		}
