@@ -41,7 +41,7 @@ function setup-user {
     chmod 0600 /home/${os_user}/.ssh/authorized_keys
   fi
 
-  chown -R $service_uid:$service_gid /var/lib/gravity $etcd_dir /home/${os_user}
+  chown -R $service_uid:$service_gid /home/${os_user}
   sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 }
 

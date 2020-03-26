@@ -54,7 +54,7 @@ function setup-user {
     retry restorecon -vR /home/${os_user}
   fi
 
-  chown -R $service_uid:$service_gid /var/lib/gravity $etcd_dir /home/${os_user}
+  chown -R $service_uid:$service_gid /home/${os_user}
   sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 }
 
