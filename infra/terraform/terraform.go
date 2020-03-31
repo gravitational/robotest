@@ -433,7 +433,6 @@ type terraform struct {
 	stateDir       string
 	installerIP    string
 	loadbalancerIP string
-	pluginDir      string
 }
 
 type outputs struct {
