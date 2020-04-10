@@ -8,15 +8,27 @@ TAG ?= latest
 DOCKER_ARGS ?= --pull
 GOLANGCI_LINT_VER ?= 1.21.0
 
+.PHONY: help
+# kudos to https://gist.github.com/prwhite/8168133 for inspiration
+help: ## Show this message.
+	@echo 'Usage: make [options] [target] ...'
+	@echo
+	@echo 'Options: run `make --help` for options'
+	@echo
+	@echo 'Targets:'
+	@egrep '^(.+)\:\ ##\ (.+)' ${MAKEFILE_LIST} | column -t -c 2 -s ':#' | sort | sed 's/^/  /'
+
 # Rules below run on host
 
 .PHONY: build
+build: ## Compile go binaries.
 build: buildbox
 	mkdir -p build
 	docker run $(DOCKERFLAGS) $(BUILDBOX) \
 		dumb-init make -j $(TARGETS)
 
 .PHONY: all
+all: ## Clean and build.
 all: clean build
 
 .PHONY: buildbox
@@ -28,16 +40,19 @@ buildbox:
 		docker/build
 
 .PHONY: containers
+containers: ## Build container images.
 containers: build lint
 	$(MAKE) -C docker containers DOCKER_ARGS=$(DOCKER_ARGS)
 
 .PHONY: publish
+publish: ## Publish container images to quay.io.
 publish: build lint
 	$(MAKE) -C docker -j publish TAG=$(TAG)
 
 #
-# Runs inside build container
+# Targets below here run inside build container
 #
+# These are not intended to be called directly by end users.
 
 .PHONY: $(TARGETS)
 $(TARGETS): vendor
@@ -49,18 +64,19 @@ vendor: go.mod
 	cd $(SRCDIR) && go mod vendor
 
 .PHONY: clean
-clean:
+clean: ## Remove intermediate build artifacts & cache.
 	@rm -rf $(BUILDDIR)/*
 	@rm -rf vendor
 
 .PHONY: test
-test:
+test: ## Run unit tests.
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
 		$(BUILDBOX) \
 		dumb-init go test -cover -race -v ./infra/...
 
 .PHONY: lint
+lint: ## Run static analysis against source code.
 lint: buildbox
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
