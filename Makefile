@@ -49,20 +49,6 @@ publish: ## Publish container images to quay.io.
 publish: build lint
 	$(MAKE) -C docker -j publish TAG=$(TAG)
 
-#
-# Targets below here run inside build container
-#
-# These are not intended to be called directly by end users.
-
-.PHONY: $(TARGETS)
-$(TARGETS): vendor
-	@go version
-	cd $(SRCDIR) && \
-		GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
-
-vendor: go.mod
-	cd $(SRCDIR) && go mod vendor
-
 .PHONY: clean
 clean: ## Remove intermediate build artifacts & cache.
 	@rm -rf $(BUILDDIR)/*
@@ -83,3 +69,16 @@ lint: buildbox
 		$(BUILDBOX) dumb-init golangci-lint run \
 		--skip-dirs=vendor \
 		--timeout=2m
+#
+# Targets below here run inside the buildbox
+#
+# These are not intended to be called directly by end users.
+
+.PHONY: $(TARGETS)
+$(TARGETS): vendor
+	@go version
+	cd $(SRCDIR) && \
+		GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+
+vendor: go.mod
+	cd $(SRCDIR) && go mod vendor
