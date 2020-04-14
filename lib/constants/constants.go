@@ -42,6 +42,9 @@ const (
 
 	// ManifestStorageDriver is empty string identifying that install should use driver defined by the manifest
 	ManifestStorageDriver = ""
+
+	// GravitySELinuxEnv defines the environment variable that controls whether to use SELinux
+	GravitySELinuxEnv = "GRAVITY_SELINUX"
 )
 
 const (
