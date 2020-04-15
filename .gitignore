@@ -17,9 +17,11 @@ config.yaml
 *.statebackup
 *.tfstate
 robotest
-/build
 wd
 wd_suite
 run.sh
 *.sublime-workspace
 tf/
+# build artifacts
+version.go
+build/
