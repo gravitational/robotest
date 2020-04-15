@@ -1,6 +1,5 @@
 TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
-VERSION ?= $(shell git describe --long --tags --always|awk -F'[.-]' '{print $$1 "." $$2 "." $$4}')
 TAG ?= latest
 DOCKER_ARGS ?= --pull
 
@@ -62,10 +61,7 @@ publish: $(DOCKER_IMG)
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
-	docker push $@:$(VERSION)
 	docker tag $@:$(VERSION) $@:$(TAG)
+	docker push $@:$(VERSION)
 	docker push $@:$(TAG)
 
-.PHONY: what-version
-what-version:
-	@echo $(VERSION)

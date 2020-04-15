@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gravitational/robotest"
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
 	"github.com/gravitational/robotest/lib/debug"
@@ -36,6 +37,8 @@ var cloudLogProjectID = flag.String("gcl-project-id", "", "enable logging to the
 var debugFlag = flag.Bool("debug", false, "Verbose mode")
 var debugPort = flag.Int("debug-port", 6060, "Profiling port")
 
+var versionFlag = flag.Bool("version", false, "Display version information")
+
 // max amount of time test will run
 var testMaxTime = time.Hour * 12
 
@@ -59,6 +62,12 @@ func setupSignals(suite gravity.TestSuite) {
 // as go test cannot deal with multiple packages in pre-compiled mode
 // right now it'll just invoke sanity suite
 func TestMain(t *testing.T) {
+	if *versionFlag {
+		fmt.Printf("Version:\t%s\n", robotest.Version)
+		fmt.Printf("Git Commit:\t%s\n", robotest.GitCommit)
+		os.Exit(0)
+	}
+
 	if *testSuite == "" || *tag == "" {
 		flag.Usage()
 		t.Fatal("options required")
