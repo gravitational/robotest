@@ -260,7 +260,11 @@ func (g *gravity) Install(ctx context.Context, param InstallParam) error {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(),
+		// Add SELinux-specific triggers. These will only have effect on SELinux-enabled hosts
+		map[string]string{
+			constants.GravitySELinuxEnv: "true",
+		})
 	return trace.Wrap(err, param)
 }
 
@@ -351,7 +355,11 @@ func (g *gravity) Join(ctx context.Context, param JoinCmd) error {
 		return trace.Wrap(err, buf.String())
 	}
 
-	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(), nil)
+	err = sshutils.Run(ctx, g.Client(), g.Logger(), buf.String(),
+		// Add SELinux-specific triggers. These will only have effect on SELinux-enabled hosts
+		map[string]string{
+			constants.GravitySELinuxEnv: "true",
+		})
 	return trace.Wrap(err, param)
 }
 
@@ -543,10 +551,7 @@ func (g *gravity) Upgrade(ctx context.Context) error {
 			executablePath,
 			g.installDir,
 			defaults.EtcdRetryTimeout),
-		// Run update unattended (changed in 5.4).
-		// Do this via the environment though to avoid breaking versions that
-		// update in a non-blocking mode by default
-		map[string]string{"GRAVITY_BLOCKING_OPERATION": "false"}))
+		nil))
 }
 
 // for cases when gravity doesn't return just opcode but an extended message
