@@ -71,18 +71,7 @@ if [ $dns_running -eq 0 ] ; then
   systemctl disable dnsmasq
 fi
 
-if [[ $(source /etc/os-release ; echo $VERSION_ID ) == "7.2" ]] ; then
-  yum install -y yum-plugin-versionlock
-  yum versionlock \
-        lvm2-2.02.166-1.el7_3.4.x86_64 \
-        device-mapper-persistent-data-0.6.3-1.el7.x86_64 \
-        device-mapper-event-libs-1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-event-7:1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-libs-7:1.02.135-1.el7_3.4.x86_64 \
-        device-mapper-7:1.02.135-1.el7_3.4.x86_64
-fi
-
-yum install -y chrony python unzip lvm2 device-mapper-persistent-data
+yum install -y chrony python unzip
 
 if ! aws --version; then
   curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
