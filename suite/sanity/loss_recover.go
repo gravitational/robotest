@@ -28,9 +28,9 @@ type lossAndRecoveryParam struct {
 	// ReplaceNodeType : see killXXX constants
 	ReplaceNodeType string `json:"kill" validate:"required,oneof=apimaster clmaster clbackup worker"`
 	// ExpandBeforeShrink is whether to expand cluster before removing dead node
-	ExpandBeforeShrink bool `json:"expand_before_shrink" validate:"required"`
+	ExpandBeforeShrink bool `json:"expand_before_shrink"`
 	// PowerOff is whether to power off node before remove
-	PowerOff bool `json:"pwroff_before_remove" validate:"required"`
+	PowerOff bool `json:"pwroff_before_remove"`
 }
 
 func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
