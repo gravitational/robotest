@@ -92,14 +92,20 @@ Every test is passed as argument to launch script as `testname={json}`. Mind the
 
 `provision` takes same args but will not run any installer, just provision VMs. 
 
-### Install cluster, then resize
+### Install cluster, then expand
 
-`resize` 
+`resize`
 
 Inherits parameters from `install`, plus:
 
 * `to` (uint) number of nodes to expand (or shrink) to
 * `graceful` (bool, default=false) whether to perform graceful or forced node shrink
+
+### Install cluster, expand by one, shrink by one
+
+`shrink`
+
+Inherits all parameters from `install`.
 
 ### Install cluster, then upgrade
 
@@ -107,16 +113,16 @@ Inherits parameters from `install`, plus:
 
 * `upgrade_from` initial installer to use
 
-### Replace cluster nodes
+### Recover cluster nodes
 
-`replace` inherits `install` parameters. 
+`recover` inherits `install` parameters.
 
 * `roles` (array) `["apimaster","clmaster","clbackup","worker"]` will sequentially locate and replace nodes with given role
 * `recycle` (bool) if true, a clean node will be used for each operation replacement, if false then +1 node would be created in addition to `nodes` parameters and will sequentially be replaced as per nodes. Note the `worker` is no-op for cluster with <= 3 nodes.
-* `expand_before_shrink` (bool) expand cluster before node removal or after. 
+* `expand_before_shrink` (bool) expand cluster before node removal or after.
 * `pwroff_before_remove` (bool) if true, then node would be `poweroff -f` before node replacement. Cannot be combined with `recycle=true`
 
-`replace_variety` will generate a combination of `replace` parameterized tests.
+`recoverV` will generate a combination of `recover` parameterized tests.
 
 ### Post installer transfer script
 When a certain application may require extra setup after provisioning and installer transfer is complete, this could be achieved by passing extra parameters to tests: 

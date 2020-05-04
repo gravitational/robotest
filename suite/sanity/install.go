@@ -29,10 +29,16 @@ func (p installParam) Save() (row map[string]bigquery.Value, insertID string, er
 	return row, "", nil
 }
 
-func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) (gravity.Cluster, error) {
-	return g.Provision(cfg.WithOS(param.OSFlavor).
+// withInstallParams returns copy of config applying extended tag to it
+func withInstallParam(cfg gravity.ProvisionerConfig, param installParam) gravity.ProvisionerConfig {
+	return cfg.
+		WithOS(param.OSFlavor).
 		WithStorageDriver(param.DockerStorageDriver).
-		WithNodes(param.NodeCount))
+		WithNodes(param.NodeCount)
+}
+
+func provisionNodes(g *gravity.TestContext, cfg gravity.ProvisionerConfig, param installParam) (gravity.Cluster, error) {
+	return g.Provision(withInstallParam(cfg, param))
 }
 
 func install(p interface{}) (gravity.TestFunc, error) {
