@@ -71,16 +71,16 @@ func lossAndRecoveryVariety(p interface{}) (gravity.TestFunc, error) {
 func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	param := p.(lossAndRecoveryParam)
 
-	return func(g *gravity.TestContext, baseConfig gravity.ProvisionerConfig) {
-		config := baseConfig.WithNodes(param.NodeCount + 1)
+	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
+		cfg = cfg.WithNodes(param.NodeCount + 1)
 
-		cluster, err := g.Provision(config)
+		cluster, err := g.Provision(cfg)
 		g.OK("provision nodes", err)
 		defer func() {
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
-		g.OK("download installer", g.SetInstaller(cluster.Nodes, config.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, cfg.InstallerURL, "install"))
 
 		nodes := cluster.Nodes[0:param.NodeCount]
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
