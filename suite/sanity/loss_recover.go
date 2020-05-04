@@ -74,7 +74,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 	return func(g *gravity.TestContext, cfg gravity.ProvisionerConfig) {
 		cfg = cfg.WithNodes(param.NodeCount + 1)
 
-		cluster, err := g.Provision(cfg)
+		cluster, err := provisionNodes(g, cfg, param.installParam)
 		g.OK("provision nodes", err)
 		defer func() {
 			g.Maybe("destroy", cluster.Destroy())
