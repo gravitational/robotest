@@ -23,6 +23,7 @@ func Suite() *config.Config {
 	cfg.Add("install", install, defaultInstallParam)
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
 	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
+	cfg.Add("shrink", shrink, defaultInstallParam)
 	cfg.Add("upgrade", upgrade, upgradeParam{installParam: defaultInstallParam})
 	// upgrade3lts is vestigial alias for upgrade needed for backwards compat
 	// to prevent issues like:
