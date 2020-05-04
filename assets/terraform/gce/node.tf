@@ -66,12 +66,7 @@ resource "google_compute_instance" "node" {
   min_cpu_platform = "Intel Skylake"
 
   boot_disk {
-    initialize_params {
-      image = var.oss[var.os]
-      size  = 64
-      type  = var.disk_type
-    }
-
+    source = google_compute_disk.boot[count.index].self_link
     auto_delete = true
   }
 
@@ -97,6 +92,19 @@ resource "google_compute_instance" "node" {
 
     # If preempted, the test will be retried with a new configuration
     automatic_restart = var.preemptible ? "false" : "true"
+  }
+}
+
+resource "google_compute_disk" "boot" {
+  count = var.nodes
+  name  = "${var.node_tag}-disk-boot-${count.index}"
+  type  = var.disk_type
+  zone  = local.zone
+  size  = 64
+  image = var.oss[var.os]
+
+  labels = {
+    cluster = var.node_tag
   }
 }
 
