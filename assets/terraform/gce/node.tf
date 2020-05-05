@@ -2,6 +2,10 @@
 # Virtual Machine node
 #
 
+# Unfortunately instance groups don't presently accommodate labels which makes
+# them more difficult to track & clean up.  Fortunately, they're not a billed
+# resource, so it doesn't matter as much if robotest leaks them.
+# 2020-05 - walt
 resource "google_compute_instance_group" "robotest" {
   description = "Instance group controlling instances of a single robotest cluster"
   name        = "${var.node_tag}-node-group"
@@ -23,6 +27,7 @@ resource "google_compute_instance" "node" {
   ]
 
   labels = {
+    robotest = ""
     cluster = var.node_tag
   }
 
@@ -104,6 +109,7 @@ resource "google_compute_disk" "boot" {
   image = var.oss[var.os]
 
   labels = {
+    robotest = ""
     cluster = var.node_tag
   }
 }
@@ -116,6 +122,7 @@ resource "google_compute_disk" "etcd" {
   size  = 50
 
   labels = {
+    robotest = ""
     cluster = var.node_tag
   }
 }
