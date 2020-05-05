@@ -193,3 +193,37 @@ Robotest can optionally send detailed execution logs to Google Cloud Logging pla
 
 ### Using local files
 Robotest is executed from within a container, and therefore cannot access any local files directly. When you need to pass local file as installer tarball, mount them individually or a holding directory using `EXTRA_VOLUME_MOUNTS` variable, following docker's [volume mount](https://docs.docker.com/engine/admin/volumes/bind-mounts/) semantics `-v local_path:container_path`.
+
+### Cleaning up leaked resources
+If robotest fails to clean up all cloud resources (e.g. due to interruption during a run), the terraform files in the state directory can be used to destroy these resources.
+For example:
+
+```
+$ cd wd_suite/state/7bdc964/install-1/redhat7/overlay2/1n/tf/
+$ ls
+bootstrap  config.tf  network.tf  node.tf  os.tf  output.tf  robotest.tfvars.json  terraform.log  terraform.tfstate  terraform.tfstate.backup  versions.tf
+$ terraform destroy -var-file robotest.tfvars.json
+data.template_file.bootstrap: Refreshing state...
+data.google_compute_subnetwork.robotest: Refreshing state...
+data.google_compute_network.robotest: Refreshing state...
+data.google_compute_zones.available: Refreshing state...
+random_shuffle.zones: Refreshing state... [id=-]
+google_compute_disk.etcd[0]: Refreshing state... [id=projects/robotest/zones/us-west1-b/disks/robotest-12345678-disk-etcd-0]
+google_compute_disk.boot[0]: Refreshing state... [id=projects/robotest/zones/us-west1-b/disks/robotest-12345678-disk-boot-0]
+google_compute_instance.node[0]: Refreshing state... [id=projects/robotest/zones/us-west1-b/instances/robotest-12345678-node-0]
+google_compute_instance_group.robotest: Refreshing state... [id=projects/robotest/zones/us-west1-b/instanceGroups/robotest-12345678-node-group]
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  - destroy
+
+// snip
+
+Plan: 0 to add, 0 to change, 5 to destroy.
+
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value:
+```
