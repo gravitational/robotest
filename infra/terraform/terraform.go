@@ -213,8 +213,6 @@ func (r *terraform) Destroy(ctx context.Context) error {
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
 	destroyCommand := []string{
 		"destroy", "-auto-approve",
-		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
-		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
 	if r.VarFilePath != "" {
@@ -306,15 +304,13 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 	}
 
 	varsPath := filepath.Join(r.stateDir, tfVarsFile)
-	err = r.saveVarsJSON(varsPath)
+	err = r.saveTerraformVars(varsPath)
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to store terraform vars")
 	}
 
 	applyCommand := []string{
 		"apply", "-input=false", "-auto-approve",
-		"-var", fmt.Sprintf("nodes=%d", r.NumNodes),
-		"-var", fmt.Sprintf("os=%s", r.OS),
 		fmt.Sprintf("-var-file=%s", varsPath),
 	}
 	if r.VarFilePath != "" {
@@ -379,31 +375,61 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	return out.Bytes(), nil
 }
 
-// serializes terraform vars into given file as JSON
-func (r *terraform) saveVarsJSON(varFile string) error {
-	var config interface{}
-	switch r.Config.CloudProvider {
+// converts a terraform.Config struct into a flat map ready for json serialization
+func configToTerraformVars(cfg Config) (tfvars map[string]interface{}, err error) {
+	tfvars = make(map[string]interface{})
+	switch cfg.CloudProvider {
 	case constants.AWS:
-		config = r.Config.AWS
+		return nil, trace.NotImplemented("aws robotest hasn't been run in a while")
 	case constants.Azure:
-		config = r.Config.Azure
-	case constants.GCE:
-		config = r.Config.GCE
+		return nil, trace.NotImplemented("azure robotest hasn't been run in a while")
+	case constants.GCE: // these should match assets/terraform/gce/config.tf
+		// required
+		tfvars["vm_type"] = cfg.GCE.VMType
+		tfvars["credentials"] = cfg.GCE.Credentials
+		tfvars["os_user"] = cfg.GCE.SSHUser
+		tfvars["ssh_pub_key_path"] = cfg.GCE.SSHPublicKeyPath
+		tfvars["node_tag"] = cfg.GCE.NodeTag
+		// optional
+		if cfg.GCE.Project != "" {
+			tfvars["project"] = cfg.GCE.Project
+		}
+		if cfg.GCE.Region != "" {
+			tfvars["region"] = cfg.GCE.Region
+		}
+		if cfg.GCE.Zone != "" {
+			tfvars["zone"] = cfg.GCE.Zone
+		}
 	default:
-		return trace.BadParameter("invalid cloud provider: %v", r.Config.CloudProvider)
+		return nil, trace.BadParameter("invalid cloud provider: %v", cfg.CloudProvider)
 	}
+
+	// the following are common to all cloud providers, and are critical TF vars
+	tfvars["os"] = cfg.OS
+	tfvars["nodes"] = cfg.NumNodes
+
+	return tfvars, nil
+}
+
+// serializes the relevant parts of the test config to a terraform vars file
+func (r *terraform) saveTerraformVars(varFile string) error {
+	tfvars, err := configToTerraformVars(r.Config)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	log.Debug(tfvars)
 
 	f, err := os.OpenFile(varFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.SharedReadWriteMask)
 	if err != nil {
 		return trace.Wrap(trace.ConvertSystemError(err),
-			"failed to save terraform variables file %v", varFile)
+			"failed to open terraform variables file %v", varFile)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent(" ", " ")
-	log.Debug(config)
-	return trace.Wrap(enc.Encode(config))
+	return trace.Wrap(enc.Encode(tfvars))
 }
 
 // MarshalJSON serializes this state object as JSON
