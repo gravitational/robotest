@@ -20,14 +20,17 @@ func TestConvertConfigToTerraformVars(t *testing.T) {
 	cfg := Config{
 		CloudProvider: "gce",
 		GCE:           &gceConfig,
-		OS:            "ubuntu:20",
+		OS:            "ubuntu",
 		ScriptPath:    "/robotest/assets/terraform/gce",
 		NumNodes:      3,
 		InstallerURL:  "s3://hub.gravitational.io/gravity/oss/app/telekube/7.0.0/linux/x86_64/telekube-7.0.0-linux-x86_64.tar",
 		DockerDevice:  "/dev/xvdb",
 		VarFilePath:   "/robotest/custom-vars.json",
 	}
-	cfg.Validate()
+	err := cfg.Validate()
+	if err != nil {
+		t.Error(err)
+	}
 
 	configMap, err := configToTerraformVars(cfg)
 	if err != nil {
@@ -37,13 +40,19 @@ func TestConvertConfigToTerraformVars(t *testing.T) {
 	expected["credentials"] = "/robotest/gce-creds.json"
 	expected["nodes"] = 3
 	expected["vm_type"] = "excellent"
-	expected["os"] = "ubuntu:20"
+	expected["os"] = "ubuntu"
 	expected["os_user"] = "ubuntu"
 	expected["ssh_pub_key_path"] = "/robotest/.ssh/robo.pub"
 	expected["node_tag"] = "unittest"
 
 	b, err := json.Marshal(configMap)
+	if err != nil {
+		t.Error(err)
+	}
 	e, err := json.Marshal(expected)
+	if err != nil {
+		t.Error(err)
+	}
 	if !reflect.DeepEqual(b, e) {
 		t.Errorf("\ngot:\t\t%q\nexpected:\t%q", b, e)
 	}
@@ -64,14 +73,17 @@ func TestConvertConfigToTerraformVarsOptionalValues(t *testing.T) {
 	cfg := Config{
 		CloudProvider: "gce",
 		GCE:           &gceConfig,
-		OS:            "ubuntu:20",
+		OS:            "ubuntu",
 		ScriptPath:    "/robotest/assets/terraform/gce",
 		NumNodes:      3,
 		InstallerURL:  "s3://hub.gravitational.io/gravity/oss/app/telekube/7.0.0/linux/x86_64/telekube-7.0.0-linux-x86_64.tar",
 		DockerDevice:  "/dev/xvdb",
 		VarFilePath:   "/robotest/custom-vars.json",
 	}
-	cfg.Validate()
+	err := cfg.Validate()
+	if err != nil {
+		t.Error(err)
+	}
 
 	configMap, err := configToTerraformVars(cfg)
 	if err != nil {
@@ -85,13 +97,19 @@ func TestConvertConfigToTerraformVarsOptionalValues(t *testing.T) {
 	expected["credentials"] = "/robotest/gce-creds.json"
 	expected["nodes"] = 3
 	expected["vm_type"] = "excellent"
-	expected["os"] = "ubuntu:20"
+	expected["os"] = "ubuntu"
 	expected["os_user"] = "ubuntu"
 	expected["ssh_pub_key_path"] = "/robotest/.ssh/robo.pub"
 	expected["node_tag"] = "unittest"
 
 	b, err := json.Marshal(configMap)
+	if err != nil {
+		t.Error(err)
+	}
 	e, err := json.Marshal(expected)
+	if err != nil {
+		t.Error(err)
+	}
 	if !reflect.DeepEqual(b, e) {
 		t.Errorf("\ngot:\t\t%q\nexpected:\t%q", b, e)
 	}
