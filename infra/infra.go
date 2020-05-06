@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/gravitational/robotest/lib/loc"
-	"github.com/gravitational/robotest/lib/ssh"
+	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/wait"
 
 	"github.com/gravitational/trace"
