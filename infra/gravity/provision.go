@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/dustin/go-humanize"
 	"github.com/gravitational/trace"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
