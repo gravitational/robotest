@@ -24,6 +24,11 @@ func Suite() *config.Config {
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
 	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
 	cfg.Add("upgrade", upgrade, upgradeParam{installParam: defaultInstallParam})
+	// upgrade3lts is vestigial alias for upgrade needed for backwards compat
+	// to prevent issues like:
+	//   https://github.com/gravitational/gravity/issues/1508
+	// consider removing at the next semver major version bump -- 2020-05 walt
+	cfg.Add("upgrade3lts", upgrade, upgradeParam{installParam: defaultInstallParam})
 	cfg.Add("autoscale", autoscale, defaultInstallParam)
 
 	return cfg
