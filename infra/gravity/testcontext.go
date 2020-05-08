@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gravitational/robotest"
 	"github.com/gravitational/robotest/lib/xlog"
 
 	"cloud.google.com/go/bigquery"
@@ -217,7 +218,12 @@ func (msg progressMessage) Save() (row map[string]bigquery.Value, insertID strin
 func (c *TestContext) updateStatus(status string) {
 	c.status = status
 
-	log := c.Logger().WithFields(logrus.Fields{"param": xlog.ToJSON(c.param), "name": c.name})
+	log := c.Logger().WithFields(logrus.Fields{
+		"param":   xlog.ToJSON(c.param),
+		"name":    c.name,
+		"version": robotest.Version,
+		"commit":  robotest.GitCommit,
+	})
 	switch c.status {
 	case TestStatusScheduled, TestStatusRunning:
 		log.Info(c.status)
