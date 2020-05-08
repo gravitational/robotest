@@ -78,6 +78,9 @@ func TestMain(t *testing.T) {
 		debug.StartProfiling(fmt.Sprintf("localhost:%v", *debugPort))
 	}
 
+	log.Debugf("Version:\t%s", robotest.Version)
+	log.Debugf("Git Commit:\t%s", robotest.GitCommit)
+
 	config := gravity.LoadConfig(t, []byte(*provision))
 	config = config.WithTag(*tag)
 
