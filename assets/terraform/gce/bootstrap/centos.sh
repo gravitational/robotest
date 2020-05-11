@@ -71,7 +71,11 @@ if [ $dns_running -eq 0 ] ; then
   systemctl disable dnsmasq
 fi
 
-yum install -y chrony python unzip
+# According to https://stackoverflow.com/a/27667111, this is a certificate issue.
+# Although not conclusive, disabling the epel repository for the install as well
+# as the packages being installed are all from the base repository
+yum --disablerepo=epel -y update ca-certificates
+yum --disablerepo=epel -y install chrony python unzip
 
 if ! aws --version; then
   curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
