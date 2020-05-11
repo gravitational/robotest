@@ -316,6 +316,7 @@ const (
 	waagentProvisionFile   = "/var/lib/waagent/provisioned"
 	cloudInitSupportedFile = "/var/lib/bootstrap_started"
 	cloudInitCompleteFile  = "/var/lib/bootstrap_complete"
+	cloudInitFailedFile    = "/var/lib/bootstrap_failed"
 )
 
 // bootstrapAzure workarounds some issues with Azure platform init
@@ -353,11 +354,34 @@ func bootstrapAzure(ctx context.Context, g *gravity, param cloudDynamicParams) (
 
 // bootstrapCloud is a simple workflow to wait for cloud-init to complete
 func bootstrapCloud(ctx context.Context, g *gravity, param cloudDynamicParams) (err error) {
-	err = sshutil.WaitForFile(ctx, g.Client(), g.Logger(), cloudInitCompleteFile, sshutil.TestRegularFile)
-	if err != nil {
-		return trace.Wrap(err)
-	}
+	return trace.Wrap(g.waitForBootstrapScript(ctx))
+}
 
+func (g *gravity) waitForBootstrapScript(ctx context.Context) error {
+	cmd := fmt.Sprintf(`sudo bash -c "[[ -f %v ]] && exit 2 || [[ -f %v ]] && exit 0 || exit 1"`,
+		cloudInitFailedFile, cloudInitCompleteFile)
+	err := wait.Retry(ctx, func() error {
+		err := sshutil.RunAndParse(ctx, g.Client(), g.Logger(), cmd, nil, sshutil.ParseDiscard)
+		if err == nil {
+			return nil
+		}
+		if exitError, ok := trace.Unwrap(err).(sshutil.ExitStatusError); ok {
+			/*
+			   0      bootstrap successful file found
+			   2      bootstrap failed file found
+			   1      no bootstrap file found
+			*/
+			switch exitError.ExitStatus() {
+			case 0:
+				return nil
+			case 2:
+				return wait.Abort(trace.Errorf("bootstrap script failed"))
+			case 1:
+				return wait.Continue("bootstrap status file not found")
+			}
+		}
+		return wait.Abort(trace.Wrap(err, "waiting for bootstrap script to complete"))
+	})
 	return trace.Wrap(err)
 }
 
