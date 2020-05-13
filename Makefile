@@ -4,7 +4,6 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 VERSIONFILE := version.go
 # docker doesn't allow "+" in image tags: https://github.com/docker/distribution/issues/1201
 DOCKER_VERSION ?= $(subst +,-,$(VERSION))
-TAG ?= latest
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)

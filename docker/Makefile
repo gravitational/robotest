@@ -1,6 +1,5 @@
 TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
-TAG ?= latest
 DOCKER_ARGS ?= --pull
 
 GRAVITY_VERSION := 5.5.20
@@ -61,7 +60,10 @@ publish: $(DOCKER_IMG)
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
-	docker tag $@:$(VERSION) $@:$(TAG)
 	docker push $@:$(VERSION)
+ifneq ($(TAG),)
+	docker tag $@:$(VERSION) $@:$(TAG)
 	docker push $@:$(TAG)
+endif
+
 
