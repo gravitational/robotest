@@ -45,8 +45,8 @@ const (
 	TestStatusFailed = "FAILED"
 	// TestStatusCancelled means test execution was interrupted due to test suite cancellation
 	TestStatusCancelled = "CANCELED"
-	// TestStatusPaniced means test function had an unexpected panic
-	TestStatusPaniced = "PANICED"
+	// TestStatusPanicked means test function had an unexpected panic
+	TestStatusPanicked = "PANICKED"
 )
 
 // TestStatus represents high level test status on completion
@@ -294,7 +294,7 @@ func (s *testSuite) runTestFunc(t *testing.T, testFunc TestFunc, cfg Provisioner
 		// genuine panic by test itself, not after cx.OK()
 		// usually that is a logical error in a test itself
 		// there is no reason to retry it
-		testCtx.updateStatus(TestStatusPaniced)
+		testCtx.updateStatus(TestStatusPanicked)
 		testCtx.Logger().WithFields(
 			logrus.Fields{
 				"stack": string(debug.Stack()),
