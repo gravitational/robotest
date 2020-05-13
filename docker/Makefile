@@ -57,7 +57,11 @@ $(TARGETS): $(BINARIES)
 DOCKER_IMG = $(addprefix $(DOCKER_REPO)/robotest-,$(TARGETS))
 
 .PHONY: publish
-publish: $(DOCKER_IMG)
+# publishing e2e disabled until we find priority for https://github.com/gravitational/robotest/issues/162
+# reenable all of DOCKER_IMG as publish deps to begin publishing robotest-e2e again
+# - 2020-05 walt
+# publish: $(DOCKER_IMG)
+publish: $(DOCKER_REPO)/robotest-suite
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
