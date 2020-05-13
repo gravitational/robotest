@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # this versioning algo:
-#  - if on a tagged commit, use only the tag
-#    e.g. 6.2.18 (for the commit tagged 6.2.18)
+#  - if on a tagged commit, use the tag with any preceding 'v' stripped
+#    e.g. 6.2.18 (for the commit tagged v6.2.18)
 #  - if last tag was a regular release, bump the minor version, make a it a 'dev' pre-release, and append # of commits since tag
-#    e.g. 5.5.38-dev.5 (for 5 commits after 5.5.37)
+#    e.g. 5.5.38-dev.5 (for 5 commits after v5.5.37)
 #  - if last tag was a pre-release tag (e.g. alpha, beta, rc), append number of commits since the tag
-#    e.g. 7.0.0-alpha.1.5 (for 5 commits after 7.0.0-alpha.1)
+#    e.g. 7.0.0-alpha.1.5 (for 5 commits after v7.0.0-alpha.1)
 
 
 increment_patch() {
@@ -29,11 +29,20 @@ COMMITS_SINCE_LAST_TAG=`git rev-list  ${COMMIT_WITH_LAST_TAG}..HEAD --count`
 BUILD_METADATA=`git rev-parse --short=8 HEAD`
 DIRTY_AFFIX=$(git diff --quiet || echo '-dirty')
 
+# strip leading v from git tag, see:
+#   https://github.com/golang/go/issues/32945
+#   https://semver.org/#is-v123-a-semantic-version
+if [[ "$SHORT_TAG" == v* ]]; then
+    SEMVER_TAG="${SHORT_TAG:1}"
+else
+    SEMVER_TAG="${SHORT_TAG}"
+fi
+
 if [[ "$LONG_TAG" == "$SHORT_TAG" ]] ; then  # the current commit is tagged as a release
-    echo "${SHORT_TAG}${DIRTY_AFFIX}"
+    echo "${SEMVER_TAG}${DIRTY_AFFIX}"
 elif [[ "$SHORT_TAG" != *-* ]] ; then  # the current ref is a decendent of a regular version
     SHORT_TAG=$(increment_patch ${SHORT_TAG})
-    echo "$SHORT_TAG-dev.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
+    echo "$SEMVER_TAG-dev.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
 else  # the current ref is a decendent of a pre-release version (e.g. rc, alpha, or beta)
-    echo "$SHORT_TAG.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
+    echo "$SEMVER_TAG.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
 fi
