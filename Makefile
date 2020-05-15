@@ -2,14 +2,15 @@ TARGETS := e2e suite
 VERSION ?= $(shell ./version.sh)
 GIT_COMMIT := $(shell git rev-parse HEAD)
 VERSIONFILE := version.go
-# docker doesn't allow "+" in image tags: https://github.com/docker/distribution/issues/1201
-DOCKER_VERSION ?= $(subst +,-,$(VERSION))
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)
+# docker doesn't allow "+" in image tags: https://github.com/docker/distribution/issues/1201
+export DOCKER_VERSION ?= $(subst +,-,$(VERSION))
+export DOCKER_TAG ?=
+export DOCKER_ARGS ?= --pull
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
-DOCKER_ARGS ?= --pull
 GOLANGCI_LINT_VER ?= 1.21.0
 
 .PHONY: help
@@ -46,12 +47,12 @@ buildbox:
 .PHONY: containers
 containers: ## Build container images.
 containers: build lint
-	$(MAKE) -C docker containers DOCKER_ARGS=$(DOCKER_ARGS)
+	$(MAKE) -C docker containers
 
 .PHONY: publish
 publish: ## Publish container images to quay.io.
 publish: build lint
-	$(MAKE) -C docker -j publish VERSION=$(DOCKER_VERSION) TAG=$(TAG)
+	$(MAKE) -C docker -j publish
 
 .PHONY: clean
 clean: ## Remove intermediate build artifacts & cache.

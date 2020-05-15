@@ -1,5 +1,9 @@
 TARGETS := e2e suite
 DOCKER_REPO := quay.io/gravitational
+# An empty version will result in build failure, call targets from the top level Makefile to set this
+DOCKER_VERSION ?=
+# An empty tag will be ignored
+DOCKER_TAG ?=
 DOCKER_ARGS ?= --pull
 
 GRAVITY_VERSION := 5.5.20
@@ -35,7 +39,7 @@ $(BINARIES):
 .PHONY: $(TARGETS)
 $(TARGETS): $(BINARIES)
 	$(eval TEMPDIR = "$(shell mktemp -d)")
-	$(eval IMAGE = $(DOCKER_REPO)/robotest-$@:$(VERSION))
+	$(eval IMAGE = $(DOCKER_REPO)/robotest-$@:$(DOCKER_VERSION))
 	if [ -z "$(TEMPDIR)" ]; then \
 	  echo "TEMPDIR is not set"; exit 1; \
 	fi;
@@ -64,10 +68,10 @@ publish: $(DOCKER_REPO)/robotest-suite
 
 .PHONY: $(DOCKER_IMG)
 $(DOCKER_IMG): $(TARGETS)
-	docker push $@:$(VERSION)
-ifneq ($(TAG),)
-	docker tag $@:$(VERSION) $@:$(TAG)
-	docker push $@:$(TAG)
+	docker push $@:$(DOCKER_VERSION)
+ifneq ($(DOCKER_TAG),)
+	docker tag $@:$(DOCKER_VERSION) $@:$(DOCKER_TAG)
+	docker push $@:$(DOCKER_TAG)
 endif
 
 
