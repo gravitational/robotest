@@ -26,13 +26,13 @@ RUN curl ${TF_TARBALL} -o terraform.zip && \
     unzip terraform.zip -d /usr/bin && \
     rm -f terraform.zip && \
     mkdir -p /etc/terraform/plugins && \
-
+    \
     for plugin in $TF_PLUGINS; do \
         curl ${plugin} -o plugin.zip && \
         unzip plugin.zip -d /etc/terraform/plugins && \
         rm -f plugin.zip; \
     done && \
-
+    \
     apt-get clean && \
     rm -rf \
         /var/lib/apt/lists/* \
