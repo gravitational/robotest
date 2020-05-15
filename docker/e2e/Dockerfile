@@ -17,19 +17,19 @@ RUN \
     echo 'deb http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google.list && \
     apt-get update && \
     apt-get -y install google-chrome-stable xvfb unzip && \
-
+    \
     curl $TF_TARBALL -o terraform.zip && \
     curl ${TF_TARBALL} -o terraform.zip && \
     unzip terraform.zip -d /usr/bin && \
     rm -f terraform.zip && \
     mkdir -p /etc/terraform/plugins && \
-
+    \
     for plugin in $TF_PLUGINS; do \
         curl ${plugin} -o plugin.zip && \
         unzip plugin.zip -d /etc/terraform/plugins && \
         rm -f plugin.zip; \
     done && \
-
+    \
     curl $CHROMEDRIVER_TARBALL -o chromedriver.zip && \
     unzip chromedriver.zip && \
     mv chromedriver /usr/bin && \
