@@ -14,6 +14,7 @@ import (
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
 	"github.com/gravitational/robotest/lib/debug"
+	"github.com/gravitational/robotest/lib/defaults"
 	"github.com/gravitational/robotest/lib/xlog"
 	"github.com/gravitational/robotest/suite/sanity"
 
@@ -24,8 +25,9 @@ var testSuite = flag.String("suite", "sanity", "test suite to run")
 var provision = flag.String("provision", "", "cloud credentials in JSON string")
 var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
 
-var repeat = flag.Int("repeat", 1, "how many times to repeat a test")
-var failFast = flag.Bool("fail-fast", false, "will attemt to shut down all other tests on first failure")
+var repeat = flag.Int("repeat", 1, "the number of times to schedule each test")
+var retries = flag.Int("retries", defaults.MaxRetriesPerTest, "the number of times to retry a failed test")
+var failFast = flag.Bool("fail-fast", false, "cancel all scheduled tests and retries on first failure")
 var destroyOnSuccess = flag.Bool("destroy-on-success", true, "remove resources after test success")
 var destroyOnFailure = flag.Bool("destroy-on-failure", false, "remove resources after test failure")
 
@@ -107,14 +109,16 @@ func TestMain(t *testing.T) {
 	}
 	gravity.SetProvisionerPolicy(policy)
 
-	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, log.Fields{
+	logFields := log.Fields{
 		"test_suite":         *testSuite,
 		"test_set":           testSet,
 		"provisioner_policy": policy,
 		"tag":                *tag,
 		"repeat":             *repeat,
 		"fail_fast":          *failFast,
-	}, *failFast)
+	}
+
+	suite := gravity.NewSuite(ctx, t, *cloudLogProjectID, logFields, *failFast, *retries, defaults.MaxPreemptedRetriesPerTest)
 	defer suite.Close()
 	setupSignals(suite)
 

@@ -16,6 +16,7 @@ if [ -d $(dirname ${GRAVITY_URL}) ]; then
 fi
 
 REPEAT_TESTS=${REPEAT_TESTS:-1}
+RETRIES=${RETRIES:-3}
 PARALLEL_TESTS=${PARALLEL_TESTS:-1}
 FAIL_FAST=${FAIL_FAST:-false}
 ALWAYS_COLLECT_LOGS=${ALWAYS_COLLECT_LOGS:-true}
@@ -155,7 +156,7 @@ exec docker run ${DOCKER_RUN_FLAGS} \
 	quay.io/gravitational/robotest-suite:${ROBOTEST_VERSION} \
 	dumb-init robotest-suite -test.timeout=48h ${LOG_CONSOLE} \
 	${GCL_PROJECT_ID:+"-gcl-project-id=${GCL_PROJECT_ID}"} \
-	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -fail-fast=${FAIL_FAST} \
+	-test.parallel=${PARALLEL_TESTS} -repeat=${REPEAT_TESTS} -retries=${RETRIES} -fail-fast=${FAIL_FAST} \
 	-provision="${CLOUD_CONFIG}" -always-collect-logs=${ALWAYS_COLLECT_LOGS} \
 	-resourcegroup-file=/robotest/state/alloc.txt \
 	-destroy-on-success=${DESTROY_ON_SUCCESS} -destroy-on-failure=${DESTROY_ON_FAILURE} \

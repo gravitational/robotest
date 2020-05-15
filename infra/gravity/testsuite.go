@@ -71,7 +71,8 @@ type testSuite struct {
 	scheduled map[string]func(t *testing.T)
 	t         *testing.T
 
-	failFast, isFailingFast bool
+	failFast, isFailingFast               bool
+	retryAttempts, preemptedRetryAttempts int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -80,7 +81,8 @@ type testSuite struct {
 }
 
 // NewRun creates new group run environment
-func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields logrus.Fields, failFast bool) TestSuite {
+func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields logrus.Fields, failFast bool, retryAttempts, preemptedRetryAttempts int) TestSuite {
+
 	uid := uuid.NewV4().String()
 	fields["__suite__"] = uid
 
@@ -100,17 +102,19 @@ func NewSuite(ctx context.Context, t *testing.T, googleProjectID string, fields 
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &testSuite{
-		RWMutex:         sync.RWMutex{},
-		googleProjectID: googleProjectID,
-		client:          client,
-		progress:        progress,
-		uid:             uid,
-		scheduled:       scheduled,
-		t:               t,
-		failFast:        failFast,
-		ctx:             ctx,
-		cancel:          cancel,
-		logger:          logger,
+		RWMutex:                sync.RWMutex{},
+		googleProjectID:        googleProjectID,
+		client:                 client,
+		progress:               progress,
+		uid:                    uid,
+		scheduled:              scheduled,
+		t:                      t,
+		failFast:               failFast,
+		retryAttempts:          retryAttempts,
+		preemptedRetryAttempts: preemptedRetryAttempts,
+		ctx:                    ctx,
+		cancel:                 cancel,
+		logger:                 logger,
 	}
 }
 
@@ -178,7 +182,7 @@ func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interf
 		t.Helper()
 		t.Parallel()
 
-		b := newPreemptiveBackoff(defaults.MaxRetriesPerTest, defaults.MaxPreemptedRetriesPerTest)
+		b := newPreemptiveBackoff(s.retryAttempts, s.preemptedRetryAttempts)
 		try := 0
 		err := wait.RetryWithInterval(s.ctx, b, func() error {
 			t.Helper()
