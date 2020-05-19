@@ -22,9 +22,6 @@ const (
 	// SharedReadWriteMask is a mask for a shared file with world read/write access
 	SharedReadWriteMask = 0666
 
-	// EnvDockerDevice specifies the name of the environment variable with docker device name
-	EnvDockerDevice = "DOCKER_DEVICE"
-
 	// OSRedHat is RedHat Enterprise Linux
 	OSRedHat = "redhat"
 
