@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -173,13 +172,18 @@ func apiserverNode(ctx context.Context, nodes []Gravity) (api Gravity, other []G
 		return nil, nil, trace.Wrap(err, "failed to resolve %v", apiserver)
 	}
 
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].Node().PrivateAddr() == apiserverAddr
-	})
-	api = nodes[0]
-	if api.Node().PrivateAddr() != apiserverAddr {
+	other = make([]Gravity, 0, len(nodes)-1)
+	for _, node := range nodes {
+		if node.Node().PrivateAddr() == apiserverAddr {
+			api = node
+		} else {
+			other = append(other, node)
+		}
+	}
+
+	if api == nil {
 		return nil, nil, trace.NotFound("no apiserver node found")
 	}
 
-	return api, nodes[1:], nil
+	return api, other, nil
 }
