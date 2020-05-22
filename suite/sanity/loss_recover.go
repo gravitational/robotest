@@ -104,9 +104,11 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 			g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": nodes}).
 				Info("roles after expand")
 
-			g.OK("remove old node", g.RemoveNode(nodes, removed))
+			g.OK("remove node", g.RemoveNode(nodes[0], removed))
+			g.OK("remove status", g.Status(nodes))
 		} else {
-			g.OK("remove lost node", g.RemoveNode(nodes, removed))
+			g.OK("remove lost node", g.RemoveNode(nodes[0], removed))
+			g.OK("remove status", g.Status(nodes))
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node role after remove", err)
