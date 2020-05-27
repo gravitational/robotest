@@ -37,5 +37,6 @@ var DefaultTimeouts = OpTimeouts{
 	AutoScaling:      time.Minute * 10, // wait for autoscaling operation
 	TimeSync:         time.Minute * 30, // wait for ntp to converge
 	ResolveInPlanet:  time.Minute * 30, // resolve a hostname inside planet with dig
+	GetPods:          time.Minute * 1,  // use kubectl to query pods on the API master
 	ExecScript:       time.Minute * 30, // user provided script, this should be specified by the user
 }

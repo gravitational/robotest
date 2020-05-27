@@ -130,6 +130,8 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, e
 		return nil, trace.Wrap(err)
 	}
 
+	ctx, cancel = context.WithTimeout(c.ctx, c.timeouts.GetPods)
+	defer cancel()
 	// Run query on the apiserver
 	pods, err := KubectlGetPods(ctx, roles.ApiMaster, kubeSystemNS, appGravityLabel)
 	if err != nil {

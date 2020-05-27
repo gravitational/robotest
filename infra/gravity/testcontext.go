@@ -33,6 +33,7 @@ type OpTimeouts struct {
 	AutoScaling      time.Duration
 	TimeSync         time.Duration
 	ResolveInPlanet  time.Duration
+	GetPods          time.Duration
 	ExecScript       time.Duration
 }
 
