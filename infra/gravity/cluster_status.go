@@ -53,9 +53,8 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.TimeSync)
 	defer cancel()
-
 	err := sshutils.CheckTimeSync(ctx, timeNodes)
 	return trace.Wrap(err)
 }
@@ -122,7 +121,7 @@ type ClusterNodesByRole struct {
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
 func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, err error) {
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.ResolveInPlanet)
 	defer cancel()
 
 	roles = &ClusterNodesByRole{}

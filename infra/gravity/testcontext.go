@@ -31,6 +31,9 @@ type OpTimeouts struct {
 	CollectLogs      time.Duration
 	WaitForInstaller time.Duration
 	AutoScaling      time.Duration
+	TimeSync         time.Duration
+	ResolveInPlanet  time.Duration
+	ExecScript       time.Duration
 }
 
 // TestContext aggregates common parameters for better test suite readability

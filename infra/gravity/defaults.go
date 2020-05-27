@@ -35,4 +35,7 @@ var DefaultTimeouts = OpTimeouts{
 	CollectLogs:      time.Minute * 7,  // to collect logs from node
 	WaitForInstaller: time.Minute * 30, // wait for build to complete in parallel
 	AutoScaling:      time.Minute * 10, // wait for autoscaling operation
+	TimeSync:         time.Minute * 30, // wait for ntp to converge
+	ResolveInPlanet:  time.Minute * 30, // resolve a hostname inside planet with dig
+	ExecScript:       time.Minute * 30, // user provided script, this should be specified by the user
 }
