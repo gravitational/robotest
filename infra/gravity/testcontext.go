@@ -20,11 +20,12 @@ const (
 
 // OpTimeouts defines per-node, per-operation timeouts which would be used to determine
 // whether test must be failed
-// provisioner has its own timeout / restart logic which is dependant on cloud provider and terraform
+// provisioner has its own timeout / restart logic which is dependent on cloud provider and terraform
 type OpTimeouts struct {
 	Install          time.Duration
 	Upgrade          time.Duration
-	Status           time.Duration
+	NodeStatus       time.Duration
+	ClusterStatus    time.Duration
 	Uninstall        time.Duration
 	UninstallApp     time.Duration
 	Leave            time.Duration

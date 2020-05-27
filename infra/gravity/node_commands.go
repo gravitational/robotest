@@ -125,11 +125,6 @@ type JoinCmd struct {
 	StateDir string
 }
 
-// IsDegraded determines whether the cluster is in degraded state
-func (r GravityStatus) IsDegraded() bool {
-	return r.Cluster.Status == "degraded"
-}
-
 // GravityStatus describes the status of the Gravity cluster
 type GravityStatus struct {
 	// Cluster describes the cluster status
@@ -284,26 +279,7 @@ var installCmdTemplate = template.Must(
 `))
 
 // Status queries cluster status
-func (g *gravity) Status(ctx context.Context) (status *GravityStatus, err error) {
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = defaults.ClusterStatusTimeout
-	err = wait.RetryWithInterval(ctx, b, func() (err error) {
-		status, err = g.status(ctx)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-		if status.IsDegraded() {
-			return trace.BadParameter("degraded")
-		}
-		return nil
-	}, g.log)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return status, nil
-}
-
-func (g *gravity) status(ctx context.Context) (*GravityStatus, error) {
+func (g *gravity) Status(ctx context.Context) (*GravityStatus, error) {
 	cmd := fmt.Sprintf("sudo gravity status --output=json --system-log-file=%v",
 		defaults.AgentLogPath)
 	status := GravityStatus{}

@@ -205,7 +205,7 @@ func (c *TestContext) uploadInstaller(master Gravity, nodes []Gravity, installer
 		return trace.Wrap(err)
 	}
 
-	err = c.Status(nodes)
+	err = c.WaitForActiveStatus(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}

@@ -2,45 +2,78 @@ package gravity
 
 import (
 	"context"
-	"time"
 
+	"github.com/cenkalti/backoff"
+
+	"github.com/gravitational/robotest/lib/defaults"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
-
 	"github.com/gravitational/trace"
 )
 
-// Status walks around all nodes and checks whether they all feel OK
-func (c *TestContext) Status(nodes []Gravity) error {
-	c.Logger().WithField("nodes", Nodes(nodes)).Info("Check status on nodes.")
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
-	defer cancel()
+// WaitForActiveStatus blocks until all nodes report state = Active and notDegraded or an internal timeout expires.
+func (c *TestContext) WaitForActiveStatus(nodes []Gravity) error {
+	c.Logger().WithField("nodes", Nodes(nodes)).Info("Waiting for active status.")
+	return c.WaitForStatus(nodes, defaults.GravityStateActive)
+}
 
-	retry := wait.Retryer{
-		Attempts: 100,
-		Delay:    time.Second * 20,
+// WaitForStatus blocks until all nodes satisfy the expected statusValidator or an internal timeout expires.
+func (c *TestContext) WaitForStatus(nodes []Gravity, expected string) error {
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = c.timeouts.ClusterStatus
+
+	expectStatus := func() (err error) {
+		statuses, err := c.Status(nodes)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		for _, status := range statuses {
+			if status.Cluster.Status != expected {
+				c.Logger().WithError(err).WithField("status", status).Warn("Unexpected Status.")
+				return trace.CompareFailed("expected status %q, found %q", expected, status.Cluster.Status)
+			}
+		}
+		return nil
 	}
 
-	err := retry.Do(ctx, func() error {
-		errs := make(chan error, len(nodes))
-
-		for _, node := range nodes {
-			go func(n Gravity) {
-				_, err := n.Status(ctx)
-				errs <- err
-			}(node)
-		}
-
-		err := utils.CollectErrors(ctx, errs)
-		if err == nil {
-			return nil
-		}
-		c.Logger().Warnf("Status not available on some nodes, will retry: %v.", err)
-		return wait.Continue("status not ready on some nodes")
-	})
+	err := wait.RetryWithInterval(c.ctx, b, expectStatus, c.Logger())
 
 	return trace.Wrap(err)
+
+}
+
+// Status queries `gravity status` on each node in nodes.
+func (c *TestContext) Status(nodes []Gravity) ([]GravityStatus, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.NodeStatus)
+	defer cancel()
+
+	errC := make(chan error, len(nodes))
+	valueC := make(chan interface{}, len(nodes))
+
+	for _, node := range nodes {
+		go func(n Gravity) {
+			status, err := n.Status(ctx)
+			errC <- err
+			if status != nil {
+				valueC <- *status
+			}
+		}(node)
+	}
+
+	values, err := utils.Collect(ctx, cancel, errC, valueC)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	var statuses []GravityStatus
+	for _, v := range values {
+		status, ok := v.(GravityStatus)
+		if !ok {
+			return nil, trace.BadParameter("expected %T, got %T", status, v)
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
 }
 
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits

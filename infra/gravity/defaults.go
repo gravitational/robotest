@@ -30,7 +30,8 @@ var DefaultTimeouts = OpTimeouts{
 	Upgrade:          time.Minute * 30, // upgrade threshold per node
 	Uninstall:        time.Minute * 5,  // uninstall threshold per node
 	UninstallApp:     time.Minute * 5,  // application uninstall threshold
-	Status:           time.Minute * 30, // sufficient for failover procedures
+	NodeStatus:       time.Minute * 1,  // limit for status to return on a single node
+	ClusterStatus:    time.Minute * 5,  // limit for status to queisce across the cluster
 	Leave:            time.Minute * 15, // threshold to leave cluster
 	CollectLogs:      time.Minute * 7,  // to collect logs from node
 	WaitForInstaller: time.Minute * 30, // wait for build to complete in parallel

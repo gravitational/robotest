@@ -84,13 +84,13 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 
 		nodes := cluster.Nodes[0:param.NodeCount]
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
-		g.OK("install status", g.Status(nodes))
+		g.OK("wait for active status", g.WaitForActiveStatus(nodes))
 
 		nodes, removed, err := removeNode(g, nodes, param.ReplaceNodeType, param.PowerOff)
 		g.OK(fmt.Sprintf("node for removal=%v, poweroff=%v", removed, param.PowerOff), err)
 
 		now := time.Now()
-		g.OK("wait for cluster to be ready", g.Status(nodes))
+		g.OK("wait for active status", g.WaitForActiveStatus(nodes))
 		g.Logger().WithFields(logrus.Fields{"nodes": nodes, "elapsed": fmt.Sprintf("%v", time.Since(now))}).
 			Info("cluster is available")
 
@@ -105,10 +105,10 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 				Info("roles after expand")
 
 			g.OK("remove node", g.RemoveNode(nodes[0], removed))
-			g.OK("remove status", g.Status(nodes))
+			g.OK("wait for active status", g.WaitForActiveStatus(nodes))
 		} else {
 			g.OK("remove lost node", g.RemoveNode(nodes[0], removed))
-			g.OK("remove status", g.Status(nodes))
+			g.OK("wait for active status", g.WaitForActiveStatus(nodes))
 
 			roles, err := g.NodesByRole(nodes)
 			g.OK("node role after remove", err)

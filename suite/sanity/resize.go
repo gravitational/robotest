@@ -41,11 +41,11 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 		g.OK("download installer", g.SetInstaller(cluster.Nodes, cfg.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.NodeCount),
 			g.OfflineInstall(cluster.Nodes[0:param.NodeCount], param.InstallParam))
-		g.OK("status", g.Status(cluster.Nodes[0:param.NodeCount]))
+		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes[0:param.NodeCount]))
 		g.OK("time sync", g.CheckTimeSync(cluster.Nodes))
 		g.OK(fmt.Sprintf("expand to %d nodes", param.ToNodes),
 			g.Expand(cluster.Nodes[0:param.NodeCount], cluster.Nodes[param.NodeCount:param.ToNodes],
 				param.InstallParam))
-		g.OK("status", g.Status(cluster.Nodes[0:param.ToNodes]))
+		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes[0:param.ToNodes]))
 	}, nil
 }

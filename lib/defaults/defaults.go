@@ -30,6 +30,9 @@ const (
 	// NodeRole is the default role when installing/joining a node
 	NodeRole = "node"
 
+	// GravityStateActive is https://github.com/gravitational/gravity/blob/7.0.0/lib/ops/constants.go#L71
+	GravityStateActive = "active"
+
 	// GravityDir is the default location of all gravity data on a node
 	GravityDir = "/var/lib/gravity"
 
@@ -39,9 +42,6 @@ const (
 
 	// TerraformRetryDelay
 	TerraformRetryDelay = 5 * time.Minute
-
-	// ClusterStatusTimeout specifies the maximum amount of time to wait for cluster status
-	ClusterStatusTimeout = 5 * time.Minute
 
 	// TerraformRetries is the maximum number of attempts to reprovision the
 	// infrastructure upon encountering an error from 'terraform apply'
