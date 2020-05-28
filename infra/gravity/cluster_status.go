@@ -5,21 +5,32 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"github.com/gravitational/robotest/lib/defaults"
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 )
 
+// statusValidator returns nil if the Gravity Status is the expected status or an error otherwise.
+type statusValidator func(s GravityStatus) error
+
+// checkActive returns an error if the cluster is degraded or state != active.
+func checkActive(s GravityStatus) error {
+	if s.Cluster.Status != constants.ClusterStateActive {
+		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.Status)
+	}
+	return nil
+}
+
 // WaitForActiveStatus blocks until all nodes report state = Active and notDegraded or an internal timeout expires.
 func (c *TestContext) WaitForActiveStatus(nodes []Gravity) error {
 	c.Logger().WithField("nodes", Nodes(nodes)).Info("Waiting for active status.")
-	return c.WaitForStatus(nodes, defaults.GravityStateActive)
+	return c.WaitForStatus(nodes, checkActive)
 }
 
 // WaitForStatus blocks until all nodes satisfy the expected statusValidator or an internal timeout expires.
-func (c *TestContext) WaitForStatus(nodes []Gravity, expected string) error {
+func (c *TestContext) WaitForStatus(nodes []Gravity, expected statusValidator) error {
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = c.timeouts.ClusterStatus
 
@@ -29,9 +40,10 @@ func (c *TestContext) WaitForStatus(nodes []Gravity, expected string) error {
 			return trace.Wrap(err)
 		}
 		for _, status := range statuses {
-			if status.Cluster.Status != expected {
+			err = expected(status)
+			if err != nil {
 				c.Logger().WithError(err).WithField("status", status).Warn("Unexpected Status.")
-				return trace.CompareFailed("expected status %q, found %q", expected, status.Cluster.Status)
+				return trace.Wrap(err)
 			}
 		}
 		return nil

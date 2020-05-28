@@ -30,9 +30,6 @@ const (
 	// NodeRole is the default role when installing/joining a node
 	NodeRole = "node"
 
-	// GravityStateActive is https://github.com/gravitational/gravity/blob/7.0.0/lib/ops/constants.go#L71
-	GravityStateActive = "active"
-
 	// GravityDir is the default location of all gravity data on a node
 	GravityDir = "/var/lib/gravity"
 
