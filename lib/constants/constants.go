@@ -64,4 +64,9 @@ const (
 	ClusterStateActive = "active"
 	// ClusterStateDegraded is unhealthy.
 	ClusterStateDegraded = "degraded"
+
+	// SystemStatus_* consts come from https://github.com/gravitational/satellite/blob/7.1.0/agent/proto/agentpb/agent.pb.go#L28-L32
+
+	SystemStatus_Running  = 1
+	SystemStatus_Degraded = 2
 )

@@ -3,6 +3,7 @@ package gravity
 import (
 	"bufio"
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,10 +15,11 @@ func TestGravityOutput(t *testing.T) {
 `)
 	expectedStatus := &GravityStatus{
 		Cluster: ClusterStatus{
-			Cluster:     "testcluster",
-			Application: Application{Name: "telekube"},
-			State:       "active",
-			Token:       Token{Token: "fac3b88014367fe4e98a8664755e2be4"},
+			Cluster:      "testcluster",
+			Application:  Application{Name: "telekube"},
+			State:        "active",
+			SystemStatus: 1,
+			Token:        Token{Token: "fac3b88014367fe4e98a8664755e2be4"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.40.2.4"},
 				NodeStatus{Addr: "10.40.2.5"},
@@ -38,10 +40,11 @@ func TestGravityOutput(t *testing.T) {
 func TestHealthyStatusValidation(t *testing.T) {
 	healthyStatus := GravityStatus{
 		Cluster: ClusterStatus{
-			Cluster:     "robotest",
-			Application: Application{Name: "telekube"},
-			State:       "active",
-			Token:       Token{Token: "ROBOTEST"},
+			Cluster:      "robotest",
+			Application:  Application{Name: "telekube"},
+			State:        "active",
+			SystemStatus: 1,
+			Token:        Token{Token: "ROBOTEST"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.1.2.3"},
 				NodeStatus{Addr: "10.1.2.4"},
@@ -63,7 +66,7 @@ func Test1523StatusValidation(t *testing.T) {
 		Cluster: ClusterStatus{
 			Cluster:     "robotest",
 			Application: Application{Name: "telekube"},
-			State:       "degraded",
+			State:       "expanding",
 			Token:       Token{Token: "ROBOTEST"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.1.2.3"},
@@ -71,5 +74,22 @@ func Test1523StatusValidation(t *testing.T) {
 		},
 	}
 	err := checkActive(nonActiveStatus)
+	assert.Error(t, err)
+}
+
+// Test1641StatusValidation ensures a particular status type seen
+// in the field identified as degraded by Robotest.
+//
+// See https://github.com/gravitational/gravity/issues/1641 for more info.
+func Test1641StatusValidation(t *testing.T) {
+	f, err := os.Open("testdata/status-degraded-1641.json")
+	assert.NoError(t, err)
+	defer f.Close()
+
+	var status GravityStatus
+	err = parseStatus(&status)(bufio.NewReader(f))
+	assert.NoError(t, err)
+
+	err = checkNotDegraded(status)
 	assert.Error(t, err)
 }

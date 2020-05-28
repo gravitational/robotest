@@ -15,8 +15,24 @@ import (
 // statusValidator returns nil if the Gravity Status is the expected status or an error otherwise.
 type statusValidator func(s GravityStatus) error
 
+// checkNotDegraded returns an error if the cluster status is Degraded.
+//
+// This function is a reimplementation of the logic in https://github.com/gravitational/gravity/blob/7.0.0/lib/status/status.go#L180-L185
+func checkNotDegraded(s GravityStatus) error {
+	if s.Cluster.State == constants.ClusterStateDegraded {
+		return trace.CompareFailed("cluster state %q", s.Cluster.State)
+	}
+	if s.Cluster.SystemStatus != constants.SystemStatus_Running {
+		return trace.CompareFailed("expected system_status %v, found %v", constants.SystemStatus_Running, s.Cluster.SystemStatus)
+	}
+	return nil
+}
+
 // checkActive returns an error if the cluster is degraded or state != active.
 func checkActive(s GravityStatus) error {
+	if err := checkNotDegraded(s); err != nil {
+		return trace.Wrap(err)
+	}
 	if s.Cluster.State != constants.ClusterStateActive {
 		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.State)
 	}

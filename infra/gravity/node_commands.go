@@ -139,6 +139,8 @@ type ClusterStatus struct {
 	Cluster string `json:"domain"`
 	// State is the cluster state
 	State string `json:"state"`
+	// SystemStatus is the cluster status, see https://github.com/gravitational/satellite/blob/7.1.0/agent/proto/agentpb/agent.proto#L50-L54
+	SystemStatus int `json:"system_status"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
 	Token Token `json:"token"`
 	// Nodes describes the nodes in the cluster
