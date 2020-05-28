@@ -137,8 +137,8 @@ type ClusterStatus struct {
 	Application Application `json:"application"`
 	// Cluster is the name of the cluster
 	Cluster string `json:"domain"`
-	// Status is the cluster status
-	Status string `json:"state"`
+	// State is the cluster state
+	State string `json:"state"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
 	Token Token `json:"token"`
 	// Nodes describes the nodes in the cluster

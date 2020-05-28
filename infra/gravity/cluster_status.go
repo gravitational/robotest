@@ -17,8 +17,8 @@ type statusValidator func(s GravityStatus) error
 
 // checkActive returns an error if the cluster is degraded or state != active.
 func checkActive(s GravityStatus) error {
-	if s.Cluster.Status != constants.ClusterStateActive {
-		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.Status)
+	if s.Cluster.State != constants.ClusterStateActive {
+		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.State)
 	}
 	return nil
 }

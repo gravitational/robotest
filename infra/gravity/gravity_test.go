@@ -16,7 +16,7 @@ func TestGravityOutput(t *testing.T) {
 		Cluster: ClusterStatus{
 			Cluster:     "testcluster",
 			Application: Application{Name: "telekube"},
-			Status:      "active",
+			State:       "active",
 			Token:       Token{Token: "fac3b88014367fe4e98a8664755e2be4"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.40.2.4"},
@@ -40,7 +40,7 @@ func TestHealthyStatusValidation(t *testing.T) {
 		Cluster: ClusterStatus{
 			Cluster:     "robotest",
 			Application: Application{Name: "telekube"},
-			Status:      "active",
+			State:       "active",
 			Token:       Token{Token: "ROBOTEST"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.1.2.3"},
@@ -63,7 +63,7 @@ func Test1523StatusValidation(t *testing.T) {
 		Cluster: ClusterStatus{
 			Cluster:     "robotest",
 			Application: Application{Name: "telekube"},
-			Status:      "degraded",
+			State:       "degraded",
 			Token:       Token{Token: "ROBOTEST"},
 			Nodes: []NodeStatus{
 				NodeStatus{Addr: "10.1.2.3"},
