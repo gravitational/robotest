@@ -39,5 +39,4 @@ var DefaultTimeouts = OpTimeouts{
 	TimeSync:         time.Minute * 5,  // wait for ntp to converge
 	ResolveInPlanet:  time.Minute * 1,  // resolve a hostname inside planet with dig
 	GetPods:          time.Minute * 1,  // use kubectl to query pods on the API master
-	ExecScript:       time.Minute * 5,  // user provided script, this should be specified by the user
 }

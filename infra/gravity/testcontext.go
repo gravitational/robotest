@@ -35,7 +35,6 @@ type OpTimeouts struct {
 	TimeSync         time.Duration
 	ResolveInPlanet  time.Duration
 	GetPods          time.Duration
-	ExecScript       time.Duration
 }
 
 // TestContext aggregates common parameters for better test suite readability
