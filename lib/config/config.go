@@ -100,15 +100,24 @@ func (c *Config) Parse(args []string) (fns TestSet, err error) {
 var withArgs = regexp.MustCompile(`^(\S+)=(.+)$`)
 
 func makeFunction(fn ConfigFn, data string, defaults interface{}) (*Entry, error) {
-	param, err := parseJSON(data, defaults)
+	// make a pointer to a new object of underlying type of `defaults`
+	paramPtr := reflect.New(reflect.TypeOf(defaults))
+	// point it to a copy of the data from defaults
+	// TODO consider some sort of deepcopy or eliminating the option to pass default
+	// values. Presently a ref in the parameter defaults is asking for trouble.
+	paramPtr.Elem().Set(reflect.ValueOf(defaults))
+
+	err := json.Unmarshal([]byte(data), paramPtr.Interface())
+	if err != nil {
+		return nil, trace.BadParameter("JSON decode %q failed: %v", data, err)
+	}
+
+	err = checkAndSetDefaults(paramPtr.Interface())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	err = Validate(param)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
+	param := reflect.Indirect(paramPtr).Interface()
 
 	var testFn gravity.TestFunc
 	testFn, err = fn(param)
@@ -119,32 +128,19 @@ func makeFunction(fn ConfigFn, data string, defaults interface{}) (*Entry, error
 	return &Entry{testFn, param}, nil
 }
 
-// parseJSON parses JSON data using defaults object
-func parseJSON(data string, defaults interface{}) (interface{}, error) {
-	if data == "" {
-		return defaults, nil
-	}
-
-	// use reflection as otherwise json.Unmarshal will set map[] object type
-	// in many cases, overriding `defaults` object type
-
-	decoder := reflect.ValueOf(json.Unmarshal)
-
-	// make an object of underlying type of `defaults` and make it a copy
-	out := reflect.New(reflect.TypeOf(defaults))
-	out.Elem().Set(reflect.ValueOf(defaults))
-
-	dataBytes := reflect.ValueOf([]byte(data))
-
-	ret := decoder.Call([]reflect.Value{dataBytes, out})
-	if ret[0].IsNil() {
-		return reflect.Indirect(out).Interface(), nil
-	}
-
-	return nil, trace.Errorf("JSON decode %q failed: %v", data, ret[0].Interface())
+type defaulter interface {
+	CheckAndSetDefaults() error
 }
 
-func Validate(param interface{}) error {
-	err := validator.New().Struct(param)
-	return trace.Wrap(err)
+// checkAndSetDefaults validates parameters according to struct field tags and
+// custom logic specified by implementing the Validator interface.
+func checkAndSetDefaults(param interface{}) error {
+	if err := validator.New().Struct(param); err != nil {
+		return trace.Wrap(err)
+	}
+
+	if d, ok := param.(defaulter); ok {
+		return trace.Wrap(d.CheckAndSetDefaults())
+	}
+	return nil
 }
