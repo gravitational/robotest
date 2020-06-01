@@ -1,11 +1,11 @@
 package sanity
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/gravitational/robotest/infra/gravity"
 	"github.com/gravitational/robotest/lib/config"
+	"github.com/gravitational/trace"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -18,22 +18,33 @@ type installParam struct {
 	Script *scriptParam `json:"script"`
 }
 
-type scriptParam struct {
-	Url     string         `json:"url" validate:"required"`
-	Args    []string       `json:"args"`
-	Timeout config.Timeout `json:"timeout"`
+func (r *installParam) CheckAndSetDefaults() error {
+	if r.Script != nil {
+		if err := r.Script.CheckAndSetDefaults(); err != nil {
+			return trace.Wrap(err)
+		}
+	}
+	// TODO assert NodeCount >= flavor
+	return nil
 }
 
-// a hack to set default values when deserializing optional/nil-able structs
-// in this case, if the user doesn't specify a script timeout, prefer a non-zero timeout
-func (p *scriptParam) UnmarshalJSON(data []byte) error {
-	type alias scriptParam // to prevent Unmarshal recursion
-	defaults := alias{Timeout: config.Timeout{time.Minute * 5}}
-	err := json.Unmarshal(data, &defaults)
-	if err != nil {
-		return err
+type scriptParam struct {
+	Url     string          `json:"url" validate:"required"`
+	Args    []string        `json:"args"`
+	Timeout *config.Timeout `json:"timeout" validate:"omitempty"`
+}
+
+func (r *scriptParam) CheckAndSetDefaults() error {
+	if r.Timeout == nil {
+		r.Timeout = &config.Timeout{Duration: 5 * time.Minute}
+	} else {
+		if r.Timeout.Duration < 0 {
+			return trace.BadParameter("timeout must be >= 0")
+		}
 	}
-	*p = scriptParam(defaults)
+	if r.Url == "" {
+		return trace.BadParameter("script URL must be specified")
+	}
 	return nil
 }
 
