@@ -64,7 +64,7 @@ test: ## Run unit tests.
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
 		$(BUILDBOX) \
-		dumb-init go test -cover -race -v ./infra/...
+		dumb-init go test -cover -race -v ./infra/... ./lib/config/...
 
 .PHONY: lint
 lint: ## Run static analysis against source code.
