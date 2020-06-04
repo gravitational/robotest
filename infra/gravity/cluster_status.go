@@ -2,45 +2,105 @@ package gravity
 
 import (
 	"context"
-	"time"
 
+	"github.com/cenkalti/backoff"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
-
 	"github.com/gravitational/trace"
 )
 
-// Status walks around all nodes and checks whether they all feel OK
-func (c *TestContext) Status(nodes []Gravity) error {
-	c.Logger().WithField("nodes", Nodes(nodes)).Info("Check status on nodes.")
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
-	defer cancel()
+// statusValidator returns nil if the Gravity Status is the expected status or an error otherwise.
+type statusValidator func(s GravityStatus) error
 
-	retry := wait.Retryer{
-		Attempts: 100,
-		Delay:    time.Second * 20,
+// checkNotDegraded returns an error if the cluster status is Degraded.
+//
+// This function is a reimplementation of the logic in https://github.com/gravitational/gravity/blob/7.0.0/lib/status/status.go#L180-L185
+func checkNotDegraded(s GravityStatus) error {
+	if s.Cluster.State == constants.ClusterStateDegraded {
+		return trace.CompareFailed("cluster state %q", s.Cluster.State)
+	}
+	if s.Cluster.SystemStatus != constants.SystemStatus_Running {
+		return trace.CompareFailed("expected system_status %v, found %v", constants.SystemStatus_Running, s.Cluster.SystemStatus)
+	}
+	return nil
+}
+
+// checkActive returns an error if the cluster is degraded or state != active.
+func checkActive(s GravityStatus) error {
+	if err := checkNotDegraded(s); err != nil {
+		return trace.Wrap(err)
+	}
+	if s.Cluster.State != constants.ClusterStateActive {
+		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.State)
+	}
+	return nil
+}
+
+// WaitForActiveStatus blocks until all nodes report state = Active and notDegraded or an internal timeout expires.
+func (c *TestContext) WaitForActiveStatus(nodes []Gravity) error {
+	c.Logger().WithField("nodes", Nodes(nodes)).Info("Waiting for active status.")
+	return c.WaitForStatus(nodes, checkActive)
+}
+
+// WaitForStatus blocks until all nodes satisfy the expected statusValidator or an internal timeout expires.
+func (c *TestContext) WaitForStatus(nodes []Gravity, expected statusValidator) error {
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = c.timeouts.ClusterStatus
+
+	expectStatus := func() (err error) {
+		statuses, err := c.Status(nodes)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		for _, status := range statuses {
+			err = expected(status)
+			if err != nil {
+				c.Logger().WithError(err).WithField("status", status).Warn("Unexpected Status.")
+				return trace.Wrap(err)
+			}
+		}
+		return nil
 	}
 
-	err := retry.Do(ctx, func() error {
-		errs := make(chan error, len(nodes))
-
-		for _, node := range nodes {
-			go func(n Gravity) {
-				_, err := n.Status(ctx)
-				errs <- err
-			}(node)
-		}
-
-		err := utils.CollectErrors(ctx, errs)
-		if err == nil {
-			return nil
-		}
-		c.Logger().Warnf("Status not available on some nodes, will retry: %v.", err)
-		return wait.Continue("status not ready on some nodes")
-	})
+	err := wait.RetryWithInterval(c.ctx, b, expectStatus, c.Logger())
 
 	return trace.Wrap(err)
+
+}
+
+// Status queries `gravity status` once from each node in nodes.
+func (c *TestContext) Status(nodes []Gravity) (statuses []GravityStatus, err error) {
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.NodeStatus)
+	defer cancel()
+
+	valueC := make(chan GravityStatus, len(nodes))
+	g, ctx := errgroup.WithContext(ctx)
+	for _, node := range nodes {
+		node := node
+		g.Go(func() error {
+			status, err := node.Status(ctx)
+			if err != nil {
+				return trace.Wrap(err)
+			}
+			if status != nil {
+				valueC <- *status
+			}
+			return nil
+		})
+	}
+	err = g.Wait()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	close(valueC)
+	for status := range valueC {
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
 }
 
 // CheckTime walks around all nodes and checks whether their time is within acceptable limits
@@ -53,9 +113,8 @@ func (c *TestContext) CheckTimeSync(nodes []Gravity) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.TimeSync)
 	defer cancel()
-
 	err := sshutils.CheckTimeSync(ctx, timeNodes)
 	return trace.Wrap(err)
 }
@@ -122,7 +181,7 @@ type ClusterNodesByRole struct {
 
 // NodesByRole will conveniently organize nodes according to their roles in cluster
 func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, err error) {
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.ResolveInPlanet)
 	defer cancel()
 
 	roles = &ClusterNodesByRole{}
@@ -131,6 +190,8 @@ func (c *TestContext) NodesByRole(nodes []Gravity) (roles *ClusterNodesByRole, e
 		return nil, trace.Wrap(err)
 	}
 
+	ctx, cancel = context.WithTimeout(c.ctx, c.timeouts.GetPods)
+	defer cancel()
 	// Run query on the apiserver
 	pods, err := KubectlGetPods(ctx, roles.ApiMaster, kubeSystemNS, appGravityLabel)
 	if err != nil {

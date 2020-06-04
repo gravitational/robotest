@@ -18,7 +18,7 @@ func (c *TestContext) Expand(currentCluster, nodesToJoin []Gravity, p InstallPar
 	// status is solely used for gathering the join token, can this be replaced
 	// with InstallParam.Token -- 2020-05 walt
 	peer := currentCluster[0]
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.NodeStatus)
 	defer cancel()
 	status, err := peer.Status(ctx)
 	if err != nil {
@@ -41,7 +41,7 @@ func (c *TestContext) Expand(currentCluster, nodesToJoin []Gravity, p InstallPar
 // JoinNode has one node join a peer already in a cluster
 func (c *TestContext) JoinNode(peer, nodeToJoin Gravity, p InstallParam) error {
 
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.NodeStatus)
 	defer cancel()
 	status, err := peer.Status(ctx)
 	if err != nil {

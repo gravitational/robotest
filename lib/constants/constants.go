@@ -54,3 +54,19 @@ const (
 	// Ops specifies a special cloud provider - a telekube Ops Center
 	Ops = "ops"
 )
+
+// Gravity API constants redeclared here to avoid extra dependencies solely to
+// get these values
+const (
+	// ClusterState* consts come from https://github.com/gravitational/gravity/blob/7.0.0/lib/ops/constants.go#L64-L93
+
+	// ClusterStateActive is healthy and not running any operations.
+	ClusterStateActive = "active"
+	// ClusterStateDegraded is unhealthy.
+	ClusterStateDegraded = "degraded"
+
+	// SystemStatus_* consts come from https://github.com/gravitational/satellite/blob/7.1.0/agent/proto/agentpb/agent.pb.go#L28-L32
+
+	SystemStatus_Running  = 1
+	SystemStatus_Degraded = 2
+)

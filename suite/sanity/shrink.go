@@ -29,19 +29,19 @@ func shrink(p interface{}) (gravity.TestFunc, error) {
 		g.OK("Download installer.", g.SetInstaller(all, cfg.InstallerURL, "install"))
 
 		g.OK("Install.", g.OfflineInstall(others, param.InstallParam))
-		g.OK("Install status.", g.Status(others))
+		g.OK("Wait for active status.", g.WaitForActiveStatus(others))
 
 		joinParam := param.InstallParam
 		joinParam.Role = "knode"
 		g.OK("Expand.", g.Expand(others, target, joinParam))
-		g.OK("Expand status.", g.Status(all))
+		g.OK("Wait for active status.", g.WaitForActiveStatus(all))
 
 		roles, err := g.NodesByRole(all)
 		g.OK("Query roles.", err)
 		g.Logger().WithFields(logrus.Fields{"roles": roles, "nodes": all}).Info("Node roles after expand.")
 
 		g.OK("Shrink.", g.Shrink(others, target))
-		g.OK("Shrink status.", g.Status(others))
+		g.OK("Wait for active status.", g.WaitForActiveStatus(others))
 
 	}, nil
 }

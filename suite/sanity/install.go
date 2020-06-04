@@ -62,7 +62,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 				g.ExecScript(cluster.Nodes, param.Script.Url, param.Script.Args))
 		}
 		g.OK("application installed", g.OfflineInstall(cluster.Nodes, param.InstallParam))
-		g.OK("status", g.Status(cluster.Nodes))
+		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes))
 	}, nil
 }
 

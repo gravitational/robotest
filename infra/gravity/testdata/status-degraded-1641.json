@@ -1,0 +1,129 @@
+{
+  "cluster": {
+    "application": {
+      "repository": "gravitational.io",
+      "name": "telekube",
+      "version": "6.1.27"
+    },
+    "state": "active",
+    "domain": "robotest-unit-test",
+    "token": {
+      "token": "ROBOTEST",
+      "expires": "0001-01-01T00:00:00Z",
+      "type": "expand",
+      "account_id": "00000000-0000-0000-0000-000000000001",
+      "site_domain": "robotest-unit-test",
+      "operation_id": "42178dd3-291c-4dd7-a870-87a1ade5d93a",
+      "user_email": "agent@robotest-unit-test"
+    },
+    "operation": {
+      "type": "operation_install",
+      "id": "42178dd3-291c-4dd7-a870-87a1ade5d93a",
+      "state": "completed",
+      "created": "2020-05-27T21:04:41.962836059Z",
+      "description": "3-node install",
+      "progress": {
+        "message": "Operation has completed",
+        "completion": 100,
+        "created": "2020-05-27T21:05:20.934000242Z"
+      }
+    },
+    "endpoints": {
+      "applications": {
+        "Endpoints": [
+          {
+            "application": {
+              "repository": "gravitational.io",
+              "name": "telekube",
+              "version": "6.1.27"
+            },
+            "endpoints": [
+              {
+                "name": "Gravity Control Panel",
+                "description": "Local administrative user interface of this Gravity cluster\n",
+                "addresses": [
+                  "https://10.138.0.23:32009",
+                  "https://10.138.0.53:32009",
+                  "https://10.138.0.56:32009"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "cluster": {
+        "auth_gateway": [
+          "10.138.0.56:32009",
+          "10.138.0.23:32009",
+          "10.138.0.53:32009"
+        ],
+        "ui": [
+          "https://10.138.0.56:32009",
+          "https://10.138.0.23:32009",
+          "https://10.138.0.53:32009"
+        ]
+      }
+    },
+    "Extension": {},
+    "server_version": {
+      "edition": "open-source",
+      "version": "6.1.27",
+      "gitCommit": "1787b91072d649e6fcb761c803a8690d432e07d6",
+      "helm": "v2.14"
+    },
+    "client_version": {
+      "edition": "open-source",
+      "version": "6.1.27",
+      "gitCommit": "1787b91072d649e6fcb761c803a8690d432e07d6",
+      "helm": "v2.14"
+    },
+    "system_status": 2,
+    "nodes": [
+      {
+        "hostname": "robotest-unit-test-node-1",
+        "advertise_ip": "10.138.0.56",
+        "role": "master",
+        "profile": "node",
+        "status": "degraded",
+        "failed_probes": [
+          "etcd-healthz (unexpected HTTP status: Service Unavailable)"
+        ],
+        "teleport_node": {
+          "hostname": "robotest-unit-test-node-1",
+          "advertise_ip": "10.138.0.56",
+          "public_ip": "",
+          "profile": "node",
+          "instance_type": ""
+        }
+      },
+      {
+        "hostname": "robotest-unit-test-node-0",
+        "advertise_ip": "10.138.0.23",
+        "role": "master",
+        "profile": "node",
+        "status": "healthy",
+        "teleport_node": {
+          "hostname": "robotest-unit-test-node-0",
+          "advertise_ip": "10.138.0.23",
+          "public_ip": "",
+          "profile": "node",
+          "instance_type": ""
+        }
+      },
+      {
+        "hostname": "robotest-unit-test-node-2",
+        "advertise_ip": "10.138.0.53",
+        "role": "master",
+        "profile": "node",
+        "status": "healthy",
+        "teleport_node": {
+          "hostname": "robotest-unit-test-node-2",
+          "advertise_ip": "10.138.0.53",
+          "public_ip": "",
+          "profile": "node",
+          "instance_type": ""
+        }
+      }
+    ]
+  }
+}

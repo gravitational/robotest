@@ -205,7 +205,7 @@ func (c *TestContext) uploadInstaller(master Gravity, nodes []Gravity, installer
 		return trace.Wrap(err)
 	}
 
-	err = c.Status(nodes)
+	err = c.WaitForActiveStatus(nodes)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -232,7 +232,7 @@ func (c *TestContext) upgrade(master Gravity, numNodes int) error {
 
 // ExecScript will run and execute a script on all nodes
 func (c *TestContext) ExecScript(nodes []Gravity, scriptUrl string, args []string) error {
-	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.Status)
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.ExecScript)
 	defer cancel()
 
 	errs := make(chan error, len(nodes))

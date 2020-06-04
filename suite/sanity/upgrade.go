@@ -35,8 +35,8 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 
 		g.OK("base installer", g.SetInstaller(cluster.Nodes, param.BaseInstallerURL, "base"))
 		g.OK("install", g.OfflineInstall(cluster.Nodes, param.InstallParam))
-		g.OK("status", g.Status(cluster.Nodes))
+		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes))
 		g.OK("upgrade", g.Upgrade(cluster.Nodes, cfg.InstallerURL, cfg.GravityURL, "upgrade"))
-		g.OK("status", g.Status(cluster.Nodes))
+		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes))
 	}, nil
 }
