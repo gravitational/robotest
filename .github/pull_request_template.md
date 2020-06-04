@@ -2,7 +2,7 @@
 <!-- Required. Provide a concise overview of *why* this change is important. -->
 
 ### Risk Profile
-<!-- Required. Remove all but one. Refer to https://semver.org/spec/v2.0.0.html -->
+<!-- Required. Remove all but one. Refer to https://semver.org/spec/v2.0.0.html and https://github.com/gravitational/robotest/blob/master/RELEASE.md-->
  - Bug fix (patch release) <!-- An API compatible internal change which fixes incorrect behavior linked in Related Issues. Bug fixes shall include an automated test case that fails without the fix and pass with it. -->
  - New feature or internal change (minor release) <!-- A non-API-breaking change which adds new functionality or improves Robotest's code without fixing a bug. -->
  - Backwards incompatible change (major release) <!-- This change introduces a change that could or will break existing usage of Robotest's API. -->

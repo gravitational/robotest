@@ -43,12 +43,11 @@ the new dependencies must be:
 
 ## Compatibility & API Stability
 
-Robotest follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
-(semver) for its CLI API. Robotest is not intended to be used as a library, and
-makes no guarantees about the stability of any native golang APIs, even if exported.
+Robotest follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
+(semver) as described in the [release documentation](./RELEASE.md)
 
 Due to semver's strict requirements, patches that introduce new options
-or change behavior of the CLI API may need to wait for the next minor or major
+or change behavior of the public API may need to wait for the next major or minor
 release for merge. Major & minor releases are issued on an as needed basis.
 
 ## Style
