@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/cenkalti/backoff"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
@@ -71,34 +72,32 @@ func (c *TestContext) WaitForStatus(nodes []Gravity, expected statusValidator) e
 
 }
 
-// Status queries `gravity status` on each node in nodes.
-func (c *TestContext) Status(nodes []Gravity) ([]GravityStatus, error) {
+// Status queries `gravity status` once from each node in nodes.
+func (c *TestContext) Status(nodes []Gravity) (statuses []GravityStatus, err error) {
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeouts.NodeStatus)
 	defer cancel()
 
-	errC := make(chan error, len(nodes))
-	valueC := make(chan interface{}, len(nodes))
-
+	valueC := make(chan GravityStatus, len(nodes))
+	g, ctx := errgroup.WithContext(ctx)
 	for _, node := range nodes {
-		go func(n Gravity) {
-			status, err := n.Status(ctx)
-			errC <- err
+		node := node
+		g.Go(func() error {
+			status, err := node.Status(ctx)
+			if err != nil {
+				return trace.Wrap(err)
+			}
 			if status != nil {
 				valueC <- *status
 			}
-		}(node)
+			return nil
+		})
 	}
-
-	values, err := utils.Collect(ctx, cancel, errC, valueC)
+	err = g.Wait()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	var statuses []GravityStatus
-	for _, v := range values {
-		status, ok := v.(GravityStatus)
-		if !ok {
-			return nil, trace.BadParameter("expected %T, got %T", status, v)
-		}
+	close(valueC)
+	for status := range valueC {
 		statuses = append(statuses, status)
 	}
 	return statuses, nil

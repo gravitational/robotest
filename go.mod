@@ -33,7 +33,7 @@ require (
 	go.opencensus.io v0.0.0-20181129005706-8b019f31bc1c // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/oauth2 v0.0.0-20181128211412-28207608b838
-	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
+	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f
 	google.golang.org/api v0.0.0-20181129220737-af4fc4062c26 // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20181202183823-bd91e49a0898 // indirect
