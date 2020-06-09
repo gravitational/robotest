@@ -15,6 +15,7 @@
 <!-- Required.
 Show the testing you did with shell transcripts, links to logs and/or a mention of the automated test cases that were added. Provide enough information that a co-contributor (or CI system) could reproduce your testing. -->
 <details><summary><code><!-- make test? --></code></summary>
+
 <pre>
 <!--
 Stub collapsible details provided for convenience.
