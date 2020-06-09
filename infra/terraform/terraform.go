@@ -326,8 +326,6 @@ func (r *terraform) boot(ctx context.Context) (rc io.ReadCloser, err error) {
 	if err != nil {
 		return nil, trace.Wrap(err, "failed to boot terraform cluster: %s", out)
 	}
-	r.Debug("Cluster outputs:", string(out))
-
 	return ioutil.NopCloser(bytes.NewReader(out)), nil
 }
 
@@ -354,7 +352,7 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 		"cmd": cmd,
 		"pid": cmd.Process.Pid,
 	})
-	logger.Info("Command started.")
+	logger.Debug("Command started.")
 	waitDone := make(chan struct{})
 	go func() {
 		select {
@@ -367,8 +365,7 @@ func (r *terraform) command(ctx context.Context, args []string, opts ...system.C
 	close(waitDone)
 	logger.WithFields(log.Fields{
 		log.ErrorKey: err,
-		"output":     out.String(),
-	}).Info("Command finished.")
+	}).Debug("Command finished:\n", out.String()) // out intentionally included in the message, see #244
 	if err != nil {
 		return out.Bytes(), trace.Wrap(err, "command %#v failed: %s", cmd, out.Bytes())
 	}
