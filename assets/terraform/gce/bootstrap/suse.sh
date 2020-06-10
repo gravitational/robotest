@@ -33,7 +33,7 @@ function secure-ssh {
   (grep -qE '(\#?)\WChallengeResponseAuthentication' $sshd_config && \
     sed -re 's/^(\#?)\W*(ChallengeResponseAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
     echo 'ChallengeResponseAuthentication no' >> $sshd_config
-  systemctl reload ssh
+  systemctl reload sshd
 }
 
 function setup-user {
