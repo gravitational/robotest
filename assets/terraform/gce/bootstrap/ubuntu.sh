@@ -18,9 +18,9 @@ DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 function exit_handler {
   if [[ $? -ne 0 ]]; then
-    touch -f bootstrap_failed
+    touch -f /var/lib/bootstrap_failed
   else
-    touch -f bootstrap_complete
+    touch -f /var/lib/bootstrap_complete
   fi
 }
 
