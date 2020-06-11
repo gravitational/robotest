@@ -2,11 +2,27 @@
 #
 # VM bootstrap script for Debian/Ubuntu
 #
-set -exuo pipefail
+set -o errexit
+set -o errtrace
+set -o xtrace
+set -o nounset
+set -o pipefail
+
+rm -f /var/lib/bootstrap_*
+touch /var/lib/bootstrap_started
+trap exit_handler EXIT
 
 etcd_device_name=sdb
 etcd_dir=/var/lib/gravity/planet/etcd
 DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
+function exit_handler {
+  if [[ $? -ne 0 ]]; then
+    touch -f /var/lib/bootstrap_failed
+  else
+    touch -f /var/lib/bootstrap_complete
+  fi
+}
 
 function secure-ssh {
   local sshd_config=/etc/ssh/sshd_config
@@ -53,8 +69,6 @@ function setup-user {
   sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 }
 
-touch /var/lib/bootstrap_started
-
 mkdir -p $etcd_dir /var/lib/data
 
 remove-sshguard
@@ -99,6 +113,3 @@ net.ipv4.tcp_keepalive_intvl=60
 net.ipv4.tcp_keepalive_probes=5
 EOF
 sysctl -p /etc/sysctl.d/50-telekube.conf
-
-# Mark bootstrap step complete for robotest
-touch /var/lib/bootstrap_complete
