@@ -48,7 +48,7 @@ function secure-ssh {
   (grep -qE '(\#?)\WChallengeResponseAuthentication' $sshd_config && \
     sed -re 's/^(\#?)\W*(ChallengeResponseAuthentication)([[:space:]]+)yes/\2\3no/' -i $sshd_config) || \
     echo 'ChallengeResponseAuthentication no' >> $sshd_config
-  systemctl reload ssh
+  systemctl reload sshd
 }
 
 function setup-user {
@@ -92,6 +92,31 @@ if ! grep -qs "$etcd_dir" /proc/mounts; then
   echo -e "/dev/$etcd_device_name\t$etcd_dir\text4\tdefaults\t0\t2" >> /etc/fstab
   mount $etcd_dir
 fi
+
+# grow-root-fs expands '/' to use all available space on the device.
+#
+# The GCP sles-12-sp5-v20200610 image doesn't recognize extra space in drives
+# by default, and limits the '/' partition to 10G without this kick.
+#
+# See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_partitions
+function grow-root-fs {
+  echo "Filesystem utilization before grow-root-fs:"
+  df -h
+
+  local root_fs_dev=$(findmnt --noheadings -o SOURCE /) # e.g. /dev/sda3
+  local root_fs_dev_name=$(lsblk --noheadings -o kname $root_fs_dev) # e.g. sda3
+  local partition_number=$(cat /sys/class/block/$root_fs_dev_name/partition) # e.g. 3
+  local parent_dev_name=$(lsblk --noheadings -o pkname $root_fs_dev) # e.g. sda
+  local parent_dev=/dev/$parent_dev_name # e.g. /dev/sda
+
+  growpart $parent_dev $partition_number
+  xfs_growfs /
+
+  echo "Filesystem utilization after grow-root-fs:"
+  df -h
+}
+
+grow-root-fs
 
 ## Setup modules / sysctls
 # Load required kernel modules
