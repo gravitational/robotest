@@ -100,12 +100,16 @@ resource "google_compute_instance" "node" {
   }
 }
 
+locals {
+  boot_disk_size = 64
+}
+
 resource "google_compute_disk" "boot" {
   count = var.nodes
   name  = "${var.node_tag}-disk-boot-${count.index}"
   type  = var.disk_type
   zone  = local.zone
-  size  = 64
+  size  = local.boot_disk_size
   image = var.oss[var.os]
 
   labels = {
@@ -131,8 +135,10 @@ data "template_file" "bootstrap" {
   template = file("./bootstrap/${element(split(":", var.os), 0)}.sh")
 
   vars = {
-    os_user     = var.os_user
-    ssh_pub_key = file(var.ssh_pub_key_path)
+    os_user             = var.os_user
+    ssh_pub_key         = file(var.ssh_pub_key_path)
+    # 1G left for other partions (e.g. efi)
+    root_partition_size = local.boot_disk_size - 1
   }
 }
 

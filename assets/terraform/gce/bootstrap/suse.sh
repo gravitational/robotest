@@ -111,12 +111,11 @@ fi
 # grow-root-fs expands '/' to use all available space on the device.
 #
 # The GCP sles-12-sp5-v20200610 image doesn't recognize extra space in drives
-# by default, and limits the '/' partition to 10G without this kick.
+# by default, and limits the '/' partition to 10G without this kick. This doesn't
+# affect suse-cloud/sles-15-sp1-v20200415.
 #
 # See https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_partitions
 function grow-root-fs {
-  echo "Filesystem utilization before grow-root-fs:"
-  df -h
 
   local root_fs_dev=$(findmnt --noheadings -o SOURCE /) # e.g. /dev/sda3
   local root_fs_dev_name=$(lsblk --noheadings -o kname $root_fs_dev) # e.g. sda3
@@ -124,11 +123,19 @@ function grow-root-fs {
   local parent_dev_name=$(lsblk --noheadings -o pkname $root_fs_dev) # e.g. sda
   local parent_dev=/dev/$parent_dev_name # e.g. /dev/sda
 
-  growpart $parent_dev $partition_number
-  xfs_growfs /
+  local root_fs_size_bytes=$(sudo blockdev --getsize64 $root_fs_dev)
+  local root_fs_size_gb=$((root_fs_size_bytes >> 30))
+  local expected=${root_partition_size} # from terraform
 
-  echo "Filesystem utilization after grow-root-fs:"
-  df -h
+  if [ $root_fs_size_gb -le $expected ]; then
+    echo "Root filesystem looks smaller than expected."
+    echo "Filesystem utilization:"
+    df -h
+    growpart $parent_dev $partition_number
+    xfs_growfs /
+    echo "Filesystem utilization after grow:"
+    df -h
+  fi
 }
 
 grow-root-fs

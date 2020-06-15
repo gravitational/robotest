@@ -98,4 +98,3 @@ resource "random_shuffle" "zones" {
 locals {
   zone = random_shuffle.zones.result[0]
 }
-
