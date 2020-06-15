@@ -81,8 +81,23 @@ mkdir -p $etcd_dir /var/lib/data
 secure-ssh
 setup-user
 
-curl https://bootstrap.pypa.io/get-pip.py | python -
-pip install --upgrade awscli
+function install-aws-cli {
+  # suse-cloud/sles-15-sp1-v20200415 has no python, but offers python3.
+  # suse-cloud/sles-12-sp5-v20200227 has both, but it's python3 < 3.5 and is
+  # incompatible with awscli.
+  if command -v python; then
+    local python=$(command -v  python)
+  elif command -v python3; then
+    local python=$(command -v python3)
+  else
+    echo "No python available."
+    exit 2
+  fi
+  curl https://bootstrap.pypa.io/get-pip.py | $python -
+  pip install --upgrade awscli
+}
+
+install-aws-cli
 
 mkdir -p /var/lib/gravity/planet/etcd /var/lib/data
 
