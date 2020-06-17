@@ -94,7 +94,7 @@ function install-aws-cli {
     exit 2
   fi
   curl https://bootstrap.pypa.io/get-pip.py | $python -
-  pip install --upgrade awscli
+  $python -m pip install --upgrade awscli
 }
 
 install-aws-cli
