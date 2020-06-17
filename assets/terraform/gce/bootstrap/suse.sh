@@ -127,7 +127,7 @@ function grow-root-fs {
   local root_fs_size_gb=$((root_fs_size_bytes >> 30))
   local expected=${root_partition_size} # from terraform
 
-  if [ $root_fs_size_gb -le $expected ]; then
+  if [ $root_fs_size_gb -lt $expected ]; then
     echo "Root filesystem looks smaller than expected."
     echo "Filesystem utilization:"
     df -h
