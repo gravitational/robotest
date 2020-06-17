@@ -22,9 +22,9 @@ variable "oss" {
     "debian:9"      = "debian-cloud/debian-9-stretch-v20200420"
     "debian:10"     = "debian-cloud/debian-10-buster-v20200413"
     "debian:latest" = "debian-cloud/debian-10-buster-v20200413"
-    "suse:12"       = "suse-cloud/sles-12-sp5-v20200227"
-    "suse:15"       = "suse-cloud/sles-15-sp1-v20200415"
-    "suse:latest"   = "suse-cloud/sles-15-sp1-v20200415"
+    "suse:12"       = "suse-cloud/sles-12-sp5-v20200610"
+    "suse:15"       = "suse-cloud/sles-15-sp1-v20200610"
+    "suse:latest"   = "suse-cloud/sles-15-sp1-v20200610"
   }
 }
 
