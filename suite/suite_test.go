@@ -38,7 +38,7 @@ import (
 )
 
 var testSuite = flag.String("suite", "sanity", "test suite to run")
-var provision = flag.String("provision", "", "cloud credentials in JSON string")
+var provision = flag.String("provision", "", "cloud credentials in YAML string")
 var tag = flag.String("tag", "", "tag to uniquely mark resources in cloud")
 
 var repeat = flag.Int("repeat", 1, "the number of times to schedule each test")
@@ -59,10 +59,6 @@ var versionFlag = flag.Bool("version", false, "Display version information")
 
 // max amount of time test will run
 var testMaxTime = time.Hour * 12
-
-var suites = map[string]*config.Config{
-	"sanity": sanity.Suite(),
-}
 
 func setupSignals(suite gravity.TestSuite) {
 	c := make(chan os.Signal, 3)
@@ -99,8 +95,12 @@ func TestMain(t *testing.T) {
 	log.Debugf("Version:\t%s", robotest.Version)
 	log.Debugf("Git Commit:\t%s", robotest.GitCommit)
 
-	config := gravity.LoadConfig(t, []byte(*provision))
-	config = config.WithTag(*tag)
+	provisionerConfig := gravity.LoadConfig(t, []byte(*provision))
+	provisionerConfig = provisionerConfig.WithTag(*tag)
+
+	suites := map[string]*config.Config{
+		"sanity": sanity.Suite(provisionerConfig),
+	}
 
 	suiteCfg, there := suites[*testSuite]
 	if !there {
@@ -141,7 +141,7 @@ func TestMain(t *testing.T) {
 	for r := 1; r <= *repeat; r++ {
 		for ts, entry := range testSet {
 			suite.Schedule(entry.TestFunc,
-				config.WithTag(fmt.Sprintf("%s-%d", ts, r)),
+				provisionerConfig.WithTag(fmt.Sprintf("%s-%d", ts, r)),
 				entry.Param)
 		}
 	}

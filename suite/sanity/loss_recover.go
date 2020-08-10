@@ -96,7 +96,7 @@ func lossAndRecovery(p interface{}) (gravity.TestFunc, error) {
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
-		g.OK("download installer", g.SetInstaller(cluster.Nodes, cfg.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, param.InstallerURL, "install"))
 
 		nodes := cluster.Nodes[0:param.NodeCount]
 		g.OK("install", g.OfflineInstall(nodes, param.InstallParam))
