@@ -42,7 +42,7 @@ func shrink(p interface{}) (gravity.TestFunc, error) {
 		copy(others, cluster.Nodes[1:])
 		g.Logger().WithFields(logrus.Fields{"target": target, "others": others}).Info("Select join/shrink target.")
 
-		g.OK("Download installer.", g.SetInstaller(all, cfg.InstallerURL, "install"))
+		g.OK("Download installer.", g.SetInstaller(all, param.InstallerURL, "install"))
 
 		g.OK("Install.", g.OfflineInstall(others, param.InstallParam))
 		g.OK("Wait for active status.", g.WaitForActiveStatus(others))

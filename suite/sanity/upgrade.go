@@ -27,6 +27,7 @@ type upgradeParam struct {
 	installParam
 	// BaseInstallerURL is initial app installer URL
 	BaseInstallerURL string `json:"from" validate:"required"`
+	GravityURL       string `json:"gravity_url"`
 }
 
 func (p upgradeParam) Save() (row map[string]bigquery.Value, insertID string, err error) {
@@ -52,7 +53,7 @@ func upgrade(p interface{}) (gravity.TestFunc, error) {
 		g.OK("base installer", g.SetInstaller(cluster.Nodes, param.BaseInstallerURL, "base"))
 		g.OK("install", g.OfflineInstall(cluster.Nodes, param.InstallParam))
 		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes))
-		g.OK("upgrade", g.Upgrade(cluster.Nodes, cfg.InstallerURL, cfg.GravityURL, "upgrade"))
+		g.OK("upgrade", g.Upgrade(cluster.Nodes, param.InstallerURL, param.GravityURL, "upgrade"))
 		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes))
 	}, nil
 }

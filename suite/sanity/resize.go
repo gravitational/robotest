@@ -54,7 +54,7 @@ func resize(p interface{}) (gravity.TestFunc, error) {
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
-		g.OK("download installer", g.SetInstaller(cluster.Nodes, cfg.InstallerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, param.InstallerURL, "install"))
 		g.OK(fmt.Sprintf("install on %d node", param.NodeCount),
 			g.OfflineInstall(cluster.Nodes[:param.NodeCount], param.InstallParam))
 		g.OK("wait for active status", g.WaitForActiveStatus(cluster.Nodes[:param.NodeCount]))

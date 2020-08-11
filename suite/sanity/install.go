@@ -96,12 +96,7 @@ func install(p interface{}) (gravity.TestFunc, error) {
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
-		installerURL := cfg.InstallerURL
-		if param.InstallerURL != "" {
-			installerURL = param.InstallerURL
-		}
-
-		g.OK("installer downloaded", g.SetInstaller(cluster.Nodes, installerURL, "install"))
+		g.OK("installer downloaded", g.SetInstaller(cluster.Nodes, param.InstallerURL, "install"))
 		if param.Script != nil {
 			g.OK("post bootstrap script",
 				g.ExecScript(cluster.Nodes, param.Script.Url, param.Script.Args, param.Script.Timeout.Duration))
@@ -121,11 +116,6 @@ func provision(p interface{}) (gravity.TestFunc, error) {
 			g.Maybe("destroy", cluster.Destroy())
 		}()
 
-		installerURL := cfg.InstallerURL
-		if param.InstallerURL != "" {
-			installerURL = param.InstallerURL
-		}
-
-		g.OK("download installer", g.SetInstaller(cluster.Nodes, installerURL, "install"))
+		g.OK("download installer", g.SetInstaller(cluster.Nodes, param.InstallerURL, "install"))
 	}, nil
 }

@@ -22,15 +22,16 @@ import (
 	"github.com/gravitational/robotest/lib/defaults"
 )
 
-var defaultInstallParam = installParam{
-	InstallParam: gravity.InstallParam{
-		StateDir: defaults.GravityDir,
-	},
-}
-
 // Suite returns base configuration for a suite which may be further customized
-func Suite() *config.Config {
+func Suite(provisionerConfig gravity.ProvisionerConfig) *config.Config {
 	cfg := config.New()
+
+	defaultInstallParam := installParam{
+		InstallParam: gravity.InstallParam{
+			InstallerURL: provisionerConfig.InstallerURL,
+			StateDir:     defaults.GravityDir,
+		},
+	}
 
 	cfg.Add("noop", noop, noopParam{})
 	cfg.Add("noopV", noopVariety, noopParam{})
@@ -40,7 +41,7 @@ func Suite() *config.Config {
 	cfg.Add("recover", lossAndRecovery, lossAndRecoveryParam{installParam: defaultInstallParam})
 	cfg.Add("recoverV", lossAndRecoveryVariety, defaultInstallParam)
 	cfg.Add("shrink", shrink, defaultInstallParam)
-	cfg.Add("upgrade", upgrade, upgradeParam{installParam: defaultInstallParam})
+	cfg.Add("upgrade", upgrade, upgradeParam{installParam: defaultInstallParam, GravityURL: provisionerConfig.GravityURL})
 	// upgrade3lts is vestigial alias for upgrade needed for backwards compat
 	// to prevent issues like:
 	//   https://github.com/gravitational/gravity/issues/1508
