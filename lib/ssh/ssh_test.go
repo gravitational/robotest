@@ -50,7 +50,6 @@ func TestSshUtils(t *testing.T) {
 
 	t.Run("environment", func(t *testing.T) {
 		t.Parallel()
-		t.Skip() // this requires setup on sshd side, and we no longer use this method
 		testEnv(t, client)
 	})
 
