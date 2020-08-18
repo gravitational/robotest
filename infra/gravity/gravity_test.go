@@ -109,3 +109,43 @@ func Test1641StatusValidation(t *testing.T) {
 	err = checkNotDegraded(status)
 	assert.Error(t, err)
 }
+
+// TestGravity5036ActiveStatusValidation ensures Robotest can correctly parse
+// an Active status from Gravity 5.0.36.
+//
+// This is important for testing --upgrade-via 5.0.x to 5.2.x to 5.5.x as well
+// as upgrade testing from stolon-app 1.10.x.
+//
+// See https://github.com/gravitational/robotest/issues/247 for more info.
+func TestGravity5036ActiveStatusValidation(t *testing.T) {
+	f, err := os.Open("testdata/status-active-5.0.36.json")
+	assert.NoError(t, err)
+	defer f.Close()
+
+	var status GravityStatus
+	err = parseStatus(&status)(bufio.NewReader(f))
+	assert.NoError(t, err)
+
+	err = checkNotDegraded(status)
+	assert.NoError(t, err)
+}
+
+// TestGravity5036DegradedStatusValidation ensures Robotest can correctly parse
+// a Degraded status from Gravity 5.0.36.
+//
+// This is important for testing --upgrade-via 5.0.x to 5.2.x to 5.5.x as well
+// as upgrade testing from stolon-app 1.10.x.
+//
+// See https://github.com/gravitational/robotest/issues/247 for more info.
+func TestGravity5036DegradedStatusValidation(t *testing.T) {
+	f, err := os.Open("testdata/status-degraded-5.0.36.json")
+	assert.NoError(t, err)
+	defer f.Close()
+
+	var status GravityStatus
+	err = parseStatus(&status)(bufio.NewReader(f))
+	assert.NoError(t, err)
+
+	err = checkNotDegraded(status)
+	assert.Error(t, err)
+}

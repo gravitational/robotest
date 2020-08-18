@@ -1,0 +1,16 @@
+{
+  "cluster": {
+    "system_status": "degraded",
+    "nodes": [
+      {
+        "hostname": "",
+        "advertise_ip": "10.138.0.112",
+        "role": "master",
+        "status": "degraded",
+        "failed_probes": [
+          "etcd-healthz failed"
+        ]
+      }
+    ]
+  }
+}

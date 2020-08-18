@@ -1,0 +1,41 @@
+{
+  "cluster": {
+    "application": {
+      "repository": "gravitational.io",
+      "name": "telekube",
+      "version": "5.0.36"
+    },
+    "state": "active",
+    "domain": "robotest-unit-test",
+    "token": {
+      "token": "ROBOTEST",
+      "expires": "0001-01-01T00:00:00Z",
+      "type": "expand",
+      "account_id": "00000000-0000-0000-0000-000000000001",
+      "site_domain": "robotest-unit-test",
+      "operation_id": "",
+      "user_email": "agent@robotest-unit-test"
+    },
+    "operation": {
+      "type": "operation_install",
+      "id": "6eb72cb8-56e6-4df4-a3f3-e971a4c64b80",
+      "state": "completed",
+      "created": "2020-08-18T00:20:18.854957796Z",
+      "progress": {
+        "message": "Operation has completed",
+        "completion": 100,
+        "created": "2020-08-18T00:20:27.428919029Z"
+      }
+    },
+    "system_status": "running",
+    "nodes": [
+      {
+        "hostname": "robotest-unit-test-node-0",
+        "advertise_ip": "10.138.0.27",
+        "role": "master",
+        "status": "healthy"
+      }
+    ]
+  }
+}
+
