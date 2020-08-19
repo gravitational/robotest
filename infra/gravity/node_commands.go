@@ -156,7 +156,7 @@ type ClusterStatus struct {
 	// State is the cluster state
 	State string `json:"state"`
 	// SystemStatus is the cluster status, custom unmarshalling logic needed to accommodate Gravity differences
-	SystemStatus int
+	SystemStatus int `json:"-"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
 	Token Token `json:"token"`
 	// Nodes describes the nodes in the cluster
