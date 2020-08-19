@@ -170,19 +170,21 @@ type ClusterStatus struct {
 //   https://github.com/gravitational/satellite/blob/5.0.2/agent/proto/agentpb/agent.pb.go#L48-L63
 func unmarshalSystemStatus(val json.RawMessage, status *int) error {
 	err := json.Unmarshal(val, &status)
-	if err != nil { // parsing as int failed, try parsing as a string and converting
-		var str string
-		if err2 := json.Unmarshal(val, &str); err2 != nil {
-			return trace.BadParameter("unable to parse system_status %q as int or string: %v, %v", val, err, err2)
-		}
-		switch str {
-		case "running":
-			*status = constants.SystemStatus_Running
-		case "degraded":
-			*status = constants.SystemStatus_Degraded
-		default:
-			return trace.BadParameter("unknown system_status: %q", str)
-		}
+	if err == nil {
+		return nil
+	}
+	// parsing as int failed, try parsing as a string and converting
+	var str string
+	if err2 := json.Unmarshal(val, &str); err2 != nil {
+		return trace.BadParameter("unable to parse system_status %q as int or string: %v, %v", val, err, err2)
+	}
+	switch str {
+	case "running":
+		*status = constants.SystemStatus_Running
+	case "degraded":
+		*status = constants.SystemStatus_Degraded
+	default:
+		return trace.BadParameter("unknown system_status: %q", str)
 	}
 	return nil
 }
