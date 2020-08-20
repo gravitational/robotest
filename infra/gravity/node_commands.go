@@ -155,12 +155,79 @@ type ClusterStatus struct {
 	Cluster string `json:"domain"`
 	// State is the cluster state
 	State string `json:"state"`
-	// SystemStatus is the cluster status, see https://github.com/gravitational/satellite/blob/7.1.0/agent/proto/agentpb/agent.proto#L50-L54
-	SystemStatus int `json:"system_status"`
+	// SystemStatus is the cluster status, custom unmarshalling logic needed to accommodate Gravity differences
+	SystemStatus int `json:"-"`
 	// Token is secure token which prevents rogue nodes from joining the cluster during installation
 	Token Token `json:"token"`
 	// Nodes describes the nodes in the cluster
 	Nodes []NodeStatus `json:"nodes"`
+}
+
+// unmarshalSystemStatus is a helper type to parse string or integer system statuses.
+//
+// For the original definitions and mappings see:
+//   https://github.com/gravitational/satellite/blob/5.0.2/agent/proto/agentpb/agent.proto#L36-L40
+//   https://github.com/gravitational/satellite/blob/5.0.2/agent/proto/agentpb/agent.pb.go#L48-L63
+func unmarshalSystemStatus(val json.RawMessage, status *int) error {
+	err := json.Unmarshal(val, &status)
+	if err == nil {
+		return nil
+	}
+	// parsing as int failed, try parsing as a string and converting
+	var str string
+	if err2 := json.Unmarshal(val, &str); err2 != nil {
+		return trace.BadParameter("unable to parse system_status %q as int or string: %v, %v", val, err, err2)
+	}
+	switch str {
+	case "running":
+		*status = constants.SystemStatus_Running
+	case "degraded":
+		*status = constants.SystemStatus_Degraded
+	default:
+		return trace.BadParameter("unknown system_status: %q", str)
+	}
+	return nil
+}
+
+// UnmarshalJSON fufills the Unmarshaler interface, allowing ClusterStatus
+// to perform custom JSON unmarshalling for certain fields.
+//
+// This is needed for the system_status field which Gravity 5.2.x+ marshals as
+// an integer and Gravity 5.0.36- marshals as a string. When Gravity 5.0.x
+// support is no longer needed, this function and unmarshalSystemStatus can be
+// removed and replaced by the following field tag in the Cluster status type
+// definition:
+//
+//   SystemStatus int `json:"system_status"`
+//
+// See https://github.com/gravitational/robotest/issues/247 for more info.
+func (cs *ClusterStatus) UnmarshalJSON(data []byte) error {
+	// First, populate all fields that don't require special handling,
+	type recursionBreaker ClusterStatus
+	var temp recursionBreaker
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return trace.Wrap(err)
+	}
+	*cs = ClusterStatus(temp)
+
+	// handle system_status, which may be a string or an int
+	var jsonMap map[string]*json.RawMessage
+	if err := json.Unmarshal(data, &jsonMap); err != nil {
+		return trace.Wrap(err)
+	}
+
+	val, ok := jsonMap["system_status"]
+	if !ok {
+		return trace.BadParameter("system_status field is required: %v", data)
+	}
+
+	var status int
+	if err := unmarshalSystemStatus(*val, &status); err != nil {
+		return trace.Wrap(err)
+	}
+
+	cs.SystemStatus = status
+	return nil
 }
 
 // Application defines the cluster application
