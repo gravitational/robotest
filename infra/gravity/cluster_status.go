@@ -17,17 +17,132 @@ limitations under the License.
 package gravity
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 
 	"github.com/cenkalti/backoff"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gravitational/robotest/lib/constants"
 	sshutils "github.com/gravitational/robotest/lib/ssh"
 	"github.com/gravitational/robotest/lib/utils"
 	"github.com/gravitational/robotest/lib/wait"
 	"github.com/gravitational/trace"
 )
+
+// ClusterState* consts come from https://github.com/gravitational/gravity/blob/7.0.0/lib/ops/constants.go#L64-L93
+const (
+	// ClusterStateActive is healthy and not running any operations.
+	ClusterStateActive = "active"
+	// ClusterStateDegraded is unhealthy.
+	ClusterStateDegraded = "degraded"
+)
+
+// SystemStatus comes from https://github.com/gravitational/satellite/blob/7.1.0/agent/proto/agentpb/agent.pb.go#L28-L32
+type SystemStatus int
+
+const (
+	// SystemStatus_Unknown is rarely/never returned in practice but is defined here for parity with satellite.
+	SystemStatus_Unknown SystemStatus = 0
+	// SystemStatus_Running is satellite's healthy status.
+	SystemStatus_Running SystemStatus = 1
+	// SystemStatus_Degraded is satellite's unhealthy status.
+	SystemStatus_Degraded SystemStatus = 2
+)
+
+var systemStatusNames = [...]string{"undefined", "running", "degraded"}
+
+func (ss SystemStatus) String() string {
+	return systemStatusNames[ss]
+}
+
+// UnmarshalJSON fulfills the Unmarshaler interface, allowing SystemStatus
+// to perform custom JSON unmarshalling.
+//
+// Gravity 5.2.x+ marshals SystemStatus as an integer and Gravity 5.0.36-
+// marshals it as a string. For more info, see:
+//   https://github.com/gravitational/robotest/issues/247
+//
+// For Gravity's definitions and mappings of see:
+//   https://github.com/gravitational/satellite/blob/5.0.2/agent/proto/agentpb/agent.proto#L36-L40
+//   https://github.com/gravitational/satellite/blob/5.0.2/agent/proto/agentpb/agent.pb.go#L48-L63
+//
+// TODO: When Gravity 5.0.x support is no longer needed, this function can
+// be removed and SystemStatus can be swapped to type int:
+//
+//   SystemStatus int `json:"system_status"`
+func (s *SystemStatus) UnmarshalJSON(data []byte) error {
+	var intStatus int
+	err := json.Unmarshal(data, &intStatus)
+	if err == nil {
+		*s = SystemStatus(intStatus)
+		return nil
+	}
+	// parsing as int failed, try parsing as a string and converting
+	var strStatus string
+	if err2 := json.Unmarshal(data, &strStatus); err2 != nil {
+		return trace.BadParameter("unable to parse system_status %q as int or string: %v, %v", data, err, err2)
+	}
+	switch strStatus {
+	case SystemStatus_Running.String():
+		*s = SystemStatus_Running
+	case SystemStatus_Degraded.String():
+		*s = SystemStatus_Degraded
+	case SystemStatus_Unknown.String():
+		*s = SystemStatus_Unknown
+	default:
+		return trace.BadParameter("unknown system_status: %q", strStatus)
+	}
+	return nil
+}
+
+// parseStatus is a helper adapting JSON Unmarshaling to sshutils.OutputParseFn
+func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
+	return func(r *bufio.Reader) error {
+		decoder := json.NewDecoder(r)
+		return trace.Wrap(decoder.Decode(status))
+	}
+}
+
+// GravityStatus describes the status of the Gravity cluster
+type GravityStatus struct {
+	// Cluster describes the cluster status
+	Cluster ClusterStatus `json:"cluster"`
+}
+
+// ClusterStatus describes the status of a Gravity cluster
+type ClusterStatus struct {
+	// Application defines the cluster application
+	Application Application `json:"application"`
+	// Cluster is the name of the cluster
+	Cluster string `json:"domain"`
+	// State is the cluster state
+	State string `json:"state"`
+	// SystemStatus is the cluster status
+	SystemStatus SystemStatus `json:"system_status"`
+	// Token is secure token which prevents rogue nodes from joining the cluster during installation
+	Token Token `json:"token"`
+	// Nodes describes the nodes in the cluster
+	Nodes []NodeStatus `json:"nodes"`
+}
+
+// Application defines the cluster application
+type Application struct {
+	// Name is the name of the cluster application
+	Name string `json:"name"`
+}
+
+// NodeStatus describes the status of a cluster node
+type NodeStatus struct {
+	// Addr is the advertised address of this cluster node
+	Addr string `json:"advertise_ip"`
+}
+
+// Token describes the cluster join token
+type Token struct {
+	// Token is the join token value
+	Token string `json:"token"`
+}
 
 // statusValidator returns nil if the Gravity Status is the expected status or an error otherwise.
 type statusValidator func(s GravityStatus) error
@@ -36,11 +151,11 @@ type statusValidator func(s GravityStatus) error
 //
 // This function is a reimplementation of the logic in https://github.com/gravitational/gravity/blob/7.0.0/lib/status/status.go#L180-L185
 func checkNotDegraded(s GravityStatus) error {
-	if s.Cluster.State == constants.ClusterStateDegraded {
+	if s.Cluster.State == ClusterStateDegraded {
 		return trace.CompareFailed("cluster state %q", s.Cluster.State)
 	}
-	if s.Cluster.SystemStatus != constants.SystemStatus_Running {
-		return trace.CompareFailed("expected system_status %v, found %v", constants.SystemStatus_Running, s.Cluster.SystemStatus)
+	if s.Cluster.SystemStatus != SystemStatus_Running {
+		return trace.CompareFailed("expected system_status %v, found %v", SystemStatus_Running, s.Cluster.SystemStatus)
 	}
 	return nil
 }
@@ -50,8 +165,8 @@ func checkActive(s GravityStatus) error {
 	if err := checkNotDegraded(s); err != nil {
 		return trace.Wrap(err)
 	}
-	if s.Cluster.State != constants.ClusterStateActive {
-		return trace.CompareFailed("expected state %q, found %q", constants.ClusterStateActive, s.Cluster.State)
+	if s.Cluster.State != ClusterStateActive {
+		return trace.CompareFailed("expected state %q, found %q", ClusterStateActive, s.Cluster.State)
 	}
 	return nil
 }

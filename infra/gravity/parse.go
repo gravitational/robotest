@@ -17,24 +17,12 @@ limitations under the License.
 package gravity
 
 import (
-	"bufio"
-	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
 
-	sshutils "github.com/gravitational/robotest/lib/ssh"
-
 	"github.com/gravitational/trace"
 )
-
-// parse `gravity status`
-func parseStatus(status *GravityStatus) sshutils.OutputParseFn {
-	return func(r *bufio.Reader) error {
-		decoder := json.NewDecoder(r)
-		return trace.Wrap(decoder.Decode(status))
-	}
-}
 
 // from https://github.com/gravitational/gravity/blob/master/lib/utils/parse.go
 //

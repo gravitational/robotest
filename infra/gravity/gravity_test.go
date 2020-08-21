@@ -19,11 +19,9 @@ package gravity
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"os"
 	"testing"
 
-	"github.com/gravitational/robotest/lib/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -153,42 +151,42 @@ func TestGravity5036DegradedStatusValidation(t *testing.T) {
 }
 
 func TestSystemStatusStringDegradedUnmarshal(t *testing.T) {
-	input := json.RawMessage(`"degraded"`)
-	expected := constants.SystemStatus_Degraded
-	var status int
-	err := unmarshalSystemStatus(input, &status)
+	data := []byte(`"degraded"`)
+	expected := SystemStatus_Degraded
+	var status SystemStatus
+	err := status.UnmarshalJSON(data)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, status)
 }
 
 func TestSystemStatusStringRunningUnmarshal(t *testing.T) {
-	input := json.RawMessage(`"running"`)
-	expected := constants.SystemStatus_Running
-	var status int
-	err := unmarshalSystemStatus(input, &status)
+	data := []byte(`"running"`)
+	expected := SystemStatus_Running
+	var status SystemStatus
+	err := status.UnmarshalJSON(data)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, status)
 }
 
 func TestSystemStatusIntUnmarshal(t *testing.T) {
-	input := json.RawMessage(`2`)
-	expected := constants.SystemStatus_Degraded
-	var status int
-	err := unmarshalSystemStatus(input, &status)
+	data := []byte(`2`)
+	expected := SystemStatus(2)
+	var status SystemStatus
+	err := status.UnmarshalJSON(data)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, status)
 }
 
 func TestSystemStatusInvalidFloatUnmarshal(t *testing.T) {
-	input := json.RawMessage(`3.14159`)
-	var status int
-	err := unmarshalSystemStatus(input, &status)
+	data := []byte(`3.14159`)
+	var status SystemStatus
+	err := status.UnmarshalJSON(data)
 	assert.Error(t, err)
 }
 
 func TestSystemStatusInvalidStringUnmarshal(t *testing.T) {
-	input := json.RawMessage(`"working perfectly"`)
-	var status int
-	err := unmarshalSystemStatus(input, &status)
+	data := []byte(`working perfectly`)
+	var status SystemStatus
+	err := status.UnmarshalJSON(data)
 	assert.Error(t, err)
 }
