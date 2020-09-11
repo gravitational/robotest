@@ -179,10 +179,9 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 			"expandAll": []string{"false"},
 			"authuser":  []string{"1"},
 			"advancedFilter": []string{
-				fmt.Sprintf(`resource.type="project"
+				fmt.Sprintf(`severity>=INFO
 labels.__uuid__="%s"
-labels.__suite__="%s"
-severity>=INFO`, testUID, s.uid)},
+labels.__suite__="%s"`, testUID, s.uid)},
 		}.Encode(),
 	}
 
