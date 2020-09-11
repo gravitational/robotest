@@ -58,6 +58,10 @@ func (c GCLClient) Shorten(ctx context.Context, url string) (short string, err e
 		return "", trace.Wrap(err, "reading response from URL shortener")
 	}
 
+	if resp.StatusCode != 200 {
+		return "", trace.Errorf("%v returned: %v, body: %q", shortenerEndpoint, resp.Status, data)
+	}
+
 	err = json.Unmarshal(data, &msg)
 	if err != nil {
 		return "", trace.Wrap(err, "Decoding response %q", data)
