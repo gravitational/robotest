@@ -183,18 +183,18 @@ func (s *testSuite) getLogLink(testUID string) (string, error) {
 // Logic split out from getLogLink to aid in unit testing.
 //
 // The resulting url will look like:
-//   https://console.cloud.google.com/logs/query;query=severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22;timeRange=2020-09-22T22:33:00.000Z%2F2020-09-22T22:35:00.000Z?authuser=0&project=kubeadm-167321
+//   https://console.cloud.google.com/logs/query;query=severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22;timeRange=2020-09-22T22:33:00Z%2F2020-09-22T22:35:00Z?authuser=0&project=kubeadm-167321
 func encodeLogLink(tUID, sUID, project string, date time.Time) string {
 	// severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22
 	query := fmt.Sprintf(`severity>=INFO
 labels.__uuid__="%s"
 labels.__suite__="%s"`, tUID, sUID)
-	// 2020-09-22T22:33:00.000Z%2F2020-09-22T22:35:00.000Z
+	// 2020-09-22T22:33:00Z%2F2020-09-22T22:35:00Z
 	// The log link is generated at the start of the run. Adding
 	// 1 hour is a reasonable guess at the end of the run.
 	date = date.UTC()
-	start := date.Format("2006-01-02T15:04:05.000Z")
-	end := date.Add(1 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	start := date.Format(time.RFC3339)
+	end := date.Add(1 * time.Hour).Format(time.RFC3339)
 	window := start + "/" + end
 	longURL := url.URL{
 		Scheme: "https",
