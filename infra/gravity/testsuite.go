@@ -170,26 +170,43 @@ func (s *testSuite) Schedule(fn TestFunc, cfg ProvisionerConfig, param interface
 }
 
 func (s *testSuite) getLogLink(testUID string) (string, error) {
-	longUrl := url.URL{
+	// TODO(dmitri): decide whether it would make sense to migrate to Firebase Dynamic Links as a replacement.
+	// In the past this method used Google URL shortener to create a short link. However, this service
+	// was discontinued: https://developers.googleblog.com/2018/03/transitioning-google-url-shortener.html
+	// For now, return full URLs.
+	longURL := encodeLogLink(testUID, s.uid, s.googleProjectID, time.Now())
+	return longURL, nil
+}
+
+// encodeLogLink formats test metadata into a clickable link to GCP logs.
+//
+// Logic split out from getLogLink to aid in unit testing.
+//
+// The resulting url will look like:
+//   https://console.cloud.google.com/logs/query;query=severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22;timeRange=2020-09-22T22:33:00.000Z%2F2020-09-22T22:35:00.000Z?authuser=0&project=kubeadm-167321
+func encodeLogLink(tUID, sUID, project string, date time.Time) string {
+	// severity%3E%3DINFO%0Alabels.__uuid__%3D%22504d3d56-1abe-43cb-a802-3ebc96367d47%22%0Alabels.__suite__%3D%22d165f1b1-f40e-4e5f-8014-7bbb713d5357%22
+	query := fmt.Sprintf(`severity>=INFO
+labels.__uuid__="%s"
+labels.__suite__="%s"`, tUID, sUID)
+	// 2020-09-22T22:33:00.000Z%2F2020-09-22T22:35:00.000Z
+	// The log link is generated at the start of the run. Adding
+	// 1 hour is a reasonable guess at the end of the run.
+	date = date.UTC()
+	start := date.Format("2006-01-02T15:04:05.000Z")
+	end := date.Add(1 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	window := start + "/" + end
+	longURL := url.URL{
 		Scheme: "https",
 		Host:   "console.cloud.google.com",
-		Path:   "/logs/viewer",
-		RawQuery: url.Values{
-			"project":   []string{s.googleProjectID},
-			"expandAll": []string{"false"},
-			"authuser":  []string{"1"},
-			"advancedFilter": []string{
-				fmt.Sprintf(`severity>=INFO
-labels.__uuid__="%s"
-labels.__suite__="%s"`, testUID, s.uid)},
-		}.Encode(),
+		Path:   fmt.Sprintf("/logs/query;query=%s;timeRange=%s", query, window),
+		// query needs '=' escaped within the query
+		RawPath:  fmt.Sprintf("/logs/query;query=%s;timeRange=%s", url.QueryEscape(query), url.PathEscape(window)),
+		RawQuery: url.Values{"project": []string{project}}.Encode(),
 	}
 
-	// Google URL shortener has been discontinued.
-	// See https://developers.googleblog.com/2018/03/transitioning-google-url-shortener.html for details.
-	// TODO(dmitri): decide whether it would make sense to migrate to Firebase Dynamic Links as a replacement.
-	// For now, return full URLs
-	return longUrl.String(), nil
+	return longURL.String()
+
 }
 
 func (s *testSuite) wrap(fn TestFunc, baseConfig ProvisionerConfig, param interface{}) func(t *testing.T) {
