@@ -91,6 +91,11 @@ function setup-user {
   sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 }
 
+# Yum hits "Error: Cannot retrieve metalink for repository: epel." on some images.
+# According to https://stackoverflow.com/a/27667111, this is a certificate issue.
+yum --disablerepo=epel -y update ca-certificates
+yum -y install chrony
+
 mkdir -p $etcd_dir /var/lib/data
 secure-ssh
 setup-user
@@ -102,16 +107,11 @@ if [ $dns_running -eq 0 ] ; then
   systemctl disable dnsmasq
 fi
 
-# According to https://stackoverflow.com/a/27667111, this is a certificate issue.
-# Although not conclusive, disabling the epel repository for the install as well
-# as the packages being installed are all from the base repository
-yum --disablerepo=epel -y update ca-certificates
-yum --disablerepo=epel -y install chrony python unzip
-
-if ! aws --version; then
-  curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-  unzip awscli-bundle.zip
-  ./awscli-bundle/install -i /usr/local/aws -b /usr/bin/aws
+if ! /usr/local/bin/aws --version; then
+  yum -y install unzip
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.0.30.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  ./aws/install
 fi
 
 if ! grep -qs "$etcd_dir" /proc/mounts; then
