@@ -80,6 +80,8 @@ function setup-user {
     chmod 0700 /home/${os_user}/.ssh
     chmod 0600 /home/${os_user}/.ssh/authorized_keys
     chown -R $service_uid:$service_gid /home/${os_user}
+    # install semanage
+    yum -y install policycoreutils-python-utils
     # FIXME: make sure that SELinux is in effect for the command below (`getenforce`)
     retry semanage fcontext -a -t user_home_t /home/${os_user}
     retry restorecon -vR /home/${os_user}
@@ -134,11 +136,16 @@ done
 
 # Make changes permanent
 cat > /etc/sysctl.d/50-telekube.conf <<EOF
-fs.may_detach_mounts=1
 net.ipv4.ip_forward=1
 net.bridge.bridge-nf-call-iptables=1
 net.ipv4.tcp_keepalive_time=60
 net.ipv4.tcp_keepalive_intvl=60
 net.ipv4.tcp_keepalive_probes=5
 EOF
+if sysctl -w fs.may_detach_mounts=1; then
+  # fs.may_detach_mounts is needed in rhel/cent 7, but not present in rhel/cent 8
+  # https://gravitational.com/gravity/docs/faq/#kubernetes-pods-stuck-in-terminating-state
+  echo "fs.may_detach_mounts=1" >> /etc/sysctl.d/50-telekube.conf
+fi
+
 sysctl -p /etc/sysctl.d/50-telekube.conf
