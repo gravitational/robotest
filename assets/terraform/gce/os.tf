@@ -14,14 +14,22 @@ variable "oss" {
     "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20200807"
     "ubuntu:20"     = "ubuntu-os-cloud/ubuntu-2004-focal-v20200729"
     "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-2004-focal-v20200729"
-    "redhat:7"      = "rhel-cloud/rhel-7-v20200714"
-    "redhat:8"      = "rhel-cloud/rhel-8-v20200714"
-    "centos:7"      = "centos-cloud/centos-7-v20200714"
-    "centos:8"      = "centos-cloud/centos-8-v20200714"
+
+    "redhat:7.8"    = "rhel-cloud/rhel-7-v20200910"
+    "redhat:7"      = "rhel-cloud/rhel-7-v20200910"
+    "redhat:8.2"    = "rhel-cloud/rhel-8-v20200910"
+    "redhat:8"      = "rhel-cloud/rhel-8-v20200910"
+
+    "centos:7.8"    = "centos-cloud/centos-7-v20200910"
+    "centos:7"      = "centos-cloud/centos-7-v20200910"
+    "centos:8.2"    = "centos-cloud/centos-8-v20200910"
+    "centos:8"      = "centos-cloud/centos-8-v20200910"
+
     "debian:8"      = "debian-cloud/debian-8-jessie-v20180611"
     "debian:9"      = "debian-cloud/debian-9-stretch-v20200805"
     "debian:10"     = "debian-cloud/debian-10-buster-v20200805"
     "debian:latest" = "debian-cloud/debian-10-buster-v20200805"
+
     "suse:12"       = "suse-cloud/sles-12-sp5-v20200610"
     "suse:15"       = "suse-cloud/sles-15-sp2-v20200804"
     "suse:latest"   = "suse-cloud/sles-15-sp2-v20200804"
