@@ -16,14 +16,18 @@ variable "oss" {
     "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-2004-focal-v20200729"
 
     "redhat:7.8"    = "rhel-cloud/rhel-7-v20200910"
-    "redhat:7"      = "rhel-cloud/rhel-7-v20200910"
+    "redhat:7.9"    = "rhel-cloud/rhel-7-v20201112"
+    "redhat:7"      = "rhel-cloud/rhel-7-v20201112"
     "redhat:8.2"    = "rhel-cloud/rhel-8-v20200910"
-    "redhat:8"      = "rhel-cloud/rhel-8-v20200910"
+    "redhat:8.3"    = "rhel-cloud/rhel-8-v20201112"
+    "redhat:8"      = "rhel-cloud/rhel-8-v20201112"
 
     "centos:7.8"    = "centos-cloud/centos-7-v20200910"
-    "centos:7"      = "centos-cloud/centos-7-v20200910"
+    "centos:7.9"    = "centos-cloud/centos-7-v20201112"
+    "centos:7"      = "centos-cloud/centos-7-v20201112"
     "centos:8.2"    = "centos-cloud/centos-8-v20200910"
-    "centos:8"      = "centos-cloud/centos-8-v20200910"
+    "centos:8.3"    = "centos-cloud/centos-8-v20201112"
+    "centos:8"      = "centos-cloud/centos-8-v20201112"
 
     "debian:8"      = "debian-cloud/debian-8-jessie-v20180611"
     "debian:9"      = "debian-cloud/debian-9-stretch-v20200805"
