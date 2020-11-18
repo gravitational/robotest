@@ -193,6 +193,7 @@ func makeDynamicParams(baseConfig ProvisionerConfig) (*cloudDynamicParams, error
 			"debian": "robotest",
 			"redhat": "redhat",
 			"centos": "centos",
+			"sles":   "robotest",
 			"suse":   "robotest",
 		},
 		constants.AWS: {
