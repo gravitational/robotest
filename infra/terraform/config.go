@@ -96,7 +96,7 @@ type Config struct {
 	// GCE defines Google Compute Engine connection parameters
 	GCE *gce.Config
 	// OS specified the OS distribution
-	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian|eq=suse"`
+	OS string `json:"os" yaml:"os" validate:"required,eq=ubuntu|eq=redhat|eq=centos|eq=debian|eq=sles|eq=suse"`
 	// ScriptPath is the path to the terraform script or directory for provisioning
 	ScriptPath string `json:"script_path" validate:"required"`
 	// NumNodes defines the capacity of the cluster to provision

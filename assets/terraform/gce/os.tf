@@ -34,9 +34,15 @@ variable "oss" {
     "debian:10"     = "debian-cloud/debian-10-buster-v20200805"
     "debian:latest" = "debian-cloud/debian-10-buster-v20200805"
 
+    # suse is an alias of sles for backwards compatibility, may be removed in 3.0
     "suse:12"       = "suse-cloud/sles-12-sp5-v20200916"
     "suse:15"       = "suse-cloud/sles-15-sp2-v20201014"
     "suse:latest"   = "suse-cloud/sles-15-sp2-v20201014"
+
+    "sles:12-sp5"   = "suse-cloud/sles-12-sp5-v20200916"
+    "sles:12"       = "suse-cloud/sles-12-sp5-v20200916"
+    "sles:15-sp2"   = "suse-cloud/sles-15-sp2-v20201014"
+    "sles:15"       = "suse-cloud/sles-15-sp2-v20201014"
   }
 }
 
