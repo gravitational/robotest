@@ -5,6 +5,23 @@ name: pr
 
 steps:
   - name: lint
-    image: golang
+    image: docker:git
+    volumes:
+      - name: dockersock
+        path: /var/run
     commands:
-    - make lint
+      - apk add --no-cache make
+      - sleep 5 # give docker enough time to start
+      - ls -la /var/run
+      - make lint
+
+services:
+  - name: start docker
+    image: docker:dind
+    volumes:
+      - name: dockersock
+        path: /var/run
+
+volumes:
+  - name: dockersock
+    temp: {}
