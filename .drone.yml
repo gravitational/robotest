@@ -1,0 +1,10 @@
+---
+kind: pipeline
+type: kubernetes
+name: pr
+
+steps:
+  - name: lint
+    image: golang
+    commands:
+    - make lint
