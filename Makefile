@@ -40,7 +40,7 @@ help: ## Show this message.
 
 .PHONY: build
 build: ## Compile go binaries.
-build: buildbox
+build: | buildbox
 	mkdir -p build
 	docker run $(DOCKERFLAGS) $(BUILDBOX) \
 		dumb-init make -j $(TARGETS)
@@ -81,12 +81,21 @@ test: ## Run unit tests.
 
 .PHONY: lint
 lint: ## Run static analysis against source code.
-lint: buildbox
+lint: vendor | buildbox
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
 		$(BUILDBOX) dumb-init golangci-lint run \
 		--skip-dirs=vendor \
 		--timeout=2m
+
+.PHONY: vendor
+vendor: ## Download dependencies into vendor directory.
+vendor: vendor/modules.txt
+
+vendor/modules.txt: go.mod | buildbox
+	docker run $(DOCKERFLAGS) $(BUILDBOX) \
+		dumb-init go mod vendor
+	@touch vendor/modules.txt
 
 .PHONY: version
 version: ## Show the robotest version.
@@ -99,6 +108,7 @@ const(\n\
 	Version = \"$(VERSION)\"\n\
 	GitCommit = \"$(GIT_COMMIT)\"\n\
 )\n"
+
 
 # $(VERSIONFILE) is PHONY because I haven't found a concise & understandable
 # way to tell if the commit has changed or there is a new tag. Unfortunately
@@ -114,10 +124,6 @@ $(VERSIONFILE): Makefile
 # These are not intended to be called directly by end users.
 
 .PHONY: $(TARGETS)
-$(TARGETS): vendor $(VERSIONFILE)
+$(TARGETS): $(VERSIONFILE)
 	@go version
-	cd $(SRCDIR) && \
-		GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
-
-vendor: go.mod
-	cd $(SRCDIR) && go mod vendor
+	GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
