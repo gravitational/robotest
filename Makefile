@@ -24,6 +24,7 @@ export DOCKER_TAG ?=
 export DOCKER_ARGS ?= --pull
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
+BUILDBOX_IIDFILE := $(BUILDDIR)/.robotest-buildbox.iid
 GOLANGCI_LINT_VER ?= 1.30.0
 
 .PHONY: help
@@ -40,8 +41,7 @@ help: ## Show this message.
 
 .PHONY: build
 build: ## Compile go binaries.
-build: | buildbox
-	mkdir -p build
+build: vendor buildbox | $(BUILDDIR)
 	docker run $(DOCKERFLAGS) $(BUILDBOX) \
 		dumb-init make -j $(TARGETS)
 
@@ -49,12 +49,18 @@ build: | buildbox
 all: ## Clean and build.
 all: clean build
 
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
+
 .PHONY: buildbox
-buildbox:
+buildbox: $(BUILDBOX_IIDFILE)
+
+$(BUILDBOX_IIDFILE): docker/build/Dockerfile | $(BUILDDIR)
 	docker build $(DOCKER_ARGS) --tag $(BUILDBOX) \
 		--build-arg UID=$$(id -u) \
 		--build-arg GID=$$(id -g) \
 		--build-arg GOLANGCI_LINT_VER=$(GOLANGCI_LINT_VER) \
+		--iidfile $(BUILDBOX_IIDFILE) \
 		docker/build
 
 .PHONY: containers
@@ -69,11 +75,12 @@ publish: build lint
 
 .PHONY: clean
 clean: ## Remove intermediate build artifacts & cache.
-	@rm -rf $(BUILDDIR)/*
+	@rm -rf $(BUILDDIR)
 	@rm -rf vendor
 
 .PHONY: test
 test: ## Run unit tests.
+test: buildbox
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
 		$(BUILDBOX) \
@@ -81,7 +88,7 @@ test: ## Run unit tests.
 
 .PHONY: lint
 lint: ## Run static analysis against source code.
-lint: vendor | buildbox
+lint: vendor buildbox
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
 		$(BUILDBOX) dumb-init golangci-lint run \
@@ -92,7 +99,7 @@ lint: vendor | buildbox
 vendor: ## Download dependencies into vendor directory.
 vendor: vendor/modules.txt
 
-vendor/modules.txt: go.mod | buildbox
+vendor/modules.txt: go.mod | $(BUILDBOX_IIDFILE)
 	docker run $(DOCKERFLAGS) $(BUILDBOX) \
 		dumb-init go mod vendor
 	@touch vendor/modules.txt
