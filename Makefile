@@ -77,6 +77,7 @@ publish: build lint
 clean: ## Remove intermediate build artifacts & cache.
 	@rm -rf $(BUILDDIR)
 	@rm -rf vendor
+	@rm $(VERSIONFILE)
 
 .PHONY: test
 test: ## Run unit tests.
@@ -97,7 +98,7 @@ lint: vendor buildbox
 vendor: ## Download dependencies into vendor directory.
 vendor: vendor/modules.txt
 
-vendor/modules.txt: go.mod | $(BUILDBOX_IIDFILE)
+vendor/modules.txt: go.mod | $(VERSIONFILE) $(BUILDBOX_IIDFILE)
 	docker run $(DOCKERFLAGS) $(BUILDBOX) \
 		dumb-init go mod vendor
 	@touch vendor/modules.txt
