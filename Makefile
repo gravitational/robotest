@@ -122,14 +122,19 @@ const(
 )
 endef
 
-# $(VERSIONFILE) is PHONY because I haven't found a concise & understandable
-# way to tell if the commit has changed or there is a new tag. Unfortunately
-# this does mean it will spuriously retrigger downstream targets -- 2020-04 walt
+# $(VERSIONFILE) is PHONY because make doesn't know if the `git describe` output
+# has changed (new commit or tag).  Thus we generate a new draft every time & compare
+# to see if the version changed.
 .PHONY: $(VERSIONFILE)
 $(VERSIONFILE): export CONTENT=$(VERSION_GO)
-$(VERSIONFILE): Makefile
-	@echo "$$CONTENT" > $(VERSIONFILE)
-	@echo "version metadata saved to $(VERSIONFILE)"
+$(VERSIONFILE): TMP = $(BUILDDIR)/$(VERSIONFILE).tmp
+$(VERSIONFILE): $(BUILDDIR)
+	@echo "$$CONTENT" > $(TMP)
+	@if ! cmp -s $(TMP) $(VERSIONFILE); then \
+		echo "$$CONTENT" > $(VERSIONFILE); \
+		echo "version metadata saved to $(VERSIONFILE)"; \
+	fi
+	@rm $(TMP)
 
 #
 # Targets below here run inside the buildbox
