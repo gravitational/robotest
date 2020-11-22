@@ -91,9 +91,7 @@ lint: ## Run static analysis against source code.
 lint: vendor buildbox
 	docker run $(DOCKERFLAGS) \
 		--env="GO111MODULE=off" \
-		$(BUILDBOX) dumb-init golangci-lint run \
-		--skip-dirs=vendor \
-		--timeout=2m
+		$(BUILDBOX) dumb-init golangci-lint run
 
 .PHONY: vendor
 vendor: ## Download dependencies into vendor directory.
