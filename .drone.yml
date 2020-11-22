@@ -4,6 +4,10 @@ type: kubernetes
 name: pr
 
 steps:
+  - name: fetch tags
+    image: docker:git
+    commands:
+      - git fetch --tags
   - name: wait for docker
     image: docker
     commands:
