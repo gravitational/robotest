@@ -12,6 +12,22 @@ steps:
     volumes:
       - name: dockersock
         path: /var/run
+  - name: build buildbox
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make buildbox
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: vendor dependencies
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make vendor
+    volumes:
+      - name: dockersock
+        path: /var/run
   - name: lint
     image: docker:git
     commands:
@@ -22,7 +38,7 @@ steps:
         path: /var/run
 
 services:
-  - name: start docker
+  - name: run docker daemon
     image: docker:dind
     volumes:
       - name: dockersock
