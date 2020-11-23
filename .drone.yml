@@ -56,6 +56,14 @@ steps:
     volumes:
       - name: dockersock
         path: /var/run
+  - name: build containers
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make containers
+    volumes:
+      - name: dockersock
+        path: /var/run
 
 services:
   - name: run docker daemon
