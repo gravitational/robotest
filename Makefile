@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 TARGETS := e2e suite
-VERSION ?= $(shell ./version.sh)
+ifeq ($(origin VERSION), undefined)
+# avoid lazily evaluating version.sh (and thus rerunning the shell command several times)
+VERSION := $(shell ./version.sh)
+endif
 GIT_COMMIT := $(shell git rev-parse HEAD)
 VERSIONFILE := version.go
 NOROOT := -u $$(id -u):$$(id -g)
