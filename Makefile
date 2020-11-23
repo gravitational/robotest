@@ -86,7 +86,6 @@ clean: ## Remove intermediate build artifacts & cache.
 test: ## Run unit tests.
 test: buildbox
 	docker run $(DOCKERFLAGS) \
-		--env="GO111MODULE=off" \
 		$(BUILDBOX) \
 		dumb-init go test -cover -race -v ./infra/... ./lib/config/...
 
@@ -94,7 +93,6 @@ test: buildbox
 lint: ## Run static analysis against source code.
 lint: vendor buildbox
 	docker run $(DOCKERFLAGS) \
-		--env="GO111MODULE=off" \
 		$(BUILDBOX) dumb-init golangci-lint run
 
 .PHONY: vendor
@@ -144,4 +142,4 @@ $(VERSIONFILE): $(BUILDDIR)
 .PHONY: $(TARGETS)
 $(TARGETS): $(VERSIONFILE)
 	@go version
-	GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+	go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
