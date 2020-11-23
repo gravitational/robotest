@@ -28,7 +28,7 @@ export DOCKER_ARGS ?= --pull
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
 BUILDBOX_IIDFILE := $(BUILDDIR)/.robotest-buildbox.iid
-GOLANGCI_LINT_VER ?= 1.30.0
+GOLANGCI_LINT_VER ?= 1.32.2
 
 .PHONY: help
 # kudos to https://gist.github.com/prwhite/8168133 for inspiration
