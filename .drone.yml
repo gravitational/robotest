@@ -11,7 +11,7 @@ steps:
   - name: wait for docker
     image: docker
     commands:
-      - while [ ! -S /var/run/docker.sock ]; do sleep 1; done
+      - timeout 15s /bin/sh -c 'while [ ! -S /var/run/docker.sock ]; do sleep 1; done'
       - docker version
     volumes:
       - name: dockersock
