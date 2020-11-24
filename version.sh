@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Copyright 2020 Gravitational, Inc.
 #
@@ -46,17 +46,17 @@ DIRTY_AFFIX=$(git diff --quiet || echo '-dirty')
 # strip leading v from git tag, see:
 #   https://github.com/golang/go/issues/32945
 #   https://semver.org/#is-v123-a-semantic-version
-if [[ "$SHORT_TAG" == v* ]]; then
-    SEMVER_TAG="${SHORT_TAG:1}"
+if echo "$SHORT_TAG" | grep -Eq '^v'; then
+    SEMVER_TAG=$(echo "$SHORT_TAG" | cut -c2-)
 else
     SEMVER_TAG="${SHORT_TAG}"
 fi
 
-if [[ "$LONG_TAG" == "$SHORT_TAG" ]] ; then  # the current commit is tagged as a release
+if [ "$LONG_TAG" = "$SHORT_TAG" ] ; then  # the current commit is tagged as a release
     echo "${SEMVER_TAG}${DIRTY_AFFIX}"
-elif [[ "$SHORT_TAG" != *-* ]] ; then  # the current ref is a decendent of a regular version
-    SHORT_TAG=$(increment_patch ${SHORT_TAG})
-    echo "$SEMVER_TAG-dev.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
-else  # the current ref is a decendent of a pre-release version (e.g. rc, alpha, or beta)
+elif echo "$SHORT_TAG" | grep -Eq ".*-.*"; then  # the current ref is a descendant of a pre-release version (e.g. rc, alpha, or beta)
     echo "$SEMVER_TAG.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
+else   # the current ref is a descendant of a regular version
+    SEMVER_TAG=$(increment_patch ${SEMVER_TAG})
+    echo "$SEMVER_TAG-dev.${COMMITS_SINCE_LAST_TAG}+${BUILD_METADATA}${DIRTY_AFFIX}"
 fi

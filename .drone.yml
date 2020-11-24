@@ -1,0 +1,83 @@
+---
+kind: pipeline
+type: kubernetes
+name: pr
+
+steps:
+  - name: fetch tags
+    image: docker:git
+    commands:
+      - git fetch --tags
+  - name: wait for docker
+    image: docker
+    commands:
+      - timeout 15s /bin/sh -c 'while [ ! -S /var/run/docker.sock ]; do sleep 1; done'
+      - docker version
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: build buildbox
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make buildbox
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: vendor dependencies
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make vendor
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: lint
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make lint
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: unit test
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make test
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: build binaries
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make build
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: build containers
+    image: docker:git
+    commands:
+      - apk add --no-cache make
+      - make containers
+    volumes:
+      - name: dockersock
+        path: /var/run
+
+services:
+  - name: run docker daemon
+    image: docker:dind
+    privileged: true
+    volumes:
+      - name: dockersock
+        path: /var/run
+
+volumes:
+  - name: dockersock
+    temp: {}
+---
+kind: signature
+hmac: 80f36830a4b26e813163a6f48a3ef328337385086b33fca9e0ed40b4d7b369ab
+
+...
