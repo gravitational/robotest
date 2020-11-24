@@ -78,9 +78,9 @@ publish: build lint
 
 .PHONY: clean
 clean: ## Remove intermediate build artifacts & cache.
-	@rm -rf $(BUILDDIR)
-	@rm -rf vendor
-	@rm $(VERSIONFILE)
+	-rm -r $(BUILDDIR)
+	-rm -r vendor
+	-rm $(VERSIONFILE)
 
 .PHONY: test
 test: ## Run unit tests.
