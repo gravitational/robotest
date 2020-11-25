@@ -28,7 +28,7 @@ export DOCKER_ARGS ?= --pull
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
 BUILDBOX_IIDFILE := $(BUILDDIR)/.robotest-buildbox.iid
-GOLANGCI_LINT_VER ?= 1.30.0
+GOLANGCI_LINT_VER ?= 1.32.2
 
 .PHONY: help
 # kudos to https://gist.github.com/prwhite/8168133 for inspiration
@@ -86,7 +86,6 @@ clean: ## Remove intermediate build artifacts & cache.
 test: ## Run unit tests.
 test: buildbox
 	docker run $(DOCKERFLAGS) \
-		--env="GO111MODULE=off" \
 		$(BUILDBOX) \
 		dumb-init go test -cover -race -v ./infra/... ./lib/config/...
 
@@ -94,7 +93,6 @@ test: buildbox
 lint: ## Run static analysis against source code.
 lint: vendor buildbox
 	docker run $(DOCKERFLAGS) \
-		--env="GO111MODULE=off" \
 		$(BUILDBOX) dumb-init golangci-lint run
 
 .PHONY: vendor
@@ -144,4 +142,4 @@ $(VERSIONFILE): $(BUILDDIR)
 .PHONY: $(TARGETS)
 $(TARGETS): $(VERSIONFILE)
 	@go version
-	GO111MODULE=on go test -mod=vendor -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+	go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
