@@ -86,7 +86,10 @@ To github.com:gravitational/robotest.git
  * [new tag]         v2.0.0 -> v2.0.0
 ```
 
-### Create a draft release in GitHub.
+Pushing a tag to GitHub  will automatically kick of the Drone CI 'publish' job.
+The new artifacts will appear in quay.io shortly.
+
+### Create a Release in GitHub.
 
 Navigate to https://github.com/gravitational/robotest/releases/tag/v2.0.0
 
@@ -95,30 +98,6 @@ Click Edit Tag. Enter "Robotest 2.0.0" in the "Release Title" field.
 Add a concise note about what the release contains in the "Describe this
 release" field.
 
-Click "Save Draft".
-
-## Release
-With all the preperation taken care of, publishing the release will take only
-a minute or two, making the artifacts and release history publicly available.
-
-### Run the "Robotest-publish" Jenkins job.
-
-Navigate to: https://jenkins.gravitational.io/view/Robotest/job/Robotest-publish/
-
-Click "Build with Parameters".
-
-Enter your tag into the "GIT_REF" field, prefixed with "tags/" e.g. `tags/v2.0.0`
-
-Ignore Robotest-publish's TAG parameter. This is unneeded when an annotated
-git tag is used.
-
-Build!
-
-After the build & publish completes successfully verify the new image tag
-is present in https://quay.io/repository/gravitational/robotest-suite.
-
-### Publish the draft GitHub release.
-After the new quay.io artifact is available, publish the draft release
-created earlier in the Prepare step.
+Click "Publish Release".
 
 Congratulations! Robotest is released!
