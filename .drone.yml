@@ -3,6 +3,10 @@ kind: pipeline
 type: kubernetes
 name: pr
 
+trigger:
+  event:
+  - pull_request
+
 steps:
   - name: fetch tags
     image: docker:git
@@ -127,6 +131,6 @@ volumes:
     temp: {}
 ---
 kind: signature
-hmac: 8852f44eb303da7fd43336fbedc0870384ab773b8771b74eb001dbbb77443b3a
+hmac: 19562967eb86cd74334a8d81e759d479fbea9c941f2d11fd45e98dfe4905ea64
 
 ...
