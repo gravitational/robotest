@@ -22,9 +22,9 @@ NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/robotest
 BUILDDIR ?= $(abspath build)
 # docker doesn't allow "+" in image tags: https://github.com/docker/distribution/issues/1201
-export DOCKER_VERSION ?= $(subst +,-,$(VERSION))
-export DOCKER_TAG ?=
-export DOCKER_ARGS ?= --pull
+export ROBOTEST_DOCKER_VERSION ?= $(subst +,-,$(VERSION))
+export ROBOTEST_DOCKER_TAG ?=
+export ROBOTEST_DOCKER_ARGS ?= --pull
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -v $(BUILDDIR):$(SRCDIR)/build -w $(SRCDIR)
 BUILDBOX := robotest:buildbox
 BUILDBOX_IIDFILE := $(BUILDDIR)/.robotest-buildbox.iid
