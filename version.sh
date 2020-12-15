@@ -52,6 +52,10 @@ else
     SEMVER_TAG="${SHORT_TAG}"
 fi
 
+if [ -z "$SEMVER_TAG" ]; then # no git tags found, cannot determine version
+    exit 1
+fi
+
 if [ "$LONG_TAG" = "$SHORT_TAG" ] ; then  # the current commit is tagged as a release
     echo "${SEMVER_TAG}${DIRTY_AFFIX}"
 elif echo "$SHORT_TAG" | grep -Eq ".*-.*"; then  # the current ref is a descendant of a pre-release version (e.g. rc, alpha, or beta)
