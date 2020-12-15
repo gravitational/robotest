@@ -59,13 +59,6 @@ ${SCRIPT} install='{"nodes":1,"flavor":"one"}'
 
 ```
 
-## Jenkins
-
-* [Compile and test specific telekube branch](https://jenkins.gravitational.io/view/robotest/job/robotest-run/)
-* [Compile and publish Robotest](https://jenkins.gravitational.io/view/robotest/job/Robotest-publish/)
-
-Additionaly `gravity-pr` pipelines are parameterized, and will run set of robotest suites from `scripts/robotest`.
-
 ## In development
 
 The following commands in gravity repository will build telekube
