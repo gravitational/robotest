@@ -127,6 +127,14 @@ endef
 $(VERSIONFILE): export CONTENT=$(VERSION_GO)
 $(VERSIONFILE): TMP = $(BUILDDIR)/$(VERSIONFILE).tmp
 $(VERSIONFILE): $(BUILDDIR)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "unable to determine version, please fetch tags"; \
+		exit 1; \
+	fi
+	@if [ -z "$(GIT_COMMIT)" ]; then \
+		echo "unable to determine current commit"; \
+		exit 1; \
+	fi
 	@echo "$$CONTENT" > $(TMP)
 	@if ! cmp -s $(TMP) $(VERSIONFILE); then \
 		echo "$$CONTENT" > $(VERSIONFILE); \
