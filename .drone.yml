@@ -76,8 +76,57 @@ services:
 volumes:
   - name: dockersock
     temp: {}
+
+---
+kind: pipeline
+type: kubernetes
+name: publish
+
+trigger:
+  event:
+  - tag
+
+steps:
+  - name: fetch tags
+    image: docker:git
+    commands:
+      - git fetch --tags
+  - name: wait for docker
+    image: docker
+    commands:
+      - timeout 15s /bin/sh -c 'while [ ! -S /var/run/docker.sock ]; do sleep 1; done'
+      - docker version
+    volumes:
+      - name: dockersock
+        path: /var/run
+  - name: publish
+    image: docker:git
+    environment:
+      USERNAME:
+        from_secret: quay_username
+      PASSWORD:
+        from_secret: quay_password
+    commands:
+      - apk add --no-cache make
+      - docker login -u="$USERNAME" -p="$PASSWORD" quay.io
+      - make publish
+    volumes:
+      - name: dockersock
+        path: /var/run
+
+services:
+  - name: run docker daemon
+    image: docker:dind
+    privileged: true
+    volumes:
+      - name: dockersock
+        path: /var/run
+
+volumes:
+  - name: dockersock
+    temp: {}
 ---
 kind: signature
-hmac: 80f36830a4b26e813163a6f48a3ef328337385086b33fca9e0ed40b4d7b369ab
+hmac: 8852f44eb303da7fd43336fbedc0870384ab773b8771b74eb001dbbb77443b3a
 
 ...
