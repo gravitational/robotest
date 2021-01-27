@@ -94,10 +94,14 @@ setup-user
 echo "APT::Acquire::Retries \"10\";" > /etc/apt/apt.conf.d/80-retries
 
 apt-get update
-apt-get install -y chrony lvm2 curl wget thin-provisioning-tools python
+apt-get install -y chrony lvm2 curl wget thin-provisioning-tools
 
-curl https://bootstrap.pypa.io/get-pip.py | python -
-pip install --upgrade awscli
+if ! /usr/local/bin/aws --version; then
+  apt-get install -y unzip
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.0.30.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  ./aws/install
+fi
 
 if ! grep -qs "$etcd_dir" /proc/mounts; then
   mkfs.ext4 -F /dev/$etcd_device_name
