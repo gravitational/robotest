@@ -91,9 +91,15 @@ function setup-user {
   sed -i.bak 's/Defaults    requiretty/#Defaults    requiretty/g' /etc/sudoers
 }
 
-# Yum hits "Error: Cannot retrieve metalink for repository: epel." on some images.
-# According to https://stackoverflow.com/a/27667111, this is a certificate issue.
-yum --disablerepo=epel -y update ca-certificates
+
+# Before running any yum operations, remove unneeded and historically flaky repos. See:
+#  - https://github.com/gravitational/robotest/issues/214
+#  - https://github.com/gravitational/robotest/issues/282
+rm -f /etc/yum.repos.d/epel.repo
+rm -f /etc/yum.repos.d/epel-testing.repo
+rm -f /etc/yum.repos.d/google-cloud.repo
+
+yum -y update ca-certificates
 yum -y install chrony
 
 mkdir -p $etcd_dir /var/lib/data
