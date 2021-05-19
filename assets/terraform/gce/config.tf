@@ -69,6 +69,18 @@ variable "preemptible" {
   default     = "false"
 }
 
+variable "network" {
+  description = "Network for VM NIC."
+  type        = string
+  default     = "default"
+}
+
+variable "subnet" {
+  description = "Subnetwork for VM NIC."
+  type        = string
+  default     = "default"
+}
+
 provider "google" {
   credentials = file(var.credentials)
   project     = var.project

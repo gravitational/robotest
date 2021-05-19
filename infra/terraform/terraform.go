@@ -398,14 +398,18 @@ func configToTerraformVars(cfg Config) (tfvars map[string]interface{}, err error
 		return nil, trace.NotImplemented("azure robotest hasn't been run in a while")
 	case constants.GCE: // these should match assets/terraform/gce/config.tf
 		// required
-		tfvars["vm_type"] = cfg.GCE.VMType
+		tfvars["project"] = cfg.GCE.Project
 		tfvars["credentials"] = cfg.GCE.Credentials
+		tfvars["vm_type"] = cfg.GCE.VMType
 		tfvars["os_user"] = cfg.GCE.SSHUser
 		tfvars["ssh_pub_key_path"] = cfg.GCE.SSHPublicKeyPath
 		tfvars["node_tag"] = cfg.GCE.NodeTag
 		// optional
-		if cfg.GCE.Project != "" {
-			tfvars["project"] = cfg.GCE.Project
+		if cfg.GCE.Network != "" {
+			tfvars["network"] = cfg.GCE.Network
+		}
+		if cfg.GCE.Subnet != "" {
+			tfvars["subnet"] = cfg.GCE.Subnet
 		}
 		if cfg.GCE.Region != "" {
 			tfvars["region"] = cfg.GCE.Region

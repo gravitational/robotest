@@ -59,12 +59,7 @@ func (c *Config) Validate() error {
 			return trace.BadParameter("Azure SSH access configuration is required")
 		}
 	case constants.GCE:
-		if c.GCE == nil {
-			return trace.BadParameter("GCE configuration is required")
-		}
-		if c.GCE.SSHUser == "" || c.GCE.SSHKeyPath == "" {
-			return trace.BadParameter("GCE SSH access configuration is required")
-		}
+		return trace.Wrap(c.GCE.CheckAndSetDefaults())
 	}
 
 	return nil
