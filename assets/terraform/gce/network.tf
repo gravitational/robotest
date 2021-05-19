@@ -102,11 +102,11 @@
 # }
 
 data "google_compute_network" "robotest" {
-  name = "robotest"
+  name = "${var.network}"
 }
 
 data "google_compute_subnetwork" "robotest" {
-  name = "robotest"
+  name = "${var.subnet}"
 }
 
 # # TODO: propagate to gravity as `--pod-cidr` and `--service-cidr`

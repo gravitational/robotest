@@ -62,6 +62,8 @@ func TestConvertConfigToTerraformVars(t *testing.T) {
 	expected["os_user"] = "ubuntu"
 	expected["ssh_pub_key_path"] = "/robotest/.ssh/robo.pub"
 	expected["node_tag"] = "unittest"
+	expected["network"] = "default"
+	expected["subnet"] = "default"
 
 	b, err := json.Marshal(configMap)
 	if err != nil {
@@ -87,6 +89,8 @@ func TestConvertConfigToTerraformVarsOptionalValues(t *testing.T) {
 		SSHPublicKeyPath: "/robotest/.ssh/robo.pub",
 		SSHKeyPath:       "/robotest/.ssh/robo",
 		NodeTag:          "unittest",
+		Network:          "unittest",
+		Subnet:           "unittest",
 	}
 	cfg := Config{
 		CloudProvider: "gce",
@@ -119,6 +123,8 @@ func TestConvertConfigToTerraformVarsOptionalValues(t *testing.T) {
 	expected["os_user"] = "ubuntu"
 	expected["ssh_pub_key_path"] = "/robotest/.ssh/robo.pub"
 	expected["node_tag"] = "unittest"
+	expected["network"] = "unittest"
+	expected["subnet"] = "unittest"
 
 	b, err := json.Marshal(configMap)
 	if err != nil {

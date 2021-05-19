@@ -16,6 +16,8 @@ limitations under the License.
 
 package gce
 
+import "github.com/gravitational/trace"
+
 // Config specifies Google Compute Engine specific parameters
 type Config struct {
 	// Project name
@@ -39,15 +41,49 @@ type Config struct {
 	// Required attribute.
 	// Will be determined based on selected cloud provder.
 	SSHUser string `json:"os_user" yaml:"os_user"`
+	// SSHKeyPath specifies the location of the SSH private key for remote access
+	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// SSHPublicKeyPath specifies the location of the public SSH key
 	SSHPublicKeyPath string `json:"ssh_pub_key_path" yaml:"ssh_pub_key_path" validate:"required"`
 	// NodeTag specifies the node tag to use on GCE.
 	// Required attribute.
 	// Will be computed based on the cluster name during provisioning
 	NodeTag string `json:"node_tag" yaml:"node_tag"`
-
-	// SSHKeyPath specifies the location of the SSH private key for remote access
-	SSHKeyPath string `json:"-" yaml:"ssh_key_path" validate:"required"`
 	// VarFilePath is the path to file with custom terraform variables
 	VarFilePath string `json:"-" yaml:"var_file_path"`
+	// Network specifies the GCP network the nodes will reside upon.
+	Network string `json:"network" yaml:"network"`
+	// Subnet specifies the GCP subnet the nodes will reside upon.
+	Subnet string `json:"subnet" yaml:"subnet"`
+}
+
+func (c *Config) CheckAndSetDefaults() error {
+	if c == nil {
+		return trace.BadParameter("gcp config: configuration is required")
+	}
+	if c.Project == "" {
+		return trace.BadParameter("gcp config: Project is required")
+	}
+	if c.Credentials == "" {
+		return trace.BadParameter("gcp config: Credentials are required")
+	}
+	if c.SSHUser == "" {
+		return trace.BadParameter("gcp config: SSHUser is required")
+	}
+	if c.SSHKeyPath == "" {
+		return trace.BadParameter("gcp config: SSHKeyPath is required")
+	}
+	if c.SSHPublicKeyPath == "" {
+		return trace.BadParameter("gcp config: SSHPublicKeyPath is required")
+	}
+	if c.VMType == "" {
+		return trace.BadParameter("gcp config: VMType is required")
+	}
+	if c.Network == "" {
+		c.Network = "default"
+	}
+	if c.Subnet == "" {
+		c.Subnet = "default"
+	}
+	return nil
 }
