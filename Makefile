@@ -150,4 +150,4 @@ $(VERSIONFILE): $(BUILDDIR)
 .PHONY: $(TARGETS)
 $(TARGETS): $(VERSIONFILE)
 	@go version
-	go test -c -i ./$(subst robotest-,,$@) -o build/robotest-$@
+	go test -c ./$(subst robotest-,,$@) -o build/robotest-$@
