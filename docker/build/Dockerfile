@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM quay.io/gravitational/debian-venti:go1.15.5-buster
+FROM quay.io/gravitational/debian-venti:go1.16.6-buster
 
 ARG UID
 ARG GID
