@@ -32,9 +32,9 @@ variable "oss" {
     "centos:8"      = "centos-cloud/centos-8-v20210701"
 
     "debian:8"      = "debian-cloud/debian-8-jessie-v20180611"
-    "debian:9"      = "debian-cloud/debian-9-stretch-v20200805"
-    "debian:10"     = "debian-cloud/debian-10-buster-v20200805"
-    "debian:latest" = "debian-cloud/debian-10-buster-v20200805"
+    "debian:9"      = "debian-cloud/debian-9-stretch-v20210817"
+    "debian:10"     = "debian-cloud/debian-10-buster-v20210817"
+    "debian:latest" = "debian-cloud/debian-10-buster-v20210817"
 
     # suse is an alias of sles for backwards compatibility, may be removed in 3.0
     "suse:12"       = "suse-cloud/sles-12-sp5-v20200916"
