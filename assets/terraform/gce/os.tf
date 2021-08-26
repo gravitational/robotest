@@ -10,10 +10,10 @@ variable "oss" {
 
   default = {
     # os -> {project}/{image}
-    "ubuntu:16"     = "ubuntu-os-cloud/ubuntu-1604-xenial-v20200807"
-    "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20200807"
-    "ubuntu:20"     = "ubuntu-os-cloud/ubuntu-2004-focal-v20200729"
-    "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-2004-focal-v20200729"
+    "ubuntu:16"     = "ubuntu-os-cloud/ubuntu-1604-xenial-v20210429"
+    "ubuntu:18"     = "ubuntu-os-cloud/ubuntu-1804-bionic-v20210825"
+    "ubuntu:20"     = "ubuntu-os-cloud/ubuntu-2004-focal-v20210825"
+    "ubuntu:latest" = "ubuntu-os-cloud/ubuntu-2004-focal-v20210825"
 
     "redhat:7.8"    = "rhel-cloud/rhel-7-v20200910"
     "redhat:7.9"    = "rhel-cloud/rhel-7-v20201112"
