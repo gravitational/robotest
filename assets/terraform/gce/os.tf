@@ -44,6 +44,7 @@ variable "oss" {
     "sles:12-sp5"   = "suse-cloud/sles-12-sp5-v20210605"
     "sles:12"       = "suse-cloud/sles-12-sp5-v20210605"
     "sles:15-sp2"   = "suse-cloud/sles-15-sp2-v20210604"
+    "sles:15-sp2"   = "suse-sap-cloud/sles-15-sp2-sap-v20210604"
     "sles:15-sp3"   = "suse-cloud/sles-15-sp3-v20210812"
     "sles:15"       = "suse-cloud/sles-15-sp3-v20210812"
   }
