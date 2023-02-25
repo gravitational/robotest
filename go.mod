@@ -29,11 +29,9 @@ require (
 	github.com/sclevine/agouti v0.0.0-20180825234404-5e39ce136dd6
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1
-	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
+	golang.org/x/crypto v0.1.0
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
-	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
-	golang.org/x/tools v0.0.0-20201123190950-db3e1ec26de3 // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
